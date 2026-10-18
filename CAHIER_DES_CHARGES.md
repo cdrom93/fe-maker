@@ -43,7 +43,7 @@ Le projet doit pouvoir vivre publiquement sur GitHub sans risque. Règles :
 1. **Aucune donnée Nintendo dans le dépôt.** Pas de ROM, pas d'assets extraits, pas de fichiers générés à partir de la ROM.
 2. **L'utilisateur fournit sa propre ROM** (FE8 US, vérifiée par SHA1 `c25b145e37456171ada4b0d440bf88a19f4d509f`) au premier lancement. L'outil refuse toute autre ROM avec un message clair.
 3. **La décomp FE8 est un sous-module Git**, jamais copiée dans notre dépôt.
-4. **Partage des jeux créés sous forme de patch** (.ups ou .bps) à appliquer sur sa propre ROM, jamais de .gba complet distribué par l'outil.
+4. **Partage des jeux créés sous forme de patch** (.ups) à appliquer sur sa propre ROM, jamais de .gba complet distribué par l'outil.
 5. **Ressources communautaires (FE-Repo)** :
    - jamais embarquées dans le dépôt : téléchargées à la demande par l'utilisateur ;
    - chaque ressource affiche sa **licence** : F2E (libre d'utilisation et de modification) ou F2U (libre d'utilisation, modification interdite). **Par défaut, une ressource non marquée est traitée comme F2U** ;
@@ -99,7 +99,7 @@ Le projet doit pouvoir vivre publiquement sur GitHub sans risque. Règles :
 
 ### Choix et justifications
 - **Interface web locale** : même code sur Windows, Linux, macOS ; facile à faire évoluer ; accessible aux contributeurs. Empaquetage en application de bureau avec **Tauri** dans une phase ultérieure.
-- **Front-end** : à choisir lors de la phase 0 (proposition : Svelte ou React + TypeScript). Critère principal : simplicité.
+- **Front-end : Svelte + TypeScript** (décidé en fin de phase 0). Critère principal : simplicité. Moins de code que React pour un même écran, lisible par des contributeurs débutants, s'empaquette bien avec Tauri.
 - **Serveur Python (FastAPI)** : écosystème riche pour manipuler fichiers, images (Pillow) et formats binaires.
 - **Compilation via Docker** : la chaîne GBA est difficile à installer, surtout sous Windows. Une image Docker identique partout garantit des compilations reproductibles. Le README de la décomp mentionne une branche (`remove_tools` de laqieer) qui utilise déjà Docker : à étudier comme base.
 - **Émulateur** : mGBA (multiplateforme, open source), lancé automatiquement par le bouton « Tester ».
@@ -135,7 +135,7 @@ fe-maker/
 
 ## 4. Phases du projet
 
-### Phase 0 — Audit et fondations
+### Phase 0 — Audit et fondations ✅ (terminée le 18/10/2026, voir `docs/audit-decomp.md`)
 **Objectif : comprendre la décomp avant de construire dessus.**
 - Cloner la décomp, la compiler avec une ROM d'origine (résultat attendu : `fireemblem8.gba: OK`).
 - **Audit des données** : pour chaque type de donnée (personnages, classes, objets, chapitres, cartes, événements, textes, graphismes), identifier :
@@ -231,6 +231,7 @@ Deux pistes à évaluer le moment venu :
 
 - [x] Licence du code de FE Maker : GPL-3.0
 - [ ] Accord des mainteneurs de fireemblem8u pour la redistribution de code modifié (bloquant pour phases 6 et 7)
-- [ ] Framework front-end
-- [ ] Format de patch par défaut (.ups ou .bps)
+- [x] Framework front-end : Svelte + TypeScript
+- [x] Format de patch : .ups (format habituel de la communauté et de l'auteur du projet)
+- [ ] Compiler les jeux créés avec les corrections de bugs `BUGFIX` de la décomp activées (proposé, voir `docs/audit-decomp.md`)
 - [ ] Piste retenue pour la version PC
