@@ -166,8 +166,19 @@ def get_problems():
 def reference():
     """Read-only lists used by the editors (classes, weapon types, ranks)."""
     d = state.get_decomp()
+    classes = d.export_classes()
+    class_names = {c["id"]: c["name"] for c in classes}
+    char_names = {c["id"]: c["name"] for c in d.export_characters()}
     return {
-        "classes": d.export_classes(),
+        "classes": classes,
+        # Item id -> names of the classes / characters allowed to wield it (weapon locks)
+        "itemLocks": {
+            item: {
+                "classes": list(dict.fromkeys(class_names.get(c, c) for c in who["classes"])),
+                "characters": [char_names.get(c, c) for c in who["characters"]],
+            }
+            for item, who in d.item_locks().items()
+        },
         "weaponTypes": list(WEAPON_TYPES.values()),
         "rankableTypes": RANKABLE_TYPES,
         "ranks": list(RANK_VALUES),

@@ -51,7 +51,7 @@
   "field.classBase": "Class",
   "field.total": "Total",
   "field.mov": "Move",
-  "field.classHint": "The class applies in every chapter where the character had its original class, and the character keeps access to personal weapons (e.g. Eirika's Rapier). Starting level is set chapter by chapter (phase 3).",
+  "field.classHint": "The class applies in every chapter where the character had its original class. Watch out for weapons reserved for the previous class (see the item editor). Starting level is set chapter by chapter (phase 3).",
   "field.noAnimation": "This class has no battle animation for this weapon type",
   "field.noAnimationHint": "⚠ = the class has no battle animation for this weapon type: a rank in it would crash the game.",
   "field.unusedClass": "never used in the game",
@@ -71,6 +71,8 @@
   "field.priceTotal": "Shop price",
   "field.rank": "Required rank",
   "field.icon": "Icon",
+  "field.lockedTo": "Weapon reserved for:",
+  "field.lockedToNobody": "nobody (no class or character has this lock)",
   "field.none": "—",
 
   "stat.hp": "HP", "stat.pow": "Str/Mag", "stat.skl": "Skl", "stat.spd": "Spd",

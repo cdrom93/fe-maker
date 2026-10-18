@@ -37,6 +37,7 @@ export interface ClassInfo {
 
 export interface Reference {
   classes: ClassInfo[]
+  itemLocks: Record<string, { classes: string[]; characters: string[] }>
   weaponTypes: string[]
   rankableTypes: string[]
   ranks: string[]

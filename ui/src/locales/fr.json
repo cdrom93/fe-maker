@@ -51,7 +51,7 @@
   "field.classBase": "Classe",
   "field.total": "Total",
   "field.mov": "Déplacement",
-  "field.classHint": "La classe est appliquée dans tous les chapitres où le personnage avait sa classe d'origine, et il garde l'accès à ses armes personnelles (ex. la Rapière d'Eirika). Le niveau de départ se règle chapitre par chapitre (phase 3).",
+  "field.classHint": "La classe est appliquée dans tous les chapitres où le personnage avait sa classe d'origine. Attention aux armes réservées à l'ancienne classe (voir l'éditeur d'objets). Le niveau de départ se règle chapitre par chapitre (phase 3).",
   "field.noAnimation": "Cette classe n'a pas d'animation de combat pour ce type d'arme",
   "field.noAnimationHint": "⚠ = la classe n'a pas d'animation de combat pour ce type d'arme : un rang dans ce type ferait planter le jeu.",
   "field.unusedClass": "jamais utilisée dans le jeu",
@@ -71,6 +71,8 @@
   "field.priceTotal": "Prix en magasin",
   "field.rank": "Rang requis",
   "field.icon": "Icône",
+  "field.lockedTo": "Arme réservée à :",
+  "field.lockedToNobody": "personne (verrou sans classe ni personnage correspondant)",
   "field.none": "—",
 
   "stat.hp": "PV", "stat.pow": "For/Mag", "stat.skl": "Tech", "stat.spd": "Vit",

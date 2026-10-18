@@ -130,12 +130,28 @@ class DecompData:
             result[entry.fields["number"]] = confs.get(conf, [])
         return result
 
-    def _class_locks(self, class_id: str) -> list[str]:
-        """Weapon lock flags (CA_LOCK_n) of a class."""
-        entry = next((e for e in self.classes.entries if e.fields["number"] == class_id), None)
-        if entry is None:
-            return []
-        return re.findall(r"\bCA_LOCK_\d\b", entry.original_fields.get("attributes", ""))
+    def item_locks(self) -> dict[str, dict[str, list[str]]]:
+        """Item id -> who can wield it despite its weapon locks.
+
+        CanUnitUseWeapon (src/bmitem.c) requires, for each IA_LOCK_n of the item,
+        the flag CA_LOCK_n on the unit, i.e. on its character or its class.
+        Items without locks are left out. Lists hold ids (characters, classes).
+        """
+        def locks(attributes: str, prefix: str) -> set[str]:
+            return set(re.findall(rf"\b{prefix}_LOCK_(\d)\b", attributes))
+
+        class_locks = {e.fields["number"]: locks(e.fields.get("attributes", ""), "CA") for e in self.classes.entries}
+        char_locks = {e.fields["number"]: locks(e.fields.get("attributes", ""), "CA") for e in self.characters.entries}
+        result = {}
+        for e in self.items.entries:
+            needed = locks(e.fields.get("attributes", ""), "IA")
+            if not needed:
+                continue
+            result[e.fields["number"]] = {
+                "classes": [c for c, have in class_locks.items() if needed <= have],
+                "characters": [c for c, have in char_locks.items() if needed <= have],
+            }
+        return result
 
     def classes_used_in_game(self) -> set[str]:
         """Classes the original game actually uses (units, characters and their promotions).
@@ -234,15 +250,6 @@ class DecompData:
                 # only matters when a chapter leaves it out. Retarget the chapters too.
                 self._retarget_unit_class(ch["id"], original_class, ch["class"])
                 f["defaultClass"] = ch["class"]
-                # Personal weapons (Eirika's Rapier...) are locked to flags of the original
-                # class. A unit has the flags of its character AND its class, so moving them
-                # to the character keeps those weapons usable (scripted battles rely on it).
-                lost = [lock for lock in self._class_locks(original_class) if lock not in self._class_locks(ch["class"])]
-                current = [a.strip() for a in f.get("attributes", "0").split("|")]
-                missing = [lock for lock in lost if lock not in current]
-                if missing:
-                    kept = [a for a in current if a not in ("0", "")]
-                    f["attributes"] = " | ".join(kept + missing)
             _set_int(f, "baseLevel", ch["level"])
             _set_int(f, "portraitId", ch["portraitId"])
             for s in STATS:

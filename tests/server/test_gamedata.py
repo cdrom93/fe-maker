@@ -70,12 +70,10 @@ def test_class_change_applies_to_chapters(decomp_dir):
     assert ".charIndex = CHARACTER_TESTRIVAL,\n        .classIndex = CLASS_TESTLORD," in udefs
 
 
-def test_class_change_keeps_personal_weapon_locks(decomp_dir):
+def test_item_locks(decomp_dir):
     d = DecompData(decomp_dir)
-    chars = d.export_characters()
-    chars[0]["class"] = "CLASS_TESTKNIGHT"  # the lord class had CA_LOCK_4, the knight has none
-    d.apply_characters(chars)
-    assert ".attributes = CA_FEMALE | CA_LOCK_4," in d.changed_files()["src/data_characters.c"]
+    # TESTBLADE is locked to CA_LOCK_4: only the lord class has it, no character does.
+    assert d.item_locks() == {"ITEM_TESTBLADE": {"classes": ["CLASS_TESTLORD"], "characters": []}}
 
 
 def test_odd_length_names_are_padded(decomp_dir):

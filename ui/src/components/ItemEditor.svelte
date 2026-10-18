@@ -13,6 +13,7 @@
   const mine = $derived(problems.filter((p) => p.kind === 'items' && p.id === it?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'items' && p.severity === 'error').map((p) => p.id)))
   const magicRange = $derived(it?.range.max === 0)
+  const lock = $derived(it ? reference.itemLocks[it.id] : undefined)
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field || x.field.startsWith(field + '.'))
@@ -65,6 +66,12 @@
             </label>
             <NumberField label={t('field.icon')} value={it.iconId} min={0} max={reference.iconCount - 1} problem={problemFor('iconId')} onchange={(v) => edit((i) => (i.iconId = v))} />
           </div>
+          {#if lock}
+            <p class="lock">
+              🔒 {t('field.lockedTo')}
+              {[...lock.classes, ...lock.characters].join(', ') || t('field.lockedToNobody')}
+            </p>
+          {/if}
         </div>
       </section>
 
@@ -123,6 +130,7 @@
   .price { align-items: flex-end; }
   .total { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }
   .total strong { font-size: 1.2rem; }
+  .lock { margin: 0; font-size: 0.85rem; color: var(--warn); }
   .issues p { margin: 0.2rem 0; }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }
