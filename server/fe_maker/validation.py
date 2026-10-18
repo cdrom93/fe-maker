@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-from .decomp.gamedata import GROWTHS, RANK_VALUES, STATS, WEAPON_TYPES, DecompData
+from .decomp.gamedata import ABILITIES_REV, AFFINITIES_REV, GROWTHS, RANK_VALUES, STATS, WEAPON_TYPES, DecompData
 
 NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 
@@ -77,6 +77,12 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
                                     f"{rid}: this class is never used in the original game, its graphics may be incomplete"))
         _range(problems, "characters", rid, "level", ch.get("level"), 0, 127)  # 0 for generic units
         _range(problems, "characters", rid, "portraitId", ch.get("portraitId"), 0, 0xFFFF)
+        if ch.get("affinity") is not None and ch["affinity"] not in AFFINITIES_REV:
+            problems.append(Problem("error", "characters", rid, "affinity", "unknownAffinity", {}, f"{rid}: unknown affinity"))
+        unknown = [a for a in ch.get("abilities", []) if a not in ABILITIES_REV]
+        if unknown:
+            problems.append(Problem("error", "characters", rid, "abilities", "unknownAbility", {"names": ", ".join(unknown)},
+                                    f"{rid}: unknown abilities {unknown}"))
         for s in STATS:
             _range(problems, "characters", rid, f"bases.{s}", ch["bases"].get(s), -128, 127)
         for s in GROWTHS:

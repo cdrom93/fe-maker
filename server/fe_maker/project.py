@@ -20,6 +20,8 @@ FORMAT_VERSION = 1
 PROJECT_FILE = "fe-maker.json"
 DATA_FILES = ("characters", "items")
 DEFAULT_TEST_OPTIONS = {"start": "map"}  # see decomp/tweaks.py START_MODES
+# Record fields added after the first project format: filled from the original game on load.
+FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities")}
 
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
@@ -90,7 +92,21 @@ class Project:
     def load(self, kind: str) -> list[dict]:
         if kind not in DATA_FILES:
             raise ProjectError(f"Unknown data type {kind}")
-        return json.loads((self.root / "data" / f"{kind}.json").read_text(encoding="utf-8"))
+        records = json.loads((self.root / "data" / f"{kind}.json").read_text(encoding="utf-8"))
+        return self._fill_new_fields(kind, records)
+
+    def _fill_new_fields(self, kind: str, records: list[dict], decomp_dir: Path = DECOMP_DIR) -> list[dict]:
+        """Projects created by an older FE Maker lack fields added since: take them from the original game."""
+        added = FIELDS_ADDED_LATER.get(kind, ())
+        if all(key in record for record in records for key in added):
+            return records
+        data = DecompData(decomp_dir)
+        original = {r["id"]: r for r in (data.export_characters() if kind == "characters" else data.export_items())}
+        for record in records:
+            for key in added:
+                if key not in record and key in original.get(record["id"], {}):
+                    record[key] = original[record["id"]][key]
+        return records
 
     def save(self, kind: str, records: list[dict]) -> list[Problem]:
         if kind not in DATA_FILES:

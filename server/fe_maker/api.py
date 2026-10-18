@@ -14,7 +14,7 @@ from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
 from .decomp.assets import item_icon_preview, portrait_names, portrait_preview
-from .decomp.gamedata import RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
+from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import DATA_FILES, Project, ProjectError, slugify
 from .rom import InvalidRomError
@@ -179,6 +179,10 @@ def reference():
             }
             for item, who in d.item_locks().items()
         },
+        # Ability key of a weapon lock ("lock4") -> names of the items it unlocks
+        "lockItems": d.lock_items(),
+        "affinities": list(AFFINITIES.values()),
+        "abilities": list(ABILITIES.values()),
         "weaponTypes": list(WEAPON_TYPES.values()),
         "rankableTypes": RANKABLE_TYPES,
         "ranks": list(RANK_VALUES),

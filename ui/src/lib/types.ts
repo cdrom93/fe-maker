@@ -9,6 +9,8 @@ export interface Character {
   bases: Record<StatKey, number>
   growths: Record<Exclude<StatKey, 'con'>, number>
   weaponRanks: Record<string, string | number>
+  affinity: string | null
+  abilities: string[]
 }
 
 export interface Item {
@@ -33,12 +35,16 @@ export interface ClassInfo {
   mov: number
   animatedWeapons: string[]
   usedInGame: boolean
+  abilities: string[]
   gender: 'male' | 'female' | null
 }
 
 export interface Reference {
   classes: ClassInfo[]
   itemLocks: Record<string, { classes: string[]; characters: string[] }>
+  lockItems: Record<string, string[]>
+  affinities: string[]
+  abilities: string[]
   weaponTypes: string[]
   rankableTypes: string[]
   ranks: string[]

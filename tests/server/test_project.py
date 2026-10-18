@@ -26,6 +26,22 @@ def test_create_and_generate_overlay(tmp_path, decomp_dir):
     assert b"\r\n" not in content
 
 
+def test_old_project_gets_new_fields(tmp_path, decomp_dir, monkeypatch):
+    import fe_maker.project as project_module
+
+    monkeypatch.setattr(project_module, "DECOMP_DIR", decomp_dir)
+    root = tmp_path / "old"
+    Project.create(root, "Old", decomp_dir=decomp_dir)
+    path = root / "data" / "characters.json"
+    chars = json.loads(path.read_text(encoding="utf-8"))
+    for c in chars:
+        del c["abilities"], c["affinity"]
+    path.write_text(json.dumps(chars), encoding="utf-8")
+    loaded = Project(root)._fill_new_fields("characters", json.loads(path.read_text(encoding="utf-8")), decomp_dir)
+    assert loaded[0]["abilities"] == ["female"]
+    assert "affinity" in loaded[0]
+
+
 def test_refuses_non_empty_folder(tmp_path, decomp_dir):
     (tmp_path / "file.txt").write_text("x")
     with pytest.raises(ProjectError):

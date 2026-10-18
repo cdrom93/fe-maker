@@ -42,6 +42,8 @@ def test_modified_project_and_patch(tmp_path):
     eirika["bases"]["hp"] = 20
     eirika["class"] = "CLASS_CAVALIER_F"
     eirika["weaponRanks"]["lance"] = "D"
+    eirika["abilities"] = ["female", "lock4", "canto"]
+    eirika["affinity"] = "fire"
     problems = [p for p in project.save("characters", chars) if p.severity == "error"]
     assert problems == []
     items = project.load("items")

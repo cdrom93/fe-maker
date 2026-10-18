@@ -4,6 +4,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { Character, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
+  import AbilitiesPanel from './AbilitiesPanel.svelte'
   import RecordList from './RecordList.svelte'
 
   let { list, reference, problems }: { list: EditableList<Character>; reference: Reference; problems: Problem[] } = $props()
@@ -20,9 +21,9 @@
   const classChoices = $derived(reference.classes.filter((k) => !hideUnusedClasses || k.usedInGame || k.id === ch?.class))
 
   function classLabel(k: Reference['classes'][number]): string {
-    const sign = k.gender ? `${GENDER_SIGN[k.gender]} ` : ''
+    const sign = k.gender ? ` ${GENDER_SIGN[k.gender]}` : ''
     const unused = k.usedInGame ? '' : ` (${t('field.unusedClass')})`
-    return `${sign}${k.name || k.id}${unused}`
+    return `${k.name || k.id}${sign}${unused}`
   }
 
   const ch = $derived(list.records[selected])
@@ -84,6 +85,19 @@
           <p class="muted small">{t('field.classHint')}</p>
           <div class="row">
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
+            <label title={problemFor('affinity')}>
+              {t('field.affinity')}
+              <select
+                value={ch.affinity ?? ''}
+                onchange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value
+                  edit((c) => (c.affinity = v || null))
+                }}
+              >
+                <option value="">{t('field.none')}</option>
+                {#each reference.affinities as a (a)}<option value={a}>{t(`affinity.${a}`)}</option>{/each}
+              </select>
+            </label>
           </div>
         </div>
       </section>
@@ -145,6 +159,13 @@
         </div>
         <p class="muted small">{t('field.noAnimationHint')} {t('field.inventoryLater')}</p>
       </section>
+
+      <AbilitiesPanel
+        abilities={ch.abilities ?? []}
+        fromClass={cls?.abilities ?? []}
+        lockItems={reference.lockItems}
+        onchange={(abilities) => edit((c) => (c.abilities = abilities))}
+      />
 
       {#if mine.length}
         <section class="panel issues">

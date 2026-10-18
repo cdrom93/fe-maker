@@ -76,6 +76,28 @@ def test_item_locks(decomp_dir):
     assert d.item_locks() == {"ITEM_TESTBLADE": {"classes": ["CLASS_TESTLORD"], "characters": []}}
 
 
+def test_abilities_and_affinity(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    assert chars[0]["abilities"] == ["female"]
+    assert chars[0]["affinity"] is None
+    chars[0]["abilities"] = ["female", "lock4", "canto"]
+    chars[0]["affinity"] = "light"
+    d.apply_characters(chars)
+    out = d.changed_files()["src/data_characters.c"]
+    assert ".attributes = CA_CANTO | CA_FEMALE | CA_LOCK_4," in out  # bit order
+    assert ".affinity = UNIT_AFFIN_LIGHT," in out
+
+
+def test_missing_new_fields_are_left_untouched(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    for c in chars:  # a project created before abilities/affinity existed
+        del c["abilities"], c["affinity"]
+    d.apply_characters(chars)
+    assert d.changed_files() == {}
+
+
 def test_class_genders(decomp_dir):
     # Lord's first animation is index 1 -> "tstf_sw1" (female), Knight's is 2 -> "tstm_sp1" (male).
     genders = DecompData(decomp_dir).class_genders()

@@ -48,6 +48,36 @@ WEAPON_RANKS = {"WPN_EXP_E": "E", "WPN_EXP_D": "D", "WPN_EXP_C": "C", "WPN_EXP_B
 WEAPON_RANKS_REV = {v: k for k, v in WEAPON_RANKS.items()}
 RANK_VALUES = {"E": 1, "D": 31, "C": 71, "B": 121, "A": 181, "S": 251}
 
+# Character/class attributes (include/bmunit.h), in bit order -> readable key.
+ABILITIES = {
+    "CA_MOUNTEDAID": "mountedAid", "CA_CANTO": "canto", "CA_STEAL": "steal", "CA_THIEF": "thiefSkills",
+    "CA_DANCE": "dance", "CA_PLAY": "play", "CA_CRITBONUS": "critBonus", "CA_BALLISTAE": "ballista",
+    "CA_PROMOTED": "promoted", "CA_SUPPLY": "supply", "CA_MOUNTED": "mounted", "CA_WYVERN": "wyvern",
+    "CA_PEGASUS": "pegasus", "CA_LORD": "lord", "CA_FEMALE": "female", "CA_BOSS": "boss",
+    "CA_LOCK_1": "lock1", "CA_LOCK_2": "lock2", "CA_LOCK_3": "lock3", "CA_MAXLEVEL10": "maxLevel10",
+    "CA_UNSELECTABLE": "unselectable", "CA_TRIANGLEATTACK_PEGASI": "triangleAttackPegasi",
+    "CA_TRIANGLEATTACK_ARMORS": "triangleAttackArmors", "CA_BIT_23": "bit23",
+    "CA_NEGATE_LETHALITY": "negateLethality", "CA_ASSASSIN": "lethality", "CA_MAGICSEAL": "magicSeal",
+    "CA_SUMMON": "summon", "CA_LOCK_4": "lock4", "CA_LOCK_5": "lock5", "CA_LOCK_6": "lock6", "CA_LOCK_7": "lock7",
+}
+ABILITIES_REV = {v: k for k, v in ABILITIES.items()}
+
+AFFINITIES = {
+    "UNIT_AFFIN_FIRE": "fire", "UNIT_AFFIN_THUNDER": "thunder", "UNIT_AFFIN_WIND": "wind", "UNIT_AFFIN_ICE": "ice",
+    "UNIT_AFFIN_DARK": "dark", "UNIT_AFFIN_LIGHT": "light", "UNIT_AFFIN_ANIMA": "anima",
+}
+AFFINITIES_REV = {v: k for k, v in AFFINITIES.items()}
+
+
+def _split_flags(value: str) -> list[str]:
+    return [t.strip() for t in value.split("|") if t.strip() not in ("", "0", "CA_NONE")]
+
+
+def _abilities(value: str) -> list[str]:
+    """'CA_BOSS | CA_FEMALE' -> ['female', 'boss'] (bit order). Unknown tokens are ignored."""
+    tokens = set(_split_flags(value))
+    return [key for flag, key in ABILITIES.items() if flag in tokens]
+
 
 class GameDataError(Exception):
     pass
@@ -164,6 +194,14 @@ class DecompData:
             result[f["number"]] = gender
         return result
 
+    def lock_items(self) -> dict[str, list[str]]:
+        """Ability key of each weapon lock ("lock4") -> names of the items needing it."""
+        result: dict[str, list[str]] = {}
+        for e in self.items.entries:
+            for n in re.findall(r"\bIA_LOCK_(\d)\b", e.fields.get("attributes", "")):
+                result.setdefault(f"lock{n}", []).append(self._text_name(e.fields))
+        return result
+
     def item_locks(self) -> dict[str, dict[str, list[str]]]:
         """Item id -> who can wield it despite its weapon locks.
 
@@ -222,6 +260,7 @@ class DecompData:
                 "name": self._text_name(f),
                 "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s]) for s in STATS if s != "lck"} | {"lck": 0},
                 "mov": _int_field(f, "baseMov"),
+                "abilities": _abilities(f.get("attributes", "0")),
                 "animatedWeapons": self.animated_weapons.get(f["number"], []),
                 "usedInGame": f["number"] in used,
                 "gender": genders.get(f["number"]),
@@ -243,6 +282,8 @@ class DecompData:
                 "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s], signed=True) for s in STATS},
                 "growths": {s: _int_field(f, "growth" + STAT_SUFFIX[s]) for s in GROWTHS},
                 "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
+                "affinity": AFFINITIES.get(f.get("affinity", "0")),
+                "abilities": _abilities(f.get("attributes", "0")),
             })
         return result
 
@@ -288,6 +329,11 @@ class DecompData:
                 f["defaultClass"] = ch["class"]
             _set_int(f, "baseLevel", ch["level"])
             _set_int(f, "portraitId", ch["portraitId"])
+            # Fields added after a project was created may be missing: leave them as they are.
+            if "affinity" in ch:
+                self._apply_affinity(f, ch["affinity"])
+            if "abilities" in ch:
+                self._apply_abilities(f, ch["abilities"])
             for s in STATS:
                 _set_int(f, "base" + STAT_SUFFIX[s], ch["bases"][s], signed=True)
             for s in GROWTHS:
@@ -299,6 +345,31 @@ class DecompData:
             new_values = {k: _rank_value(v) for k, v in new.items()}
             if old_values != new_values:
                 f["baseRanks"] = render_designated_list({k: _rank_to_c(v) for k, v in new.items()})
+
+    @staticmethod
+    def _apply_affinity(f: dict[str, str], affinity: str | None) -> None:
+        if AFFINITIES.get(f.get("affinity", "0")) == affinity:
+            return
+        if affinity is None:
+            if "affinity" in f:
+                f["affinity"] = "0"
+            return
+        if affinity not in AFFINITIES_REV:
+            raise GameDataError(f"Unknown affinity {affinity!r}")
+        f["affinity"] = AFFINITIES_REV[affinity]
+
+    @staticmethod
+    def _apply_abilities(f: dict[str, str], abilities: list[str]) -> None:
+        current = f.get("attributes", "0")
+        if set(_abilities(current)) == set(abilities):
+            return
+        unknown = [a for a in abilities if a not in ABILITIES_REV]
+        if unknown:
+            raise GameDataError(f"Unknown abilities {unknown}")
+        # Keep tokens FE Maker does not know (raw numbers...), then known flags in bit order.
+        kept = [t for t in _split_flags(current) if t not in ABILITIES]
+        flags = kept + [flag for flag, key in ABILITIES.items() if key in abilities]
+        f["attributes"] = " | ".join(flags) if flags else "0"
 
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}
