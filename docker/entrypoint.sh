@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs inside the build container. Never writes to /src.
+set -eu
+
+WORK=/work/decomp
+
+echo "[fe-maker] Syncing decomp into working copy..."
+mkdir -p "$WORK"
+# No --delete: build outputs in the working copy are kept as a cache.
+# (Files removed upstream are not removed here; wipe the volume if needed.)
+rsync -a --exclude=.git /src/ "$WORK/"
+
+mkdir -p "$WORK/tools/agbcc"
+cp -a /opt/agbcc/. "$WORK/tools/agbcc/"
+cp /rom/baserom.gba "$WORK/baserom.gba"
+
+cd "$WORK"
+echo "[fe-maker] Building tools..."
+./build_tools.sh
+echo "[fe-maker] Building ROM..."
+make -j"$(nproc)" fireemblem8.gba
+sha1sum -c checksum.sha1 || echo "[fe-maker] Checksum differs from the original game (expected once the project is modified)."
+
+cp fireemblem8.gba /out/fireemblem8.gba
+echo "[fe-maker] Done: build/fireemblem8.gba"

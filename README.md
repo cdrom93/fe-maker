@@ -21,6 +21,16 @@ This repository contains **no ROM and no game data**: each user must provide the
 git clone --recursive https://github.com/cdrom93/fe-maker.git
 ```
 
+## Compiler la décomp / Building the decomp
+
+Prérequis / Requirements: Python 3.10+, Docker.
+
+```bash
+python docker/build.py --rom path/to/your/fe8.gba
+```
+
+Résultat / Output: `build/fireemblem8.gba` (`fireemblem8.gba: OK` = identique à l'original / identical to the original).
+
 ## Documentation
 
 - [Cahier des charges](CAHIER_DES_CHARGES.md) (en français)
