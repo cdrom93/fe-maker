@@ -80,7 +80,11 @@ Les plus gros blocs, sur 1,1 Mo au total :
 6. **Champs hérités de FE7** dans `chapter_settings.json` (`HectorStory`, `EliwoodStory`, `LynStory`…) : ce sont des noms de champs de la structure, à masquer dans l'interface.
 7. **Événements** : leur format (macros C) est proche d'Event Assembler, que les moddeurs connaissent bien. Un éditeur visuel devra analyser **et** générer ces macros. C'est le plus gros chantier technique des phases 3 et 4.
 8. **Terrain des tuiles** (`TileConfiguration*.bin`) : c'est le seul format binaire nécessaire en phase 3, il faudra écrire un convertisseur.
-9. **La décomp évolue** (commits récents, fichiers renommés). On fige le sous-module sur un commit précis et on refait cet audit avant chaque mise à jour.
+9. **Corrections `BUGFIX`** (vérifié le 18/10/2026, début de phase 1) : `BUGFIX` n'est défini nulle part. On l'active en passant `CPP="cc -E -DBUGFIX=1"` à `make`, ce que fait `--bugfix` de `docker/build.py`. Mais **3 fichiers ne compilent pas** avec : `src/banim-efxmagic.c` (test de la valeur d'une fonction `void`), `src/bmsave-lib.c` (faute de frappe `chuck`) et `src/bmsave.c` (champs `pinfo`/`jinfo` absents). Les corriger reviendrait à modifier et distribuer du code de la décomp, ce qui est bloqué sans licence. **Les projets sont donc créés avec `"bugfix": false`.** Piste : proposer ces corrections aux mainteneurs de la décomp.
+10. **Noms avec codes de contrôle** : certains noms se terminent par `[.]` dans `texts.txt` (`Gilliam[.][X]`). FE Maker affiche le nom sans ces codes et les conserve à l'écriture.
+11. **Valeurs hors type d'origine** : un personnage spécial stocke `255` dans un champ signé (`baseSkl`), ce qui vaut −1 pour le jeu. FE Maker lit les stats de base comme des entiers signés.
+12. **Portée « Magie / 2 »** : une portée maximale de 0 (Physic, Rescue…) signifie « Magie / 2 », ce n'est pas une erreur.
+13. **La décomp évolue** (commits récents, fichiers renommés). On fige le sous-module sur un commit précis et on refait cet audit avant chaque mise à jour.
 
 ## 6. Cadre légal : constats
 

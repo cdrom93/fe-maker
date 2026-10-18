@@ -1,0 +1,20 @@
+#0x0
+[X]
+
+## MSG_001
+Hello.[.][X]
+
+## MSG_002
+Testhero[X]
+
+## MSG_003
+Testrival[X]
+
+## MSG_004
+Test Blade[X]
+
+## MSG_005
+Testlord[X]
+
+## MSG_006
+Testknight[X]

@@ -4,8 +4,8 @@
 
 *FE Maker is an open source editor to make tactics games on the Fire Emblem: The Sacred Stones (GBA) engine, designed to be as easy to use as an "RPG Maker". It is built on top of the [FE8 decompilation](https://github.com/FireEmblemUniverse/fireemblem8u).*
 
-> 🚧 Projet en phase 0 (audit et fondations). Rien n'est encore utilisable.
-> *Project in phase 0 (audit and foundations). Nothing is usable yet.*
+> 🚧 Phase 1 (prototype) : édition des personnages et des objets, bouton « Tester », export en patch .ups.
+> *Phase 1 (prototype): character and item editing, "Test" button, .ups patch export.*
 
 ## Avertissement / Disclaimer
 
@@ -21,15 +21,33 @@ This repository contains **no ROM and no game data**: each user must provide the
 git clone --recursive https://github.com/cdrom93/fe-maker.git
 ```
 
-## Compiler la décomp / Building the decomp
+## Installer et lancer / Install and run
 
-Prérequis / Requirements: Python 3.10+, Docker.
+Prérequis / Requirements: Python 3.10+, Node.js 20+, Docker Desktop (démarré / running), mGBA.
+
+Une seule fois / Once:
 
 ```bash
-python docker/build.py --rom path/to/your/fe8.gba
+python -m venv server/.venv
+server/.venv/Scripts/python -m pip install -e server      # Linux/macOS : server/.venv/bin/python
+cd ui && npm ci && npm run build && cd ..
 ```
 
-Résultat / Output: `build/fireemblem8.gba` (`fireemblem8.gba: OK` = identique à l'original / identical to the original).
+Lancer / Run:
+
+```bash
+server/.venv/Scripts/python -m fe_maker                  # Linux/macOS : server/.venv/bin/python
+```
+
+L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lancement, elle demande votre ROM.
+*The interface opens in your browser. On first launch it asks for your ROM.*
+
+## Développement / Development
+
+- Tests sans ROM / Tests without ROM: `python -m pytest tests/server` (après / after `pip install -e "server[dev]"`)
+- Tests avec ROM, en local uniquement / ROM tests, local only: `FE_MAKER_ROM=path/to/fe8.gba python -m pytest tests/local -s`
+- Interface en mode dev / UI dev mode: `cd ui && npm run dev` (le serveur Python doit tourner / the Python server must be running)
+- Compiler la décomp seule / Build the decomp alone: `python docker/build.py --rom path/to/fe8.gba [--overlay DIR] [--bugfix]`
 
 ## Documentation
 

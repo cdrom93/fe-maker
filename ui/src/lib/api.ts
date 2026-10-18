@@ -1,0 +1,52 @@
+import type { BuildStatus, Problem, ProjectInfo, Reference, Status } from './types'
+
+export class ApiError extends Error {
+  constructor(public status: number, public detail: string) {
+    super(detail)
+  }
+}
+
+async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const init: RequestInit = { method }
+  if (body instanceof FormData) {
+    init.body = body
+  } else if (body !== undefined) {
+    init.body = JSON.stringify(body)
+    init.headers = { 'Content-Type': 'application/json' }
+  }
+  const res = await fetch(url, init)
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      detail = (await res.json()).detail ?? detail
+    } catch {
+      // not JSON
+    }
+    throw new ApiError(res.status, detail)
+  }
+  return res.json() as Promise<T>
+}
+
+export const api = {
+  status: () => request<Status>('GET', '/api/status'),
+  updateSettings: (s: { language?: string; mgbaPath?: string }) => request<Status>('PUT', '/api/settings', s),
+  uploadRom: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<Status>('POST', '/api/rom', form)
+  },
+  createProject: (name: string, author: string) => request<ProjectInfo>('POST', '/api/projects', { name, author }),
+  openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
+  closeProject: () => request<Status>('POST', '/api/projects/close'),
+  reference: () => request<Reference>('GET', '/api/reference'),
+  getData: <T>(kind: 'characters' | 'items') => request<T[]>('GET', `/api/project/data/${kind}`),
+  saveData: (kind: 'characters' | 'items', records: unknown[]) =>
+    request<{ problems: Problem[] }>('PUT', `/api/project/data/${kind}`, records),
+  problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
+  startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
+  buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
+}
+
+export const portraitUrl = (id: number) => `/api/assets/portrait/${id}`
+export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
+export const patchUrl = '/api/project/patch'

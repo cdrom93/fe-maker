@@ -152,7 +152,7 @@ fe-maker/
 - Premier lancement : sélection de la ROM, vérification SHA1.
 - Création d'un projet FE Maker.
 - **Éditeur d'objets** : nom, type d'arme, puissance, précision, critique, poids, portée, durabilité, prix, icône.
-- **Éditeur de personnages** : nom, classe, niveau de départ, stats de base, taux de croissance, rangs d'armes, inventaire de départ, portrait (aperçu).
+- **Éditeur de personnages** : nom, classe, niveau de départ, stats de base, taux de croissance, rangs d'armes, portrait (aperçu). L'**inventaire de départ** est déplacé en phase 3 : dans le jeu, il est défini par chapitre, dans le placement des unités, et non dans la fiche du personnage (voir `docs/audit-decomp.md`).
 - Conversion projet → décomp, compilation Docker, génération du .gba et du patch .ups.
 - Bouton « Tester » qui lance mGBA.
 - **Critère de réussite** : je modifie un personnage dans l'interface, je clique sur « Tester », je vois la modification en jeu.
@@ -233,5 +233,6 @@ Deux pistes à évaluer le moment venu :
 - [ ] Accord des mainteneurs de fireemblem8u pour la redistribution de code modifié (bloquant pour phases 6 et 7)
 - [x] Framework front-end : Svelte + TypeScript
 - [x] Format de patch : .ups (format habituel de la communauté et de l'auteur du projet)
-- [ ] Compiler les jeux créés avec les corrections de bugs `BUGFIX` de la décomp activées (proposé, voir `docs/audit-decomp.md`)
+- [x] Compiler les jeux créés avec les corrections `BUGFIX` de la décomp : **accepté, mais désactivé par défaut** tant que 3 blocs `BUGFIX` de la décomp ne compilent pas (option `"bugfix"` dans `fe-maker.json`, voir `docs/audit-decomp.md`)
+- [ ] Proposer aux mainteneurs de la décomp les corrections des 3 blocs `BUGFIX` cassés
 - [ ] Piste retenue pour la version PC
