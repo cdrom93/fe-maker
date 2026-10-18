@@ -24,6 +24,9 @@ CLASSES_FILE = "src/data_classes.c"
 ITEMS_FILE = "src/data_items.c"
 TEXTS_FILE = "texts/texts.txt"
 ITEM_ICONS_FILE = "data/data_item_icon.s"
+BATTLE_ANIM_CONF_FILE = "src/data_banimconf.c"
+# Unit placements of every chapter (struct UnitDefinition arrays)
+UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
 
 STATS = ["hp", "pow", "skl", "spd", "def", "res", "lck", "con"]
 GROWTHS = ["hp", "pow", "skl", "spd", "def", "res", "lck"]
@@ -96,10 +99,44 @@ class DecompData:
         self.classes = parse_array(self._read(CLASSES_FILE), "gClassData")
         self.items = parse_array(self._read(ITEMS_FILE), "gItemData")
         self.texts = TextFile(self._read(TEXTS_FILE))
+        self.unit_defs: dict[str, str] = {}
+        for pattern in UNIT_DEF_FILES:
+            for path in sorted(decomp_dir.glob(pattern)):
+                rel = path.relative_to(decomp_dir).as_posix()
+                self.unit_defs[rel] = self._read(rel)
+        self._original_unit_defs = dict(self.unit_defs)
+        self.animated_weapons = self._read_animated_weapons()
 
     def _read(self, rel: str) -> str:
         with open(self.decomp_dir / rel, encoding="utf-8", newline="") as f:
             return f.read()
+
+    def _read_animated_weapons(self) -> dict[str, list[str]]:
+        """Class id -> weapon types its battle animations cover (src/data_banimconf.c).
+
+        A unit can wield any weapon type it has a rank in, but if its class has no
+        animation for that type the battle shows a wrong animation or crashes.
+        """
+        path = self.decomp_dir / BATTLE_ANIM_CONF_FILE
+        confs: dict[str, list[str]] = {}
+        if path.is_file():
+            source = self._read(BATTLE_ANIM_CONF_FILE)
+            for m in re.finditer(r"struct\s+BattleAnimDef\s+(\w+)\s*\[\s*\]\s*=\s*\{(.*?)\{\s*0\s*\}", source, re.DOTALL):
+                types = re.findall(r"\.wtype\s*=\s*0x0100\s*\|\s*(ITYPE_\w+)", m.group(2))
+                confs[m.group(1)] = [WEAPON_TYPES[t] for t in dict.fromkeys(types) if t in WEAPON_TYPES]
+        result = {}
+        for entry in self.classes.entries:
+            conf = entry.fields.get("pBattleAnimDef", "").lstrip("&").strip()
+            result[entry.fields["number"]] = confs.get(conf, [])
+        return result
+
+    def _retarget_unit_class(self, character: str, old_class: str, new_class: str) -> None:
+        """Give a character its new class in every chapter where it had the old one."""
+        pattern = re.compile(
+            rf"(\.charIndex\s*=\s*{re.escape(character)}\s*,\s*\.classIndex\s*=\s*){re.escape(old_class)}\b"
+        )
+        for rel, source in self.unit_defs.items():
+            self.unit_defs[rel] = pattern.sub(lambda m: m.group(1) + new_class, source)
 
     # ---------- import (decomp -> project JSON) ----------
 
@@ -114,6 +151,7 @@ class DecompData:
                 "name": self._text_name(f),
                 "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s]) for s in STATS if s != "lck"} | {"lck": 0},
                 "mov": _int_field(f, "baseMov"),
+                "animatedWeapons": self.animated_weapons.get(f["number"], []),
             }
             for f in (e.fields for e in self.classes.entries)
         ]
@@ -170,6 +208,9 @@ class DecompData:
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), ch["name"])
             if f["defaultClass"] != ch["class"]:
+                # In game, chapters load units with an explicit class: defaultClass alone
+                # only matters when a chapter leaves it out. Retarget the chapters too.
+                self._retarget_unit_class(ch["id"], entry.original_fields["defaultClass"], ch["class"])
                 f["defaultClass"] = ch["class"]
             _set_int(f, "baseLevel", ch["level"])
             _set_int(f, "portraitId", ch["portraitId"])
@@ -215,6 +256,9 @@ class DecompData:
                 out[rel] = render_array(parsed)
         if self.texts.edits:
             out[TEXTS_FILE] = self.texts.render()
+        for rel, source in self.unit_defs.items():
+            if source != self._original_unit_defs[rel]:
+                out[rel] = source
         return out
 
     # ---------- assets ----------

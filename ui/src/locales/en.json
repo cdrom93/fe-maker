@@ -46,6 +46,9 @@
   "field.classBase": "Class",
   "field.total": "Total",
   "field.mov": "Move",
+  "field.classHint": "The class applies in every chapter where the character had its original class. Starting level is set chapter by chapter (phase 3).",
+  "field.noAnimation": "This class has no battle animation for this weapon type",
+  "field.noAnimationHint": "⚠ = the class has no battle animation for this weapon type: a rank in it would crash the game.",
   "field.inventoryLater": "Starting inventory depends on the chapter: it will be editable with chapters (phase 3).",
 
   "field.weaponType": "Type",
@@ -103,5 +106,6 @@
   "problem.unknownWeaponType": "unknown weapon type",
   "problem.unknownRank": "unknown weapon rank",
   "problem.duplicateId": "duplicate id",
+  "problem.noBattleAnimation": "the class has no battle animation for this weapon type: the game may crash",
   "problem.rangeInverted": "minimum range is above maximum"
 }

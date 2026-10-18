@@ -46,6 +46,9 @@
   "field.classBase": "Classe",
   "field.total": "Total",
   "field.mov": "Déplacement",
+  "field.classHint": "La classe est appliquée dans tous les chapitres où le personnage avait sa classe d'origine. Le niveau de départ, lui, se règle chapitre par chapitre (phase 3).",
+  "field.noAnimation": "Cette classe n'a pas d'animation de combat pour ce type d'arme",
+  "field.noAnimationHint": "⚠ = la classe n'a pas d'animation de combat pour ce type d'arme : un rang dans ce type ferait planter le jeu.",
   "field.inventoryLater": "L'inventaire de départ dépend du chapitre : il sera éditable avec les chapitres (phase 3).",
 
   "field.weaponType": "Type",
@@ -103,5 +106,6 @@
   "problem.unknownWeaponType": "type d'arme inconnu",
   "problem.unknownRank": "rang d'arme inconnu",
   "problem.duplicateId": "identifiant en double",
+  "problem.noBattleAnimation": "la classe n'a pas d'animation de combat pour ce type d'arme : le jeu risque de planter",
   "problem.rangeInverted": "la portée minimale dépasse la maximale"
 }

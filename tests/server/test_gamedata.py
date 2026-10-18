@@ -56,6 +56,25 @@ def test_rename_writes_texts(decomp_dir):
     assert reparsed.get_name(4) == "Test Blade"
 
 
+def test_class_change_applies_to_chapters(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    chars[0]["class"] = "CLASS_TESTKNIGHT"
+    d.apply_characters(chars)
+    files = d.changed_files()
+    assert ".defaultClass = CLASS_TESTKNIGHT," in files["src/data_characters.c"]
+    udefs = files["src/events_udefs.c"]
+    # The hero's own appearances move to the new class...
+    assert udefs.count(".charIndex = CHARACTER_TESTHERO,\n        .classIndex = CLASS_TESTKNIGHT,") == 2
+    # ...other characters are untouched.
+    assert ".charIndex = CHARACTER_TESTRIVAL,\n        .classIndex = CLASS_TESTLORD," in udefs
+
+
+def test_animated_weapons(decomp_dir):
+    d = DecompData(decomp_dir)
+    assert d.animated_weapons == {"CLASS_TESTLORD": ["sword"], "CLASS_TESTKNIGHT": ["lance", "sword"]}
+
+
 def test_name_control_codes_are_preserved():
     texts = TextFile("#0x0\n[X]\n\n## MSG_001\nHero[.][X]\n")
     assert texts.get_name(1) == "Hero"

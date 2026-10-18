@@ -6,6 +6,7 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseHP  = 10,
         .basePow = 2,
         .baseMov = 5,
+        .pBattleAnimDef = AnimConf_TestLord,
     },
     [CLASS_TESTKNIGHT - 1] = {
         .nameTextId = 0x6,
@@ -13,5 +14,6 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseHP  = 12,
         .baseDef = 6,
         .baseMov = 4,
+        .pBattleAnimDef = AnimConf_TestKnight,
     },
 };

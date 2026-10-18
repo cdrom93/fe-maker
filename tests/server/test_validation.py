@@ -29,6 +29,17 @@ def test_detects_problems(decomp_dir):
     assert ("ITEM_TESTBLADE", "iconId", "outOfRange") in codes
 
 
+def test_weapon_rank_without_battle_animation(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    chars[0]["weaponRanks"]["lance"] = "C"  # the lord class only animates swords
+    codes = _codes(validate(chars, d.export_items(), d))
+    assert ("CHARACTER_TESTHERO", "weaponRanks.lance", "noBattleAnimation") in codes
+    chars[0]["class"] = "CLASS_TESTKNIGHT"  # the knight animates lances
+    codes = _codes(validate(chars, d.export_items(), d))
+    assert not any(c[2] == "noBattleAnimation" for c in codes)
+
+
 def test_accents_are_a_warning(decomp_dir):
     d = DecompData(decomp_dir)
     chars = d.export_characters()

@@ -32,7 +32,10 @@ def test_modified_project_and_patch(tmp_path):
     eirika = next(c for c in chars if c["id"] == "CHARACTER_EIRIKA")
     eirika["name"] = "Erika"
     eirika["bases"]["hp"] = 20
-    project.save("characters", chars)
+    eirika["class"] = "CLASS_CAVALIER_F"
+    eirika["weaponRanks"]["lance"] = "D"
+    problems = [p for p in project.save("characters", chars) if p.severity == "error"]
+    assert problems == []
     items = project.load("items")
     next(i for i in items if i["id"] == "ITEM_SWORD_IRON")["might"] = 9
     project.save("items", items)

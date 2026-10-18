@@ -63,6 +63,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
     weapon_types = set(WEAPON_TYPES.values())
+    original = {c["id"]: c for c in decomp.export_characters()}
 
     _duplicates(problems, "characters", characters)
     for ch in characters:
@@ -85,6 +86,14 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
                                         f"{rid}: unknown weapon rank {rank}"))
             elif isinstance(rank, int):
                 _range(problems, "characters", rid, f"weaponRanks.{wtype}", rank, 0, 255)
+            # Only what the project changed: a few special original units (summons) have such ranks on purpose.
+            orig = original.get(rid)
+            changed = orig is None or orig["class"] != ch.get("class") or wtype not in orig["weaponRanks"]
+            animated = decomp.animated_weapons.get(ch.get("class"), [])
+            if changed and rank not in (0, None, "") and animated and wtype not in animated:
+                problems.append(Problem("error", "characters", rid, f"weaponRanks.{wtype}", "noBattleAnimation",
+                                        {"weapon": wtype},
+                                        f"{rid}: the class has no battle animation for {wtype} (the game may crash)"))
 
     _duplicates(problems, "items", items)
     for it in items:

@@ -31,6 +31,7 @@ export interface ClassInfo {
   name: string
   bases: Record<StatKey, number>
   mov: number
+  animatedWeapons: string[]
 }
 
 export interface Reference {

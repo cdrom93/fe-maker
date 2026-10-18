@@ -69,8 +69,8 @@
               {/each}
             </select>
           </label>
+          <p class="muted small">{t('field.classHint')}</p>
           <div class="row">
-            <NumberField label={t('field.level')} value={ch.level} min={0} max={20} problem={problemFor('level')} onchange={(v) => edit((c) => (c.level = v))} />
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
           </div>
         </div>
@@ -122,16 +122,16 @@
         <h3>{t('field.weaponRanks')}</h3>
         <div class="grid">
           {#each reference.rankableTypes as w (w)}
-            <label>
-              {t(`wtype.${w}`)}
-              <select value={String(ch.weaponRanks[w] ?? '')} onchange={(e) => setRank(w, (e.target as HTMLSelectElement).value)}>
+            <label title={problemFor(`weaponRanks.${w}`)}>
+              <span>{t(`wtype.${w}`)}{#if cls && cls.animatedWeapons.length && !cls.animatedWeapons.includes(w)}<span class="noanim" title={t('field.noAnimation')}> ⚠</span>{/if}</span>
+              <select value={String(ch.weaponRanks[w] ?? '')} class:invalid={!!problemFor(`weaponRanks.${w}`)} onchange={(e) => setRank(w, (e.target as HTMLSelectElement).value)}>
                 <option value="">{t('field.none')}</option>
                 {#each reference.ranks as r (r)}<option value={r}>{r}</option>{/each}
               </select>
             </label>
           {/each}
         </div>
-        <p class="muted small">{t('field.inventoryLater')}</p>
+        <p class="muted small">{t('field.noAnimationHint')} {t('field.inventoryLater')}</p>
       </section>
 
       {#if mine.length}
@@ -162,6 +162,8 @@
   tr.total td { font-weight: 700; border-top: 1px solid var(--border); }
   .small { font-size: 0.8rem; margin: 0 0 0.5rem; }
   .issues p { margin: 0.2rem 0; }
+  .noanim { color: var(--warn); }
+  select.invalid { border-color: var(--bad); background: var(--bad-soft); }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }
   @media (max-width: 800px) {

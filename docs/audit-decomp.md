@@ -84,7 +84,9 @@ Les plus gros blocs, sur 1,1 Mo au total :
 10. **Noms avec codes de contrôle** : certains noms se terminent par `[.]` dans `texts.txt` (`Gilliam[.][X]`). FE Maker affiche le nom sans ces codes et les conserve à l'écriture.
 11. **Valeurs hors type d'origine** : un personnage spécial stocke `255` dans un champ signé (`baseSkl`), ce qui vaut −1 pour le jeu. FE Maker lit les stats de base comme des entiers signés.
 12. **Portée « Magie / 2 »** : une portée maximale de 0 (Physic, Rescue…) signifie « Magie / 2 », ce n'est pas une erreur.
-13. **La décomp évolue** (commits récents, fichiers renommés). On fige le sous-module sur un commit précis et on refait cet audit avant chaque mise à jour.
+13. **Classe et niveau d'un personnage** (constaté en test, 18/10/2026) : dans les chapitres, les unités sont chargées avec une classe et un niveau explicites (`UnitDefinition.classIndex`, `.level` dans `src/events_udefs.c` et `src/events/*-eventudefs.h`). `CharacterData.defaultClass` ne sert que si `classIndex` vaut 0 (`UnitInitFromDefinition`, `src/bmunit.c`). FE Maker change donc aussi la classe dans tous les placements où le personnage avait sa classe d'origine. Le niveau se réglera par chapitre en phase 3.
+14. **Animations de combat** : un personnage peut manier tout type d'arme où il a un rang, mais chaque classe n'a d'animations que pour certains types (`src/data_banimconf.c`, entrées `0x0100 | ITYPE_x`). Un rang dans un type non animé donne de mauvaises animations, voire un plantage (constaté en test). FE Maker bloque ce cas à la validation, mais seulement pour ce que le projet modifie : les invocations d'origine ont volontairement ce genre de rangs.
+15. **La décomp évolue** (commits récents, fichiers renommés). On fige le sous-module sur un commit précis et on refait cet audit avant chaque mise à jour.
 
 ## 6. Cadre légal : constats
 
