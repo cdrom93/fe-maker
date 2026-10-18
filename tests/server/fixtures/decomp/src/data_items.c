@@ -18,5 +18,6 @@ CONST_DATA struct ItemData gItemData[] = {
 		.costPerUse = 7,
 		.weaponRank = WPN_EXP_D,
 		.iconId = 0x1,
+		.pEffectiveness = ItemEffectiveness_TestKnights,
 	},
 };

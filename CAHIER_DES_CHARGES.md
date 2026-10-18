@@ -147,7 +147,7 @@ fe-maker/
 - Créer l'image Docker de compilation et vérifier qu'elle fonctionne sous Windows (Docker Desktop / WSL2).
 - Vérifier qu'une **modification triviale** (changer une stat de base dans la décomp) compile et apparaît en jeu.
 
-### Phase 1 — POC : personnages et objets
+### Phase 1 — POC : personnages et objets ✅ (validée en jeu le 18/10/2026)
 **Objectif : valider toute la chaîne de bout en bout sur les données les plus simples.**
 - Premier lancement : sélection de la ROM, vérification SHA1.
 - Création d'un projet FE Maker.
@@ -157,10 +157,11 @@ fe-maker/
 - Bouton « Tester » qui lance mGBA.
 - **Critère de réussite** : je modifie un personnage dans l'interface, je clique sur « Tester », je vois la modification en jeu.
 
-### Phase 2 — Classes et système de combat
+### Phase 2 — Classes et système de combat 🚧 (implémentée le 18/10/2026, test en jeu à faire)
 - Éditeur de classes : stats de base et maximales, mouvement, type de déplacement, armes utilisables, promotions, compétences.
 - Triangle des armes, efficacités (armes anti-cavalerie, anti-volants…).
 - Aperçu de la fiche personnage complète (perso + classe).
+- Ajouté en cours de route : capacités (dont verrous d'armes) et affinité des personnages ; options de test (démarrage direct sur la carte).
 
 ### Phase 3 — Chapitres
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).

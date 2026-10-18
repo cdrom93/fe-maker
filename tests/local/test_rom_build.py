@@ -50,6 +50,18 @@ def test_modified_project_and_patch(tmp_path):
     next(i for i in items if i["id"] == "ITEM_SWORD_IRON")["might"] = 9
     project.save("items", items)
 
+    classes = project.load("classes")
+    thief = next(c for c in classes if c["id"] == "CLASS_THIEF")
+    thief["maxes"]["spd"] = 30
+    thief["movement"] = "Fly"
+    thief["promotions"] = ["CLASS_ASSASSIN", "CLASS_HERO"]
+    project.save("classes", classes)
+    combat = project.load("combat")
+    combat["triangle"][0]["hit"] = -20
+    combat["effectiveness"]["ItemEffectiveness_Horse"].append("CLASS_THIEF")
+    project.save("combat", combat)
+    assert [p for p in project.validate() if p.severity == "error"] == []
+
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     built = out.rom_path.read_bytes()
     assert not out.matches_original

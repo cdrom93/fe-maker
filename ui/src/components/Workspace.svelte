@@ -3,15 +3,18 @@
   import { api } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { Character, Item, Problem, ProjectInfo, Reference } from '../lib/types'
+  import type { Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
+  import ClassEditor from './ClassEditor.svelte'
+  import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import KeysDialog from './KeysDialog.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
-  type Tab = 'characters' | 'items'
+  type Tab = 'characters' | 'classes' | 'items' | 'combat'
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -19,42 +22,55 @@
   let showKeys = $state(false)
   let start = $state('map')
 
-  const lists = {
-    characters: new EditableList<Character>(async (r) => {
-      problems = (await api.saveData('characters', r)).problems
-    }),
-    items: new EditableList<Item>(async (r) => {
-      problems = (await api.saveData('items', r)).problems
-    }),
+  async function save(kind: 'characters' | 'items' | 'classes' | 'combat', data: unknown) {
+    problems = (await api.saveData(kind, data)).problems
   }
 
+  const lists = {
+    characters: new EditableList<Character>((r) => save('characters', r)),
+    classes: new EditableList<ClassData>((r) => save('classes', r)),
+    items: new EditableList<Item>((r) => save('items', r)),
+    // The combat data is a single object, kept as a one-element list for undo/autosave.
+    combat: new EditableList<Combat>((r) => save('combat', r[0])),
+  }
+  const allLists = Object.values(lists)
+
+  const classes = $derived<ClassView[]>(
+    reference ? lists.classes.records.map((c) => ({ ...c, ...reference!.classFacts[c.id] })) : [],
+  )
   const errors = $derived(problems.filter((p) => p.severity === 'error'))
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
-  const saving = $derived(lists.characters.saving || lists.items.saving)
+  const saving = $derived(allLists.some((l) => l.saving))
   const active = $derived(lists[tab])
 
   onMount(async () => {
-    const [ref, chars, items, probs, testOpts] = await Promise.all([
+    const [ref, chars, cls, items, combat, probs, testOpts] = await Promise.all([
       api.reference(),
-      api.getData<Character>('characters'),
-      api.getData<Item>('items'),
+      api.getData<Character[]>('characters'),
+      api.getData<ClassData[]>('classes'),
+      api.getData<Item[]>('items'),
+      api.getData<Combat>('combat'),
       api.problems(),
       api.testOptions(),
     ])
     start = testOpts.start
     reference = ref
     lists.characters.load(chars)
+    lists.classes.load(cls)
     lists.items.load(items)
+    lists.combat.load([combat])
     problems = probs.problems
   })
 
+  const flushAll = () => Promise.all(allLists.map((l) => l.flush()))
+
   async function startBuild(launch: boolean) {
-    await Promise.all([lists.characters.flush(), lists.items.flush()])
+    await flushAll()
     build = { launch }
   }
 
   async function close() {
-    await Promise.all([lists.characters.flush(), lists.items.flush()])
+    await flushAll()
     await api.closeProject()
     onClosed()
   }
@@ -105,15 +121,23 @@
 {/if}
 
 <div class="tabs" role="tablist">
-  <button role="tab" aria-selected={tab === 'characters'} class:active={tab === 'characters'} onclick={() => (tab = 'characters')}>{t('ws.characters')}</button>
-  <button role="tab" aria-selected={tab === 'items'} class:active={tab === 'items'} onclick={() => (tab = 'items')}>{t('ws.items')}</button>
+  {#each TABS as name (name)}
+    {@const count = problems.filter((p) => p.kind === name && p.severity === 'error').length}
+    <button role="tab" aria-selected={tab === name} class:active={tab === name} onclick={() => (tab = name)}>
+      {t(`ws.${name}`)}{#if count}<span class="badge">{count}</span>{/if}
+    </button>
+  {/each}
 </div>
 
 {#if reference}
   {#if tab === 'characters'}
-    <CharacterEditor list={lists.characters} {reference} {problems} />
-  {:else}
+    <CharacterEditor list={lists.characters} {classes} {reference} {problems} />
+  {:else if tab === 'classes'}
+    <ClassEditor list={lists.classes} {classes} {reference} {problems} />
+  {:else if tab === 'items'}
     <ItemEditor list={lists.items} {reference} {problems} />
+  {:else}
+    <CombatEditor list={lists.combat} {classes} {reference} {problems} />
   {/if}
 {/if}
 
@@ -134,7 +158,8 @@
   .summary { display: flex; gap: 1rem; margin: 0 0 0.75rem; font-size: 0.9rem; }
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }
-  .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
-  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 0.5rem 1rem; }
+  .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; overflow-x: auto; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 0.5rem 1rem; white-space: nowrap; }
   .tabs button.active { border-bottom-color: var(--accent); font-weight: 600; }
+  .badge { margin-left: 0.4rem; background: var(--bad); color: var(--panel); border-radius: 999px; padding: 0 0.45em; font-size: 0.75rem; }
 </style>

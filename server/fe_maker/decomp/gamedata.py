@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from . import combat
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -67,6 +68,38 @@ AFFINITIES = {
     "UNIT_AFFIN_DARK": "dark", "UNIT_AFFIN_LIGHT": "light", "UNIT_AFFIN_ANIMA": "anima",
 }
 AFFINITIES_REV = {v: k for k, v in AFFINITIES.items()}
+
+
+CLASS_STATS = ["hp", "pow", "skl", "spd", "def", "res", "con"]  # classes have no base/max luck
+PROMO_STATS = ["hp", "pow", "skl", "spd", "def", "res"]
+PROMO_SUFFIX = {"hp": "Hp", "pow": "Pow", "skl": "Skl", "spd": "Spd", "def": "Def", "res": "Res"}
+
+
+def _effectiveness_name(value: str) -> str | None:
+    """'ItemEffectiveness_Horse' -> same; NULL / 0 / missing -> None."""
+    value = value.strip().lstrip("&")
+    return value if value.startswith("ItemEffectiveness_") else None
+
+
+def _movement_group(value: str) -> str | None:
+    """'{ TerrainTable_MovCost_HorseT2Normal, ... }' -> 'HorseT2'."""
+    m = re.search(r"TerrainTable_MovCost_(\w+?)(?:Normal|Rain|Snow)?\b", value)
+    return m.group(1) if m else None
+
+
+def _movement_tables(group: str) -> str:
+    # One family (DemonKing) has a single table used for every weather.
+    if group == "DemonKing":
+        names = [f"TerrainTable_MovCost_{group}"] * 3
+    else:
+        names = [f"TerrainTable_MovCost_{group}{weather}" for weather in ("Normal", "Rain", "Snow")]
+    return "{ " + " ".join(f"{n}," for n in names) + " }"
+
+
+def _terrain_group(value: str) -> str | None:
+    """'TerrainTable_Avo_Fly' -> 'Fly'."""
+    m = re.search(r"TerrainTable_Avo_(\w+)", value)
+    return m.group(1) if m else None
 
 
 def _split_flags(value: str) -> list[str]:
@@ -137,6 +170,20 @@ class DecompData:
                 self.unit_defs[rel] = self._read(rel)
         self._original_unit_defs = dict(self.unit_defs)
         self.animated_weapons = self._read_animated_weapons()
+        # Combat tables (optional: absent from minimal test decomps)
+        self._sources: dict[str, str] = {}
+        for rel in (combat.PROMOTIONS_FILE, combat.EFFECTIVENESS_FILE, combat.TRIANGLE_FILE):
+            if (decomp_dir / rel).is_file():
+                self._sources[rel] = self._read(rel)
+        self.promotions = combat.parse_promotions(self._sources[combat.PROMOTIONS_FILE]) \
+            if combat.PROMOTIONS_FILE in self._sources else None
+        self._original_promotions = {k: list(v) for k, v in (self.promotions or {}).items()}
+        self.effectiveness = combat.parse_effectiveness(self._sources[combat.EFFECTIVENESS_FILE]) \
+            if combat.EFFECTIVENESS_FILE in self._sources else None
+        self._original_effectiveness = {k: list(v) for k, v in (self.effectiveness or {}).items()}
+        self.triangle = combat.parse_triangle(self._sources[combat.TRIANGLE_FILE]) \
+            if combat.TRIANGLE_FILE in self._sources else None
+        self._original_triangle = [dict(r) for r in (self.triangle or [])]
 
     def _read(self, rel: str) -> str:
         with open(self.decomp_dir / rel, encoding="utf-8", newline="") as f:
@@ -232,10 +279,47 @@ class DecompData:
         for source in self._original_unit_defs.values():
             used |= set(re.findall(r"\.classIndex\s*=\s*(CLASS_\w+)", source))
         used |= {e.original_fields.get("defaultClass", "") for e in self.characters.entries}
+        # Follow promotions transitively: the promotion table (with branches) and the
+        # class's own promotion field.
+        promotions = {k: list(v) for k, v in self._original_promotions.items()}
         for e in self.classes.entries:
-            if e.fields["number"] in used and e.fields.get("promotion"):
-                used.add(e.fields["promotion"])
+            if e.original_fields.get("promotion"):
+                promotions.setdefault(e.fields["number"], []).append(e.original_fields["promotion"])
+        todo = list(used)
+        while todo:
+            for nxt in promotions.get(todo.pop(), []):
+                if nxt not in used:
+                    used.add(nxt)
+                    todo.append(nxt)
         return used
+
+    # ---------- combat tables ----------
+
+    def export_combat(self) -> dict:
+        return {
+            "triangle": [
+                {"attacker": WEAPON_TYPES[r["attacker"]], "defender": WEAPON_TYPES[r["defender"]],
+                 "hit": r["hit"], "damage": r["damage"]}
+                for r in (self.triangle or [])
+            ],
+            "effectiveness": {name: list(classes) for name, classes in (self.effectiveness or {}).items()},
+        }
+
+    def apply_combat(self, combat_data: dict) -> None:
+        if self.triangle is not None and "triangle" in combat_data:
+            rules = [
+                {"attacker": WEAPON_TYPES_REV[r["attacker"]], "defender": WEAPON_TYPES_REV[r["defender"]],
+                 "hit": int(r["hit"]), "damage": int(r["damage"])}
+                for r in combat_data["triangle"]
+            ]
+            if rules != self.triangle:
+                self.triangle = rules
+        if self.effectiveness is not None:
+            for name, classes in combat_data.get("effectiveness", {}).items():
+                if name not in self.effectiveness:
+                    raise GameDataError(f"Unknown effectiveness list {name}")
+                if list(classes) != self.effectiveness[name]:
+                    self.effectiveness[name] = list(classes)
 
     def _retarget_unit_class(self, character: str, old_class: str, new_class: str) -> None:
         """Give a character its new class in every chapter where it had the old one."""
@@ -251,22 +335,82 @@ class DecompData:
         return self.texts.get_name(_int_field(fields, "nameTextId"))
 
     def export_classes(self) -> list[dict]:
-        """Read-only class list (class editing comes in phase 2)."""
-        used = self.classes_used_in_game()
-        genders = self.class_genders()
-        return [
-            {
+        """Editable class data (project JSON). Read-only facts are in class_facts()."""
+        result = []
+        for e in self.classes.entries:
+            f = e.fields
+            ranks = parse_designated_list(f.get("baseRanks", "{ }"))
+            result.append({
                 "id": f["number"],
                 "name": self._text_name(f),
-                "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s]) for s in STATS if s != "lck"} | {"lck": 0},
-                "mov": _int_field(f, "baseMov"),
+                "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s], signed=True) for s in CLASS_STATS},
+                "mov": _int_field(f, "baseMov", signed=True),
+                "maxes": {s: _int_field(f, "max" + STAT_SUFFIX[s], signed=True) for s in CLASS_STATS},
+                "growths": {s: _int_field(f, "growth" + STAT_SUFFIX[s], signed=True) for s in GROWTHS},
+                "promotionGains": {s: _int_field(f, "promotion" + PROMO_SUFFIX[s]) for s in PROMO_STATS},
+                "relativePower": _int_field(f, "classRelativePower", signed=True),
+                "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
                 "abilities": _abilities(f.get("attributes", "0")),
-                "animatedWeapons": self.animated_weapons.get(f["number"], []),
-                "usedInGame": f["number"] in used,
-                "gender": genders.get(f["number"]),
+                "promotions": list(self.promotions.get(f["number"], [])) if self.promotions is not None else [],
+                "movement": _movement_group(f.get("pMovCostTable", "")),
+                "terrainBonus": _terrain_group(f.get("pTerrainAvoidLookup", "")),
+            })
+        return result
+
+    def class_facts(self) -> dict[str, dict]:
+        """Read-only facts about each class, derived from the decomp (not editable)."""
+        used = self.classes_used_in_game()
+        genders = self.class_genders()
+        return {
+            e.fields["number"]: {
+                "animatedWeapons": self.animated_weapons.get(e.fields["number"], []),
+                "usedInGame": e.fields["number"] in used,
+                "gender": genders.get(e.fields["number"]),
             }
-            for f in (e.fields for e in self.classes.entries)
-        ]
+            for e in self.classes.entries
+        }
+
+    def movement_types(self) -> list[str]:
+        """Movement cost table families used by classes (HorseT2, Fly, Armor...)."""
+        return sorted({_movement_group(e.fields.get("pMovCostTable", "")) for e in self.classes.entries} - {None})
+
+    def apply_classes(self, classes: list[dict]) -> None:
+        entries = {e.fields["number"]: e for e in self.classes.entries}
+        for cl in classes:
+            entry = entries.get(cl["id"])
+            if entry is None:
+                raise GameDataError(f"Unknown class {cl['id']}")
+            f = entry.fields
+            self.texts.set_name(_int_field(f, "nameTextId"), cl["name"])
+            for s in CLASS_STATS:
+                _set_int(f, "base" + STAT_SUFFIX[s], cl["bases"][s], signed=True)
+                _set_int(f, "max" + STAT_SUFFIX[s], cl["maxes"][s], signed=True)
+            _set_int(f, "baseMov", cl["mov"], signed=True)
+            for s in GROWTHS:
+                _set_int(f, "growth" + STAT_SUFFIX[s], cl["growths"][s], signed=True)
+            for s in PROMO_STATS:
+                _set_int(f, "promotion" + PROMO_SUFFIX[s], cl["promotionGains"][s])
+            _set_int(f, "classRelativePower", cl["relativePower"], signed=True)
+            self._apply_ranks(f, cl["weaponRanks"])
+            self._apply_abilities(f, cl["abilities"])
+            if cl["movement"] != _movement_group(f.get("pMovCostTable", "")):
+                f["pMovCostTable"] = _movement_tables(cl["movement"])
+            if cl["terrainBonus"] != _terrain_group(f.get("pTerrainAvoidLookup", "")):
+                for kind, field in (("Avo", "pTerrainAvoidLookup"), ("Def", "pTerrainDefenseLookup"),
+                                    ("Res", "pTerrainResistanceLookup")):
+                    f[field] = f"TerrainTable_{kind}_{cl['terrainBonus']}"
+            if self.promotions is not None and cl["promotions"] != self.promotions.get(cl["id"], []):
+                if len(cl["promotions"]) > 2:
+                    raise GameDataError(f"{cl['id']}: at most two promotions")
+                self.promotions[cl["id"]] = list(cl["promotions"])
+
+    def _apply_ranks(self, f: dict[str, str], ranks: dict) -> None:
+        old = parse_designated_list(f.get("baseRanks", "{ }"))
+        new = {WEAPON_TYPES_REV[t]: r for t, r in ranks.items() if r not in (0, "", None)}
+        old_values = {k: _rank_value(_rank_to_json(v)) for k, v in old.items()}
+        new_values = {k: _rank_value(v) for k, v in new.items()}
+        if old_values != new_values:
+            f["baseRanks"] = render_designated_list({k: _rank_to_c(v) for k, v in new.items()})
 
     def export_characters(self) -> list[dict]:
         result = []
@@ -308,6 +452,7 @@ class DecompData:
                 "pricePerUse": _int_field(f, "costPerUse"),
                 "weaponRank": _rank_to_json(rank) if rank in WEAPON_RANKS else parse_int(rank),
                 "iconId": _int_field(f, "iconId"),
+                "effectiveness": _effectiveness_name(f.get("pEffectiveness", "")),
             })
         return result
 
@@ -386,6 +531,13 @@ class DecompData:
                                ("uses", "maxUses"), ("pricePerUse", "costPerUse"), ("iconId", "iconId")):
                 _set_int(f, field, it[key])
             _set_int(f, "encodedRange", (it["range"]["min"] << 4) | it["range"]["max"])
+            if "effectiveness" in it and it["effectiveness"] != _effectiveness_name(f.get("pEffectiveness", "")):
+                if it["effectiveness"] is None:
+                    f["pEffectiveness"] = "NULL"
+                elif self.effectiveness is not None and it["effectiveness"] not in self.effectiveness:
+                    raise GameDataError(f"Unknown effectiveness list {it['effectiveness']}")
+                else:
+                    f["pEffectiveness"] = it["effectiveness"]
             rank = it["weaponRank"]
             current = f.get("weaponRank", "0")
             if _rank_value(rank if isinstance(rank, (str, int)) else 0) != _rank_value(
@@ -396,7 +548,7 @@ class DecompData:
     def changed_files(self) -> dict[str, str]:
         """Decomp-relative path -> new content, for files that differ from the decomp."""
         out = {}
-        for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items)):
+        for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
                 out[rel] = render_array(parsed)
         if self.texts.edits:
@@ -404,6 +556,13 @@ class DecompData:
         for rel, source in self.unit_defs.items():
             if source != self._original_unit_defs[rel]:
                 out[rel] = source
+        if self.promotions is not None and self.promotions != self._original_promotions:
+            out[combat.PROMOTIONS_FILE] = combat.render_promotions(self._sources[combat.PROMOTIONS_FILE], self.promotions)
+        if self.effectiveness is not None and self.effectiveness != self._original_effectiveness:
+            out[combat.EFFECTIVENESS_FILE] = combat.render_effectiveness(
+                self._sources[combat.EFFECTIVENESS_FILE], self.effectiveness)
+        if self.triangle is not None and self.triangle != self._original_triangle:
+            out[combat.TRIANGLE_FILE] = combat.render_triangle(self._sources[combat.TRIANGLE_FILE], self.triangle)
         return out
 
     # ---------- assets ----------

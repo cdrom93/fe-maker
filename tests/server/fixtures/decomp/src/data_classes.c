@@ -8,6 +8,14 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseMov = 5,
         .attributes = CA_LORD | CA_LOCK_4,
         .pBattleAnimDef = AnimConf_TestLord,
+        .pMovCostTable = {
+            TerrainTable_MovCost_CommonT1Normal,
+            TerrainTable_MovCost_CommonT1Rain,
+            TerrainTable_MovCost_CommonT1Snow,
+        },
+        .pTerrainAvoidLookup = TerrainTable_Avo_Common,
+        .pTerrainDefenseLookup = TerrainTable_Def_Common,
+        .pTerrainResistanceLookup = TerrainTable_Res_Common,
     },
     [CLASS_TESTKNIGHT - 1] = {
         .nameTextId = 0x6,
@@ -16,6 +24,14 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseDef = 6,
         .baseMov = 4,
         .pBattleAnimDef = AnimConf_TestKnight,
+        .pMovCostTable = {
+            TerrainTable_MovCost_ArmorNormal,
+            TerrainTable_MovCost_ArmorRain,
+            TerrainTable_MovCost_ArmorSnow,
+        },
+        .pTerrainAvoidLookup = TerrainTable_Avo_Common,
+        .pTerrainDefenseLookup = TerrainTable_Def_Common,
+        .pTerrainResistanceLookup = TerrainTable_Res_Common,
     },
     [CLASS_TESTUNUSED - 1] = {
         .nameTextId = 0x6,

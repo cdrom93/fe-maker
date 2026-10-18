@@ -26,6 +26,7 @@ export interface Item {
   pricePerUse: number
   weaponRank: string | number
   iconId: number
+  effectiveness: string | null
 }
 
 export interface ClassInfo {
@@ -39,7 +40,51 @@ export interface ClassInfo {
   gender: 'male' | 'female' | null
 }
 
+export type ClassStatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'con'
+
+/** Editable class data (project data/classes.json). */
+export interface ClassData {
+  id: string
+  name: string
+  bases: Record<ClassStatKey, number>
+  mov: number
+  maxes: Record<ClassStatKey, number>
+  growths: Record<Exclude<StatKey, 'con'>, number>
+  promotionGains: Record<Exclude<ClassStatKey, 'con'>, number>
+  relativePower: number
+  weaponRanks: Record<string, string | number>
+  abilities: string[]
+  promotions: string[]
+  movement: string | null
+  terrainBonus: string | null
+}
+
+/** Read-only facts about a class, derived from the decomp. */
+export interface ClassFacts {
+  animatedWeapons: string[]
+  usedInGame: boolean
+  gender: 'male' | 'female' | null
+}
+
+/** What the editors need about a class: project data + facts. */
+export type ClassView = ClassData & ClassFacts
+
+export interface TriangleRule {
+  attacker: string
+  defender: string
+  hit: number
+  damage: number
+}
+
+export interface Combat {
+  triangle: TriangleRule[]
+  effectiveness: Record<string, string[]>
+}
+
 export interface Reference {
+  classFacts: Record<string, ClassFacts>
+  movementTypes: string[]
+  effectivenessLists: string[]
   classes: ClassInfo[]
   itemLocks: Record<string, { classes: string[]; characters: string[] }>
   lockItems: Record<string, string[]>
@@ -54,7 +99,7 @@ export interface Reference {
 
 export interface Problem {
   severity: 'error' | 'warning'
-  kind: 'characters' | 'items'
+  kind: 'characters' | 'items' | 'classes' | 'combat'
   id: string
   field: string
   code: string

@@ -1,5 +1,7 @@
 import type { BuildStatus, Problem, ProjectInfo, Reference, Status } from './types'
 
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat'
+
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {
     super(detail)
@@ -39,8 +41,8 @@ export const api = {
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   reference: () => request<Reference>('GET', '/api/reference'),
-  getData: <T>(kind: 'characters' | 'items') => request<T[]>('GET', `/api/project/data/${kind}`),
-  saveData: (kind: 'characters' | 'items', records: unknown[]) =>
+  getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
+  saveData: (kind: DataKind, records: unknown) =>
     request<{ problems: Problem[] }>('PUT', `/api/project/data/${kind}`, records),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<{ start: string }>('GET', '/api/project/test-options'),

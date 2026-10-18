@@ -2,15 +2,21 @@
   import { portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { Character, Problem, Reference, StatKey } from '../lib/types'
+  import type { Character, ClassStatKey, ClassView, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
   import RecordList from './RecordList.svelte'
 
-  let { list, reference, problems }: { list: EditableList<Character>; reference: Reference; problems: Problem[] } = $props()
+  let {
+    list,
+    classes,
+    reference,
+    problems,
+  }: { list: EditableList<Character>; classes: ClassView[]; reference: Reference; problems: Problem[] } = $props()
 
   const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
+  const LUCK_CAP = 30 // fixed by the engine, not per class
 
   let selected = $state(0)
   let namedOnly = $state(true)
@@ -18,16 +24,16 @@
 
   const GENDER_SIGN = { male: '♂', female: '♀' } as const
   // The current class always stays in the list, even when unused classes are hidden.
-  const classChoices = $derived(reference.classes.filter((k) => !hideUnusedClasses || k.usedInGame || k.id === ch?.class))
+  const classChoices = $derived(classes.filter((k) => !hideUnusedClasses || k.usedInGame || k.id === ch?.class))
 
-  function classLabel(k: Reference['classes'][number]): string {
+  function classLabel(k: ClassView): string {
     const sign = k.gender ? ` ${GENDER_SIGN[k.gender]}` : ''
     const unused = k.usedInGame ? '' : ` (${t('field.unusedClass')})`
     return `${k.name || k.id}${sign}${unused}`
   }
 
   const ch = $derived(list.records[selected])
-  const cls = $derived(reference.classes.find((c) => c.id === ch?.class))
+  const cls = $derived(classes.find((c) => c.id === ch?.class))
   const mine = $derived(problems.filter((p) => p.kind === 'characters' && p.id === ch?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'characters' && p.severity === 'error').map((p) => p.id)))
 
@@ -122,13 +128,18 @@
               </tr>
               <tr class="muted">
                 <th>{t('field.classBase')}</th>
-                {#each STATS as s (s)}<td>{cls?.bases[s] ?? 0}</td>{/each}
+                {#each STATS as s (s)}<td>{cls?.bases[s as ClassStatKey] ?? 0}</td>{/each}
                 <td>{cls?.mov ?? '?'}</td>
               </tr>
               <tr class="total">
                 <th>{t('field.total')}</th>
-                {#each STATS as s (s)}<td>{ch.bases[s] + (cls?.bases[s] ?? 0)}</td>{/each}
+                {#each STATS as s (s)}<td>{ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)}</td>{/each}
                 <td>{cls?.mov ?? '?'}</td>
+              </tr>
+              <tr class="muted">
+                <th>{t('field.max')}</th>
+                {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (cls?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
+                <td></td>
               </tr>
             </tbody>
           </table>

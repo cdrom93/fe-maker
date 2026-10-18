@@ -18,10 +18,16 @@ from .validation import Problem, validate
 
 FORMAT_VERSION = 1
 PROJECT_FILE = "fe-maker.json"
-DATA_FILES = ("characters", "items")
+# Project data file -> DecompData method exporting it from the original game.
+DATA_FILES = {
+    "characters": "export_characters",
+    "items": "export_items",
+    "classes": "export_classes",
+    "combat": "export_combat",
+}
 DEFAULT_TEST_OPTIONS = {"start": "map"}  # see decomp/tweaks.py START_MODES
 # Record fields added after the first project format: filled from the original game on load.
-FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities")}
+FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness",)}
 
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
@@ -52,8 +58,9 @@ class BuildOutput:
 
 
 class Project:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, decomp_dir: Path = DECOMP_DIR):
         self.root = root
+        self.decomp_dir = decomp_dir
         meta_path = root / PROJECT_FILE
         if not meta_path.is_file():
             raise ProjectError(f"Not an FE Maker project: {root}")
@@ -77,11 +84,11 @@ class Project:
             "bugfix": False,  # decomp BUGFIX blocks do not all compile yet (see docs/audit-decomp.md)
         }
         (root / PROJECT_FILE).write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
-        _write_json(root / "data" / "characters.json", data.export_characters())
-        _write_json(root / "data" / "items.json", data.export_items())
+        for kind, exporter in DATA_FILES.items():
+            _write_json(root / "data" / f"{kind}.json", getattr(data, exporter)())
         (root / "CREDITS.txt").write_text(CREDITS_HEADER, encoding="utf-8")
         (root / ".gitignore").write_text(PROJECT_GITIGNORE, encoding="utf-8")
-        return cls(root)
+        return cls(root, decomp_dir)
 
     # ---------- data ----------
 
@@ -89,33 +96,38 @@ class Project:
     def name(self) -> str:
         return self.meta["name"]
 
-    def load(self, kind: str) -> list[dict]:
+    def load(self, kind: str):
         if kind not in DATA_FILES:
             raise ProjectError(f"Unknown data type {kind}")
-        records = json.loads((self.root / "data" / f"{kind}.json").read_text(encoding="utf-8"))
-        return self._fill_new_fields(kind, records)
+        path = self.root / "data" / f"{kind}.json"
+        if not path.is_file():
+            # Data type added after this project was created: start from the original game.
+            _write_json(path, getattr(DecompData(self.decomp_dir), DATA_FILES[kind])())
+        records = json.loads(path.read_text(encoding="utf-8"))
+        return self._fill_new_fields(kind, records) if isinstance(records, list) else records
 
-    def _fill_new_fields(self, kind: str, records: list[dict], decomp_dir: Path = DECOMP_DIR) -> list[dict]:
+    def _fill_new_fields(self, kind: str, records: list[dict], decomp_dir: Path | None = None) -> list[dict]:
         """Projects created by an older FE Maker lack fields added since: take them from the original game."""
         added = FIELDS_ADDED_LATER.get(kind, ())
         if all(key in record for record in records for key in added):
             return records
-        data = DecompData(decomp_dir)
-        original = {r["id"]: r for r in (data.export_characters() if kind == "characters" else data.export_items())}
+        data = DecompData(decomp_dir or self.decomp_dir)
+        original = {r["id"]: r for r in getattr(data, DATA_FILES[kind])()}
         for record in records:
             for key in added:
                 if key not in record and key in original.get(record["id"], {}):
                     record[key] = original[record["id"]][key]
         return records
 
-    def save(self, kind: str, records: list[dict]) -> list[Problem]:
+    def save(self, kind: str, records) -> list[Problem]:
         if kind not in DATA_FILES:
             raise ProjectError(f"Unknown data type {kind}")
         _write_json(self.root / "data" / f"{kind}.json", records)
         return self.validate()
 
     def validate(self) -> list[Problem]:
-        return validate(self.load("characters"), self.load("items"), DecompData(DECOMP_DIR))
+        return validate(self.load("characters"), self.load("items"), DecompData(self.decomp_dir),
+                        classes=self.load("classes"), combat=self.load("combat"))
 
     # ---------- build ----------
 
@@ -134,11 +146,14 @@ class Project:
         self.meta["testOptions"] = {"start": start}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    def generate_overlay(self, decomp_dir: Path = DECOMP_DIR, for_test: bool = False) -> Path:
+    def generate_overlay(self, decomp_dir: Path | None = None, for_test: bool = False) -> Path:
         """Write the decomp files changed by this project into build/overlay."""
+        decomp_dir = decomp_dir or self.decomp_dir
         data = DecompData(decomp_dir)
+        data.apply_classes(self.load("classes"))
         data.apply_characters(self.load("characters"))
         data.apply_items(self.load("items"))
+        data.apply_combat(self.load("combat"))
         files = data.changed_files()
         if for_test:
             files = apply_test_tweaks(decomp_dir, self.test_options, files)

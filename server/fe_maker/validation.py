@@ -8,7 +8,17 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-from .decomp.gamedata import ABILITIES_REV, AFFINITIES_REV, GROWTHS, RANK_VALUES, STATS, WEAPON_TYPES, DecompData
+from .decomp.gamedata import (
+    ABILITIES_REV,
+    AFFINITIES_REV,
+    CLASS_STATS,
+    GROWTHS,
+    PROMO_STATS,
+    RANK_VALUES,
+    STATS,
+    WEAPON_TYPES,
+    DecompData,
+)
 
 NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 
@@ -16,7 +26,7 @@ NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 @dataclass
 class Problem:
     severity: str          # "error" blocks the build, "warning" does not
-    kind: str              # "characters" | "items"
+    kind: str              # "characters" | "items" | "classes" | "combat"
     id: str
     field: str
     code: str
@@ -58,7 +68,8 @@ def _duplicates(problems, kind, records):
         seen.add(r["id"])
 
 
-def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> list[Problem]:
+def validate(characters: list[dict], items: list[dict], decomp: DecompData,
+             classes: list[dict] | None = None, combat: dict | None = None) -> list[Problem]:
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
@@ -122,4 +133,82 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
         # max == 0 is the game's "Magic / 2" range (Physic, Rescue...).
         if isinstance(rmin, int) and isinstance(rmax, int) and rmax != 0 and rmin > rmax:
             problems.append(Problem("error", "items", rid, "range", "rangeInverted", {}, f"{rid}: minimum range above maximum"))
+        eff = it.get("effectiveness")
+        if eff is not None and decomp.effectiveness is not None and eff not in decomp.effectiveness:
+            problems.append(Problem("error", "items", rid, "effectiveness", "unknownEffectiveness", {},
+                                    f"{rid}: unknown effectiveness list"))
+
+    if classes is not None:
+        _validate_classes(problems, classes, decomp, class_ids, weapon_types)
+    if combat is not None:
+        _validate_combat(problems, combat, class_ids, weapon_types)
     return problems
+
+
+def _validate_classes(problems, classes, decomp, class_ids, weapon_types):
+    original = {c["id"]: c for c in decomp.export_classes()}
+    movement_types = set(decomp.movement_types())
+    _duplicates(problems, "classes", classes)
+    for cl in classes:
+        rid = cl["id"]
+        if cl.get("name"):  # some engine-only classes have no name in the original game
+            _name(problems, "classes", rid, cl["name"])
+        for s in CLASS_STATS:
+            _range(problems, "classes", rid, f"bases.{s}", cl["bases"].get(s), 0, 127)
+            _range(problems, "classes", rid, f"maxes.{s}", cl["maxes"].get(s), 0, 127)
+            base, cap = cl["bases"].get(s), cl["maxes"].get(s)
+            if isinstance(base, int) and isinstance(cap, int) and base > cap:
+                problems.append(Problem("warning", "classes", rid, f"maxes.{s}", "baseAboveMax", {},
+                                        f"{rid}: base {s} above its maximum"))
+        _range(problems, "classes", rid, "mov", cl.get("mov"), 0, 15)
+        for s in GROWTHS:
+            _range(problems, "classes", rid, f"growths.{s}", cl["growths"].get(s), 0, 127)
+        for s in PROMO_STATS:
+            _range(problems, "classes", rid, f"promotionGains.{s}", cl["promotionGains"].get(s), 0, 255)
+        _range(problems, "classes", rid, "relativePower", cl.get("relativePower"), -128, 127)
+        unknown = [a for a in cl.get("abilities", []) if a not in ABILITIES_REV]
+        if unknown:
+            problems.append(Problem("error", "classes", rid, "abilities", "unknownAbility", {"names": ", ".join(unknown)},
+                                    f"{rid}: unknown abilities {unknown}"))
+        promos = cl.get("promotions", [])
+        if len(promos) > 2:
+            problems.append(Problem("error", "classes", rid, "promotions", "tooManyPromotions", {},
+                                    f"{rid}: at most two promotions"))
+        for p in promos:
+            if p not in class_ids:
+                problems.append(Problem("error", "classes", rid, "promotions", "unknownClass", {}, f"{rid}: unknown class {p}"))
+        if cl.get("movement") is not None and cl["movement"] not in movement_types:
+            problems.append(Problem("error", "classes", rid, "movement", "unknownMovement", {}, f"{rid}: unknown movement"))
+        if cl.get("terrainBonus") not in (None, "Common", "Fly"):
+            problems.append(Problem("error", "classes", rid, "terrainBonus", "unknownTerrainBonus", {},
+                                    f"{rid}: unknown terrain bonus"))
+        orig = original.get(rid, {})
+        animated = decomp.animated_weapons.get(rid, [])
+        for wtype, rank in cl.get("weaponRanks", {}).items():
+            if wtype not in weapon_types:
+                problems.append(Problem("error", "classes", rid, "weaponRanks", "unknownWeaponType", {"type": wtype},
+                                        f"{rid}: unknown weapon type {wtype}"))
+            elif isinstance(rank, str) and rank not in RANK_VALUES:
+                problems.append(Problem("error", "classes", rid, "weaponRanks", "unknownRank", {"rank": rank},
+                                        f"{rid}: unknown weapon rank {rank}"))
+            elif rank not in (0, None, "") and animated and wtype not in animated \
+                    and wtype not in orig.get("weaponRanks", {}):
+                problems.append(Problem("error", "classes", rid, f"weaponRanks.{wtype}", "noBattleAnimation",
+                                        {"weapon": wtype},
+                                        f"{rid}: the class has no battle animation for {wtype} (the game may crash)"))
+
+
+def _validate_combat(problems, combat, class_ids, weapon_types):
+    for i, rule in enumerate(combat.get("triangle", [])):
+        rid = f"triangle.{i}"
+        for side in ("attacker", "defender"):
+            if rule.get(side) not in weapon_types:
+                problems.append(Problem("error", "combat", rid, side, "unknownWeaponType", {"type": rule.get(side)},
+                                        f"{rid}: unknown weapon type"))
+        _range(problems, "combat", rid, "hit", rule.get("hit"), -128, 127)
+        _range(problems, "combat", rid, "damage", rule.get("damage"), -128, 127)
+    for name, members in combat.get("effectiveness", {}).items():
+        for cls in members:
+            if cls not in class_ids:
+                problems.append(Problem("error", "combat", name, "effectiveness", "unknownClass", {},
+                                        f"{name}: unknown class {cls}"))

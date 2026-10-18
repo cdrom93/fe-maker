@@ -150,7 +150,7 @@ def get_data(kind: str):
 
 
 @app.put("/api/project/data/{kind}")
-def put_data(kind: str, records: list[dict]):
+def put_data(kind: str, records: list[dict] | dict):
     if kind not in DATA_FILES:
         raise HTTPException(404)
     problems = state.require_project().save(kind, records)
@@ -170,7 +170,10 @@ def reference():
     class_names = {c["id"]: c["name"] for c in classes}
     char_names = {c["id"]: c["name"] for c in d.export_characters()}
     return {
-        "classes": classes,
+        "classes": classes,  # original game classes (the project's own are in data/classes)
+        "classFacts": d.class_facts(),
+        "movementTypes": d.movement_types(),
+        "effectivenessLists": sorted(d.effectiveness or {}),
         # Item id -> names of the classes / characters allowed to wield it (weapon locks)
         "itemLocks": {
             item: {

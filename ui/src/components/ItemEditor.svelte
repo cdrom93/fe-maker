@@ -66,6 +66,19 @@
             </label>
             <NumberField label={t('field.icon')} value={it.iconId} min={0} max={reference.iconCount - 1} problem={problemFor('iconId')} onchange={(v) => edit((i) => (i.iconId = v))} />
           </div>
+          <label class="eff">
+            {t('field.effectiveness')}
+            <select
+              value={it.effectiveness ?? ''}
+              onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value
+                edit((i) => (i.effectiveness = v || null))
+              }}
+            >
+              <option value="">{t('field.none')}</option>
+              {#each reference.effectivenessLists as name (name)}<option value={name}>{t(`effectiveness.${name}`)}</option>{/each}
+            </select>
+          </label>
           {#if lock}
             <p class="lock">
               🔒 {t('field.lockedTo')}
