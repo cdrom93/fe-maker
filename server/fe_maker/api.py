@@ -195,7 +195,7 @@ def item_icon(icon_id: int):
 # ---------- build and test ----------
 
 class TestOptionsIn(BaseModel):
-    skipIntro: bool | None = None
+    start: str | None = None
 
 
 @app.get("/api/project/test-options")
@@ -206,7 +206,10 @@ def get_test_options():
 @app.put("/api/project/test-options")
 def put_test_options(body: TestOptionsIn):
     project = state.require_project()
-    project.set_test_options(body.model_dump(exclude_none=True))
+    try:
+        project.set_test_options(body.model_dump(exclude_none=True))
+    except ProjectError as e:
+        raise HTTPException(400, str(e))
     return project.test_options
 
 

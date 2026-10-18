@@ -17,6 +17,19 @@ _MACRO_RE = re.compile(r"^##\s*(\w+)")
 _NAME_RE = re.compile(r"^(.*?)((?:\[[^\]]*\])*)$", re.DOTALL)
 
 
+def name_message(name: str) -> str:
+    """Message body for a short name.
+
+    The text compressor packs printable characters two by two
+    (scripts/texttools/textprocess.py). With an odd number of bytes, the last
+    character would be packed with the [X] terminator, which the game then
+    misses and keeps reading the next message (seen in game: "Rapieros enH-e3
+    Sord"). The original game pads such names with [.], e.g. "Gilliam[.][X]".
+    """
+    padding = "[.]" if len(name.encode("utf-8")) % 2 else ""
+    return f"{name}{padding}[X]"
+
+
 @dataclass
 class _Message:
     index: int
@@ -69,9 +82,9 @@ class TextFile:
         return self._split_name(index)[0]
 
     def set_name(self, index: int, name: str) -> None:
-        current, suffix = self._split_name(index)
+        current, _suffix = self._split_name(index)
         if current != name:
-            self.set_raw(index, f"{name}{suffix or '[X]'}")
+            self.set_raw(index, name_message(name))
 
     def render(self) -> str:
         lines = list(self.lines)

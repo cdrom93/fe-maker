@@ -70,16 +70,42 @@ def test_class_change_applies_to_chapters(decomp_dir):
     assert ".charIndex = CHARACTER_TESTRIVAL,\n        .classIndex = CLASS_TESTLORD," in udefs
 
 
+def test_class_change_keeps_personal_weapon_locks(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    chars[0]["class"] = "CLASS_TESTKNIGHT"  # the lord class had CA_LOCK_4, the knight has none
+    d.apply_characters(chars)
+    assert ".attributes = CA_FEMALE | CA_LOCK_4," in d.changed_files()["src/data_characters.c"]
+
+
+def test_odd_length_names_are_padded(decomp_dir):
+    d = DecompData(decomp_dir)
+    items = d.export_items()
+    items[0]["name"] = "Bladeo"  # even: no padding
+    d.apply_items(items)
+    assert "\nBladeo[X]\n" in d.changed_files()["texts/texts.txt"]
+    d = DecompData(decomp_dir)
+    items[0]["name"] = "Blade"  # odd: padded like the original game ("Gilliam[.][X]")
+    d.apply_items(items)
+    assert "\nBlade[.][X]\n" in d.changed_files()["texts/texts.txt"]
+
+
 def test_animated_weapons(decomp_dir):
     d = DecompData(decomp_dir)
-    assert d.animated_weapons == {"CLASS_TESTLORD": ["sword"], "CLASS_TESTKNIGHT": ["lance", "sword"]}
+    assert d.animated_weapons == {
+        "CLASS_TESTLORD": ["sword"],
+        "CLASS_TESTKNIGHT": ["lance", "sword"],
+        "CLASS_TESTUNUSED": ["lance", "sword"],
+    }
 
 
-def test_name_control_codes_are_preserved():
-    texts = TextFile("#0x0\n[X]\n\n## MSG_001\nHero[.][X]\n")
-    assert texts.get_name(1) == "Hero"
+def test_name_control_codes_are_hidden_and_recomputed():
+    texts = TextFile("#0x0\n[X]\n\n## MSG_001\nHerox[.][X]\n")
+    assert texts.get_name(1) == "Herox"
     texts.set_name(1, "Champion")
-    assert "Champion[.][X]" in texts.render()
+    assert "\nChampion[X]\n" in texts.render()
+    texts.set_name(1, "Champ")
+    assert "\nChamp[.][X]\n" in texts.render()
 
 
 def test_items(decomp_dir):

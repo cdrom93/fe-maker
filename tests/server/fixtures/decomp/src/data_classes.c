@@ -6,6 +6,7 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseHP  = 10,
         .basePow = 2,
         .baseMov = 5,
+        .attributes = CA_LORD | CA_LOCK_4,
         .pBattleAnimDef = AnimConf_TestLord,
     },
     [CLASS_TESTKNIGHT - 1] = {
@@ -14,6 +15,12 @@ CONST_DATA struct ClassData gClassData[] = {
         .baseHP  = 12,
         .baseDef = 6,
         .baseMov = 4,
+        .pBattleAnimDef = AnimConf_TestKnight,
+    },
+    [CLASS_TESTUNUSED - 1] = {
+        .nameTextId = 0x6,
+        .number = CLASS_TESTUNUSED,
+        .baseHP  = 15,
         .pBattleAnimDef = AnimConf_TestKnight,
     },
 };

@@ -43,8 +43,8 @@ export const api = {
   saveData: (kind: 'characters' | 'items', records: unknown[]) =>
     request<{ problems: Problem[] }>('PUT', `/api/project/data/${kind}`, records),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
-  testOptions: () => request<{ skipIntro: boolean }>('GET', '/api/project/test-options'),
-  setTestOptions: (o: { skipIntro?: boolean }) => request<{ skipIntro: boolean }>('PUT', '/api/project/test-options', o),
+  testOptions: () => request<{ start: string }>('GET', '/api/project/test-options'),
+  setTestOptions: (o: { start?: string }) => request<{ start: string }>('PUT', '/api/project/test-options', o),
   startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
 }

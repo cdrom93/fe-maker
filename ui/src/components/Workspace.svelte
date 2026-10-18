@@ -17,7 +17,7 @@
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
-  let skipIntro = $state(true)
+  let start = $state('map')
 
   const lists = {
     characters: new EditableList<Character>(async (r) => {
@@ -41,7 +41,7 @@
       api.problems(),
       api.testOptions(),
     ])
-    skipIntro = testOpts.skipIntro
+    start = testOpts.start
     reference = ref
     lists.characters.load(chars)
     lists.items.load(items)
@@ -83,9 +83,13 @@
     <button onclick={() => active.undo()} disabled={!active.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     <button onclick={() => active.redo()} disabled={!active.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
-    <label class="check" title={t('ws.skipIntroHint')}>
-      <input type="checkbox" checked={skipIntro} onchange={async (e) => (skipIntro = (await api.setTestOptions({ skipIntro: (e.target as HTMLInputElement).checked })).skipIntro)} />
-      {t('ws.skipIntro')}
+    <label class="check" title={t('ws.startHint')}>
+      {t('ws.start')}
+      <select value={start} onchange={async (e) => (start = (await api.setTestOptions({ start: (e.target as HTMLSelectElement).value })).start)}>
+        <option value="map">{t('ws.start.map')}</option>
+        <option value="menu">{t('ws.start.menu')}</option>
+        <option value="normal">{t('ws.start.normal')}</option>
+      </select>
     </label>
     <button class="primary" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
     <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>

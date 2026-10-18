@@ -1,8 +1,8 @@
 """Small engine tweaks applied to the decomp sources at build time, on the user's machine.
 
-FE Maker stores only the instruction (anchor + inserted line, our own code); the
+FE Maker stores only the instruction (anchor + inserted lines, our own code); the
 modified decomp file is generated locally in the build overlay and never
-distributed. If the anchor is not found (the decomp changed), the build stops
+distributed. If an anchor is not found (the decomp changed), the build stops
 with a clear error instead of producing a broken game.
 """
 
@@ -13,30 +13,73 @@ from pathlib import Path
 
 GAME_CONTROL_FILE = "src/gamecontrol.c"
 
+# Test start modes: "normal" (full intro), "menu" (straight to the save menu),
+# "map" (new game created automatically, straight onto the first chapter's map).
+START_MODES = ("normal", "menu", "map")
+
+_GAME_CONTROL_RE = re.compile(
+    r"(struct\s+ProcCmd\s+CONST_DATA\s+gProcScr_GameControl\s*\[\s*\]\s*=\s*\{.*?"
+    r"PROC_REPEAT\(\s*GameControl_8009A60_Null\s*\),[ \t]*\n)",
+    re.DOTALL,
+)
+
+_QUICK_START_DECL = (
+    "/* FE Maker: quick start for test builds */\n"
+    "void WriteNewGameSave(int index, int isDifficult, int mode, int isTutorial);\n"
+    "void FEMaker_QuickStartOnMap(ProcPtr proc);\n\n"
+)
+
+# Same steps as choosing "New Game" then "Normal" in the save menu (see
+# SaveMenuWriteNewGame: despite its name, isTutorial = 1 means no tutorial),
+# then the battle map of the first chapter, skipping the opening monologue and
+# the world map.
+_QUICK_START_DEF = """
+/* FE Maker: quick start for test builds */
+void FEMaker_QuickStartOnMap(ProcPtr proc)
+{
+    WriteNewGameSave(0, 0, 1, 1);
+    GameControl_EnableSoundEffects(proc);
+    Proc_Goto(proc, LGAMECTRL_EXEC_BM_EXT);
+}
+"""
+
 
 class TweakError(Exception):
     pass
 
 
+def _anchor(source: str) -> re.Match:
+    m = _GAME_CONTROL_RE.search(source)
+    if not m:
+        raise TweakError(f"The quick start option does not match this version of the decomp ({GAME_CONTROL_FILE})")
+    return m
+
+
 def skip_intro(source: str) -> str:
     """Boot straight to the save menu, skipping the health warning, logos,
-    opening cutscene and title screen (handy when testing)."""
-    m = re.search(
-        r"gProcScr_GameControl\s*\[\s*\]\s*=\s*\{.*?(PROC_REPEAT\(\s*GameControl_8009A60_Null\s*\),[ \t]*\n)",
-        source,
-        re.DOTALL,
-    )
-    if not m:
-        raise TweakError(f"'Skip intro' does not match this version of the decomp ({GAME_CONTROL_FILE})")
+    opening cutscene and title screen."""
+    m = _anchor(source)
     insert = "    PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU), /* FE Maker: skip intro */\n"
     return source[: m.end(1)] + insert + source[m.end(1):]
 
 
+def start_on_map(source: str) -> str:
+    """Boot straight onto the first chapter's map with a fresh normal-mode game
+    (the chapter's opening scene still plays: press Start to skip it)."""
+    m = _anchor(source)
+    insert = "    PROC_CALL(FEMaker_QuickStartOnMap), /* FE Maker: start on map */\n"
+    out = source[: m.start(1)] + _QUICK_START_DECL + source[m.start(1): m.end(1)] + insert + source[m.end(1):]
+    return out.rstrip("\n") + "\n" + _QUICK_START_DEF
+
+
 def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) -> dict[str, str]:
     """Add the tweaks enabled for test builds to `files` (decomp-relative path -> content)."""
-    if options.get("skipIntro"):
+    start = options.get("start", "normal")
+    if start not in START_MODES:
+        raise TweakError(f"Unknown start mode: {start}")
+    if start != "normal":
         source = files.get(GAME_CONTROL_FILE)
         if source is None:
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
-        files[GAME_CONTROL_FILE] = skip_intro(source)
+        files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else start_on_map(source)
     return files

@@ -130,6 +130,25 @@ class DecompData:
             result[entry.fields["number"]] = confs.get(conf, [])
         return result
 
+    def _class_locks(self, class_id: str) -> list[str]:
+        """Weapon lock flags (CA_LOCK_n) of a class."""
+        entry = next((e for e in self.classes.entries if e.fields["number"] == class_id), None)
+        if entry is None:
+            return []
+        return re.findall(r"\bCA_LOCK_\d\b", entry.original_fields.get("attributes", ""))
+
+    def classes_used_in_game(self) -> set[str]:
+        """Classes the original game actually uses (units, characters and their promotions).
+        The others are leftovers whose graphics and animations may be incomplete."""
+        used = set()
+        for source in self._original_unit_defs.values():
+            used |= set(re.findall(r"\.classIndex\s*=\s*(CLASS_\w+)", source))
+        used |= {e.original_fields.get("defaultClass", "") for e in self.characters.entries}
+        for e in self.classes.entries:
+            if e.fields["number"] in used and e.fields.get("promotion"):
+                used.add(e.fields["promotion"])
+        return used
+
     def _retarget_unit_class(self, character: str, old_class: str, new_class: str) -> None:
         """Give a character its new class in every chapter where it had the old one."""
         pattern = re.compile(
@@ -145,6 +164,7 @@ class DecompData:
 
     def export_classes(self) -> list[dict]:
         """Read-only class list (class editing comes in phase 2)."""
+        used = self.classes_used_in_game()
         return [
             {
                 "id": f["number"],
@@ -152,6 +172,7 @@ class DecompData:
                 "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s]) for s in STATS if s != "lck"} | {"lck": 0},
                 "mov": _int_field(f, "baseMov"),
                 "animatedWeapons": self.animated_weapons.get(f["number"], []),
+                "usedInGame": f["number"] in used,
             }
             for f in (e.fields for e in self.classes.entries)
         ]
@@ -208,10 +229,20 @@ class DecompData:
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), ch["name"])
             if f["defaultClass"] != ch["class"]:
+                original_class = entry.original_fields["defaultClass"]
                 # In game, chapters load units with an explicit class: defaultClass alone
                 # only matters when a chapter leaves it out. Retarget the chapters too.
-                self._retarget_unit_class(ch["id"], entry.original_fields["defaultClass"], ch["class"])
+                self._retarget_unit_class(ch["id"], original_class, ch["class"])
                 f["defaultClass"] = ch["class"]
+                # Personal weapons (Eirika's Rapier...) are locked to flags of the original
+                # class. A unit has the flags of its character AND its class, so moving them
+                # to the character keeps those weapons usable (scripted battles rely on it).
+                lost = [lock for lock in self._class_locks(original_class) if lock not in self._class_locks(ch["class"])]
+                current = [a.strip() for a in f.get("attributes", "0").split("|")]
+                missing = [lock for lock in lost if lock not in current]
+                if missing:
+                    kept = [a for a in current if a not in ("0", "")]
+                    f["attributes"] = " | ".join(kept + missing)
             _set_int(f, "baseLevel", ch["level"])
             _set_int(f, "portraitId", ch["portraitId"])
             for s in STATS:

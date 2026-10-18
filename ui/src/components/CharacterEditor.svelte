@@ -61,11 +61,11 @@
             {t('field.name')}
             <input value={ch.name} class:invalid={!!problemFor('name')} oninput={(e) => edit((c) => (c.name = (e.target as HTMLInputElement).value))} />
           </label>
-          <label>
+          <label title={problemFor('class')}>
             {t('field.class')}
             <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
               {#each reference.classes as k (k.id)}
-                <option value={k.id}>{k.name}</option>
+                <option value={k.id}>{k.name}{k.usedInGame ? '' : ` (${t('field.unusedClass')})`}</option>
               {/each}
             </select>
           </label>

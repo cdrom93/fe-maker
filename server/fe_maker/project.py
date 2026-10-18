@@ -12,14 +12,14 @@ from pathlib import Path
 
 from . import builder, ups
 from .decomp.gamedata import DecompData
-from .decomp.tweaks import TweakError, apply_test_tweaks
+from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks
 from .paths import DECOMP_DIR
 from .validation import Problem, validate
 
 FORMAT_VERSION = 1
 PROJECT_FILE = "fe-maker.json"
 DATA_FILES = ("characters", "items")
-DEFAULT_TEST_OPTIONS = {"skipIntro": True}
+DEFAULT_TEST_OPTIONS = {"start": "map"}  # see decomp/tweaks.py START_MODES
 
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
@@ -106,11 +106,16 @@ class Project:
     @property
     def test_options(self) -> dict:
         """Options applied only to "Test" builds, never to the exported patch."""
-        return {**DEFAULT_TEST_OPTIONS, **self.meta.get("testOptions", {})}
+        stored = dict(self.meta.get("testOptions", {}))
+        if "skipIntro" in stored:  # option name used before "start" existed
+            stored.setdefault("start", "menu" if stored.pop("skipIntro") else "normal")
+        return {**DEFAULT_TEST_OPTIONS, **{k: v for k, v in stored.items() if k in DEFAULT_TEST_OPTIONS}}
 
     def set_test_options(self, options: dict) -> None:
-        current = self.test_options
-        self.meta["testOptions"] = {k: bool(options.get(k, current[k])) for k in DEFAULT_TEST_OPTIONS}
+        start = options.get("start", self.test_options["start"])
+        if start not in START_MODES:
+            raise ProjectError(f"Unknown start mode: {start}")
+        self.meta["testOptions"] = {"start": start}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def generate_overlay(self, decomp_dir: Path = DECOMP_DIR, for_test: bool = False) -> Path:

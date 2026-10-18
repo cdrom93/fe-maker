@@ -40,9 +40,18 @@ def test_weapon_rank_without_battle_animation(decomp_dir):
     assert not any(c[2] == "noBattleAnimation" for c in codes)
 
 
-def test_accents_are_a_warning(decomp_dir):
+def test_accents_are_an_error(decomp_dir):
     d = DecompData(decomp_dir)
     chars = d.export_characters()
     chars[0]["name"] = "Héro"
     problems = [p for p in validate(chars, d.export_items(), d) if p.code == "nameNonAscii"]
+    assert problems and problems[0].severity == "error"
+
+
+def test_unused_class_is_a_warning(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    chars[0]["class"] = "CLASS_TESTUNUSED"
+    chars[0]["weaponRanks"] = {}
+    problems = [p for p in validate(chars, d.export_items(), d) if p.code == "unusedClass"]
     assert problems and problems[0].severity == "warning"

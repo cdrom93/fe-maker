@@ -43,8 +43,8 @@ def _name(problems, kind, rid, name):
         problems.append(Problem("error", kind, rid, "name", "nameForbiddenChars", {"chars": "[ ] #"},
                                 f"{rid}: name cannot contain [ ] or #"))
     if not name.isascii():
-        problems.append(Problem("warning", kind, rid, "name", "nameNonAscii", {},
-                                f"{rid}: accented letters may not display in game"))
+        problems.append(Problem("error", kind, rid, "name", "nameNonAscii", {},
+                                f"{rid}: the game font has no accented letters"))
     if len(name) > NAME_MAX_LENGTH:
         problems.append(Problem("warning", kind, rid, "name", "nameTooLong", {"max": NAME_MAX_LENGTH},
                                 f"{rid}: name longer than {NAME_MAX_LENGTH} characters may overflow"))
@@ -64,6 +64,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
     icon_count = len(decomp.item_icon_files())
     weapon_types = set(WEAPON_TYPES.values())
     original = {c["id"]: c for c in decomp.export_characters()}
+    used_classes = decomp.classes_used_in_game()
 
     _duplicates(problems, "characters", characters)
     for ch in characters:
@@ -71,6 +72,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData) -> l
         _name(problems, "characters", rid, ch.get("name"))
         if ch.get("class") not in class_ids:
             problems.append(Problem("error", "characters", rid, "class", "unknownClass", {}, f"{rid}: unknown class"))
+        elif rid in original and ch["class"] != original[rid]["class"] and ch["class"] not in used_classes:
+            problems.append(Problem("warning", "characters", rid, "class", "unusedClass", {},
+                                    f"{rid}: this class is never used in the original game, its graphics may be incomplete"))
         _range(problems, "characters", rid, "level", ch.get("level"), 0, 127)  # 0 for generic units
         _range(problems, "characters", rid, "portraitId", ch.get("portraitId"), 0, 0xFFFF)
         for s in STATS:
