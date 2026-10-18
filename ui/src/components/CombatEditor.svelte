@@ -2,6 +2,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import type { ClassView, Combat, Problem, Reference } from '../lib/types'
+  import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
 
   let {
@@ -15,7 +16,7 @@
   const TRIANGLE_TYPES = ['sword', 'lance', 'axe', 'bow', 'anima', 'light', 'dark']
   const SIGN = { male: ' ♂', female: ' ♀' } as const
   const classLabel = (k: ClassView) => `${k.name || k.id}${k.gender ? SIGN[k.gender] : ''}`
-  const classNames = $derived(new Map(classes.map((k) => [k.id, classLabel(k)])))
+  const byId = $derived(new Map(classes.map((k) => [k.id, k])))
   const mine = $derived(problems.filter((p) => p.kind === 'combat'))
 
   let adding = $state<Record<string, string>>({})
@@ -82,7 +83,7 @@
             <div class="chips">
               {#each combat.effectiveness[name] ?? [] as id, j (j)}
                 <span class="chip">
-                  {classNames.get(id) ?? id}
+                  {byId.get(id)?.name || id} <GenderSign gender={byId.get(id)?.gender} />
                   <button class="icon" title={t('combat.remove')} onclick={() => edit((c) => c.effectiveness[name].splice(j, 1))}>✕</button>
                 </span>
               {/each}
@@ -91,7 +92,7 @@
               <select bind:value={adding[name]} aria-label={t('combat.addClass')}>
                 <option value="">{t('combat.addClass')}</option>
                 {#each classes.filter((k) => k.usedInGame && !(combat.effectiveness[name] ?? []).includes(k.id)) as k (k.id)}
-                  <option value={k.id}>{classLabel(k)}</option>
+                  <option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>
                 {/each}
               </select>
               <button onclick={() => addClass(name)} disabled={!adding[name]}>+</button>

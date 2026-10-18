@@ -9,6 +9,7 @@
     filter = () => true,
     problemIds,
     icon,
+    suffix,
     extraFilter,
   }: {
     records: T[]
@@ -16,7 +17,8 @@
     onselect: (index: number) => void
     filter?: (r: T) => boolean
     problemIds: Set<string>
-    icon: Snippet<[T]>
+    icon?: Snippet<[T]>
+    suffix?: Snippet<[T]>
     extraFilter?: Snippet
   } = $props()
 
@@ -40,8 +42,8 @@
     {#each visible as { r, i } (r.id)}
       <li>
         <button class:selected={i === selected} onclick={() => onselect(i)}>
-          {@render icon(r)}
-          <span class="name">{r.name || '—'}</span>
+          {#if icon}{@render icon(r)}{/if}
+          <span class="name">{r.name || r.id}{#if suffix} {@render suffix(r)}{/if}</span>
           {#if problemIds.has(r.id)}<span class="dot" aria-label="!">!</span>{/if}
         </button>
       </li>

@@ -5,6 +5,7 @@
   import type { Character, ClassStatKey, ClassView, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
+  import GenderSign from './GenderSign.svelte'
   import RecordList from './RecordList.svelte'
 
   let {
@@ -81,11 +82,14 @@
           </label>
           <label title={problemFor('class')}>
             {t('field.class')}
-            <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
-              {#each classChoices as k (k.id)}
-                <option value={k.id}>{classLabel(k)}</option>
-              {/each}
-            </select>
+            <span class="with-sign">
+              <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
+                {#each classChoices as k (k.id)}
+                  <option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>
+                {/each}
+              </select>
+              <GenderSign gender={cls?.gender} />
+            </span>
           </label>
           <label class="check"><input type="checkbox" bind:checked={hideUnusedClasses} /> {t('field.hideUnusedClasses')}</label>
           <p class="muted small">{t('field.classHint')}</p>

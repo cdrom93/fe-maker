@@ -3,6 +3,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Problem, Reference } from '../lib/types'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
+  import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
@@ -58,9 +59,7 @@
 
 <div class="editor">
   <RecordList records={classes} {selected} onselect={(i) => (selected = i)} filter={(k) => !hideUnused || k.usedInGame} {problemIds}>
-    {#snippet icon(k: ClassView)}
-      <span class="sign">{k.gender ? GENDER_SIGN[k.gender] : '·'}</span>
-    {/snippet}
+    {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
     {#snippet extraFilter()}
       <label class="check"><input type="checkbox" bind:checked={hideUnused} /> {t('field.hideUnusedClasses')}</label>
     {/snippet}
@@ -91,7 +90,7 @@
           <NumberField label={t('class.relativePower')} value={cl.relativePower} min={-128} max={127} problem={problemFor('relativePower')} onchange={(v) => edit((c) => (c.relativePower = v))} />
         </div>
         <p class="muted small">
-          {cl.gender ? `${GENDER_SIGN[cl.gender]} · ` : ''}{t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}
+          {t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}{#if cl.gender} · {t('class.gender')} : <GenderSign gender={cl.gender} />{/if}
         </p>
       </section>
 
@@ -155,10 +154,13 @@
           {#each [0, 1] as slot (slot)}
             <label title={problemFor('promotions')}>
               {t('class.promotion', { n: slot + 1 })}
-              <select value={cl.promotions[slot] ?? ''} onchange={(e) => setPromotion(slot, (e.target as HTMLSelectElement).value)}>
-                <option value="">{t('field.none')}</option>
-                {#each promoChoices as k (k.id)}<option value={k.id}>{label(k)}</option>{/each}
-              </select>
+              <span class="with-sign">
+                <select value={cl.promotions[slot] ?? ''} onchange={(e) => setPromotion(slot, (e.target as HTMLSelectElement).value)}>
+                  <option value="">{t('field.none')}</option>
+                  {#each promoChoices as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{label(k)}</option>{/each}
+                </select>
+                <GenderSign gender={classes.find((k) => k.id === cl.promotions[slot])?.gender} />
+              </span>
             </label>
           {/each}
         </div>
@@ -195,7 +197,6 @@
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .top { align-items: flex-end; }
-  .sign { width: 1.2em; text-align: center; color: var(--muted); }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
   .table-wrap { overflow-x: auto; }
