@@ -69,6 +69,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rom", required=True, type=Path, help="Fire Emblem: The Sacred Stones (US) ROM")
     parser.add_argument("--out", default=REPO_ROOT / "build", type=Path, help="output directory")
+    parser.add_argument("--overlay", type=Path, help="directory of files copied over the decomp sources before building")
     args = parser.parse_args()
 
     rom = args.rom.resolve()
@@ -84,18 +85,20 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     docker = find_docker()
 
+    mounts = [
+        "-v", f"{DECOMP_DIR}:/src:ro",
+        "-v", f"{rom}:/rom/baserom.gba:ro",
+        "-v", f"{WORK_VOLUME}:/work",
+        "-v", f"{out}:/out",
+    ]
+    if args.overlay:
+        overlay = args.overlay.resolve()
+        if not overlay.is_dir():
+            sys.exit(f"Overlay directory not found: {overlay}")
+        mounts += ["-v", f"{overlay}:/overlay:ro"]
+
     subprocess.run([docker, "build", "-t", IMAGE, str(DOCKER_DIR)], check=True)
-    subprocess.run(
-        [
-            docker, "run", "--rm",
-            "-v", f"{DECOMP_DIR}:/src:ro",
-            "-v", f"{rom}:/rom/baserom.gba:ro",
-            "-v", f"{WORK_VOLUME}:/work",
-            "-v", f"{out}:/out",
-            IMAGE,
-        ],
-        check=True,
-    )
+    subprocess.run([docker, "run", "--rm", *mounts, IMAGE], check=True)
 
 
 if __name__ == "__main__":
