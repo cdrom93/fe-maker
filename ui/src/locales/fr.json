@@ -81,6 +81,18 @@
   "build.firstTime": "La toute première compilation peut prendre une dizaine de minutes. Les suivantes ne prennent que quelques secondes.",
   "build.noRom": "Aucune ROM n'est configurée.",
 
+  "keys.title": "Touches",
+  "keys.intro": "Touches du clavier utilisées dans mGBA. FE Maker les applique à chaque fois qu'il lance le jeu. Cliquez sur un bouton puis appuyez sur la touche voulue (Échap pour annuler).",
+  "keys.press": "Appuyez…",
+  "keys.save": "Enregistrer",
+  "keys.saved": "Touches enregistrées. Elles seront appliquées au prochain « Tester ».",
+  "keys.duplicate": "Une même touche est utilisée pour deux boutons.",
+  "keys.space": "Espace",
+  "keys.enter": "Entrée",
+  "keys.button.A": "A", "keys.button.B": "B", "keys.button.L": "L", "keys.button.R": "R",
+  "keys.button.Start": "Start", "keys.button.Select": "Select",
+  "keys.button.Up": "Haut", "keys.button.Down": "Bas", "keys.button.Left": "Gauche", "keys.button.Right": "Droite",
+
   "problem.outOfRange": "doit être entre {min} et {max}",
   "problem.notANumber": "doit être un nombre entier",
   "problem.nameEmpty": "le nom est vide",

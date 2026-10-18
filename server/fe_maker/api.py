@@ -29,6 +29,7 @@ class _State:
         self.decomp: DecompData | None = None
         self.build_lock = threading.Lock()
         self.build_status = {"state": "idle", "log": [], "error": None, "patch": None, "launch": False}
+        self.emulator = emulator.Emulator()
 
     def get_decomp(self) -> DecompData:
         if self.decomp is None:
@@ -49,6 +50,7 @@ state = _State()
 class SettingsIn(BaseModel):
     language: str | None = None
     mgbaPath: str | None = None
+    keys: dict[str, str] | None = None
 
 
 @app.get("/api/status")
@@ -58,6 +60,8 @@ def status():
         "hasRom": s.has_rom,
         "language": s.language,
         "mgbaPath": s.mgba_path,
+        "keys": s.keys,
+        "gbaButtons": emulator.GBA_BUTTONS,
         "recentProjects": s.recent_projects,
         "defaultProjectsDir": str(default_projects_dir()),
         "project": _project_info(state.project) if state.project else None,
@@ -70,6 +74,11 @@ def update_settings(body: SettingsIn):
         state.settings.language = body.language
     if body.mgbaPath is not None:
         state.settings.mgba_path = body.mgbaPath or None
+    if body.keys is not None:
+        try:
+            state.settings.keys = emulator.validate_keys(body.keys)
+        except emulator.EmulatorError as e:
+            raise HTTPException(400, str(e))
     state.settings.save()
     return status()
 
@@ -195,7 +204,7 @@ def _run_build(project: Project, launch: bool) -> None:
         output = project.build(state.settings.rom_path, on_output=lambda line: st["log"].append(line.rstrip("\n")))
         st["patch"] = str(output.patch_path)
         if launch:
-            emulator.launch(state.settings.mgba_path, output.rom_path)
+            state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys)
         st["state"] = "done"
     except (ProjectError, BuildError, InvalidRomError, emulator.EmulatorError) as e:
         st["error"] = str(e)

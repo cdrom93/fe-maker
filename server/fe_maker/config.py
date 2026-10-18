@@ -10,6 +10,7 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from .emulator import DEFAULT_KEYS
 from .rom import check_rom
 
 MGBA_CANDIDATES = [
@@ -52,6 +53,7 @@ class Settings:
     language: str = "fr"
     mgba_path: str | None = None
     recent_projects: list[str] = field(default_factory=list)
+    keys: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_KEYS))  # GBA button -> keyboard key
 
     @property
     def rom_path(self) -> Path:

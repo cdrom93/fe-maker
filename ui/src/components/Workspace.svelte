@@ -7,6 +7,7 @@
   import BuildPanel from './BuildPanel.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
+  import KeysDialog from './KeysDialog.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
@@ -15,6 +16,7 @@
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
+  let showKeys = $state(false)
 
   const lists = {
     characters: new EditableList<Character>(async (r) => {
@@ -55,7 +57,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (!(e.ctrlKey || e.metaKey)) return
+    if (showKeys || !(e.ctrlKey || e.metaKey)) return
     const key = e.key.toLowerCase()
     if (key === 'z' && !e.shiftKey) {
       e.preventDefault()
@@ -79,6 +81,7 @@
     <button onclick={() => active.redo()} disabled={!active.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
     <button class="primary" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
+    <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
   </div>
 </div>
@@ -101,6 +104,10 @@
   {:else}
     <ItemEditor list={lists.items} {reference} {problems} />
   {/if}
+{/if}
+
+{#if showKeys}
+  <KeysDialog onClose={() => (showKeys = false)} />
 {/if}
 
 {#if build}

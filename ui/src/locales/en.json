@@ -81,6 +81,18 @@
   "build.firstTime": "The very first build can take about ten minutes. Later builds take a few seconds.",
   "build.noRom": "No ROM is configured.",
 
+  "keys.title": "Controls",
+  "keys.intro": "Keyboard keys used in mGBA. FE Maker applies them every time it starts the game. Click a button, then press the key you want (Escape to cancel).",
+  "keys.press": "Press a key…",
+  "keys.save": "Save",
+  "keys.saved": "Controls saved. They will apply on the next \"Test\".",
+  "keys.duplicate": "The same key is used for two buttons.",
+  "keys.space": "Space",
+  "keys.enter": "Enter",
+  "keys.button.A": "A", "keys.button.B": "B", "keys.button.L": "L", "keys.button.R": "R",
+  "keys.button.Start": "Start", "keys.button.Select": "Select",
+  "keys.button.Up": "Up", "keys.button.Down": "Down", "keys.button.Left": "Left", "keys.button.Right": "Right",
+
   "problem.outOfRange": "must be between {min} and {max}",
   "problem.notANumber": "must be a whole number",
   "problem.nameEmpty": "the name is empty",

@@ -62,6 +62,8 @@ export interface Status {
   hasRom: boolean
   language: 'fr' | 'en'
   mgbaPath: string | null
+  keys: Record<string, string>
+  gbaButtons: string[]
   recentProjects: string[]
   defaultProjectsDir: string
   project: ProjectInfo | null

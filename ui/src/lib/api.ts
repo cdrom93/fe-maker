@@ -29,7 +29,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 
 export const api = {
   status: () => request<Status>('GET', '/api/status'),
-  updateSettings: (s: { language?: string; mgbaPath?: string }) => request<Status>('PUT', '/api/settings', s),
+  updateSettings: (s: { language?: string; mgbaPath?: string; keys?: Record<string, string> }) => request<Status>('PUT', '/api/settings', s),
   uploadRom: (file: File) => {
     const form = new FormData()
     form.append('file', file)
