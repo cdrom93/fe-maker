@@ -17,6 +17,7 @@
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
+  let skipIntro = $state(true)
 
   const lists = {
     characters: new EditableList<Character>(async (r) => {
@@ -33,12 +34,14 @@
   const active = $derived(lists[tab])
 
   onMount(async () => {
-    const [ref, chars, items, probs] = await Promise.all([
+    const [ref, chars, items, probs, testOpts] = await Promise.all([
       api.reference(),
       api.getData<Character>('characters'),
       api.getData<Item>('items'),
       api.problems(),
+      api.testOptions(),
     ])
+    skipIntro = testOpts.skipIntro
     reference = ref
     lists.characters.load(chars)
     lists.items.load(items)
@@ -80,6 +83,10 @@
     <button onclick={() => active.undo()} disabled={!active.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     <button onclick={() => active.redo()} disabled={!active.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
+    <label class="check" title={t('ws.skipIntroHint')}>
+      <input type="checkbox" checked={skipIntro} onchange={async (e) => (skipIntro = (await api.setTestOptions({ skipIntro: (e.target as HTMLInputElement).checked })).skipIntro)} />
+      {t('ws.skipIntro')}
+    </label>
     <button class="primary" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
     <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
@@ -119,6 +126,7 @@
   .title { display: flex; align-items: baseline; gap: 0.75rem; }
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
+  .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
   .summary { display: flex; gap: 1rem; margin: 0 0 0.75rem; font-size: 0.9rem; }
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }

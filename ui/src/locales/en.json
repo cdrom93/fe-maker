@@ -23,6 +23,8 @@
   "ws.items": "Items",
   "ws.test": "Test",
   "ws.exportPatch": "Export patch",
+  "ws.skipIntro": "Skip intro",
+  "ws.skipIntroHint": "Test builds only: the game boots straight to the save menu (no logos, opening or title screen). The exported patch keeps the normal intro.",
   "ws.close": "Close project",
   "ws.saved": "Saved",
   "ws.saving": "Saving…",

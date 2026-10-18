@@ -26,6 +26,14 @@ def test_unmodified_project_rebuilds_original_rom(tmp_path):
     assert out.rom_path.read_bytes() == Path(ROM).read_bytes()
 
 
+def test_test_build_with_skip_intro(tmp_path):
+    project = Project.create(tmp_path / "quick", "Quick")
+    assert project.test_options["skipIntro"]
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    assert out.patch_path is None
+    assert out.rom_path.read_bytes() != Path(ROM).read_bytes()
+
+
 def test_modified_project_and_patch(tmp_path):
     project = Project.create(tmp_path / "modded", "Modded")
     chars = project.load("characters")

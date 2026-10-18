@@ -194,6 +194,22 @@ def item_icon(icon_id: int):
 
 # ---------- build and test ----------
 
+class TestOptionsIn(BaseModel):
+    skipIntro: bool | None = None
+
+
+@app.get("/api/project/test-options")
+def get_test_options():
+    return state.require_project().test_options
+
+
+@app.put("/api/project/test-options")
+def put_test_options(body: TestOptionsIn):
+    project = state.require_project()
+    project.set_test_options(body.model_dump(exclude_none=True))
+    return project.test_options
+
+
 class BuildIn(BaseModel):
     launch: bool = False
 
@@ -201,8 +217,10 @@ class BuildIn(BaseModel):
 def _run_build(project: Project, launch: bool) -> None:
     st = state.build_status
     try:
-        output = project.build(state.settings.rom_path, on_output=lambda line: st["log"].append(line.rstrip("\n")))
-        st["patch"] = str(output.patch_path)
+        output = project.build(
+            state.settings.rom_path, on_output=lambda line: st["log"].append(line.rstrip("\n")), for_test=launch
+        )
+        st["patch"] = str(output.patch_path) if output.patch_path else None
         if launch:
             state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys)
         st["state"] = "done"

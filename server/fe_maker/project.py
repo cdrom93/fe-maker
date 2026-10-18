@@ -12,12 +12,14 @@ from pathlib import Path
 
 from . import builder, ups
 from .decomp.gamedata import DecompData
+from .decomp.tweaks import TweakError, apply_test_tweaks
 from .paths import DECOMP_DIR
 from .validation import Problem, validate
 
 FORMAT_VERSION = 1
 PROJECT_FILE = "fe-maker.json"
 DATA_FILES = ("characters", "items")
+DEFAULT_TEST_OPTIONS = {"skipIntro": True}
 
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
@@ -43,7 +45,7 @@ def slugify(name: str) -> str:
 @dataclass
 class BuildOutput:
     rom_path: Path
-    patch_path: Path
+    patch_path: Path | None
     matches_original: bool
 
 
@@ -101,29 +103,50 @@ class Project:
 
     # ---------- build ----------
 
-    def generate_overlay(self, decomp_dir: Path = DECOMP_DIR) -> Path:
+    @property
+    def test_options(self) -> dict:
+        """Options applied only to "Test" builds, never to the exported patch."""
+        return {**DEFAULT_TEST_OPTIONS, **self.meta.get("testOptions", {})}
+
+    def set_test_options(self, options: dict) -> None:
+        current = self.test_options
+        self.meta["testOptions"] = {k: bool(options.get(k, current[k])) for k in DEFAULT_TEST_OPTIONS}
+        (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def generate_overlay(self, decomp_dir: Path = DECOMP_DIR, for_test: bool = False) -> Path:
         """Write the decomp files changed by this project into build/overlay."""
         data = DecompData(decomp_dir)
         data.apply_characters(self.load("characters"))
         data.apply_items(self.load("items"))
+        files = data.changed_files()
+        if for_test:
+            files = apply_test_tweaks(decomp_dir, self.test_options, files)
         overlay = self.root / "build" / "overlay"
         if overlay.exists():
             shutil.rmtree(overlay)
         overlay.mkdir(parents=True)
-        for rel, content in data.changed_files().items():
+        for rel, content in files.items():
             path = overlay / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(content)
         return overlay
 
-    def build(self, rom: Path, on_output: Callable[[str], None] | None = None) -> BuildOutput:
+    def build(self, rom: Path, on_output: Callable[[str], None] | None = None, for_test: bool = False) -> BuildOutput:
+        """Build the game. A test build applies the test options and makes no patch."""
         errors = [p for p in self.validate() if p.severity == "error"]
         if errors:
             raise ProjectError("Fix these problems before building: " + "; ".join(p.message for p in errors))
-        overlay = self.generate_overlay()
+        try:
+            overlay = self.generate_overlay(for_test=for_test)
+        except TweakError as e:
+            raise ProjectError(str(e)) from e
         out_dir = self.root / "build"
         result = builder.build(rom, out_dir, overlay, bugfix=self.meta.get("bugfix", False), on_output=on_output)
+        if for_test:
+            game_rom = out_dir / "test.gba"
+            result.rom_path.replace(game_rom)
+            return BuildOutput(game_rom, None, result.matches_original)
         game_rom = out_dir / f"{slugify(self.name)}.gba"
         result.rom_path.replace(game_rom)
         patch_path = out_dir / f"{slugify(self.name)}.ups"

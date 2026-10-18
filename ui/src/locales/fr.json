@@ -23,6 +23,8 @@
   "ws.items": "Objets",
   "ws.test": "Tester",
   "ws.exportPatch": "Exporter le patch",
+  "ws.skipIntro": "Passer l'intro",
+  "ws.skipIntroHint": "Pendant les tests uniquement : le jeu démarre directement sur le menu de sauvegarde (sans logos, cinématique ni écran titre). Le patch exporté garde l'intro normale.",
   "ws.close": "Fermer le projet",
   "ws.saved": "Enregistré",
   "ws.saving": "Enregistrement…",
