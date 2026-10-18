@@ -55,6 +55,7 @@
   "field.noAnimation": "This class has no battle animation for this weapon type",
   "field.noAnimationHint": "⚠ = the class has no battle animation for this weapon type: a rank in it would crash the game.",
   "field.unusedClass": "never used in the game",
+  "field.hideUnusedClasses": "Hide classes never used in the game",
   "field.inventoryLater": "Starting inventory depends on the chapter: it will be editable with chapters (phase 3).",
 
   "field.weaponType": "Type",

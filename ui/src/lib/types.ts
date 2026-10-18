@@ -33,6 +33,7 @@ export interface ClassInfo {
   mov: number
   animatedWeapons: string[]
   usedInGame: boolean
+  gender: 'male' | 'female' | null
 }
 
 export interface Reference {

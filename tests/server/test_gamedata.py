@@ -76,6 +76,13 @@ def test_item_locks(decomp_dir):
     assert d.item_locks() == {"ITEM_TESTBLADE": {"classes": ["CLASS_TESTLORD"], "characters": []}}
 
 
+def test_class_genders(decomp_dir):
+    # Lord's first animation is index 1 -> "tstf_sw1" (female), Knight's is 2 -> "tstm_sp1" (male).
+    genders = DecompData(decomp_dir).class_genders()
+    assert genders["CLASS_TESTLORD"] == "female"
+    assert genders["CLASS_TESTKNIGHT"] == "male"
+
+
 def test_odd_length_names_are_padded(decomp_dir):
     d = DecompData(decomp_dir)
     items = d.export_items()

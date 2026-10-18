@@ -25,6 +25,7 @@ ITEMS_FILE = "src/data_items.c"
 TEXTS_FILE = "texts/texts.txt"
 ITEM_ICONS_FILE = "data/data_item_icon.s"
 BATTLE_ANIM_CONF_FILE = "src/data_banimconf.c"
+BATTLE_ANIM_TABLE_FILE = "src/banim_data.c"
 # Unit placements of every chapter (struct UnitDefinition arrays)
 UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
 
@@ -130,6 +131,39 @@ class DecompData:
             result[entry.fields["number"]] = confs.get(conf, [])
         return result
 
+    def class_genders(self) -> dict[str, str | None]:
+        """Class id -> "male", "female" or None (monsters, unknown).
+
+        The game has no gender flag on classes; it is visual. Battle animation
+        names encode it in their 4th letter ("lorf_sw1" = female lord,
+        "thim_sw1" = male thief), see src/banim_data.c.
+        """
+        conf_path, table_path = self.decomp_dir / BATTLE_ANIM_CONF_FILE, self.decomp_dir / BATTLE_ANIM_TABLE_FILE
+        if not conf_path.is_file() or not table_path.is_file():
+            return {}
+        first_index = {
+            m.group(1): int(m.group(2), 0)
+            for m in re.finditer(r"struct\s+BattleAnimDef\s+(\w+)\s*\[\s*\]\s*=\s*\{\s*\{[^}]*?\.index\s*=\s*(\w+)",
+                                 self._read(BATTLE_ANIM_CONF_FILE))
+        }
+        names = re.findall(r'^\s*\{\s*"(\w+)"', self._read(BATTLE_ANIM_TABLE_FILE), re.MULTILINE)
+        result: dict[str, str | None] = {}
+        for entry in self.classes.entries:
+            f = entry.fields
+            gender = None
+            conf = f.get("pBattleAnimDef", "").lstrip("&").strip()
+            index = first_index.get(conf)
+            monster = "CA_LOCK_3" in f.get("attributes", "")
+            if index and 0 < index <= len(names) and not monster and len(names[index - 1]) >= 4:
+                gender = {"m": "male", "f": "female"}.get(names[index - 1][3])
+            # Some female classes reuse the male battle animation (CLASS_HERO_F...):
+            # the "_F" class id is the more reliable hint for them.
+            suffix = re.search(r"_([MF])\d?$", f["number"])
+            if suffix and not monster:
+                gender = "female" if suffix.group(1) == "F" else "male"
+            result[f["number"]] = gender
+        return result
+
     def item_locks(self) -> dict[str, dict[str, list[str]]]:
         """Item id -> who can wield it despite its weapon locks.
 
@@ -181,6 +215,7 @@ class DecompData:
     def export_classes(self) -> list[dict]:
         """Read-only class list (class editing comes in phase 2)."""
         used = self.classes_used_in_game()
+        genders = self.class_genders()
         return [
             {
                 "id": f["number"],
@@ -189,6 +224,7 @@ class DecompData:
                 "mov": _int_field(f, "baseMov"),
                 "animatedWeapons": self.animated_weapons.get(f["number"], []),
                 "usedInGame": f["number"] in used,
+                "gender": genders.get(f["number"]),
             }
             for f in (e.fields for e in self.classes.entries)
         ]

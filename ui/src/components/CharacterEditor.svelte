@@ -13,6 +13,17 @@
 
   let selected = $state(0)
   let namedOnly = $state(true)
+  let hideUnusedClasses = $state(true)
+
+  const GENDER_SIGN = { male: '♂', female: '♀' } as const
+  // The current class always stays in the list, even when unused classes are hidden.
+  const classChoices = $derived(reference.classes.filter((k) => !hideUnusedClasses || k.usedInGame || k.id === ch?.class))
+
+  function classLabel(k: Reference['classes'][number]): string {
+    const sign = k.gender ? `${GENDER_SIGN[k.gender]} ` : ''
+    const unused = k.usedInGame ? '' : ` (${t('field.unusedClass')})`
+    return `${sign}${k.name || k.id}${unused}`
+  }
 
   const ch = $derived(list.records[selected])
   const cls = $derived(reference.classes.find((c) => c.id === ch?.class))
@@ -64,11 +75,12 @@
           <label title={problemFor('class')}>
             {t('field.class')}
             <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
-              {#each reference.classes as k (k.id)}
-                <option value={k.id}>{k.name}{k.usedInGame ? '' : ` (${t('field.unusedClass')})`}</option>
+              {#each classChoices as k (k.id)}
+                <option value={k.id}>{classLabel(k)}</option>
               {/each}
             </select>
           </label>
+          <label class="check"><input type="checkbox" bind:checked={hideUnusedClasses} /> {t('field.hideUnusedClasses')}</label>
           <p class="muted small">{t('field.classHint')}</p>
           <div class="row">
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />

@@ -55,6 +55,7 @@
   "field.noAnimation": "Cette classe n'a pas d'animation de combat pour ce type d'arme",
   "field.noAnimationHint": "⚠ = la classe n'a pas d'animation de combat pour ce type d'arme : un rang dans ce type ferait planter le jeu.",
   "field.unusedClass": "jamais utilisée dans le jeu",
+  "field.hideUnusedClasses": "Masquer les classes jamais utilisées dans le jeu",
   "field.inventoryLater": "L'inventaire de départ dépend du chapitre : il sera éditable avec les chapitres (phase 3).",
 
   "field.weaponType": "Type",
