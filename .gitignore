@@ -1,0 +1,47 @@
+# --- Nintendo data: NEVER commit (see CAHIER_DES_CHARGES.md, section 2) ---
+*.gba
+*.GBA
+*.sav
+*.ss[0-9]
+*.sgm
+baserom*
+rom/
+roms/
+
+# Patches and build outputs
+*.ups
+*.bps
+*.ips
+build/
+dist/
+
+# Downloaded community resources (FE-Repo) — fetched on demand, never committed
+.cache/
+downloads/
+assets-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / UI
+node_modules/
+ui/dist/
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
