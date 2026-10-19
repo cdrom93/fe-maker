@@ -169,7 +169,7 @@ fe-maker/
 - Ajouté en cours de route : capacités (dont verrous d'armes) et affinité des personnages ; options de test (démarrage direct sur la carte).
 
 ### Phase 3 — Chapitres 🚧 (en cours)
-> Fait le 20/10/2026 : onglet Chapitres en lecture seule (liste des 79 chapitres, carte rendue fidèlement, unités sur la carte avec leurs sprites, groupes : joueur / scène d'ouverture / renforts par tour, fiche d'unité cliquable avec classe, niveau et inventaire). À suivre : placement par glisser-déposer, inventaire et niveau éditables, IA, puis éditeur de cartes.
+> Fait le 20/10/2026 : onglet Chapitres en lecture seule (liste des 79 chapitres, carte rendue fidèlement, unités sur la carte avec leurs sprites, groupes : joueur / scène d'ouverture / renforts par tour, fiche d'unité cliquable avec classe, niveau et inventaire). Puis, le même jour : unités éditables (glisser-déposer sur la carte, classe, niveau, inventaire de départ) ; seuls les groupes modifiés sont stockés dans `data/chapters.json` et réécrits dans la décomp, et les 729 groupes du jeu passent l'aller-retour sans changement. À suivre : ajouter ou supprimer des unités, IA des ennemis, objectifs du chapitre, puis éditeur de cartes. Test en jeu à faire (Docker indisponible le 20/10).
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).
 - **Placement des unités** sur les cartes existantes : alliés, ennemis, renforts, IA des ennemis, par glisser-déposer sur un aperçu de la carte.
 - **Éditeur de cartes** : peinture de tuiles à partir des tilesets, terrains, import de cartes depuis FE-Repo.

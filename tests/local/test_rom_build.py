@@ -62,6 +62,13 @@ def test_modified_project_and_patch(tmp_path):
     combat["triangle"][0]["hit"] = -20
     combat["effectiveness"]["ItemEffectiveness_Horse"].append("CLASS_THIEF")
     project.save("combat", combat)
+    import copy
+
+    from fe_maker.decomp import units
+
+    group = copy.deepcopy(units.read_unit_groups(project.decomp_dir)["UnitDef_Event_PrologueEnemy"].units)
+    group[0]["endX"], group[0]["level"], group[0]["items"] = 11, 9, ["ITEM_AXE_STEEL", "ITEM_VULNERARY"]
+    project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": group}})
     assert [p for p in project.validate() if p.severity == "error"] == []
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
