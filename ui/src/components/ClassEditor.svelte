@@ -226,11 +226,11 @@
   .issues p { margin: 0.2rem 0; }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }
-  /* Map sprites are 16x16 to 32x32 (served at x2): the tall and wide ones shrink to fit the box. */
+  /* Map sprites are 16x16 to 32x32, all served at x2: same scale, the row grows with the sprite. */
   .sprite {
-    width: 32px; height: 32px; flex: none;
+    min-width: 32px; min-height: 32px; flex: none;
     display: inline-flex; align-items: flex-end; justify-content: center;
   }
-  .sprite img { image-rendering: pixelated; max-width: 32px; max-height: 32px; }
+  .sprite img { image-rendering: pixelated; display: block; }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
 </style>
