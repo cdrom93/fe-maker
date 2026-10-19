@@ -4,7 +4,9 @@
   import { t } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
+  import Mention from './Mention.svelte'
   import ReservationEditor from './ReservationEditor.svelte'
+  import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import RecordList from './RecordList.svelte'
 
   let {
@@ -22,6 +24,7 @@
   } = $props()
 
   let selected = $state(0)
+  followFocus('items', useNavigator(), () => list.records.map((i) => i.id), (i) => (selected = i))
   const it = $derived(list.records[selected])
   const mine = $derived(problems.filter((p) => p.kind === 'items' && p.id === it?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'items' && p.severity === 'error').map((p) => p.id)))
@@ -79,7 +82,7 @@
             <NumberField label={t('field.icon')} value={it.iconId} min={0} max={reference.iconCount - 1} problem={problemFor('iconId')} onchange={(v) => edit((i) => (i.iconId = v))} />
           </div>
           <label class="eff">
-            {t('field.effectiveness')}
+            <span>{t('field.effectiveness')}{#if it.effectiveness} <Mention kind="combat"><span class="open">↗</span></Mention>{/if}</span>
             <select
               value={it.effectiveness ?? ''}
               onchange={(e) => {
@@ -152,6 +155,7 @@
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.75rem; }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; }
+  .open { font-size: 1rem; }
   .price { align-items: flex-end; }
   .total { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }
   .total strong { font-size: 1.2rem; }

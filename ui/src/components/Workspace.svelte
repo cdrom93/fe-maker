@@ -3,6 +3,7 @@
   import { api } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
+  import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
   import type { Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
@@ -10,6 +11,7 @@
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import KeysDialog from './KeysDialog.svelte'
+  import Mention from './Mention.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
@@ -21,6 +23,17 @@
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
   let start = $state('map')
+  let focus = $state<Focus | null>(null)
+
+  provideNavigator({
+    open(kind: NavKind, id: string | null = null) {
+      tab = kind
+      focus = { kind, id, n: (focus?.n ?? 0) + 1 }
+    },
+    get focus() {
+      return focus
+    },
+  })
 
   async function save(kind: 'characters' | 'items' | 'classes' | 'combat', data: unknown) {
     problems = (await api.saveData(kind, data)).problems
@@ -63,6 +76,13 @@
   })
 
   const flushAll = () => Promise.all(allLists.map((l) => l.flush()))
+
+  /** Display name of a record mentioned by a problem. */
+  function recordName(kind: Problem['kind'], id: string): string {
+    if (kind === 'combat') return t('ws.combat')
+    const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
+    return record?.name || id || t(`ws.${kind}`)
+  }
 
   async function startBuild(launch: boolean) {
     await flushAll()
@@ -114,10 +134,21 @@
 </div>
 
 {#if errors.length || warnings.length}
-  <p class="summary">
-    {#if errors.length}<span class="bad">{t('ws.problems', { n: errors.length })}</span>{/if}
-    {#if warnings.length}<span class="warn">{t('ws.warnings', { n: warnings.length })}</span>{/if}
-  </p>
+  <details class="summary">
+    <summary>
+      {#if errors.length}<span class="bad">{t('ws.problems', { n: errors.length })}</span>{/if}
+      {#if warnings.length}<span class="warn">{t('ws.warnings', { n: warnings.length })}</span>{/if}
+    </summary>
+    <ul class="problems">
+      {#each [...errors, ...warnings] as p, i (i)}
+        {@const isRecord = p.kind !== 'combat' && !!p.id}
+        <li class={p.severity}>
+          <Mention kind={p.kind} id={isRecord ? p.id : null}>{recordName(p.kind, p.id)}</Mention>
+          — {t(`problem.${p.code}`, p.params)}
+        </li>
+      {/each}
+    </ul>
+  </details>
 {/if}
 
 <div class="tabs" role="tablist">
@@ -155,7 +186,11 @@
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
-  .summary { display: flex; gap: 1rem; margin: 0 0 0.75rem; font-size: 0.9rem; }
+  .summary { margin: 0 0 0.75rem; font-size: 0.9rem; }
+  .summary summary { cursor: pointer; display: flex; gap: 1rem; }
+  .problems { margin: 0.4rem 0 0; padding-left: 1.2rem; max-height: 180px; overflow-y: auto; font-size: 0.85rem; }
+  .problems .error { color: var(--bad); }
+  .problems .warning { color: var(--warn); }
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }
   .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; overflow-x: auto; }

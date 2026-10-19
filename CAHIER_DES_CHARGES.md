@@ -33,6 +33,7 @@ En une phrase : *faire ce que fait FEBuilderGBA, mais en beaucoup plus facile à
 5. **Validation en direct** : l'outil empêche ou signale ce qui casserait le jeu (stat hors limite, ID en double, carte sans point de départ…) avant la compilation.
 6. **Un seul bouton « Tester »** : compile et lance le jeu dans l'émulateur.
 7. Interface **en français et en anglais** dès le départ (fichiers de traduction).
+8. **Tout ce qui est mentionné est cliquable** : une arme, une classe, un personnage, une liste… cité n'importe où (rappel, puce, liste déroulante, message d'erreur) ouvre directement sa fiche pour l'éditer, sans aller-retour entre les onglets. Cette règle vaut pour tous les éditeurs à venir (chapitres, cartes, dialogues…).
 
 ---
 
@@ -61,6 +62,10 @@ Le projet doit pouvoir vivre publiquement sur GitHub sans risque. Règles :
    | FE-Repo (graphismes) | F2E ou F2U selon la ressource, F2U par défaut | Voir point 5 |
    | FE-Repo-Music | À vérifier | Même règles que FE-Repo tant que non vérifié |
    | Lex Talionis | À vérifier | Inspiration ergonomique uniquement, aucune reprise de code sans vérification |
+   | ffta-decomp (charlie-troy) | **Aucune licence** (vérifié le 20/10/2026) | Inspiration uniquement (méthodes, organisation de la doc), aucune reprise de code ni de données |
+   | gba-recomp (JRickey) | MIT ou Apache-2.0 ; base de fonctions gamedb.sqlite en CC0 | Réutilisable en respectant la licence et en citant l'auteur |
+   | FFTARecomp (Jorge262007) | MIT (basé sur gba-recomp) | Réutilisable en respectant la licence et en citant l'auteur |
+   | REA (morluto) | MIT | Outil de développement, pas une dépendance de FE Maker (voir section 7) |
 
 9. **Règle générale de citation** : toute source utilisée (code, données, documentation, ressource, recherche de la communauté) est listée dans `CREDITS.md` à la racine du dépôt FE Maker, avec auteur, lien et licence. Aucune exception, même pour un emprunt minime. En cas de doute sur une licence : **demander à l'auteur avant d'utiliser**, et ne rien intégrer en attendant.
 10. **Données d'analyse de la ROM** (tables, offsets, formats documentés par la communauté) : même s'il s'agit de faits techniques, on cite systématiquement qui les a documentés, comme le fait FEBuilderGBA lui-même.
@@ -186,7 +191,8 @@ fe-maker/
 - Partage de modules entre utilisateurs.
 
 ### Phase 7 — Version PC (à redéfinir)
-Deux pistes à évaluer le moment venu :
+Trois pistes à évaluer le moment venu :
+- **Recompilation statique de la ROM produite** avec [gba-recomp](https://github.com/JRickey/gba-recomp) (MIT/Apache-2.0) : l'outil traduit à l'avance une ROM GBA en programme natif (Windows, Linux, macOS), avec un modèle matériel complet (affichage, son, sauvegardes, manettes). [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) montre le résultat visé pour un jeu tactique : installeur « choisissez votre ROM, cliquez », écran large, options vidéo et son, version Android. Avantage décisif pour nous : **aucune modification de la décomp n'est redistribuée** (seule la ROM du joueur est recompilée chez lui), ce qui contourne le blocage de licence de la décomp. Point à vérifier : gba-recomp s'appuie sur une carte des fonctions par jeu, repérée par l'empreinte de la ROM ; une ROM modifiée par FE Maker n'y figurera pas. On pourrait la générer nous-mêmes, puisque la compilation de la décomp produit déjà la carte complète des symboles (fichier .map).
 - **Portage natif** du moteur de la décomp sur PC (sur le modèle des portages PC réalisés par la communauté Pokémon à partir de ses décomps), qui chargerait les assets depuis la ROM de l'utilisateur.
 - **Export vers Lex Talionis** (moteur Fire Emblem open source qui produit des jeux PC), si un format d'échange est réaliste.
 
@@ -225,6 +231,16 @@ Deux pistes à évaluer le moment venu :
 - Fil FEBuilderGBA sur FE Universe : https://feuniverse.us/t/fe-builder-gba-if-you-have-any-questions-attach-report7z/2845
 - Lex Talionis (moteur PC, référence ergonomique) : https://lt-maker.readthedocs.io/
 - Communauté : https://feuniverse.us
+
+### Projets voisins à suivre (ajoutés le 20/10/2026)
+
+- [ffta-decomp](https://github.com/charlie-troy/ffta-decomp) : décompilation de Final Fantasy Tactics Advance (GBA), axée sur la modification de l'IA. Idées à reprendre (sans code, aucune licence) :
+  - une **couche de modding sans compilateur** (les réglages de l'IA sont des données éditables en CSV), proche de notre principe « données lisibles d'abord » ;
+  - la **validation par exécution** : les fonctions de la ROM sont exécutées sur un processeur émulé avec des unités de test, pour prouver le comportement attendu. Piste pour nos tests (vérifier une modification de stats ou d'IA sans jouer) ;
+  - une documentation précise de chaque table de données, et des corrections argumentées quand la documentation publiée se trompe ;
+  - pour la phase 3 : comprendre et rendre éditable l'**IA des ennemis** de FE8.
+- [gba-recomp](https://github.com/JRickey/gba-recomp) et [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) : recompilation statique de jeux GBA en programmes natifs, piste principale pour la phase 7 (voir plus haut).
+- [REA](https://github.com/morluto/rea) (MIT) : outil de rétro-ingénierie piloté par des agents IA (via MCP), qui s'appuie sur Ghidra, IDA ou Hopper. Utile au **développement** de FE Maker, par exemple pour comprendre les 6,7 % de données encore binaires ou un comportement du moteur. Ce n'est pas une dépendance du logiciel. Prudence : ses chiffres de popularité affichés sont inhabituels (plus de 336 000 étoiles pour un dépôt créé en avril 2026), et son propre README met en garde contre les copies non officielles. À n'installer qu'après vérification, depuis sa source officielle.
 
 ---
 

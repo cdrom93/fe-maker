@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends { id: string; name: string }">
-  import type { Snippet } from 'svelte'
+  import { type Snippet, tick, untrack } from 'svelte'
   import { t } from '../lib/i18n.svelte'
 
   let {
@@ -33,12 +33,24 @@
         return !q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
       }),
   )
+
+  let listEl = $state<HTMLUListElement>()
+
+  // When the selection changes (e.g. opened from a link elsewhere), make sure it is
+  // visible: clear a search that hides it, then scroll it into view.
+  $effect(() => {
+    const index = selected // the only dependency: typing a search must not trigger this
+    untrack(() => {
+      if (!visible.some((v) => v.i === index) && query) query = ''
+    })
+    tick().then(() => listEl?.querySelector('button.selected')?.scrollIntoView({ block: 'nearest' }))
+  })
 </script>
 
 <div class="list panel">
   <input type="search" bind:value={query} placeholder={t('ws.search')} aria-label={t('ws.search')} />
   {#if extraFilter}{@render extraFilter()}{/if}
-  <ul>
+  <ul bind:this={listEl}>
     {#each visible as { r, i } (r.id)}
       <li>
         <button class:selected={i === selected} onclick={() => onselect(i)}>

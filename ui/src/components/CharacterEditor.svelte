@@ -7,7 +7,9 @@
   import AbilitiesPanel from './AbilitiesPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import RecordList from './RecordList.svelte'
+  import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
+  import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
     list,
@@ -24,6 +26,11 @@
   let selected = $state(0)
   let namedOnly = $state(true)
   let hideUnusedClasses = $state(true)
+
+  followFocus('characters', useNavigator(), () => list.records.map((c) => c.id), (i) => {
+    if (!list.records[i].id.startsWith('CHARACTER_')) namedOnly = false
+    selected = i
+  })
 
   const GENDER_SIGN = { male: '♂', female: '♀' } as const
   // The current class always stays in the list, even when unused classes are hidden.
@@ -91,6 +98,7 @@
                 {/each}
               </select>
               <GenderSign gender={cls?.gender} />
+              <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
           <label class="check"><input type="checkbox" bind:checked={hideUnusedClasses} /> {t('field.hideUnusedClasses')}</label>
@@ -213,6 +221,7 @@
   .small { font-size: 0.8rem; margin: 0 0 0.5rem; }
   .issues p { margin: 0.2rem 0; }
   .noanim { color: var(--warn); }
+  .open { font-size: 1.1rem; }
   select.invalid { border-color: var(--bad); background: var(--bad-soft); }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }

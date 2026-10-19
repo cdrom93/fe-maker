@@ -6,7 +6,9 @@
   import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
+  import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
+  import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
     list,
@@ -23,6 +25,11 @@
 
   let selected = $state(0)
   let hideUnused = $state(true)
+
+  followFocus('classes', useNavigator(), () => classes.map((k) => k.id), (i) => {
+    if (!classes[i].usedInGame) hideUnused = false
+    selected = i
+  })
 
   const cl = $derived(classes[selected])
   const mine = $derived(problems.filter((p) => p.kind === 'classes' && p.id === cl?.id))
@@ -163,6 +170,7 @@
                   {#each promoChoices as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{label(k)}</option>{/each}
                 </select>
                 <GenderSign gender={classes.find((k) => k.id === cl.promotions[slot])?.gender} />
+                {#if cl.promotions[slot]}<Mention kind="classes" id={cl.promotions[slot]}><span class="open">↗</span></Mention>{/if}
               </span>
             </label>
           {/each}
@@ -209,6 +217,7 @@
   tbody th { text-align: left; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
   .small { font-size: 0.8rem; margin: 0.5rem 0 0; }
   .noanim { color: var(--warn); }
+  .open { font-size: 1.1rem; }
   select.invalid { border-color: var(--bad); background: var(--bad-soft); }
   .issues p { margin: 0.2rem 0; }
   .error { color: var(--bad); }

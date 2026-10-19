@@ -28,6 +28,7 @@
   "ws.start.menu": "au menu de sauvegarde",
   "ws.start.normal": "avec l'intro",
   "ws.startHint": "Pendant les tests uniquement. « Directement sur la carte » crée une partie (mode normal, sans tutoriel) et lance le premier chapitre ; appuyez sur Start pour passer la scène d'ouverture. Le patch exporté garde toujours le début normal du jeu.",
+  "nav.open": "Ouvrir la fiche",
   "ws.close": "Fermer le projet",
   "ws.saved": "Enregistré",
   "ws.saving": "Enregistrement…",

@@ -2,6 +2,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item } from '../lib/types'
   import GenderSign from './GenderSign.svelte'
+  import Mention from './Mention.svelte'
 
   let {
     item,
@@ -41,7 +42,7 @@
         <h4>{t('reserve.characters')}</h4>
         <div class="chips">
           {#each res.characters as id (id)}
-            <span class="chip">{byChar.get(id)?.name || id}<button class="icon" title={t('combat.remove')} onclick={() => update((r) => (r.characters = r.characters.filter((x) => x !== id)))}>✕</button></span>
+            <span class="chip"><Mention kind="characters" {id}>{byChar.get(id)?.name || id}</Mention><button class="icon" title={t('combat.remove')} onclick={() => update((r) => (r.characters = r.characters.filter((x) => x !== id)))}>✕</button></span>
           {:else}<span class="muted small">{t('field.none')}</span>{/each}
         </div>
         <div class="row add">
@@ -58,7 +59,7 @@
         <h4>{t('reserve.classes')}</h4>
         <div class="chips">
           {#each res.classes as id (id)}
-            <span class="chip">{byClass.get(id)?.name || id}<GenderSign gender={byClass.get(id)?.gender} /><button class="icon" title={t('combat.remove')} onclick={() => update((r) => (r.classes = r.classes.filter((x) => x !== id)))}>✕</button></span>
+            <span class="chip"><Mention kind="classes" {id}>{byClass.get(id)?.name || id}<GenderSign gender={byClass.get(id)?.gender} /></Mention><button class="icon" title={t('combat.remove')} onclick={() => update((r) => (r.classes = r.classes.filter((x) => x !== id)))}>✕</button></span>
           {:else}<span class="muted small">{t('field.none')}</span>{/each}
         </div>
         <div class="row add">

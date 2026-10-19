@@ -28,6 +28,7 @@
   "ws.start.menu": "at the save menu",
   "ws.start.normal": "with the intro",
   "ws.startHint": "Test builds only. \"Straight onto the map\" creates a game (normal mode, no tutorial) and starts the first chapter; press Start to skip the opening scene. The exported patch always keeps the normal start of the game.",
+  "nav.open": "Open its sheet",
   "ws.close": "Close project",
   "ws.saved": "Saved",
   "ws.saving": "Saving…",

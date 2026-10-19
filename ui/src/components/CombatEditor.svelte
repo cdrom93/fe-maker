@@ -3,6 +3,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { ClassView, Combat, Problem, Reference } from '../lib/types'
   import GenderSign from './GenderSign.svelte'
+  import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
 
   let {
@@ -83,7 +84,7 @@
             <div class="chips">
               {#each combat.effectiveness[name] ?? [] as id, j (j)}
                 <span class="chip">
-                  {byId.get(id)?.name || id} <GenderSign gender={byId.get(id)?.gender} />
+                  <Mention kind="classes" {id}>{byId.get(id)?.name || id}<GenderSign gender={byId.get(id)?.gender} /></Mention>
                   <button class="icon" title={t('combat.remove')} onclick={() => edit((c) => c.effectiveness[name].splice(j, 1))}>✕</button>
                 </span>
               {/each}
