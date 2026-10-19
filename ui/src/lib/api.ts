@@ -1,4 +1,4 @@
-import type { BuildStatus, Problem, ProjectInfo, Reference, Status } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, Problem, ProjectInfo, Reference, Status } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat'
 
@@ -44,6 +44,8 @@ export const api = {
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
   saveData: (kind: DataKind, records: unknown) =>
     request<{ problems: Problem[] }>('PUT', `/api/project/data/${kind}`, records),
+  chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
+  chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<{ start: string }>('GET', '/api/project/test-options'),
   setTestOptions: (o: { start?: string }) => request<{ start: string }>('PUT', '/api/project/test-options', o),
@@ -51,6 +53,8 @@ export const api = {
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
 }
 
+export const chapterMapUrl = (index: number) => `/api/chapters/${index}/map.png`
+export const mapSpriteUrl = (classId: string, side: string) => `/api/assets/map-sprite/${classId}?side=${side}`
 export const portraitUrl = (id: number) => `/api/assets/portrait/${id}`
 export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
 export const patchUrl = '/api/project/patch'

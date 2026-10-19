@@ -6,6 +6,7 @@
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
   import type { Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
+  import ChapterEditor from './ChapterEditor.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
   import ClassEditor from './ClassEditor.svelte'
   import CombatEditor from './CombatEditor.svelte'
@@ -15,8 +16,8 @@
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
-  type Tab = 'characters' | 'classes' | 'items' | 'combat'
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat']
+  type Tab = NavKind
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -54,7 +55,8 @@
   const errors = $derived(problems.filter((p) => p.severity === 'error'))
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
   const saving = $derived(allLists.some((l) => l.saving))
-  const active = $derived(lists[tab])
+  // Chapters are read-only for now: no undo history.
+  const active = $derived(tab === 'chapters' ? null : lists[tab])
 
   onMount(async () => {
     const [ref, chars, cls, items, combat, probs, testOpts] = await Promise.all([
@@ -100,10 +102,10 @@
     const key = e.key.toLowerCase()
     if (key === 'z' && !e.shiftKey) {
       e.preventDefault()
-      active.undo()
+      active?.undo()
     } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
       e.preventDefault()
-      active.redo()
+      active?.redo()
     }
   }
 </script>
@@ -116,8 +118,8 @@
     <span class="muted small">{saving ? t('ws.saving') : t('ws.saved')}</span>
   </div>
   <div class="row">
-    <button onclick={() => active.undo()} disabled={!active.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
-    <button onclick={() => active.redo()} disabled={!active.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
+    <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
+    <button onclick={() => active?.redo()} disabled={!active?.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
     <label class="check" title={t('ws.startHint')}>
       {t('ws.start')}
@@ -167,8 +169,10 @@
     <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'items'}
     <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
-  {:else}
+  {:else if tab === 'combat'}
     <CombatEditor list={lists.combat} {classes} {reference} {problems} />
+  {:else}
+    <ChapterEditor characters={lists.characters.records} {classes} items={lists.items.records} />
   {/if}
 {/if}
 

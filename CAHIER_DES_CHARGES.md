@@ -168,7 +168,8 @@ fe-maker/
 - Aperçu de la fiche personnage complète (perso + classe).
 - Ajouté en cours de route : capacités (dont verrous d'armes) et affinité des personnages ; options de test (démarrage direct sur la carte).
 
-### Phase 3 — Chapitres
+### Phase 3 — Chapitres 🚧 (en cours)
+> Fait le 20/10/2026 : onglet Chapitres en lecture seule (liste des 79 chapitres, carte rendue fidèlement, unités sur la carte avec leurs sprites, groupes : joueur / scène d'ouverture / renforts par tour, fiche d'unité cliquable avec classe, niveau et inventaire). À suivre : placement par glisser-déposer, inventaire et niveau éditables, IA, puis éditeur de cartes.
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).
 - **Placement des unités** sur les cartes existantes : alliés, ennemis, renforts, IA des ennemis, par glisser-déposer sur un aperçu de la carte.
 - **Éditeur de cartes** : peinture de tuiles à partir des tilesets, terrains, import de cartes depuis FE-Repo.

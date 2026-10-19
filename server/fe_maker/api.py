@@ -13,7 +13,9 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
+from .decomp import maps, units
 from .decomp.assets import item_icon_preview, portrait_names, portrait_preview
+from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import DATA_FILES, Project, ProjectError, slugify
@@ -192,6 +194,84 @@ def reference():
         "iconCount": len(d.item_icon_files()),
         "portraits": portrait_names(DECOMP_DIR),
     }
+
+
+# ---------- chapters (phase 3, read-only for now) ----------
+
+def _chapter(index: int) -> dict:
+    chapters = maps.chapter_settings(DECOMP_DIR)
+    if not 0 <= index < len(chapters):
+        raise HTTPException(404)
+    return chapters[index]
+
+
+def _event_symbol(chapter: dict) -> str | None:
+    table = maps.asset_table(DECOMP_DIR)
+    index = chapter.get("mapEventDataId", 0)
+    return table[index] if 0 < index < len(table) else None
+
+
+@app.get("/api/chapters")
+def list_chapters():
+    d = state.get_decomp()
+    result = []
+    for i, ch in enumerate(maps.chapter_settings(DECOMP_DIR)):
+        title_id = ch.get("chapTitleTextId", 0)
+        try:
+            layout = maps.chapter_map_assets(DECOMP_DIR, ch).layout.stem
+        except maps.MapError:
+            layout = None
+        result.append({
+            "index": i,
+            "id": ch.get("internalName", str(i)),
+            "title": d.texts.get_name(title_id) if title_id in d.texts.messages else "",
+            "map": layout,
+            "events": _event_symbol(ch),
+        })
+    return result
+
+
+@app.get("/api/chapters/{index}/map.png")
+def chapter_map(index: int, fog: bool = False):
+    try:
+        png, _w, _h = maps.render_map(maps.chapter_map_assets(DECOMP_DIR, _chapter(index)), scale=1, fog=fog)
+    except maps.MapError as e:
+        raise HTTPException(404, str(e))
+    return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+@app.get("/api/chapters/{index}/units")
+def chapter_units(index: int):
+    ch = _chapter(index)
+    symbol = _event_symbol(ch)
+    groups = units.read_unit_groups(DECOMP_DIR)
+    try:
+        width, height, _cells = maps.read_layout(maps.chapter_map_assets(DECOMP_DIR, ch).layout)
+    except maps.MapError:
+        width = height = 0
+    return {
+        "width": width,
+        "height": height,
+        "groups": [
+            {**g, "units": groups[g["name"]].units if g["name"] in groups else []}
+            for g in (units.chapter_unit_groups(DECOMP_DIR, symbol) if symbol else [])
+        ],
+    }
+
+
+@app.get("/api/assets/map-sprite/{class_id}")
+def map_sprite(class_id: str, side: str = "player"):
+    entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
+    if entry is None:
+        raise HTTPException(404)
+    try:
+        sprite_id = int(entry.fields.get("SMSId", "0"), 0)
+    except ValueError:
+        raise HTTPException(404)
+    png = map_sprite_png(DECOMP_DIR, sprite_id, side)
+    if png is None:
+        raise HTTPException(404)
+    return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
 @app.get("/api/assets/portrait/{portrait_id}")

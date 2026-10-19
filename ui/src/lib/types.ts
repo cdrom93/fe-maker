@@ -84,6 +84,41 @@ export interface Combat {
   effectiveness: Record<string, string[]>
 }
 
+export interface ChapterInfo {
+  index: number
+  id: string
+  title: string
+  map: string | null
+  events: string | null
+}
+
+export interface MapUnit {
+  character: string
+  class: string
+  level: number
+  autolevel: boolean
+  side: 'player' | 'ally' | 'enemy'
+  x: number
+  y: number
+  endX: number
+  endY: number
+  items: string[]
+  ai: string
+}
+
+export interface UnitGroup {
+  name: string
+  origin: 'players' | 'opening' | 'turn'
+  turn: number | null
+  units: MapUnit[]
+}
+
+export interface ChapterUnits {
+  width: number
+  height: number
+  groups: UnitGroup[]
+}
+
 export interface Reference {
   classFacts: Record<string, ClassFacts>
   movementTypes: string[]

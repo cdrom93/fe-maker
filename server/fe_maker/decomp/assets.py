@@ -70,6 +70,57 @@ def portrait_preview(decomp_dir: Path, portrait_id: int, scale: int = 3) -> byte
     return render_indexed(chibi, read_agbpal(palette), scale)
 
 
+MAP_SPRITE_TABLE = "src/unit_icon_wait_data.c"
+MAP_SPRITE_PALETTES = {
+    "player": "graphics/unit_icon/palette/unit_icon_pal_player.agbpal",
+    "enemy": "graphics/unit_icon/palette/unit_icon_pal_enemy.agbpal",
+    "ally": "graphics/unit_icon/palette/unit_icon_pal_npc.agbpal",
+}
+_SPRITE_SIZES = {"UNIT_ICON_SIZE_16x16": (16, 16), "UNIT_ICON_SIZE_16x32": (16, 32), "UNIT_ICON_SIZE_32x32": (32, 32)}
+
+
+@lru_cache(maxsize=4)
+def map_sprite_table(decomp_dir: Path) -> list[tuple[str, tuple[int, int]]]:
+    """Map sprite id (class SMSId) -> (sheet name, frame size), from unit_icon_wait_table."""
+    source = (decomp_dir / MAP_SPRITE_TABLE).read_text(encoding="utf-8")
+    return [(name, _SPRITE_SIZES.get(size, (16, 16)))
+            for size, name in re.findall(r"\{\s*\d+\s*,\s*(\w+)\s*,\s*(\w+)\s*\}", source)]
+
+
+def map_sprite(decomp_dir: Path, sprite_id: int, side: str = "player", scale: int = 2) -> bytes | None:
+    """First standing frame of a class's map sprite, in the colors of a side."""
+    table = map_sprite_table(decomp_dir)
+    if not 0 <= sprite_id < len(table):
+        return None
+    name, (w, h) = table[sprite_id]
+    sheet = decomp_dir / "graphics" / "unit_icon" / "wait" / f"{name}.png"
+    palette = decomp_dir / MAP_SPRITE_PALETTES.get(side, MAP_SPRITE_PALETTES["player"])
+    if not sheet.is_file() or not palette.is_file():
+        return None
+    img = Image.open(sheet)
+    frame = img.crop((0, 0, min(w, img.width), min(h, img.height)))
+    return _render_image(frame, read_agbpal(palette), scale)
+
+
+def _render_image(img: Image.Image, palette: list[tuple[int, int, int]], scale: int) -> bytes:
+    if img.mode != "P":
+        img = img.convert("P")
+    flat = [c for rgb in palette[:16] for c in rgb]
+    img = img.copy()
+    img.putpalette(flat + [0] * (768 - len(flat)))
+    rgba = img.convert("RGBA")
+    src, px = img.load(), rgba.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            if src[x, y] == 0:
+                px[x, y] = (0, 0, 0, 0)
+    if scale > 1:
+        rgba = rgba.resize((img.width * scale, img.height * scale), Image.NEAREST)
+    out = io.BytesIO()
+    rgba.save(out, "PNG")
+    return out.getvalue()
+
+
 def item_icon_preview(decomp_dir: Path, icon_files: list[str], icon_id: int, scale: int = 3) -> bytes | None:
     if not 0 <= icon_id < len(icon_files):
         return None
