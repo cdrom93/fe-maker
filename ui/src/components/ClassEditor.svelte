@@ -1,18 +1,20 @@
 <script lang="ts">
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { ClassData, ClassStatKey, ClassView, Problem, Reference } from '../lib/types'
+  import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
+  import ReservedWeapons from './ReservedWeapons.svelte'
 
   let {
     list,
     classes,
+    items,
     reference,
     problems,
-  }: { list: EditableList<ClassData>; classes: ClassView[]; reference: Reference; problems: Problem[] } = $props()
+  }: { list: EditableList<ClassData>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[] } = $props()
 
   const STATS: ClassStatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
@@ -92,6 +94,7 @@
         <p class="muted small">
           {t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}{#if cl.gender} · {t('class.gender')} : <GenderSign gender={cl.gender} />{/if}
         </p>
+        <ReservedWeapons {items} classId={cl.id} className={cl.name} />
       </section>
 
       <section class="panel">
@@ -182,7 +185,7 @@
         <p class="muted small">{t('class.weaponRanksHint')}</p>
       </section>
 
-      <AbilitiesPanel abilities={cl.abilities} fromClass={[]} lockItems={reference.lockItems} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
+      <AbilitiesPanel abilities={cl.abilities} fromClass={[]} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 
       {#if mine.length}
         <section class="panel issues">

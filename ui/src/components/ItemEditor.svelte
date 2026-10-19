@@ -2,18 +2,30 @@
   import { itemIconUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { Item, Problem, Reference } from '../lib/types'
+  import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
+  import ReservationEditor from './ReservationEditor.svelte'
   import RecordList from './RecordList.svelte'
 
-  let { list, reference, problems }: { list: EditableList<Item>; reference: Reference; problems: Problem[] } = $props()
+  let {
+    list,
+    classes,
+    characters,
+    reference,
+    problems,
+  }: {
+    list: EditableList<Item>
+    classes: ClassView[]
+    characters: Character[]
+    reference: Reference
+    problems: Problem[]
+  } = $props()
 
   let selected = $state(0)
   const it = $derived(list.records[selected])
   const mine = $derived(problems.filter((p) => p.kind === 'items' && p.id === it?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'items' && p.severity === 'error').map((p) => p.id)))
   const magicRange = $derived(it?.range.max === 0)
-  const lock = $derived(it ? reference.itemLocks[it.id] : undefined)
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field || x.field.startsWith(field + '.'))
@@ -79,12 +91,10 @@
               {#each reference.effectivenessLists as name (name)}<option value={name}>{t(`effectiveness.${name}`)}</option>{/each}
             </select>
           </label>
-          {#if lock}
-            <p class="lock">
-              🔒 {t('field.lockedTo')}
-              {[...lock.classes, ...lock.characters].join(', ') || t('field.lockedToNobody')}
-            </p>
-          {/if}
+          <label class="check" title={t('field.monsterWeaponHint')}>
+            <input type="checkbox" checked={it.monsterWeapon} onchange={(e) => edit((i) => (i.monsterWeapon = (e.target as HTMLInputElement).checked))} />
+            {t('field.monsterWeapon')}
+          </label>
         </div>
       </section>
 
@@ -97,6 +107,8 @@
           <NumberField label={t('field.uses')} value={it.uses} min={0} max={255} problem={problemFor('uses')} onchange={(v) => edit((i) => (i.uses = v))} />
         </div>
       </section>
+
+      <ReservationEditor item={it} {classes} {characters} onchange={(r) => edit((i) => (i.reservedFor = r))} />
 
       <section class="panel">
         <h3>{t('field.range')}</h3>

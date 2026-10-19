@@ -15,7 +15,7 @@ def test_classes_export(decomp_dir):
     assert lord["promotions"] == ["CLASS_TESTKNIGHT"]
     assert lord["movement"] == "CommonT1"
     assert lord["terrainBonus"] == "Common"
-    assert lord["abilities"] == ["lord", "lock4"]
+    assert lord["abilities"] == ["lord"]
 
 
 def test_full_round_trip_changes_nothing(decomp_dir):

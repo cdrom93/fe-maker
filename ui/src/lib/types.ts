@@ -27,6 +27,9 @@ export interface Item {
   weaponRank: string | number
   iconId: number
   effectiveness: string | null
+  /** null = anyone; empty lists = nobody */
+  reservedFor: { characters: string[]; classes: string[] } | null
+  monsterWeapon: boolean
 }
 
 export interface ClassInfo {

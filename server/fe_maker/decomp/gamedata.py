@@ -62,6 +62,12 @@ ABILITIES = {
     "CA_SUMMON": "summon", "CA_LOCK_4": "lock4", "CA_LOCK_5": "lock5", "CA_LOCK_6": "lock6", "CA_LOCK_7": "lock7",
 }
 ABILITIES_REV = {v: k for k, v in ABILITIES.items()}
+# Weapon locks FE Maker assigns itself from the items' "reserved for" lists. Lock 3 is not one of
+# them: the engine treats it as "monster weapon" (no rank needed, unbreakable...).
+GENERIC_LOCKS = ["1", "2", "4", "5", "6", "7"]
+GENERIC_LOCK_KEYS = {f"lock{n}" for n in GENERIC_LOCKS}
+# Locks the original game does not use first, when a new reservation needs a free lock.
+LOCK_PREFERENCE = ["7", "1", "6", "5", "2", "4"]
 
 AFFINITIES = {
     "UNIT_AFFIN_FIRE": "fire", "UNIT_AFFIN_THUNDER": "thunder", "UNIT_AFFIN_WIND": "wind", "UNIT_AFFIN_ICE": "ice",
@@ -109,7 +115,7 @@ def _split_flags(value: str) -> list[str]:
 def _abilities(value: str) -> list[str]:
     """'CA_BOSS | CA_FEMALE' -> ['female', 'boss'] (bit order). Unknown tokens are ignored."""
     tokens = set(_split_flags(value))
-    return [key for flag, key in ABILITIES.items() if flag in tokens]
+    return [key for flag, key in ABILITIES.items() if flag in tokens and key not in GENERIC_LOCK_KEYS]
 
 
 class GameDataError(Exception):
@@ -453,6 +459,8 @@ class DecompData:
                 "weaponRank": _rank_to_json(rank) if rank in WEAPON_RANKS else parse_int(rank),
                 "iconId": _int_field(f, "iconId"),
                 "effectiveness": _effectiveness_name(f.get("pEffectiveness", "")),
+                "reservedFor": self._reserved_for(f),
+                "monsterWeapon": "IA_LOCK_3" in _split_flags(f.get("attributes", "0")),
             })
         return result
 
@@ -505,16 +513,117 @@ class DecompData:
 
     @staticmethod
     def _apply_abilities(f: dict[str, str], abilities: list[str]) -> None:
+        # Generic weapon locks are not abilities: FE Maker assigns them from the weapons'
+        # "reserved for" lists (_apply_reservations). Older projects may still list them.
+        abilities = [a for a in abilities if a not in GENERIC_LOCK_KEYS]
         current = f.get("attributes", "0")
         if set(_abilities(current)) == set(abilities):
             return
         unknown = [a for a in abilities if a not in ABILITIES_REV]
         if unknown:
             raise GameDataError(f"Unknown abilities {unknown}")
-        # Keep tokens FE Maker does not know (raw numbers...), then known flags in bit order.
-        kept = [t for t in _split_flags(current) if t not in ABILITIES]
+        # Keep tokens FE Maker does not know (raw numbers...) and the current generic locks,
+        # then known flags in bit order.
+        kept = [t for t in _split_flags(current) if t not in ABILITIES or ABILITIES[t] in GENERIC_LOCK_KEYS]
         flags = kept + [flag for flag, key in ABILITIES.items() if key in abilities]
         f["attributes"] = " | ".join(flags) if flags else "0"
+
+    # ---------- weapon reservations ----------
+
+    def _lock_members(self, n: str, original: bool = True) -> frozenset[tuple[str, str]]:
+        """Classes and characters having CA_LOCK_n, as ("class"|"character", id) pairs."""
+        members = set()
+        for kind, parsed in (("class", self.classes), ("character", self.characters)):
+            for e in parsed.entries:
+                attrs = e.original_fields if original else e.fields
+                if f"CA_LOCK_{n}" in _split_flags(attrs.get("attributes", "0")):
+                    members.add((kind, e.fields["number"]))
+        return frozenset(members)
+
+    def _reserved_for(self, fields: dict[str, str]) -> dict | None:
+        """Who may wield an item, from its generic locks; None when unrestricted."""
+        needed = [n for n in GENERIC_LOCKS if f"IA_LOCK_{n}" in _split_flags(fields.get("attributes", "0"))]
+        if not needed:
+            return None
+        members = set.intersection(*(set(self._lock_members(n)) for n in needed))
+        return {
+            "characters": [e.fields["number"] for e in self.characters.entries if ("character", e.fields["number"]) in members],
+            "classes": [e.fields["number"] for e in self.classes.entries if ("class", e.fields["number"]) in members],
+        }
+
+    def _apply_reservations(self, items: list[dict]) -> None:
+        """Give each "reserved for" group a generic lock bit, then set the item flags and the
+        CA_LOCK flags of the classes and characters of the group.
+
+        Groups identical to an original lock keep its bit, so an unmodified project is
+        unchanged. The engine checks a lock against the character's AND the class's flags.
+        """
+        if not any("reservedFor" in it for it in items):
+            return  # project from before reservations existed: keep the original locks
+        entries = {e.fields["number"]: e for e in self.items.entries}
+        original_sets = {n: self._lock_members(n) for n in GENERIC_LOCKS}
+        changed: dict[str, frozenset] = {}  # item id -> new group (frozenset() = nobody)
+        unrestricted: list[str] = []
+        for it in items:
+            if "reservedFor" not in it:
+                continue
+            f = entries[it["id"]].fields
+            if it["reservedFor"] == self._reserved_for(f):
+                continue
+            if it["reservedFor"] is None:
+                unrestricted.append(it["id"])
+                continue
+            changed[it["id"]] = frozenset(
+                [("character", c) for c in it["reservedFor"].get("characters", [])]
+                + [("class", c) for c in it["reservedFor"].get("classes", [])]
+            )
+        if not changed and not unrestricted:
+            return
+
+        # Bits still used by unchanged reserved items keep their meaning.
+        kept_bits = set()
+        for it in items:
+            if it["id"] not in changed and it["id"] not in unrestricted:
+                attrs = _split_flags(entries[it["id"]].fields.get("attributes", "0"))
+                kept_bits |= {n for n in GENERIC_LOCKS if f"IA_LOCK_{n}" in attrs}
+        bit_of: dict[frozenset, str] = {}
+        for group in dict.fromkeys(changed.values()):
+            same = [n for n in GENERIC_LOCKS if original_sets[n] == group]
+            if same:
+                bit_of[group] = same[0]
+                continue
+            free = [n for n in LOCK_PREFERENCE if n not in kept_bits and n not in bit_of.values()]
+            if not free:
+                raise GameDataError("Too many different weapon reservations: the engine has 6 weapon locks")
+            bit_of[group] = free[0]
+
+        # Items: replace their generic lock flags.
+        for item_id in list(changed) + unrestricted:
+            f = entries[item_id].fields
+            tokens = [t for t in _split_flags(f.get("attributes", "0")) if not re.fullmatch(r"IA_LOCK_[124567]", t)]
+            if item_id in changed:
+                tokens.append(f"IA_LOCK_{bit_of[changed[item_id]]}")
+            f["attributes"] = " | ".join(tokens) if tokens else "0"
+
+        # Classes and characters: membership of each (re)assigned bit.
+        for group, n in bit_of.items():
+            if original_sets[n] == group:
+                continue
+            for kind, parsed in (("class", self.classes), ("character", self.characters)):
+                for e in parsed.entries:
+                    flag = f"CA_LOCK_{n}"
+                    tokens = _split_flags(e.fields.get("attributes", "0"))
+                    member = (kind, e.fields["number"]) in group
+                    if member and flag not in tokens:
+                        tokens.append(flag)
+                    elif not member and flag in tokens:
+                        tokens.remove(flag)
+                    else:
+                        continue
+                    # Rewrite in bit order (known flags), unknown tokens first.
+                    known = {t for t in tokens if t in ABILITIES}
+                    ordered = [t for t in tokens if t not in ABILITIES] + [t for t in ABILITIES if t in known]
+                    e.fields["attributes"] = " | ".join(ordered) if ordered else "0"
 
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}
@@ -544,6 +653,14 @@ class DecompData:
                 _rank_to_json(current) if current in WEAPON_RANKS else parse_int(current)
             ):
                 f["weaponRank"] = _rank_to_c(rank)
+            if "monsterWeapon" in it:
+                tokens = _split_flags(f.get("attributes", "0"))
+                if it["monsterWeapon"] and "IA_LOCK_3" not in tokens:
+                    f["attributes"] = " | ".join(tokens + ["IA_LOCK_3"])
+                elif not it["monsterWeapon"] and "IA_LOCK_3" in tokens:
+                    tokens.remove("IA_LOCK_3")
+                    f["attributes"] = " | ".join(tokens) if tokens else "0"
+        self._apply_reservations(items)
 
     def changed_files(self) -> dict[str, str]:
         """Decomp-relative path -> new content, for files that differ from the decomp."""

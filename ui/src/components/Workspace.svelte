@@ -131,11 +131,11 @@
 
 {#if reference}
   {#if tab === 'characters'}
-    <CharacterEditor list={lists.characters} {classes} {reference} {problems} />
+    <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'classes'}
-    <ClassEditor list={lists.classes} {classes} {reference} {problems} />
+    <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'items'}
-    <ItemEditor list={lists.items} {reference} {problems} />
+    <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
   {:else}
     <CombatEditor list={lists.combat} {classes} {reference} {problems} />
   {/if}

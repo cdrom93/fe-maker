@@ -85,7 +85,8 @@ def test_abilities_and_affinity(decomp_dir):
     chars[0]["affinity"] = "light"
     d.apply_characters(chars)
     out = d.changed_files()["src/data_characters.c"]
-    assert ".attributes = CA_CANTO | CA_FEMALE | CA_LOCK_4," in out  # bit order
+    # bit order; lock4 is ignored: weapon locks come from the items' "reserved for" lists
+    assert ".attributes = CA_CANTO | CA_FEMALE," in out
     assert ".affinity = UNIT_AFFIN_LIGHT," in out
 
 

@@ -21,6 +21,7 @@ from .decomp.gamedata import (
 )
 
 NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
+MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.GENERIC_LOCKS)
 
 
 @dataclass
@@ -138,11 +139,33 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
             problems.append(Problem("error", "items", rid, "effectiveness", "unknownEffectiveness", {},
                                     f"{rid}: unknown effectiveness list"))
 
+    _validate_reservations(problems, items, class_ids, {c["id"] for c in characters})
+
     if classes is not None:
         _validate_classes(problems, classes, decomp, class_ids, weapon_types)
     if combat is not None:
         _validate_combat(problems, combat, class_ids, weapon_types)
     return problems
+
+
+def _validate_reservations(problems, items, class_ids, character_ids):
+    groups = set()
+    for it in items:
+        res = it.get("reservedFor")
+        if not res:
+            continue
+        for c in res.get("classes", []):
+            if c not in class_ids:
+                problems.append(Problem("error", "items", it["id"], "reservedFor", "unknownClass", {},
+                                        f"{it['id']}: unknown class {c}"))
+        for c in res.get("characters", []):
+            if c not in character_ids:
+                problems.append(Problem("error", "items", it["id"], "reservedFor", "unknownCharacter", {},
+                                        f"{it['id']}: unknown character {c}"))
+        groups.add((frozenset(res.get("classes", [])), frozenset(res.get("characters", []))))
+    if len(groups) > MAX_RESERVATION_GROUPS:
+        problems.append(Problem("error", "items", "", "reservedFor", "tooManyReservations", {"max": MAX_RESERVATION_GROUPS},
+                                f"At most {MAX_RESERVATION_GROUPS} different 'reserved for' lists (engine weapon locks)"))
 
 
 def _validate_classes(problems, classes, decomp, class_ids, weapon_types):

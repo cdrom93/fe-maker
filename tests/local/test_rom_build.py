@@ -47,7 +47,9 @@ def test_modified_project_and_patch(tmp_path):
     problems = [p for p in project.save("characters", chars) if p.severity == "error"]
     assert problems == []
     items = project.load("items")
-    next(i for i in items if i["id"] == "ITEM_SWORD_IRON")["might"] = 9
+    iron = next(i for i in items if i["id"] == "ITEM_SWORD_IRON")
+    iron["might"] = 9
+    iron["reservedFor"] = {"characters": ["CHARACTER_SETH"], "classes": ["CLASS_THIEF"]}
     project.save("items", items)
 
     classes = project.load("classes")

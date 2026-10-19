@@ -2,18 +2,20 @@
   import { portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { Character, ClassStatKey, ClassView, Problem, Reference, StatKey } from '../lib/types'
+  import type { Character, ClassStatKey, ClassView, Item, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import RecordList from './RecordList.svelte'
+  import ReservedWeapons from './ReservedWeapons.svelte'
 
   let {
     list,
     classes,
+    items,
     reference,
     problems,
-  }: { list: EditableList<Character>; classes: ClassView[]; reference: Reference; problems: Problem[] } = $props()
+  }: { list: EditableList<Character>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[] } = $props()
 
   const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
@@ -93,6 +95,7 @@
           </label>
           <label class="check"><input type="checkbox" bind:checked={hideUnusedClasses} /> {t('field.hideUnusedClasses')}</label>
           <p class="muted small">{t('field.classHint')}</p>
+          <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
             <label title={problemFor('affinity')}>
@@ -178,7 +181,6 @@
       <AbilitiesPanel
         abilities={ch.abilities ?? []}
         fromClass={cls?.abilities ?? []}
-        lockItems={reference.lockItems}
         onchange={(abilities) => edit((c) => (c.abilities = abilities))}
       />
 

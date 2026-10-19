@@ -27,7 +27,7 @@ DATA_FILES = {
 }
 DEFAULT_TEST_OPTIONS = {"start": "map"}  # see decomp/tweaks.py START_MODES
 # Record fields added after the first project format: filled from the original game on load.
-FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness",)}
+FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
 
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
