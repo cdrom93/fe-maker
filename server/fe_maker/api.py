@@ -245,15 +245,23 @@ def chapter_units(index: int):
     ch = _chapter(index)
     symbol = _event_symbol(ch)
     groups = units.read_unit_groups(DECOMP_DIR)
+    # Groups edited in the project replace the original ones.
+    edited = state.project.load("chapters").get("unitGroups", {}) if state.project else {}
     try:
         width, height, _cells = maps.read_layout(maps.chapter_map_assets(DECOMP_DIR, ch).layout)
     except maps.MapError:
         width = height = 0
+
+    def group_units(name: str) -> list[dict]:
+        if name in edited:
+            return edited[name]
+        return groups[name].units if name in groups else []
+
     return {
         "width": width,
         "height": height,
         "groups": [
-            {**g, "units": groups[g["name"]].units if g["name"] in groups else []}
+            {**g, "units": group_units(g["name"]), "edited": g["name"] in edited}
             for g in (units.chapter_unit_groups(DECOMP_DIR, symbol) if symbol else [])
         ],
     }

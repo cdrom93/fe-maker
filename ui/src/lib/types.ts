@@ -104,6 +104,13 @@ export interface MapUnit {
   endY: number
   items: string[]
   ai: string
+  /** entry path not decompiled yet: the unit cannot be moved */
+  fixedPath?: boolean
+}
+
+/** Project chapter data: unit groups once edited (data/chapters.json). */
+export interface ChaptersData {
+  unitGroups: Record<string, MapUnit[]>
 }
 
 export interface UnitGroup {
@@ -111,6 +118,7 @@ export interface UnitGroup {
   origin: 'players' | 'opening' | 'turn'
   turn: number | null
   units: MapUnit[]
+  edited?: boolean
 }
 
 export interface ChapterUnits {
@@ -137,7 +145,7 @@ export interface Reference {
 
 export interface Problem {
   severity: 'error' | 'warning'
-  kind: 'characters' | 'items' | 'classes' | 'combat'
+  kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
   id: string
   field: string
   code: string

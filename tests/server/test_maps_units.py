@@ -44,6 +44,26 @@ def test_terrain_grid(tmp_path):
     assert maps.terrain_grid(_make_map(tmp_path)) == [[0x10, 0]]
 
 
+def test_edited_unit_group_reaches_the_overlay(tmp_path, decomp_dir):
+    import copy
+
+    from fe_maker.project import Project
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    original = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+    edited = copy.deepcopy(original)
+    edited[1]["endX"], edited[1]["endY"], edited[1]["level"] = 5, 6, 7
+    edited[1]["items"] = ["ITEM_TESTBLADE"]
+    project.save("chapters", {"unitGroups": {"UnitDef_TestChapter": edited}})
+    overlay = project.generate_overlay(decomp_dir)
+    source = (overlay / "src" / "events_udefs.c").read_text(encoding="utf-8")
+    rival = source.split(".charIndex = CHARACTER_TESTRIVAL,")[1].split("\n    },")[0]
+    assert ".xPosition = 5," in rival and ".yPosition = 6," in rival and ".level = 7," in rival
+    assert "ITEM_TESTBLADE" in rival
+    # The other units of the group are untouched.
+    assert source.count(".charIndex = CHARACTER_TESTHERO,\n        .classIndex = CLASS_TESTLORD,\n        .level = 1,") == 1
+
+
 def test_unit_groups_and_chapter_events(decomp_dir):
     groups = units.read_unit_groups(decomp_dir)
     test = groups["UnitDef_TestChapter"].units

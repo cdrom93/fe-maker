@@ -1,6 +1,6 @@
 import type { BuildStatus, ChapterInfo, ChapterUnits, Problem, ProjectInfo, Reference, Status } from './types'
 
-export type DataKind = 'characters' | 'items' | 'classes' | 'combat'
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {

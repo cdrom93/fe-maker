@@ -27,7 +27,7 @@ MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.G
 @dataclass
 class Problem:
     severity: str          # "error" blocks the build, "warning" does not
-    kind: str              # "characters" | "items" | "classes" | "combat"
+    kind: str              # "characters" | "items" | "classes" | "combat" | "chapters"
     id: str
     field: str
     code: str
@@ -70,7 +70,8 @@ def _duplicates(problems, kind, records):
 
 
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
-             classes: list[dict] | None = None, combat: dict | None = None) -> list[Problem]:
+             classes: list[dict] | None = None, combat: dict | None = None,
+             chapters: dict | None = None) -> list[Problem]:
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
@@ -145,7 +146,31 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         _validate_classes(problems, classes, decomp, class_ids, weapon_types)
     if combat is not None:
         _validate_combat(problems, combat, class_ids, weapon_types)
+    if chapters is not None:
+        _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items})
     return problems
+
+
+def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
+    for group, unit_list in chapters.get("unitGroups", {}).items():
+        for n, unit in enumerate(unit_list):
+            rid = f"{group}#{n}"
+            char = unit.get("character", "")
+            # Generic units use raw ids (0x80...) rather than CHARACTER_ names.
+            if char.startswith("CHARACTER_") and char not in character_ids:
+                problems.append(Problem("error", "chapters", rid, "character", "unknownCharacter", {},
+                                        f"{rid}: unknown character"))
+            if unit.get("class") not in class_ids:
+                problems.append(Problem("error", "chapters", rid, "class", "unknownClass", {}, f"{rid}: unknown class"))
+            _range(problems, "chapters", rid, "level", unit.get("level"), 0, 31)  # 5-bit field
+            _range(problems, "chapters", rid, "endX", unit.get("endX"), 0, 63)  # 6-bit fields
+            _range(problems, "chapters", rid, "endY", unit.get("endY"), 0, 63)
+            item_list = unit.get("items", [])
+            if len(item_list) > 4:
+                problems.append(Problem("error", "chapters", rid, "items", "tooManyItems", {"max": 4}, f"{rid}: at most 4 items"))
+            for it in item_list:
+                if it not in item_ids:
+                    problems.append(Problem("error", "chapters", rid, "items", "unknownItem", {}, f"{rid}: unknown item {it}"))
 
 
 def _validate_reservations(problems, items, class_ids, character_ids):

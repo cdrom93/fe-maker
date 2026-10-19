@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import combat
+from . import combat, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -310,6 +310,18 @@ class DecompData:
             ],
             "effectiveness": {name: list(classes) for name, classes in (self.effectiveness or {}).items()},
         }
+
+    # ---------- chapters ----------
+
+    @staticmethod
+    def export_chapters() -> dict:
+        """Project chapter data. Unit groups are stored only once edited (see units.py)."""
+        return {"unitGroups": {}}
+
+    def apply_chapters(self, chapters: dict) -> None:
+        edits = chapters.get("unitGroups", {})
+        if edits:
+            self.unit_defs = units.apply_unit_groups(self.unit_defs, edits)
 
     def apply_combat(self, combat_data: dict) -> None:
         if self.triangle is not None and "triangle" in combat_data:

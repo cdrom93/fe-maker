@@ -84,7 +84,8 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
                 except Exception:
                     continue
                 x, y = _int(f.get("xPosition")), _int(f.get("yPosition"))
-                path = redas.get(f.get("redas", "").lstrip("&").strip(), [])
+                path_name = f.get("redas", "").lstrip("&").strip()
+                path = redas.get(path_name, [])
                 items = [i.strip() for i in f.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
                 group.units.append({
                     "character": f.get("charIndex", "0"),
@@ -99,9 +100,133 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
                     "endY": path[-1][1] if path else y,
                     "items": items,
                     "ai": f.get("ai", ""),
+                    # Entry path stored as a raw address (not decompiled): the unit cannot be moved yet.
+                    "fixedPath": bool(path_name) and not re.fullmatch(r"\w+", path_name),
                 })
             groups[name] = group
     return groups
+
+
+# ---------- writing unit groups ----------
+
+SIDE_TO_C = {"player": "FACTION_ID_BLUE", "ally": "FACTION_ID_GREEN", "enemy": "FACTION_ID_RED"}
+
+
+class UnitEditError(Exception):
+    pass
+
+
+def _array_body_span(clean: str, struct_name: str, name: str) -> tuple[int, int] | None:
+    m = re.search(rf"struct\s+{struct_name}\s+{re.escape(name)}\s*\[\s*\w*\s*\]\s*=\s*\{{", clean)
+    if not m:
+        return None
+    open_pos = m.end() - 1
+    return open_pos + 1, _match_brace(clean, open_pos)
+
+
+def _entry_spans(clean: str, start: int, end: int) -> list[tuple[int, int]]:
+    """Spans of the top-level { ... } entries in an array body (terminators excluded)."""
+    spans, pos = [], start
+    while True:
+        open_pos = clean.find("{", pos, end)
+        if open_pos < 0:
+            break
+        close = _match_brace(clean, open_pos)
+        if clean[open_pos + 1: close].strip() not in ("", "0"):
+            spans.append((open_pos, close + 1))
+        pos = close + 1
+    return spans
+
+
+def _render_unit(fields: dict[str, str], indent: str) -> str:
+    inner = indent + "    "
+    lines = ["{"]
+    for key, value in fields.items():
+        lines.append(f"{inner}.{key} = {value},")
+    lines.append(f"{indent}}}")
+    return "\n".join(lines)
+
+
+def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]]) -> dict[str, str]:
+    """Write edited unit groups into the decomp sources (decomp-relative path -> text).
+
+    Only the edited fields of the edited units are re-rendered. A unit that enters
+    the map along a path keeps its path; its battle position is the path's end point.
+    """
+    sources = dict(sources)
+    for name, new_units in edits.items():
+        rel = next((r for r, s in sources.items() if _array_body_span(_blank_comments(s), "UnitDefinition", name)), None)
+        if rel is None:
+            raise UnitEditError(f"Unit group {name} not found")
+        source = sources[rel]
+        clean = _blank_comments(source)
+        start, end = _array_body_span(clean, "UnitDefinition", name)
+        spans = _entry_spans(clean, start, end)
+        if len(spans) != len(new_units):
+            raise UnitEditError(f"{name}: adding or removing units is not supported yet")
+        reda_moves: list[tuple[str, int, int]] = []
+        out, last = [], 0
+        for (s, e), unit in zip(spans, new_units):
+            fields = parse_fields(clean[s + 1: e - 1])
+            original = dict(fields)
+            # Only touch a field whose meaning changes, so unedited units stay byte-identical.
+            if fields.get("charIndex", "0") != unit["character"]:
+                fields["charIndex"] = unit["character"]
+            if fields.get("classIndex", "0") != unit["class"]:
+                fields["classIndex"] = unit["class"]
+            if _int(fields.get("level")) != int(unit["level"]):
+                fields["level"] = str(int(unit["level"]))
+            if "side" in unit and ALLEGIANCE.get(fields.get("allegiance", "0"), "player") != unit["side"]:
+                fields["allegiance"] = SIDE_TO_C[unit["side"]]
+            items = [i for i in unit.get("items", []) if i]
+            if len(items) > 4:
+                raise UnitEditError(f"{name}: at most 4 items per unit")
+            old_items = [i.strip() for i in fields.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
+            if items != old_items:
+                fields["items"] = "{ " + " ".join(f"{i}," for i in items) + " }" if items else "{ }"
+            path = fields.get("redas", "").lstrip("&").strip()
+            if path and not re.fullmatch(r"\w+", path):
+                # Path given as a raw address (not decompiled yet): it cannot be edited.
+                if (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != (int(unit["endX"]), int(unit["endY"])):
+                    raise UnitEditError(f"{name}: this unit follows a movement path that cannot be edited yet")
+            elif path:
+                reda_moves.append((path, int(unit["endX"]), int(unit["endY"])))
+            elif (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != (int(unit["endX"]), int(unit["endY"])):
+                fields["xPosition"], fields["yPosition"] = str(int(unit["endX"])), str(int(unit["endY"]))
+            if fields != original:
+                line_start = clean.rfind("\n", 0, s) + 1
+                indent = clean[line_start:s] if clean[line_start:s].strip() == "" else "    "
+                out.append(source[last:s])
+                out.append(_render_unit(fields, indent))
+                last = e
+        out.append(source[last:])
+        sources[rel] = "".join(out)
+        for path, x, y in reda_moves:
+            sources = _move_path_end(sources, path, x, y)
+    return sources
+
+
+
+def _move_path_end(sources: dict[str, str], path: str, x: int, y: int) -> dict[str, str]:
+    for rel, source in sources.items():
+        clean = _blank_comments(source)
+        span = _array_body_span(clean, "REDA", path)
+        if span is None:
+            continue
+        spans = _entry_spans(clean, *span)
+        if not spans:
+            return sources
+        s, e = spans[-1]
+        fields = parse_fields(clean[s + 1: e - 1])
+        if _int(fields.get("x")) == x and _int(fields.get("y")) == y:
+            return sources
+        fields["x"], fields["y"] = str(x), str(y)
+        line_start = clean.rfind("\n", 0, s) + 1
+        indent = clean[line_start:s] if clean[line_start:s].strip() == "" else "    "
+        new = dict(sources)
+        new[rel] = source[:s] + _render_unit(fields, indent) + source[e:]
+        return new
+    raise UnitEditError(f"Movement path {path} not found")
 
 
 @lru_cache(maxsize=4)

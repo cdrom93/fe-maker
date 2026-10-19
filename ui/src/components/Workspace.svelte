@@ -4,7 +4,7 @@
   import { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
-  import type { Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
+  import type { ChaptersData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import ChapterEditor from './ChapterEditor.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
@@ -36,7 +36,7 @@
     },
   })
 
-  async function save(kind: 'characters' | 'items' | 'classes' | 'combat', data: unknown) {
+  async function save(kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters', data: unknown) {
     problems = (await api.saveData(kind, data)).problems
   }
 
@@ -46,6 +46,7 @@
     items: new EditableList<Item>((r) => save('items', r)),
     // The combat data is a single object, kept as a one-element list for undo/autosave.
     combat: new EditableList<Combat>((r) => save('combat', r[0])),
+    chapters: new EditableList<ChaptersData>((r) => save('chapters', r[0])),
   }
   const allLists = Object.values(lists)
 
@@ -55,16 +56,16 @@
   const errors = $derived(problems.filter((p) => p.severity === 'error'))
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
   const saving = $derived(allLists.some((l) => l.saving))
-  // Chapters are read-only for now: no undo history.
-  const active = $derived(tab === 'chapters' ? null : lists[tab])
+  const active = $derived(lists[tab])
 
   onMount(async () => {
-    const [ref, chars, cls, items, combat, probs, testOpts] = await Promise.all([
+    const [ref, chars, cls, items, combat, chaptersData, probs, testOpts] = await Promise.all([
       api.reference(),
       api.getData<Character[]>('characters'),
       api.getData<ClassData[]>('classes'),
       api.getData<Item[]>('items'),
       api.getData<Combat>('combat'),
+      api.getData<ChaptersData>('chapters'),
       api.problems(),
       api.testOptions(),
     ])
@@ -74,6 +75,7 @@
     lists.classes.load(cls)
     lists.items.load(items)
     lists.combat.load([combat])
+    lists.chapters.load([chaptersData])
     problems = probs.problems
   })
 
@@ -82,6 +84,7 @@
   /** Display name of a record mentioned by a problem. */
   function recordName(kind: Problem['kind'], id: string): string {
     if (kind === 'combat') return t('ws.combat')
+    if (kind === 'chapters') return id.replace('UnitDef_Event_', '')
     const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
     return record?.name || id || t(`ws.${kind}`)
   }
@@ -143,7 +146,7 @@
     </summary>
     <ul class="problems">
       {#each [...errors, ...warnings] as p, i (i)}
-        {@const isRecord = p.kind !== 'combat' && !!p.id}
+        {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && !!p.id}
         <li class={p.severity}>
           <Mention kind={p.kind} id={isRecord ? p.id : null}>{recordName(p.kind, p.id)}</Mention>
           — {t(`problem.${p.code}`, p.params)}
@@ -172,7 +175,7 @@
   {:else if tab === 'combat'}
     <CombatEditor list={lists.combat} {classes} {reference} {problems} />
   {:else}
-    <ChapterEditor characters={lists.characters.records} {classes} items={lists.items.records} />
+    <ChapterEditor list={lists.chapters} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {/if}
 {/if}
 
