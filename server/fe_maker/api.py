@@ -268,7 +268,7 @@ def chapter_units(index: int):
 
 
 @app.get("/api/assets/map-sprite/{class_id}")
-def map_sprite(class_id: str, side: str = "player"):
+def map_sprite(class_id: str, side: str = "player", trim: bool = False):
     entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
     if entry is None:
         raise HTTPException(404)
@@ -276,7 +276,7 @@ def map_sprite(class_id: str, side: str = "player"):
         sprite_id = int(entry.fields.get("SMSId", "0"), 0)
     except ValueError:
         raise HTTPException(404)
-    png = map_sprite_png(DECOMP_DIR, sprite_id, side)
+    png = map_sprite_png(DECOMP_DIR, sprite_id, side, trim=trim)
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})

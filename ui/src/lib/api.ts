@@ -54,7 +54,8 @@ export const api = {
 }
 
 export const chapterMapUrl = (index: number) => `/api/chapters/${index}/map.png`
-export const mapSpriteUrl = (classId: string, side: string) => `/api/assets/map-sprite/${classId}?side=${side}`
+export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
+  `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
 export const portraitUrl = (id: number) => `/api/assets/portrait/${id}`
 export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
 export const patchUrl = '/api/project/patch'

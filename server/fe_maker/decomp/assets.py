@@ -87,8 +87,11 @@ def map_sprite_table(decomp_dir: Path) -> list[tuple[str, tuple[int, int]]]:
             for size, name in re.findall(r"\{\s*\d+\s*,\s*(\w+)\s*,\s*(\w+)\s*\}", source)]
 
 
-def map_sprite(decomp_dir: Path, sprite_id: int, side: str = "player", scale: int = 2) -> bytes | None:
-    """First standing frame of a class's map sprite, in the colors of a side."""
+def map_sprite(decomp_dir: Path, sprite_id: int, side: str = "player", scale: int = 2, trim: bool = False) -> bytes | None:
+    """First standing frame of a class's map sprite, in the colors of a side.
+
+    With trim, the transparent margins of the frame are cut off (for lists).
+    """
     table = map_sprite_table(decomp_dir)
     if not 0 <= sprite_id < len(table):
         return None
@@ -99,6 +102,12 @@ def map_sprite(decomp_dir: Path, sprite_id: int, side: str = "player", scale: in
         return None
     img = Image.open(sheet)
     frame = img.crop((0, 0, min(w, img.width), min(h, img.height)))
+    if trim:
+        if frame.mode != "P":
+            frame = frame.convert("P")
+        box = frame.point(lambda i: 255 if i else 0).getbbox()  # color 0 is transparent
+        if box:
+            frame = frame.crop(box)
     return _render_image(frame, read_agbpal(palette), scale)
 
 

@@ -70,7 +70,7 @@
 <div class="editor">
   <RecordList records={classes} {selected} onselect={(i) => (selected = i)} filter={(k) => !hideUnused || k.usedInGame} {problemIds}>
     {#snippet icon(k: ClassView)}
-      <span class="sprite"><img src={mapSpriteUrl(k.id, 'player')} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
+      <span class="sprite"><img src={mapSpriteUrl(k.id, 'player', true)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
     {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
     {#snippet extraFilter()}
@@ -226,11 +226,12 @@
   .issues p { margin: 0.2rem 0; }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }
-  /* Map sprites are 16x16 to 32x32, all served at x2: same scale, the row grows with the sprite. */
+  /* Trimmed map sprites, all at x2, feet on a common baseline in a fixed-width column so names line up.
+     Only the few giants (wider than the column) are shrunk. */
   .sprite {
-    min-width: 32px; min-height: 32px; flex: none;
+    width: 40px; min-height: 32px; flex: none;
     display: inline-flex; align-items: flex-end; justify-content: center;
   }
-  .sprite img { image-rendering: pixelated; display: block; }
+  .sprite img { image-rendering: pixelated; display: block; max-width: 40px; max-height: 56px; object-fit: contain; }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
 </style>
