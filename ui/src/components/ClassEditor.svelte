@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
@@ -68,6 +69,9 @@
 
 <div class="editor">
   <RecordList records={classes} {selected} onselect={(i) => (selected = i)} filter={(k) => !hideUnused || k.usedInGame} {problemIds}>
+    {#snippet icon(k: ClassView)}
+      <span class="sprite"><img src={mapSpriteUrl(k.id, 'player')} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
+    {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
     {#snippet extraFilter()}
       <label class="check"><input type="checkbox" bind:checked={hideUnused} /> {t('field.hideUnusedClasses')}</label>
@@ -222,5 +226,11 @@
   .issues p { margin: 0.2rem 0; }
   .error { color: var(--bad); }
   .warning { color: var(--warn); }
+  /* Map sprites are 16x16 to 32x32 (served at x2): the tall and wide ones shrink to fit the box. */
+  .sprite {
+    width: 32px; height: 32px; flex: none;
+    display: inline-flex; align-items: flex-end; justify-content: center;
+  }
+  .sprite img { image-rendering: pixelated; max-width: 32px; max-height: 32px; }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
 </style>
