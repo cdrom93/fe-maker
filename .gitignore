@@ -45,3 +45,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Personal notes for Claude (machine paths, current status)
+CLAUDE.local.md
