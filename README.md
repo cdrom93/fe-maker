@@ -4,8 +4,8 @@
 
 *FE Maker is an open source editor to make tactics games on the Fire Emblem: The Sacred Stones (GBA) engine, designed to be as easy to use as an "RPG Maker". It is built on top of the [FE8 decompilation](https://github.com/FireEmblemUniverse/fireemblem8u).*
 
-> 🚧 Phase 1 (prototype) : édition des personnages et des objets, bouton « Tester », export en patch .ups.
-> *Phase 1 (prototype): character and item editing, "Test" button, .ups patch export.*
+> 🚧 En développement : personnages, objets (dont armes réservées), classes, triangle des armes et efficacités, unités des chapitres (placement sur la carte, classe, niveau, inventaire), bouton « Tester » et export en patch .ups. Avancement détaillé : [cahier des charges](CAHIER_DES_CHARGES.md), section 4.
+> *In development: characters, items (including reserved weapons), classes, weapon triangle and effectiveness, chapter units (placement on the map, class, level, items), "Test" button and .ups patch export. Detailed progress: [specification](CAHIER_DES_CHARGES.md), section 4.*
 
 ## Avertissement / Disclaimer
 
@@ -52,6 +52,7 @@ L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lance
 ## Documentation
 
 - [Cahier des charges](CAHIER_DES_CHARGES.md) (en français)
+- [Audit de la décomp / Decomp audit](docs/audit-decomp.md) (en français) : ce qui est éditable, limites et bugs connus du jeu d'origine
 - [Crédits / Credits](CREDITS.md)
 
 ## Licence / License
