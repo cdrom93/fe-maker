@@ -300,3 +300,20 @@ def scene_triggers(group: dict[str, str], lists: dict[str, str], scripts: set[st
 
 
 SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")
+
+
+# ---------- new conversations ("Talk" on the map) ----------
+
+TALK_FIRST_FLAG = 40   # temporary flags for new conversations (quotes use 50+, map objects 70+)
+RECRUIT_MUSIC = 0x30   # the song of the game's recruitment conversations (MUSS(0x30))
+
+
+def talk_script(name: str, message: int, recruit: str | None) -> str:
+    """Event script of a conversation started with "Talk", as the game writes them
+    (EventScr_Ch2_Talk_RossGarcia): the message, then `recruit` joins the player's army."""
+    lines = ["STAL(33)", "TEXTSTART", f"TEXTSHOW(0x{message:X})", "TEXTEND", "REMA"]
+    if recruit:
+        lines = [f"MUSS(0x{RECRUIT_MUSIC:X})"] + lines + ["MURE(0x2)", f"CUSA({recruit})"]
+    lines += ["NoFade", "ENDA"]
+    body = "".join(f"    {line}\n" for line in lines)
+    return f"CONST_DATA EventListScr {name}[] = {{\n{body}}};\n\n"

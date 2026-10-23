@@ -163,7 +163,9 @@ def test_edited_dialogue_build(tmp_path):
     say = [{"kind": "face", "pos": "MidLeft", "face": "FID_ONeill"},
            {"kind": "say", "pos": "MidLeft", "text": "New quote!", "wait": True}]
     new_quotes = [{"kind": "battle", "chapter": 0, "a": "CHARACTER_ONEILL", "b": "CHARACTER_SETH", "steps": say},
-                  {"kind": "death", "chapter": 255, "a": "CHARACTER_FRANZ", "steps": say}]
+                  {"kind": "death", "chapter": 255, "a": "CHARACTER_FRANZ", "steps": say},
+                  {"kind": "talk", "chapter": 2, "a": "CHARACTER_EIRIKA", "b": "CHARACTER_GARCIA", "recruit": True,
+                   "both": True, "steps": say}]
     project.save("dialogues", {"messages": {str(message): steps}, "quotes": new_quotes})
     assert [p for p in project.validate() if p.severity == "error"] == []
 

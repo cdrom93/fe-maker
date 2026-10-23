@@ -757,5 +757,12 @@
   "dlg.quoteWho": "Who speaks",
   "dlg.quoteDying": "Defeated character",
   "dlg.quoteAgainst": "Against",
-  "problem.quoteWithoutCharacter": "quote without character"
+  "problem.quoteWithoutCharacter": "quote without character",
+  "dlg.addTalk": "Conversation",
+  "dlg.addTalkHint": "A character can “Talk” to another on the map; the other one can then join the army.",
+  "dlg.talkTo": "Talks to",
+  "dlg.recruit": "{b} joins the army",
+  "dlg.recruits": "recruits",
+  "dlg.both": "Both ways",
+  "problem.emptyLine": "empty line"
 }

@@ -540,7 +540,10 @@ class DecompData:
             body = dialogues.render(steps)
             if not dialogues.same_message(self.texts.raw(index), body):
                 self.texts.set_raw(index, body)
-        new_quotes = [q for q in data.get("quotes", []) if q.get("a")]
+        new_quotes = [q for q in data.get("quotes", []) if q.get("a") and q.get("kind") != "talk"]
+        talks = [q for q in data.get("quotes", []) if q.get("kind") == "talk" and q.get("a") and q.get("b")]
+        for n, talk in enumerate(talks):
+            self._add_talk(n, talk)
         if not new_quotes:
             return
         self._load_chapter_events()
@@ -557,6 +560,39 @@ class DecompData:
                                                             q["a"], q.get("b", ""), msg, flag)
             else:
                 self.defeat_talks = quotes.add_death_quote(self.defeat_talks, self._chapter_constants, chapter, q["a"], msg)
+
+    def _add_talk(self, n: int, talk: dict) -> None:
+        """A new conversation: "Talk" from a to b (and b to a with "both") shows its message; with
+        "recruit", b joins the player's army."""
+        self._load_chapter_events()
+        index = int(talk.get("chapter", 0))
+        chapter = self.chapter_settings["chapters"][index]
+        symbol = self._chapter_event_symbol(chapter)
+        try:
+            group = objectives.event_group(self.event_sources, symbol or "")
+        except objectives.ObjectiveError as e:
+            raise GameDataError(f"Chapter {index} has no events: no conversation can be added") from e
+        found = objectives._list(self.event_sources, group.get("characterBasedEvents", ""))
+        if found is None:
+            raise GameDataError(f"Chapter {index} has no conversation list")
+        rel, start, end = found
+        prefix = rel.rsplit("-", 1)[0] + "-"
+        used = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
+        flag = next(f for f in range(dialogues.TALK_FIRST_FLAG, 100) if f not in used)
+        message = self.texts.add(dialogues.render(talk.get("steps") or []))
+        name = f"EventScr_FEM_Talk_{index}_{n}"
+        script = dialogues.talk_script(name, message, talk["b"] if talk.get("recruit") else None)
+        lines = [f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['a']}, {talk['b']})"]
+        if talk.get("both"):
+            lines.append(f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['b']}, {talk['a']})")
+        source = self.event_sources[rel]
+        body = source[start:end]
+        m = objectives._END_RE.search(body)
+        indent = m.group(1) if m else "    "
+        block = "".join(f"{indent}{line}\n" for line in lines)
+        body = body[: m.start()] + block + body[m.start():] if m else body + block
+        declaration = source.rfind("\n", 0, start) + 1
+        self.event_sources[rel] = source[:declaration] + script + source[declaration:start] + body + source[end:]
 
     def _quote_flags(self) -> set[tuple[int, int]]:
         """(chapter, flag) of temporary flags already used by battle quotes and chapter events."""

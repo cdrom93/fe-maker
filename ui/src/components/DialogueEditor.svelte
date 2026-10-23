@@ -164,13 +164,26 @@
   /** Portrait code of a character (its portrait id in the texts' list). */
   const faceOf = (pid: string) => faces.find((f) => f.portrait === characters.find((c) => c.id === pid)?.portraitId)?.id ?? faces[0]?.id ?? 'FID_Eirika'
 
-  function addQuote(kind: 'battle' | 'death') {
+  function addQuote(kind: NewQuote['kind']) {
     // The chapter's boss (who already has a battle quote), else the first character.
     const boss = scenes.find((s) => s.trigger.kind === 'battle')?.trigger.a
-    const a = boss || characters.find((c) => c.id.startsWith('CHARACTER_'))?.id || ''
-    const quote: NewQuote = {
-      kind, chapter: chapterNumber, a, b: '',
-      steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],
+    const named = characters.filter((c) => c.id.startsWith('CHARACTER_'))
+    let quote: NewQuote
+    if (kind === 'talk') {
+      const [a, b] = [named[0]?.id ?? '', named[1]?.id ?? '']
+      quote = {
+        kind, chapter: chapterNumber, a, b, recruit: false, both: false,
+        steps: [
+          { kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'face', pos: 'MidRight', face: faceOf(b) },
+          { kind: 'say', pos: 'MidLeft', text: '', wait: true }, { kind: 'say', pos: 'MidRight', text: '', wait: true },
+        ],
+      }
+    } else {
+      const a = boss || named[0]?.id || ''
+      quote = {
+        kind, chapter: chapterNumber, a, b: '',
+        steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],
+      }
     }
     const at = newQuotes.length
     list.update(0, (d) => {
@@ -180,14 +193,24 @@
     pick(`${NEW}${at}`)
   }
 
+  function quoteLabel(q: NewQuote): string {
+    if (q.kind === 'battle') return t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') })
+    if (q.kind === 'death') return t('dlg.trigger.death', { a: charName(q.a) })
+    return t('dlg.trigger.talk', { a: charName(q.a), b: charName(q.b ?? '') }) + (q.recruit ? ` · ${t('dlg.recruits')}` : '')
+  }
+
   function editQuote(patch: Partial<NewQuote>) {
     const i = quoteIndex
     if (i < 0) return
     list.update(0, (d) => {
       const q = d.quotes?.[i]
       if (!q) return
-      // A new speaker also changes the first portrait when it was the previous speaker's.
-      if (patch.a && q.steps[0]?.kind === 'face' && q.steps[0].face === faceOf(q.a)) q.steps[0].face = faceOf(patch.a)
+      // A new speaker also changes their portrait when it was the previous speaker's.
+      for (const key of ['a', 'b'] as const) {
+        const next = patch[key]
+        if (!next) continue
+        for (const s of q.steps) if (s.kind === 'face' && s.face === faceOf(q[key] ?? '')) s.face = faceOf(next)
+      }
       Object.assign(q, patch)
     })
   }
@@ -265,7 +288,7 @@
           {#each chapterQuotes as { q, i } (i)}
             <button class="message" class:active={messageId === `${NEW}${i}`} onclick={() => pick(`${NEW}${i}`)}>
               {#if portraitOf.has(faceOf(q.a))}<span class="faces-mini"><img src={portraitUrl(portraitOf.get(faceOf(q.a))!, true)} alt="" /></span>{/if}
-              <span class="first">{q.kind === 'battle' ? t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') }) : t('dlg.trigger.death', { a: charName(q.a) })}</span>
+              <span class="first">{quoteLabel(q)}</span>
             </button>
           {/each}
         </div>
@@ -273,6 +296,7 @@
       <div class="add">
         <button onclick={() => addQuote('battle')} title={t('dlg.addBattleHint')}>＋ {t('dlg.addBattle')}</button>
         <button onclick={() => addQuote('death')} title={t('dlg.addDeathHint')}>＋ {t('dlg.addDeath')}</button>
+        {#if chapterNumber !== ANY_CHAPTER}<button onclick={() => addQuote('talk')} title={t('dlg.addTalkHint')}>＋ {t('dlg.addTalk')}</button>{/if}
       </div>
       {#each visibleScenes as scene (scene.script)}
         <div class="scene">
@@ -301,7 +325,7 @@
       <section class="panel message-editor">
         <div class="head">
           {#if quoteIndex >= 0}
-            <h3>{newQuotes[quoteIndex]?.kind === 'battle' ? t('dlg.addBattle') : t('dlg.addDeath')}</h3>
+            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
@@ -312,11 +336,21 @@
           {@const q = newQuotes[quoteIndex]}
           <div class="quote-who">
             <label>
-              <span>{q.kind === 'battle' ? t('dlg.quoteWho') : t('dlg.quoteDying')}</span>
+              <span>{q.kind === 'death' ? t('dlg.quoteDying') : t('dlg.quoteWho')}</span>
               <select value={q.a} onchange={(e) => editQuote({ a: (e.target as HTMLSelectElement).value })}>
                 {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
               </select>
             </label>
+            {#if q.kind === 'talk'}
+              <label>
+                <span>{t('dlg.talkTo')}</span>
+                <select value={q.b ?? ''} onchange={(e) => editQuote({ b: (e.target as HTMLSelectElement).value })}>
+                  {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" checked={!!q.recruit} onchange={(e) => editQuote({ recruit: (e.target as HTMLInputElement).checked })} /> {t('dlg.recruit', { b: charName(q.b ?? '') })}</label>
+              <label class="check"><input type="checkbox" checked={!!q.both} onchange={(e) => editQuote({ both: (e.target as HTMLInputElement).checked })} /> {t('dlg.both')}</label>
+            {/if}
             {#if q.kind === 'battle'}
               <label>
                 <span>{t('dlg.quoteAgainst')}</span>

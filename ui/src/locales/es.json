@@ -757,5 +757,12 @@
   "dlg.quoteWho": "Quién habla",
   "dlg.quoteDying": "Personaje vencido",
   "dlg.quoteAgainst": "Contra",
-  "problem.quoteWithoutCharacter": "frase sin personaje"
+  "problem.quoteWithoutCharacter": "frase sin personaje",
+  "dlg.addTalk": "Conversación",
+  "dlg.addTalkHint": "Un personaje puede «Hablar» con otro en el mapa; el otro puede unirse al ejército.",
+  "dlg.talkTo": "Habla con",
+  "dlg.recruit": "{b} se une al ejército",
+  "dlg.recruits": "recluta",
+  "dlg.both": "En ambos sentidos",
+  "problem.emptyLine": "frase vacía"
 }

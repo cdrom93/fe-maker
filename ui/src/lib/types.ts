@@ -313,11 +313,16 @@ export interface DialoguesData {
 }
 
 export interface NewQuote {
-  kind: 'battle' | 'death'
+  /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
+  kind: 'battle' | 'death' | 'talk'
   /** chapter index; 255 = every chapter */
   chapter: number
   a: string
   b?: string
+  /** conversation: b joins the player's army */
+  recruit?: boolean
+  /** conversation: b can also start it */
+  both?: boolean
   steps: DialogueStep[]
 }
 

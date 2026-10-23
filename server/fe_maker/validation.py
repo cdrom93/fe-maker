@@ -177,7 +177,7 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
     edited = list(data.get("messages", {}).items())
     for n, quote in enumerate(data.get("quotes", [])):
         edited.append((f"new{n}", quote.get("steps", [])))
-        if not quote.get("a"):
+        if not quote.get("a") or (quote.get("kind") == "talk" and not quote.get("b")):
             problems.append(Problem("error", "dialogues", f"new{n}", "a", "quoteWithoutCharacter", {},
                                     "new quote without character"))
     for key, steps in edited:
@@ -187,6 +187,8 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
             if kind == "face" and faces and step.get("face") not in faces:
                 problems.append(Problem("error", "dialogues", rid, "face", "unknownFace", {"face": str(step.get("face"))},
                                         f"{key}: unknown portrait"))
+            if kind == "say" and not str(step.get("text", "")).strip():
+                problems.append(Problem("warning", "dialogues", rid, "text", "emptyLine", {}, f"{key}: empty line"))
             if kind == "say" and not str(step.get("text", "")).isascii():
                 problems.append(Problem("error", "dialogues", rid, "text", "nameNonAscii", {},
                                         f"{key}: the game font has no accented letters"))

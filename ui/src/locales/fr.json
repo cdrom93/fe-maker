@@ -757,5 +757,12 @@
   "dlg.quoteWho": "Qui parle",
   "dlg.quoteDying": "Personnage vaincu",
   "dlg.quoteAgainst": "Contre",
-  "problem.quoteWithoutCharacter": "réplique sans personnage"
+  "problem.quoteWithoutCharacter": "réplique sans personnage",
+  "dlg.addTalk": "Conversation",
+  "dlg.addTalkHint": "Un personnage peut « Parler » à un autre sur la carte ; l'autre peut alors rejoindre l'armée.",
+  "dlg.talkTo": "Parle à",
+  "dlg.recruit": "{b} rejoint l'armée",
+  "dlg.recruits": "recrute",
+  "dlg.both": "Dans les deux sens",
+  "problem.emptyLine": "réplique vide"
 }

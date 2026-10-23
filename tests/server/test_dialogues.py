@@ -78,3 +78,10 @@ def test_new_quotes():
         ("CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C), ("CHARACTER_BONE", "CHARACTER_ROSS", 0xD4C)]
     assert [(q["a"], q["chapter"], q["msg"], q["flag"]) for q in found["death"]] == [
         ("CHARACTER_BONE", 2, 0xD4D, "EVFLAG_DEFEAT_BOSS"), ("CHARACTER_ROSS", 255, 0xD4E, "0")]
+
+
+def test_talk_script():
+    recruit = dl.talk_script("EventScr_Test", 0xD4C, "CHARACTER_GARCIA")
+    assert "MUSS(0x30)" in recruit and "TEXTSHOW(0xD4C)" in recruit and "CUSA(CHARACTER_GARCIA)" in recruit
+    plain = dl.talk_script("EventScr_Test", 0xD4C, None)
+    assert "CUSA" not in plain and "MUSS" not in plain and plain.rstrip().endswith("};")
