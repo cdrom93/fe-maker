@@ -24,6 +24,8 @@ NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.GENERIC_LOCKS)
 UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/Green sizes (include/bmunit.h)
 AI_ACTION_MAX, AI_MOVE_MAX, AI_RECOVERY_MAX = 0x14, 0x12, 4  # last entries of the AI tables (src/cp_data.c)
+OBJECTIVE_TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "special")  # decomp/objectives.py TYPES + read-only "special"
+OBJECTIVE_LINE_MAX = 22  # longest line of the original status texts ("Defeat Fomortiis, the" = 21)
 
 
 @dataclass
@@ -153,7 +155,34 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     return problems
 
 
+def _validate_objectives(problems, objectives_by_chapter: dict):
+    for index, o in objectives_by_chapter.items():
+        rid = f"objective#{index}"
+        kind = o.get("type")
+        if kind not in OBJECTIVE_TYPES:
+            problems.append(Problem("error", "chapters", rid, "type", "unknownObjective", {}, f"{rid}: unknown objective type"))
+        if kind == "seize":
+            if not o.get("seize"):
+                problems.append(Problem("error", "chapters", rid, "seize", "noSeizeTile", {}, f"{rid}: no tile to seize"))
+            for tile in o.get("seize", []):
+                _range(problems, "chapters", rid, "seize", tile.get("x"), 0, 63)
+                _range(problems, "chapters", rid, "seize", tile.get("y"), 0, 63)
+        if kind == "defense":
+            _range(problems, "chapters", rid, "turns", o.get("turns"), 1, 99)
+        text = o.get("statusText")
+        if text is not None:
+            lines = text.strip().split("\n")
+            if not text.strip():
+                problems.append(Problem("error", "chapters", rid, "statusText", "nameEmpty", {}, f"{rid}: empty objective text"))
+            elif any(ord(c) > 127 for c in text):
+                problems.append(Problem("error", "chapters", rid, "statusText", "nameNonAscii", {}, f"{rid}: accented letters"))
+            elif len(lines) > 2 or any(len(line) > OBJECTIVE_LINE_MAX for line in lines):
+                problems.append(Problem("warning", "chapters", rid, "statusText", "objectiveTextTooLong",
+                                        {"lines": 2, "max": OBJECTIVE_LINE_MAX}, f"{rid}: objective text may not fit"))
+
+
 def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
+    _validate_objectives(problems, chapters.get("objectives", {}))
     for group, unit_list in chapters.get("unitGroups", {}).items():
         for side, limit in UNITS_PER_SIDE.items():
             count = sum(1 for u in unit_list if u.get("side") == side)

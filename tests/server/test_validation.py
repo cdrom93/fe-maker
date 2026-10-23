@@ -83,3 +83,18 @@ def test_ai_outside_engine_tables(decomp_dir):
     assert ("UnitDef_TestChapter#0", "ai", "badAi") in codes
     assert ("UnitDef_TestChapter#1", "ai", "badAi") in codes
     assert ("UnitDef_TestChapter#2", "ai", "badAi") not in codes
+
+
+def test_objective_problems(decomp_dir):
+    d = DecompData(decomp_dir)
+    objectives = {
+        "0": {"type": "seize", "seize": [], "statusText": "Prendre le château"},
+        "1": {"type": "defense", "turns": 0, "statusText": "Survive for 12 turns and more\nand more\nand more"},
+        "2": {"type": "defeat_all", "statusText": "Defeat all enemies"},
+    }
+    codes = _codes(validate(d.export_characters(), d.export_items(), d, chapters={"unitGroups": {}, "objectives": objectives}))
+    assert ("objective#0", "seize", "noSeizeTile") in codes
+    assert ("objective#0", "statusText", "nameNonAscii") in codes
+    assert ("objective#1", "turns", "outOfRange") in codes
+    assert ("objective#1", "statusText", "objectiveTextTooLong") in codes
+    assert not [c for c in codes if c[0] == "objective#2"]

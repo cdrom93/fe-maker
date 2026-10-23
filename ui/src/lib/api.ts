@@ -1,4 +1,4 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
 
@@ -46,6 +46,7 @@ export const api = {
     request<{ problems: Problem[] }>('PUT', `/api/project/data/${kind}`, records),
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
+  chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),

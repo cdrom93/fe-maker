@@ -116,6 +116,32 @@ export interface MapUnit {
 /** Project chapter data: unit groups once edited (data/chapters.json). */
 export interface ChaptersData {
   unitGroups: Record<string, MapUnit[]>
+  /** objectives edited in the project, by chapter index */
+  objectives?: Record<string, ObjectiveEdit>
+}
+
+export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'special'
+
+/** What the project stores for an edited objective (server/fe_maker/decomp/objectives.py). */
+export interface ObjectiveEdit {
+  type: ObjectiveType
+  seize: { x: number; y: number }[]
+  seizeLabel: 'throne' | 'gate'
+  /** turns to survive (defense) */
+  turns: number
+  /** text of the status screen; lines separated by \n */
+  statusText: string
+}
+
+export interface Objective extends ObjectiveEdit {
+  /** written with the standard forms: type and tiles can be changed */
+  editable: boolean
+  /** why it cannot be edited: custom, escort, noEvents */
+  reason: string
+  hasStatusText: boolean
+  /** other chapters sharing the status text / the events */
+  statusShared: number
+  eventsShared: number
 }
 
 export interface UnitGroup {

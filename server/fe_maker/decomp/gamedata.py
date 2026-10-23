@@ -7,10 +7,11 @@ back exactly.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
-from . import combat, units
+from . import combat, maps, objectives, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -29,6 +30,8 @@ BATTLE_ANIM_CONF_FILE = "src/data_banimconf.c"
 BATTLE_ANIM_TABLE_FILE = "src/banim_data.c"
 # Unit placements of every chapter (struct UnitDefinition arrays)
 UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
+# Chapter event groups and their event lists (objectives); unit definition files excluded.
+EVENT_INFO_FILES = ["src/events/*.h", "src/events_info.c"]
 
 STATS = ["hp", "pow", "skl", "spd", "def", "res", "lck", "con"]
 GROWTHS = ["hp", "pow", "skl", "spd", "def", "res", "lck"]
@@ -175,6 +178,11 @@ class DecompData:
                 rel = path.relative_to(decomp_dir).as_posix()
                 self.unit_defs[rel] = self._read(rel)
         self._original_unit_defs = dict(self.unit_defs)
+        # Chapter settings and events, loaded on first use (objectives).
+        self.chapter_settings: dict | None = None
+        self.event_sources: dict[str, str] = {}
+        self._original_event_sources: dict[str, str] = {}
+        self._settings_raw = ''
         self.animated_weapons = self._read_animated_weapons()
         # Combat tables (optional: absent from minimal test decomps)
         self._sources: dict[str, str] = {}
@@ -315,13 +323,63 @@ class DecompData:
 
     @staticmethod
     def export_chapters() -> dict:
-        """Project chapter data. Unit groups are stored only once edited (see units.py)."""
-        return {"unitGroups": {}}
+        """Project chapter data. Unit groups and objectives (by chapter index) are stored
+        only once edited (see units.py and objectives.py)."""
+        return {"unitGroups": {}, "objectives": {}}
 
     def apply_chapters(self, chapters: dict) -> None:
         edits = chapters.get("unitGroups", {})
         if edits:
             self.unit_defs = units.apply_unit_groups(self.unit_defs, edits, units.ai_macros(self.decomp_dir))
+        for index, objective in chapters.get("objectives", {}).items():
+            self.apply_objective(int(index), objective)
+
+    # ---------- chapter objectives ----------
+
+    def _load_chapter_events(self) -> None:
+        if self.chapter_settings is not None:
+            return
+        self._settings_raw = self._read(maps.CHAPTER_SETTINGS_FILE)
+        self.chapter_settings = json.loads(self._settings_raw)
+        self.event_sources = {}
+        for pattern in EVENT_INFO_FILES:
+            for path in sorted(self.decomp_dir.glob(pattern)):
+                rel = path.relative_to(self.decomp_dir).as_posix()
+                if rel not in self.unit_defs:
+                    self.event_sources[rel] = self._read(rel)
+        self._original_event_sources = dict(self.event_sources)
+
+    def _chapter_event_symbol(self, chapter: dict) -> str | None:
+        table = maps.asset_table(self.decomp_dir)
+        index = chapter.get("mapEventDataId", 0)
+        return table[index] if 0 < index < len(table) else None
+
+    def read_objective(self, index: int) -> dict:
+        """Objective of chapter `index` as currently written (original game + applied edits)."""
+        self._load_chapter_events()
+        chapters = self.chapter_settings["chapters"]
+        chapter = chapters[index]
+        objective = objectives.read_objective(chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), self.texts)
+        status_id = chapter["goal"].get("statusObjectiveTextId", 0)
+        # Several chapters may share a status text or an event group: editing one changes the others.
+        objective["hasStatusText"] = bool(status_id)
+        objective["statusShared"] = max(0, sum(1 for c in chapters if status_id and c["goal"].get("statusObjectiveTextId") == status_id) - 1)
+        symbol = self._chapter_event_symbol(chapter)
+        objective["eventsShared"] = max(0, sum(1 for c in chapters if symbol and self._chapter_event_symbol(c) == symbol) - 1)
+        return objective
+
+    def apply_objective(self, index: int, new: dict) -> None:
+        current = self.read_objective(index)
+        chapter = self.chapter_settings["chapters"][index]
+        keys = ("type", "seize", "seizeLabel", "turns")
+        if any(new.get(k, current[k]) != current[k] for k in keys):
+            self.event_sources = objectives.apply_objective(
+                chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), current,
+                {k: new.get(k, current[k]) for k in keys})
+        text = new.get("statusText")
+        status_id = chapter["goal"].get("statusObjectiveTextId", 0)
+        if text is not None and status_id and text.strip() != current["statusText"]:
+            self.texts.set_raw(status_id, objectives.status_message(text))
 
     def apply_combat(self, combat_data: dict) -> None:
         if self.triangle is not None and "triangle" in combat_data:
@@ -692,6 +750,13 @@ class DecompData:
                 self._sources[combat.EFFECTIVENESS_FILE], self.effectiveness)
         if self.triangle is not None and self.triangle != self._original_triangle:
             out[combat.TRIANGLE_FILE] = combat.render_triangle(self._sources[combat.TRIANGLE_FILE], self.triangle)
+        if self.chapter_settings is not None:
+            settings = json.dumps(self.chapter_settings, indent=2)  # same layout as the decomp's file
+            if settings != self._settings_raw:
+                out[maps.CHAPTER_SETTINGS_FILE] = settings
+            for rel, source in self.event_sources.items():
+                if source != self._original_event_sources[rel]:
+                    out[rel] = source
         return out
 
     # ---------- assets ----------

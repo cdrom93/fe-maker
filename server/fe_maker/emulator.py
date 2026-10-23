@@ -103,4 +103,10 @@ class Emulator:
             raise EmulatorError("mGBA not found. Install it or set its path in the settings.")
         self.close_previous()
         write_key_bindings(keys)
-        self._process = subprocess.Popen([mgba_path, str(rom)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Detached from FE Maker: closing or restarting the server must not close the game being played.
+        if sys.platform == "win32":
+            detach = {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+        else:
+            detach = {"start_new_session": True}
+        self._process = subprocess.Popen([mgba_path, str(rom)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                         stdin=subprocess.DEVNULL, **detach)

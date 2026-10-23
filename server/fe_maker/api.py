@@ -275,6 +275,13 @@ def chapter_units(index: int):
     }
 
 
+@app.get("/api/chapters/{index}/objective")
+def chapter_objective(index: int):
+    """The chapter's original objective (the project's edit, if any, is in data/chapters.json)."""
+    _chapter(index)
+    return state.get_decomp().read_objective(index)
+
+
 @app.get("/api/assets/map-sprite/{class_id}")
 def map_sprite(class_id: str, side: str = "player", trim: bool = False):
     entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)

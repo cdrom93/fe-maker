@@ -28,11 +28,11 @@ Docs are written in French (README in French and English); code and comments in 
 ## Architecture
 
 - `server/fe_maker/` (Python, FastAPI): `api.py` endpoints, `project.py` (project folder: `fe-maker.json` + `data/*.json`, migrations, build), `builder.py` (Docker build), `validation.py` (problems shown in the UI), `emulator.py` (mGBA launch and controls), `ups.py`.
-- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `maps.py` (map rendering), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
+- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `objectives.py` (goal settings + victory events; DecompData.read_objective / apply_objective), `maps.py` (map rendering), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
 - `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab, `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
 - `docker/`: build image (Ubuntu 24.04, agbcc pinned). The decomp is mounted read-only, the working copy lives in a Docker volume, the overlay is applied with `rsync -rlp --checksum`.
 - Tests: `tests/server` (no ROM, fictional fixtures in `tests/server/fixtures/decomp`); `tests/local` (needs the ROM and Docker, never in public CI).
-- `tools/mgba-drive.ps1` (Windows, dev only): drives mGBA with key presses and screenshots for in-game checks.
+- `tools/mgba-drive.ps1` (Windows, dev only): drives mGBA with key presses and screenshots for in-game checks. Only when the user is not using the PC: if mGBA loses focus, the keys go to other windows.
 - Feedback tickets: `server/fe_maker/tickets.py` (stored in the user's config dir, `tickets/tickets.json` + `images/`, never in the repo), `TicketDialog.svelte` (header button), `ui/src/lib/appContext.svelte.ts` (tab / record / detail attached to a ticket; `RecordList` and `ChapterEditor` fill it). List open tickets with `python -m fe_maker.tickets`.
 
 ## Pitfalls already met

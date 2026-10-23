@@ -5,11 +5,12 @@
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, Problem } from '../lib/types'
+  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, Objective, ObjectiveEdit, Problem } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
+  import ObjectivePanel from './ObjectivePanel.svelte'
   import RecordList from './RecordList.svelte'
 
   let {
@@ -48,6 +49,43 @@
   const cutsceneGroups = $derived(data?.groups.filter((g) => g.origin === 'cutscene') ?? [])
   const pickedOrigin = $derived(picked ? data?.groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
+
+  // Objective: the original one, overridden by the project's edit.
+  let originalObjective = $state<Objective | null>(null)
+  let pickingSeize = $state(false)
+  const objectiveKey = $derived(chapter ? String(chapter.index) : '')
+  const objectiveEdit = $derived(list.records[0]?.objectives?.[objectiveKey])
+  const objective = $derived(originalObjective ? { ...originalObjective, ...(objectiveEdit ?? {}) } : null)
+  const objectiveProblems = $derived(problems.filter((p) => p.kind === 'chapters' && p.id === `objective#${objectiveKey}`))
+
+  function editObjective(change: Partial<ObjectiveEdit>) {
+    if (!objective) return
+    const key = objectiveKey
+    const base: ObjectiveEdit = {
+      type: objective.type, seize: objective.seize, seizeLabel: objective.seizeLabel, turns: objective.turns, statusText: objective.statusText,
+    }
+    list.update(0, (c) => {
+      c.objectives ??= {}
+      c.objectives[key] = $state.snapshot({ ...base, ...change }) as ObjectiveEdit
+    })
+  }
+
+  function resetObjective() {
+    const key = objectiveKey
+    list.update(0, (c) => {
+      if (c.objectives) delete c.objectives[key]
+    })
+  }
+
+  /** Map click while choosing the tile to seize. */
+  function pickTile(e: MouseEvent) {
+    if (!pickingSeize || !mapEl || !data) return
+    const rect = mapEl.getBoundingClientRect()
+    const x = Math.max(0, Math.min(data.width - 1, Math.floor((e.clientX - rect.left) / CELL)))
+    const y = Math.max(0, Math.min(data.height - 1, Math.floor((e.clientY - rect.top) / CELL)))
+    editObjective({ seize: [{ x, y }] })
+    pickingSeize = false
+  }
   const charById = $derived(new Map(characters.map((c) => [c.id, c])))
   const classById = $derived(new Map(classes.map((k) => [k.id, k])))
   const itemById = $derived(new Map(items.map((i) => [i.id, i])))
@@ -82,9 +120,14 @@
     selected = index
     picked = null
     openGroup = null
+    pickingSeize = false
     loading = true
     data = null
+    originalObjective = null
     try {
+      api.chapterObjective(chapters[index].index).then((o) => {
+        if (selected === index) originalObjective = o
+      })
       data = await api.chapterUnits(chapters[index].index)
       hidden = Object.fromEntries(data.groups.map((g) => [g.name, g.origin === 'cutscene']))
     } finally {
@@ -255,6 +298,9 @@
             <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {t(`problem.${pr.code}`, pr.params)}</p>
           {/each}
         {/if}
+        {#if objective}
+          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} onchange={editObjective} onreset={resetObjective} />
+        {/if}
       </section>
 
       <div class="layout">
@@ -263,12 +309,24 @@
           {#if data && data.width}
             <div
               class="map"
+              class:picking={pickingSeize}
               role="application"
               bind:this={mapEl}
+              onclickcapture={(e) => {
+                if (pickingSeize) {
+                  e.stopPropagation()
+                  pickTile(e)
+                }
+              }}
               style="width: {data.width * CELL}px; height: {data.height * CELL}px; background-image: url({chapterMapUrl(chapter.index)})"
               ondragover={(e) => e.preventDefault()}
               ondrop={drop}
             >
+              {#if objective?.type === 'seize'}
+                {#each objective.seize as tile, k (k)}
+                  <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}>🏰</span>
+                {/each}
+              {/if}
               {#each data.groups as g (g.name)}
                 {#if !hidden[g.name]}
                   {#each unitsOf(g.name) as u, i (i)}
@@ -392,6 +450,13 @@
   .group-units .sprite img { image-rendering: pixelated; max-height: 32px; vertical-align: bottom; }
   .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; }
   .unit.dimmed { opacity: 0.35; }
+  .map.picking { cursor: crosshair; }
+  .map.picking .unit { pointer-events: none; }
+  .seize-marker {
+    position: absolute; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center;
+    border: 3px solid #f1c40f; border-radius: 4px; background: rgb(241 196 15 / 0.25); font-size: 15px; pointer-events: none;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  }
   .add { padding: 0 0.4rem; line-height: 1.4; font-size: 0.85rem; }
   .actions { display: flex; gap: 0.5rem; }
   .actions button { flex: 1; }
