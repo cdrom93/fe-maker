@@ -683,5 +683,7 @@
   "maps.obj.removeWare": "(remove)",
   "maps.obj.secret": "Secret shop (member card)",
   "maps.obj.secretHint": "Only a unit carrying a member card can go in.",
-  "maps.obj.shopCount": "{n} item(s) for sale"
+  "maps.obj.shopCount": "{n} item(s) for sale",
+  "maps.retile": "Terrain:",
+  "maps.retileHint": "Changes the terrain of the selected tile (or block): FE Maker makes a copy with this terrain; cells already painted and other maps do not change."
 }

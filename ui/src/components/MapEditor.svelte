@@ -43,6 +43,7 @@
   const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'armory', 'vendor', 'chest', 'door']
   const SHOP_KINDS: MapObjectKind[] = ['armory', 'vendor']
   const MAX_SHOP_ITEMS = 20
+  const ALL_TERRAIN_IDS = Array.from({ length: 0x41 }, (_, i) => i)
   const CHANGE_KINDS: MapObjectKind[] = ['village', 'chest', 'door', 'wall', 'snag']
   const GOLD = '__gold'
   // Mirrors and turns of the brush (server: tileedit.py).
@@ -192,15 +193,15 @@
     }).catch(() => {})
   })
 
-  /** Mirror or turn the brush; the new tiles are added to the tileset (undo removes them). */
-  async function transform(op: string) {
+  /** Mirror or turn the brush, or give it another terrain; new tiles are added to the tileset (undo removes them). */
+  async function transform(op: string, terrain = 0) {
     if (!info || !baseLayout) return
     const id = info.id
     const tileset = baseLayout.tileset
     transformError = ''
     try {
       const r = await api.transformTiles(id, {
-        rows: $state.snapshot(stamp) as number[][], op, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
+        rows: $state.snapshot(stamp) as number[][], op, terrain, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
         painted: JSON.parse(JSON.stringify(list.records[0]?.layouts ?? {})),
       })
       if (maps[selected]?.id !== id) return
@@ -937,6 +938,13 @@
                 <button title={t(`maps.transform.${tr.op}`)} aria-label={t(`maps.transform.${tr.op}`)} onclick={() => transform(tr.op)}>{tr.icon}</button>
               {/each}
             </div>
+            <label class="check" title={t('maps.retileHint')}>
+              {t('maps.retile')}
+              <select value={stampW === 1 && stampH === 1 ? layout.terrains[brush] : ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v !== '') transform('terrain', Number(v)) }}>
+                {#if stampW > 1 || stampH > 1}<option value="">—</option>{/if}
+                {#each ALL_TERRAIN_IDS as id (id)}<option value={id}>{terrainName(id)}</option>{/each}
+              </select>
+            </label>
             {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny">{t('maps.transformHint')}</p>{/if}
             <label>
               <span>{t('maps.terrainFilter')}</span>

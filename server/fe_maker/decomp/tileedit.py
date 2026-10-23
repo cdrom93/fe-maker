@@ -153,18 +153,27 @@ class Tileset:
                 return slot
         raise TileEditError("noFreeMetatile")
 
-    def transform_metatile(self, m: int, op: str) -> int:
-        entries = self._transformed_entries(m, op)
+    def _metatile(self, entries: list[int], terrain: int) -> int:
+        """A shown metatile with these tiles and terrain: an existing one, or a new one in a free slot."""
         for n, existing in enumerate(self.metatiles):
             shown = not self.duplicates[n] or str(n) in self.edits["metatiles"]
-            if existing == entries and self.terrain[n] == self.terrain[m] and shown:
+            if existing == entries and self.terrain[n] == terrain and shown:
                 return n
         slot = self._free_slot()
         self.metatiles[slot] = entries
-        self.terrain[slot] = self.terrain[m]
-        self.edits["metatiles"][str(slot)] = {"tiles": entries, "terrain": self.terrain[m]}
+        self.terrain[slot] = terrain
+        self.edits["metatiles"][str(slot)] = {"tiles": entries, "terrain": terrain}
         self.used.add(slot)
         return slot
+
+    def transform_metatile(self, m: int, op: str) -> int:
+        return self._metatile(self._transformed_entries(m, op), self.terrain[m])
+
+    def with_terrain(self, rows: list[list[int]], terrain: int) -> list[list[int]]:
+        """The same tiles with another terrain (copies in free slots: the other maps keep theirs)."""
+        if not 0 <= terrain < 0x41:
+            raise TileEditError(f"Unknown terrain {terrain}")
+        return [[self._metatile(list(self.metatiles[m]), terrain) for m in row] for row in rows]
 
     def transform_block(self, rows: list[list[int]], op: str) -> list[list[int]]:
         """A block of metatiles (rows) mirrored or turned as a whole."""

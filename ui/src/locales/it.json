@@ -683,5 +683,7 @@
   "maps.obj.removeWare": "(togli)",
   "maps.obj.secret": "Negozio segreto (tessera)",
   "maps.obj.secretHint": "Può entrare solo un'unità che porta una tessera.",
-  "maps.obj.shopCount": "{n} oggetto/i in vendita"
+  "maps.obj.shopCount": "{n} oggetto/i in vendita",
+  "maps.retile": "Terreno:",
+  "maps.retileHint": "Cambia il terreno della casella (o del blocco) scelta: FE Maker ne fa una copia con quel terreno; le caselle già dipinte e le altre mappe non cambiano."
 }

@@ -348,7 +348,8 @@ def edited_tileset(layout_id: str, body: TilesetIn):
 
 class TransformIn(BaseModel):
     rows: list[list[int]]
-    op: str
+    op: str                  # h, v, 180, cw, ccw, or "terrain"
+    terrain: int = 0         # with op "terrain": the new terrain of the tiles
     edits: dict | None = None
     painted: dict = {}   # project painted layouts: their tiles are not free slots
 
@@ -359,7 +360,10 @@ def transform_tiles(layout_id: str, body: TransformIn):
     _layout(layout_id)
     try:
         tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits, body.painted)
-        rows = tileset.transform_block(body.rows, body.op)
+        if body.op == "terrain":
+            rows = tileset.with_terrain(body.rows, body.terrain)
+        else:
+            rows = tileset.transform_block(body.rows, body.op)
     except tileedit.TileEditError as e:
         raise HTTPException(409, str(e)) from e
     return {"rows": rows, "edits": tileset.edits, "tileset": tileset.name}

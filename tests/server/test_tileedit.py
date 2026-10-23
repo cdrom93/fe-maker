@@ -77,3 +77,12 @@ def test_turned_block_and_files(tmp_path, monkeypatch):
 
 def test_no_edit_writes_nothing(tmp_path, monkeypatch):
     assert _tileset(tmp_path, monkeypatch).files() == {}
+
+
+def test_copy_with_another_terrain(tmp_path, monkeypatch):
+    ts = _tileset(tmp_path, monkeypatch)
+    [[copy]] = ts.with_terrain([[1]], 0x15)
+    assert copy != 1 and ts.metatiles[copy] == ts.metatiles[1] and ts.terrain[copy] == 0x15
+    assert ts.terrain[1] == 0x0C                       # the original tile keeps its terrain
+    assert ts.with_terrain([[1]], 0x15) == [[copy]]    # done once
+    assert ts.with_terrain([[1]], 0x0C) == [[1]]       # same terrain: the tile itself

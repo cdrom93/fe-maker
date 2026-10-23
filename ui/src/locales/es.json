@@ -683,5 +683,7 @@
   "maps.obj.removeWare": "(quitar)",
   "maps.obj.secret": "Tienda secreta (tarjeta de socio)",
   "maps.obj.secretHint": "Solo puede entrar una unidad que lleve una tarjeta de socio.",
-  "maps.obj.shopCount": "{n} objeto(s) en venta"
+  "maps.obj.shopCount": "{n} objeto(s) en venta",
+  "maps.retile": "Terreno:",
+  "maps.retileHint": "Cambia el terreno de la casilla (o el bloque) elegida: FE Maker hace una copia con ese terreno; las casillas ya pintadas y los demás mapas no cambian."
 }

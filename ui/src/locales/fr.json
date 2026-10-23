@@ -683,5 +683,7 @@
   "maps.obj.removeWare": "(retirer)",
   "maps.obj.secret": "Magasin secret (carte de membre)",
   "maps.obj.secretHint": "Seule une unité qui porte une carte de membre peut y entrer.",
-  "maps.obj.shopCount": "{n} objet(s) en vente"
+  "maps.obj.shopCount": "{n} objet(s) en vente",
+  "maps.retile": "Terrain :",
+  "maps.retileHint": "Change le terrain de la tuile (ou du bloc) choisie : FE Maker en fait une copie avec ce terrain, les cases déjà peintes et les autres cartes ne changent pas."
 }
