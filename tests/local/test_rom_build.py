@@ -172,3 +172,15 @@ def test_edited_dialogue_build(tmp_path):
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original
+
+
+def test_reinforcements_build(tmp_path):
+    """A group made in the project arrives at the start of an enemy turn; the decomp still builds."""
+    project = Project.create(tmp_path / "reinf", "Reinf")
+    unit = {"slot": None, "character": "0x80", "class": "CLASS_FIGHTER", "level": 3, "autolevel": True, "side": "enemy",
+            "x": 5, "y": 5, "endX": 5, "endY": 5, "items": ["ITEM_AXE_IRON"], "ai": [0, 0, 0, 0]}
+    project.save("chapters", {"unitGroups": {"UnitDef_FEM_2_0": [unit, dict(unit, x=6, endX=6)]},
+                              "newGroups": {"UnitDef_FEM_2_0": {"chapter": 2, "turn": 3, "phase": "enemy"}}, "objectives": {}})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

@@ -772,5 +772,9 @@
   "dlg.phase.player": "du joueur",
   "dlg.phase.enemy": "de l'ennemi",
   "dlg.phase.ally": "des alliés",
-  "dlg.trigger.allyTurn": "Tour {n} (alliés)"
+  "dlg.trigger.allyTurn": "Tour {n} (alliés)",
+  "chapter.addReinforcements": "Renforts",
+  "chapter.addReinforcementsHint": "Nouveau groupe d'unités qui arrive au début d'un tour (copie du premier ennemi du chapitre, à modifier).",
+  "chapter.removeReinforcements": "Supprimer ces renforts",
+  "chapter.newGroupHint": "Les unités apparaissent au début du tour choisi, avec la caméra du jeu sur elles. Placez-les sur la carte."
 }

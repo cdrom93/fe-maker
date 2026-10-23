@@ -6,7 +6,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterUnits, ChaptersData, MapsData, Character, ClassView, Item, MapUnit, Objective, ObjectiveEdit, Problem } from '../lib/types'
+  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -57,12 +57,59 @@
     return (h >>> 0).toString(36)
   })
 
+  // The chapter's groups, and the reinforcements made in the project.
+  const newGroups = $derived(Object.entries(list.records[0]?.newGroups ?? {}).filter(([, g]) => g.chapter === chapter?.index))
+  const groups = $derived<UnitGroup[]>([
+    ...(data?.groups ?? []),
+    ...newGroups.map(([name, g]) => ({ name, origin: 'turn' as const, turn: g.turn, units: [], edited: true, new: true })),
+  ])
+  const openNew = $derived(openGroup ? list.records[0]?.newGroups?.[openGroup] : undefined)
+
+  /** New reinforcements: one copy of the chapter's first enemy (or a generic unit), at turn 2. */
+  function addReinforcements() {
+    if (!chapter) return
+    const taken = new Set(Object.keys(list.records[0]?.newGroups ?? {}))
+    let n = 0
+    while (taken.has(`UnitDef_FEM_${chapter.index}_${n}`)) n++
+    const name = `UnitDef_FEM_${chapter.index}_${n}`
+    const enemy = battleGroups.flatMap((g) => unitsOf(g.name)).find((u) => u.side === 'enemy')
+    const [x, y] = freeTileNear(enemy?.endX ?? 0, enemy?.endY ?? 0)
+    const unit: MapUnit = enemy
+      ? { ...(structuredClone($state.snapshot(enemy)) as MapUnit), slot: null, copyOf: null, fixedPath: false, x, y, endX: x, endY: y }
+      : { slot: null, copyOf: null, level: 1, autolevel: true, items: [], ai: [0, 0, 0, 0], side: 'enemy', character: GENERIC,
+          class: classes.find((k) => k.usedInGame)?.id ?? classes[0]?.id ?? '', x, y, endX: x, endY: y }
+    const index = chapter.index
+    list.update(0, (c) => {
+      c.newGroups ??= {}
+      c.newGroups[name] = { chapter: index, turn: 2, phase: 'enemy' }
+      c.unitGroups[name] = [unit]
+    })
+    hidden[name] = false
+    openGroup = name
+    picked = { group: name, index: 0 }
+  }
+
+  function editNewGroup(name: string, change: Partial<NewGroup>) {
+    list.update(0, (c) => {
+      if (c.newGroups?.[name]) Object.assign(c.newGroups[name], change)
+    })
+  }
+
+  function removeNewGroup(name: string) {
+    openGroup = null
+    picked = null
+    list.update(0, (c) => {
+      delete c.newGroups?.[name]
+      delete c.unitGroups[name]
+    })
+  }
+
   const nav = useNavigator()
   followFocus('chapters', nav, () => chapters.map((c) => c.id), (i) => load(i))
   // Groups whose units only appear in a cutscene before the battle (other map).
-  const battleGroups = $derived(data?.groups.filter((g) => g.origin !== 'cutscene') ?? [])
-  const cutsceneGroups = $derived(data?.groups.filter((g) => g.origin === 'cutscene') ?? [])
-  const pickedOrigin = $derived(picked ? data?.groups.find((g) => g.name === picked!.group)?.origin : undefined)
+  const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene') ?? [])
+  const cutsceneGroups = $derived(groups.filter((g) => g.origin === 'cutscene') ?? [])
+  const pickedOrigin = $derived(picked ? groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
 
   // Objective: the original one, overridden by the project's edit.
@@ -108,7 +155,7 @@
 
   /** Units of a group: the project's version once edited, the original otherwise. */
   function unitsOf(name: string): MapUnit[] {
-    return edits[name] ?? data?.groups.find((g) => g.name === name)?.units ?? []
+    return edits[name] ?? groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
   // Selecting a unit (on the map) shows its group's list if a list is open. Only a new
@@ -156,7 +203,7 @@
         if (selected === index) originalObjective = o
       })
       data = await api.chapterUnits(chapters[index].index)
-      hidden = Object.fromEntries(data.groups.map((g) => [g.name, g.origin === 'cutscene']))
+      hidden = Object.fromEntries(groups.map((g) => [g.name, g.origin === 'cutscene']))
     } finally {
       loading = false
     }
@@ -196,7 +243,7 @@
   function addUnit(group: string, template?: MapUnit) {
     const current = unitsOf(group)
     const base = template ?? current[current.length - 1]
-    const origin = data?.groups.find((g) => g.name === group)?.origin
+    const origin = groups.find((g) => g.name === group)?.origin
     const [x, y] = freeTileNear(base?.endX ?? Math.floor((data?.width ?? 2) / 2), base?.endY ?? Math.floor((data?.height ?? 2) / 2))
     const unit: MapUnit = base
       ? { ...(structuredClone($state.snapshot(base)) as MapUnit), slot: null, copyOf: base.slot ?? base.copyOf ?? null, fixedPath: false }
@@ -294,6 +341,7 @@
           <h3 class="groups-title">{t('chapter.battleGroups')}</h3>
           <div class="groups">
             {#each battleGroups as g (g.name)}{@render groupChip(g)}{/each}
+            <button class="add-group" title={t('chapter.addReinforcementsHint')} onclick={addReinforcements}>＋ {t('chapter.addReinforcements')}</button>
           </div>
           {#if cutsceneGroups.length}
             <details class="cutscenes" bind:open={showCutscenes}>
@@ -304,9 +352,22 @@
               </div>
             </details>
           {/if}
-          {#if openGroup && data.groups.some((g) => g.name === openGroup)}
+          {#if openGroup && groups.some((g) => g.name === openGroup)}
             {@const og = openGroup}
             <div class="group-units">
+              {#if openNew}
+                <div class="row new-group">
+                  <NumberField label={t('dlg.turn')} value={openNew.turn} min={1} max={99} compact onchange={(v) => editNewGroup(og, { turn: v })} />
+                  <label>
+                    <span>{t('dlg.phase')}</span>
+                    <select value={openNew.phase} onchange={(e) => editNewGroup(og, { phase: (e.target as HTMLSelectElement).value as NewGroup['phase'] })}>
+                      {#each ['enemy', 'player', 'ally'] as ph (ph)}<option value={ph}>{t(`dlg.phase.${ph}`)}</option>{/each}
+                    </select>
+                  </label>
+                  <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeReinforcements')}</button>
+                </div>
+                <p class="muted small">{t('chapter.newGroupHint')}</p>
+              {/if}
               <table>
                 <thead>
                   <tr><th></th><th>{t('chapter.character')}</th><th>{t('field.class')}</th><th>{t('chapter.levelShort')}</th><th>{t('chapter.positionShort')}</th><th>{t('ai.preset')}</th></tr>
@@ -331,7 +392,7 @@
               </div>
             </div>
           {/if}
-          {#each problems.filter((pr) => pr.kind === 'chapters' && data!.groups.some((g) => pr.id === `${g.name}#`)) as pr, i (i)}
+          {#each problems.filter((pr) => pr.kind === 'chapters' && groups.some((g) => pr.id === `${g.name}#`)) as pr, i (i)}
             <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {problemText(pr)}</p>
           {/each}
         {/if}
@@ -366,7 +427,7 @@
                   <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}>🏰</span>
                 {/each}
               {/if}
-              {#each data.groups as g (g.name)}
+              {#each groups as g (g.name)}
                 {#if !hidden[g.name]}
                   {#each unitsOf(g.name) as u, i (i)}
                     <button
@@ -541,4 +602,7 @@
   .slot img, .blank { width: 16px; height: 16px; display: inline-block; }
   @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
+  .add-group { font-size: 0.8rem; padding: 0.15rem 0.5rem; }
+  .new-group { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.3rem; }
+  .danger { color: var(--bad); }
 </style>

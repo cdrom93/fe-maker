@@ -772,5 +772,9 @@
   "dlg.phase.player": "del giocatore",
   "dlg.phase.enemy": "del nemico",
   "dlg.phase.ally": "degli alleati",
-  "dlg.trigger.allyTurn": "Turno {n} (alleati)"
+  "dlg.trigger.allyTurn": "Turno {n} (alleati)",
+  "chapter.addReinforcements": "Rinforzi",
+  "chapter.addReinforcementsHint": "Nuovo gruppo di unità che arriva all'inizio di un turno (copia del primo nemico del capitolo, da cambiare).",
+  "chapter.removeReinforcements": "Elimina questi rinforzi",
+  "chapter.newGroupHint": "Le unità appaiono all'inizio del turno scelto, con la telecamera del gioco su di loro. Posizionale sulla mappa."
 }

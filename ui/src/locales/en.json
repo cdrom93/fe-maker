@@ -772,5 +772,9 @@
   "dlg.phase.player": "player",
   "dlg.phase.enemy": "enemy",
   "dlg.phase.ally": "allies",
-  "dlg.trigger.allyTurn": "Turn {n} (allies)"
+  "dlg.trigger.allyTurn": "Turn {n} (allies)",
+  "chapter.addReinforcements": "Reinforcements",
+  "chapter.addReinforcementsHint": "New group of units arriving at the start of a turn (a copy of the chapter's first enemy, to change).",
+  "chapter.removeReinforcements": "Delete these reinforcements",
+  "chapter.newGroupHint": "The units appear at the start of the chosen turn, with the game's camera on them. Place them on the map."
 }

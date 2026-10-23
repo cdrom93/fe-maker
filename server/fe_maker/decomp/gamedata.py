@@ -326,13 +326,19 @@ class DecompData:
     @staticmethod
     def export_chapters() -> dict:
         """Project chapter data. Unit groups and objectives (by chapter index) are stored
-        only once edited (see units.py and objectives.py)."""
+        only once edited (see units.py and objectives.py). New groups (reinforcements):
+        "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups"."""
         return {"unitGroups": {}, "objectives": {}}
 
     def apply_chapters(self, chapters: dict) -> None:
-        edits = chapters.get("unitGroups", {})
+        new_groups = chapters.get("newGroups", {})
+        edits = {k: v for k, v in chapters.get("unitGroups", {}).items() if k not in new_groups}
         if edits:
             self.unit_defs = units.apply_unit_groups(self.unit_defs, edits, units.ai_macros(self.decomp_dir))
+        for name, meta in new_groups.items():
+            group_units = chapters.get("unitGroups", {}).get(name, [])
+            if group_units:
+                self._add_reinforcements(name, meta, group_units)
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
 
@@ -606,6 +612,24 @@ class DecompData:
         name = f"EventScr_FEM_Turn_{index}_{n}"
         self._add_to_list(found, dialogues.scene_script(name, message),
                           [f"TURN(EVFLAG_TMP({flag}), {name}, {turn}, 0, {faction})"])
+
+    def _add_reinforcements(self, name: str, meta: dict, group_units: list[dict]) -> None:
+        """A group made in the project: its units arrive at the start of turn N of a side, with the
+        game's reinforcement routine (EventScr_LoadReinforce: camera on them, then they appear)."""
+        if not re.fullmatch(r"UnitDef_FEM_\w+", name):
+            raise GameDataError(f"Bad name for a new unit group: {name}")
+        self.unit_defs[units.NEW_GROUPS_FILE] = self.unit_defs[units.NEW_GROUPS_FILE].rstrip("\n") + "\n" + \
+            units.render_new_group(name, group_units, units.ai_macros(self.decomp_dir))
+        index = int(meta.get("chapter", 0))
+        found = self._event_list(index, "turnBasedEvents")
+        turn = max(1, int(meta.get("turn", 1)))
+        faction = dialogues.FACTIONS.get(meta.get("phase", "enemy"), "FACTION_RED")
+        flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
+        script_name = f"EventScr_FEM_Load_{name[len('UnitDef_FEM_'):]}"
+        script = (f"extern CONST_DATA struct UnitDefinition {name}[];\n\n"
+                  f"CONST_DATA EventListScr {script_name}[] = {{\n"
+                  f"    SVAL(EVT_SLOT_2, {name})\n    CALL(EventScr_LoadReinforce)\n    NoFade\n    ENDA\n}};\n\n")
+        self._add_to_list(found, script, [f"TURN(EVFLAG_TMP({flag}), {script_name}, {turn}, 0, {faction})"])
 
     def _add_talk(self, n: int, talk: dict) -> None:
         """A new conversation: "Talk" from a to b (and b to a with "both") shows its message; with

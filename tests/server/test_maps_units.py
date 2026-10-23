@@ -207,3 +207,15 @@ def test_painted_layout_reaches_the_overlay(tmp_path, decomp_dir, monkeypatch):
     overlay = project.generate_overlay(decomp)
     assert (overlay / rel).read_bytes() == struct.pack("<2H", 0, 1 << 5)
     assert not (overlay / rel).with_suffix(".json").exists()  # same size
+
+
+def test_render_new_group():
+    from fe_maker.decomp import units
+
+    unit = {"slot": None, "character": "0x80", "class": "CLASS_FIGHTER", "level": 3, "autolevel": True, "side": "enemy",
+            "x": 5, "y": 6, "endX": 5, "endY": 6, "items": ["ITEM_AXE_IRON"], "ai": [0, 0, 0, 0]}
+    text = units.render_new_group("UnitDef_FEM_2_0", [unit])
+    assert text.startswith("\nCONST_DATA struct UnitDefinition UnitDef_FEM_2_0[] = {")
+    assert ".classIndex = CLASS_FIGHTER," in text and ".allegiance = FACTION_ID_RED," in text
+    assert ".xPosition = 5," in text and ".yPosition = 6," in text and ".autolevel = 1," in text
+    assert text.rstrip().endswith("{ 0 },\n};")

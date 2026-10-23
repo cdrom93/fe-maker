@@ -331,6 +331,22 @@ def _rewrite_array(source: str, clean: str, start: int, end: int, spans: list[tu
     return source[:start] + body + "\n" + indent + source[terminator.start():]
 
 
+NEW_GROUPS_FILE = "src/events_udefs.c"   # new groups are added at its end (it includes the class constants)
+
+
+def render_new_group(name: str, new_units: list[dict], macros: dict[str, list[int]] | None = None) -> str:
+    """C array of a group made in the project (reinforcements): each unit from default fields."""
+    entries = []
+    for unit in new_units:
+        fields = {"charIndex": "0", "classIndex": "0", "allegiance": "FACTION_ID_RED", "level": "1"}
+        _apply_unit_fields(fields, unit, name, [], is_new=True, macros=macros or {})
+        if unit.get("autolevel"):
+            fields["autolevel"] = "1"
+        entries.append(_render_unit(fields, "    "))
+    body = "".join(f"    {entry},\n" for entry in entries)
+    return f"\nCONST_DATA struct UnitDefinition {name}[] = {{\n{body}    {{ 0 }},\n}};\n"
+
+
 def place_at_destination(sources: dict[str, str], group: str) -> dict[str, str]:
     """Units of a group appear directly where their entry path ends, without walking in."""
     redas: dict[str, tuple[int, int]] = {}

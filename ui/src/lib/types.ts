@@ -116,6 +116,8 @@ export interface MapUnit {
 /** Project chapter data: unit groups once edited (data/chapters.json). */
 export interface ChaptersData {
   unitGroups: Record<string, MapUnit[]>
+  /** groups made in the project (reinforcements), their units in unitGroups */
+  newGroups?: Record<string, NewGroup>
   /** objectives edited in the project, by chapter index */
   objectives?: Record<string, ObjectiveEdit>
 }
@@ -255,6 +257,15 @@ export interface UnitGroup {
   turn: number | null
   units: MapUnit[]
   edited?: boolean
+  /** made in the project */
+  new?: boolean
+}
+
+/** Reinforcements made in the project: they arrive at the start of turn N of a side. */
+export interface NewGroup {
+  chapter: number
+  turn: number
+  phase: 'player' | 'enemy' | 'ally'
 }
 
 export interface ChapterUnits {
