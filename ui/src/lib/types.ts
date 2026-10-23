@@ -120,7 +120,7 @@ export interface ChaptersData {
 
 export interface UnitGroup {
   name: string
-  origin: 'players' | 'opening' | 'turn'
+  origin: 'players' | 'opening' | 'cutscene' | 'turn'
   turn: number | null
   units: MapUnit[]
   edited?: boolean
@@ -166,7 +166,7 @@ export interface ProjectInfo {
 
 export interface Status {
   hasRom: boolean
-  language: 'fr' | 'en'
+  language: 'fr' | 'en' | 'es' | 'it'
   mgbaPath: string | null
   keys: Record<string, string>
   gbaButtons: string[]
@@ -208,4 +208,11 @@ export interface TicketIn {
   context: Record<string, string>
   /** screenshots as data URLs */
   images: string[]
+}
+
+/** Options of "Test" builds only (never in the exported patch). */
+export interface TestOptions {
+  start: string
+  /** prologue without its cutscene: units are simply on the map */
+  simplePrologue: boolean
 }

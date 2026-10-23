@@ -11,7 +11,23 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from . import units
+
 GAME_CONTROL_FILE = "src/gamecontrol.c"
+PROLOGUE_SCRIPT_FILE = "src/events/prologue-eventscript.h"
+PROLOGUE_UNITS_FILE = "src/events/prologue-eventudefs.h"
+PROLOGUE_GROUPS = ("UnitDef_Event_PrologueAlly", "UnitDef_Event_PrologueEnemy")
+
+# Simplified prologue for test builds: no cutscene, the units are simply on the map.
+_SIMPLE_PROLOGUE_SCENE = """
+    /* FE Maker: simplified prologue for test builds (no cutscene, no walk-in) */
+    LOAD1(1, UnitDef_Event_PrologueAlly)
+    ENUN
+    LOAD1(1, UnitDef_Event_PrologueEnemy)
+    ENUN
+    NoFade
+    ENDA
+"""
 
 # Test start modes: "normal" (full intro), "menu" (straight to the save menu),
 # "map" (new game created automatically, straight onto the first chapter's map).
@@ -72,6 +88,16 @@ def start_on_map(source: str) -> str:
     return out.rstrip("\n") + "\n" + _QUICK_START_DEF
 
 
+def simplify_prologue(script: str) -> str:
+    """Replace the prologue's opening scene (throne room, escape, Seth giving the Rapier...)
+    with one that only puts the player's units and the enemies on the map."""
+    m = re.search(r"EventListScr\s+EventScr_Prologue_BeginningScene\s*\[\s*\]\s*=\s*\{", script)
+    if not m:
+        raise TweakError(f"The simplified prologue does not match this version of the decomp ({PROLOGUE_SCRIPT_FILE})")
+    end = script.index("};", m.end())
+    return script[: m.end()] + _SIMPLE_PROLOGUE_SCENE + script[end:]
+
+
 def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) -> dict[str, str]:
     """Add the tweaks enabled for test builds to `files` (decomp-relative path -> content)."""
     start = options.get("start", "normal")
@@ -82,4 +108,13 @@ def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) ->
         if source is None:
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
         files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else start_on_map(source)
+    if options.get("simplePrologue"):
+        def current(rel: str) -> str:
+            return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
+
+        files[PROLOGUE_SCRIPT_FILE] = simplify_prologue(current(PROLOGUE_SCRIPT_FILE))
+        unit_files = {PROLOGUE_UNITS_FILE: current(PROLOGUE_UNITS_FILE)}
+        for group in PROLOGUE_GROUPS:
+            unit_files = units.place_at_destination(unit_files, group)
+        files.update(unit_files)
     return files

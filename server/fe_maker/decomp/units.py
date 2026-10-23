@@ -319,6 +319,37 @@ def _rewrite_array(source: str, clean: str, start: int, end: int, spans: list[tu
     return source[:start] + body + "\n" + indent + source[terminator.start():]
 
 
+def place_at_destination(sources: dict[str, str], group: str) -> dict[str, str]:
+    """Units of a group appear directly where their entry path ends, without walking in."""
+    redas: dict[str, tuple[int, int]] = {}
+    for source in sources.values():
+        for name, body in _arrays(_blank_comments(source), "REDA"):
+            entries = [e for e in _entries(body) if e.strip()]
+            if entries:
+                f = parse_fields(entries[-1])
+                redas[name] = (_int(f.get("x")), _int(f.get("y")))
+    sources = dict(sources)
+    for rel, source in sources.items():
+        clean = _blank_comments(source)
+        span = _array_body_span(clean, "UnitDefinition", group)
+        if span is None:
+            continue
+        out, last = [], 0
+        for s, e in _entry_spans(clean, *span):
+            fields = parse_fields(clean[s + 1: e - 1])
+            path = fields.get("redas", "").lstrip("&").strip()
+            if path not in redas:
+                continue
+            fields["xPosition"], fields["yPosition"] = (str(v) for v in redas[path])
+            fields.pop("redaCount", None)
+            fields.pop("redas", None)
+            out += [source[last:s], _render_unit(fields, _indent_at(clean, s))]
+            last = e
+        sources[rel] = "".join(out) + source[last:]
+        return sources
+    raise UnitEditError(f"Unit group {group} not found")
+
+
 def _move_path_end(sources: dict[str, str], path: str, x: int, y: int) -> dict[str, str]:
     for rel, source in sources.items():
         clean = _blank_comments(source)
@@ -355,19 +386,39 @@ def _find_block(decomp_dir: Path, pattern: str) -> str | None:
     return None
 
 
-def _script_loads(decomp_dir: Path, script: str, depth: int = 0) -> list[str]:
-    """Unit groups loaded by an event script (following CALL to other scripts)."""
+_SCRIPT_STEP = re.compile(r"\b(?:LOAD\d?\s*\(\s*\w+\s*,\s*(?P<load>\w+)\s*\)|(?P<loma>LOMA)\s*\(|CALL\s*\(\s*(?P<call>\w+)\s*\))")
+
+
+def _script_steps(decomp_dir: Path, script: str, depth: int = 0) -> list[tuple[str, str]]:
+    """("load", group) and ("map", "") steps of an event script, in order, CALLed scripts inlined.
+    A "map" step (LOMA) switches to another map: cutscenes are often played on other maps."""
     body = _find_block(decomp_dir, rf"EventListScr\s+{re.escape(script)}\s*\[\s*\]\s*=\s*\{{")
     if body is None or depth > 3:
         return []
-    groups = re.findall(r"\bLOAD\d?\s*\(\s*\w+\s*,\s*(\w+)\s*\)", body)
-    for called in re.findall(r"\bCALL\s*\(\s*(\w+)\s*\)", body):
-        groups += _script_loads(decomp_dir, called, depth + 1)
-    return groups
+    steps: list[tuple[str, str]] = []
+    for m in _SCRIPT_STEP.finditer(body):
+        if m.group("load"):
+            steps.append(("load", m.group("load")))
+        elif m.group("loma"):
+            steps.append(("map", ""))
+        else:
+            steps += _script_steps(decomp_dir, m.group("call"), depth + 1)
+    return steps
+
+
+def _script_loads(decomp_dir: Path, script: str) -> list[tuple[str, bool]]:
+    """(group, in_cutscene) for the unit groups a script loads. Groups loaded before the
+    script's last map change only appear in a cutscene: the battle starts on the map
+    loaded last, and the units loaded before are cleared with the old map."""
+    steps = _script_steps(decomp_dir, script)
+    last_map = max((i for i, (kind, _) in enumerate(steps) if kind == "map"), default=-1)
+    return [(name, i < last_map) for i, (kind, name) in enumerate(steps) if kind == "load"]
 
 
 def chapter_unit_groups(decomp_dir: Path, event_group_symbol: str) -> list[dict]:
-    """[{name, origin, turn?}] for a chapter, in loading order."""
+    """[{name, origin, turn}] for a chapter, in loading order. origin: "players" (the
+    chapter's player units), "opening" (loaded by the opening scene), "cutscene" (only
+    seen in a cutscene, before the battle) or "turn" (reinforcements on a given turn)."""
     info = _find_block(decomp_dir, rf"struct\s+ChapterEventGroup\s+{re.escape(event_group_symbol)}\s*=\s*\{{")
     if info is None:
         return []
@@ -382,10 +433,10 @@ def chapter_unit_groups(decomp_dir: Path, event_group_symbol: str) -> list[dict]
             result.append({"name": name, "origin": origin, "turn": turn})
 
     add(fields.get("playerUnitsInNormal", ""), "players")
-    for name in _script_loads(decomp_dir, fields.get("beginningSceneEvents", "")):
-        add(name, "opening")
+    for name, in_cutscene in _script_loads(decomp_dir, fields.get("beginningSceneEvents", "")):
+        add(name, "cutscene" if in_cutscene else "opening")
     turns = _find_block(decomp_dir, rf"EventListScr\s+{re.escape(fields.get('turnBasedEvents', '-'))}\s*\[\s*\]\s*=\s*\{{")
     for m in re.finditer(r"\bTURN\s*\(\s*[^,]+,\s*(\w+)\s*,\s*(\d+)\s*,", turns or ""):
-        for name in _script_loads(decomp_dir, m.group(1)):
-            add(name, "turn", int(m.group(2)))
+        for name, in_cutscene in _script_loads(decomp_dir, m.group(1)):
+            add(name, "cutscene" if in_cutscene else "turn", int(m.group(2)))
     return result

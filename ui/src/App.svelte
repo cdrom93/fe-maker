@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { api } from './lib/api'
-  import { i18n, t } from './lib/i18n.svelte'
+  import { i18n, LANGUAGES, type Lang, t } from './lib/i18n.svelte'
+  import LangFlag from './components/LangFlag.svelte'
   import type { Status } from './lib/types'
   import Setup from './components/Setup.svelte'
   import Home from './components/Home.svelte'
@@ -22,7 +23,7 @@
     }
   }
 
-  async function setLanguage(lang: 'fr' | 'en') {
+  async function setLanguage(lang: Lang) {
     i18n.lang = lang
     status = await api.updateSettings({ language: lang })
   }
@@ -43,8 +44,11 @@
       🎫 {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
     </button>
   <div class="lang" role="group" aria-label={t('app.language')}>
-    <button class:active={i18n.lang === 'fr'} onclick={() => setLanguage('fr')}>FR</button>
-    <button class:active={i18n.lang === 'en'} onclick={() => setLanguage('en')}>EN</button>
+    {#each LANGUAGES as l (l.code)}
+      <button class:active={i18n.lang === l.code} title={l.name} aria-label={l.name} aria-pressed={i18n.lang === l.code} onclick={() => setLanguage(l.code)}>
+        <LangFlag lang={l.code} />
+      </button>
+    {/each}
   </div>
   </div>
 </header>
@@ -81,7 +85,8 @@
   .tools { display: flex; gap: 0.75rem; align-items: center; }
   .ticket { padding: 0.25em 0.7em; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; }
   .count { min-width: 1.4em; padding: 0 0.3em; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 0.72rem; text-align: center; }
-  .lang button { padding: 0.25em 0.6em; font-size: 0.8rem; }
+  .lang { display: flex; gap: 0.25rem; }
+  .lang button { padding: 0.3em 0.4em; display: grid; place-items: center; }
   .lang button.active { background: var(--accent-soft); border-color: var(--accent); }
   main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
   @media (max-width: 600px) {

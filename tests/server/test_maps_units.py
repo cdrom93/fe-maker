@@ -144,3 +144,12 @@ def test_edit_unit_ai(tmp_path, decomp_dir):
     # Projects saved before the AI was editable keep the original text.
     group[0]["ai"] = "{0x0, 0x0}"
     assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]
+
+
+def test_cutscene_groups(decomp_dir):
+    units._event_sources.cache_clear()
+    assert units.chapter_unit_groups(decomp_dir, "TestCutsceneChapterEvents") == [
+        {"name": "UnitDef_TestChapter", "origin": "players", "turn": None},
+        {"name": "UnitDef_TestCutsceneActors", "origin": "cutscene", "turn": None},
+        {"name": "UnitDef_TestEnemies", "origin": "opening", "turn": None},
+    ]

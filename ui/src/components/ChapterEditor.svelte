@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { aiPreset } from '../lib/ai'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -38,8 +39,14 @@
   let loading = $state(false)
   let dragging = $state<{ group: string; index: number } | null>(null)
   let mapEl = $state<HTMLDivElement>()
+  let openGroup = $state<string | null>(null)
+  let showCutscenes = $state(false)
 
   const chapter = $derived(chapters[selected])
+  // Groups whose units only appear in a cutscene before the battle (other map).
+  const battleGroups = $derived(data?.groups.filter((g) => g.origin !== 'cutscene') ?? [])
+  const cutsceneGroups = $derived(data?.groups.filter((g) => g.origin === 'cutscene') ?? [])
+  const pickedOrigin = $derived(picked ? data?.groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
   const charById = $derived(new Map(characters.map((c) => [c.id, c])))
   const classById = $derived(new Map(classes.map((k) => [k.id, k])))
@@ -51,6 +58,10 @@
     return edits[name] ?? data?.groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
+  $effect(() => {
+    if (picked && openGroup && openGroup !== picked.group) openGroup = picked.group
+  })
+
   // Tell feedback tickets which unit is open.
   $effect(() => {
     appContext.detail = unit && picked ? `${picked.group} #${picked.index} · ${unitName(unit)} · ${classById.get(unit.class)?.name ?? unit.class}` : ''
@@ -70,11 +81,12 @@
   async function load(index: number) {
     selected = index
     picked = null
+    openGroup = null
     loading = true
     data = null
     try {
       data = await api.chapterUnits(chapters[index].index)
-      hidden = Object.fromEntries(data.groups.map((g) => [g.name, false]))
+      hidden = Object.fromEntries(data.groups.map((g) => [g.name, g.origin === 'cutscene']))
     } finally {
       loading = false
     }
@@ -96,7 +108,7 @@
   /** Nearest tile, from (x, y), where no unit of the chapter starts. */
   function freeTileNear(x: number, y: number): [number, number] {
     if (!data) return [x, y]
-    const taken = new Set(data.groups.flatMap((g) => unitsOf(g.name).map((u) => `${u.endX},${u.endY}`)))
+    const taken = new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => `${u.endX},${u.endY}`)))
     const seen = new Set<string>()
     const queue: [number, number][] = [[x, y]]
     while (queue.length) {
@@ -164,6 +176,14 @@
     return charById.get(u.character)?.name || t('chapter.generic')
   }
 
+  function battleUnitOf(character: string): { group: string; index: number } | null {
+    for (const g of battleGroups) {
+      const index = unitsOf(g.name).findIndex((u) => u.character === character)
+      if (index >= 0) return { group: g.name, index }
+    }
+    return null
+  }
+
   function originLabel(origin: string, turn: number | null): string {
     return origin === 'turn' ? t('chapter.origin.turn', { n: turn ?? '?' }) : t(`chapter.origin.${origin}`)
   }
@@ -180,19 +200,57 @@
         <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span></h2>
         <p class="muted small">{t('chapter.editHint')}</p>
         {#if data}
-          <div class="groups">
-            {#each data.groups as g (g.name)}
-              <span class="group">
-                <label class="check">
-                  <input type="checkbox" checked={!hidden[g.name]} onchange={(e) => (hidden[g.name] = !(e.target as HTMLInputElement).checked)} />
+          {#snippet groupChip(g: ChapterUnits['groups'][number])}
+              <span class="group" class:open={openGroup === g.name}>
+                <input type="checkbox" title={t('chapter.showGroup')} aria-label={t('chapter.showGroup')} checked={!hidden[g.name]} onchange={(e) => (hidden[g.name] = !(e.target as HTMLInputElement).checked)} />
+                <button class="group-name" title={t('chapter.openGroup')} onclick={() => (openGroup = openGroup === g.name ? null : g.name)}>
                   {originLabel(g.origin, g.turn)} · {unitsOf(g.name).length}
                   {#if edits[g.name]}<span class="edited">✎</span>{/if}
                   <span class="muted tiny">{g.name.replace('UnitDef_Event_', '')}</span>
-                </label>
+                </button>
                 <button class="add" title={t('chapter.addUnit')} aria-label={t('chapter.addUnit')} onclick={() => addUnit(g.name)}>＋</button>
               </span>
-            {/each}
+          {/snippet}
+          <h3 class="groups-title">{t('chapter.battleGroups')}</h3>
+          <div class="groups">
+            {#each battleGroups as g (g.name)}{@render groupChip(g)}{/each}
           </div>
+          {#if cutsceneGroups.length}
+            <details class="cutscenes" bind:open={showCutscenes}>
+              <summary>{t('chapter.cutsceneGroups', { n: cutsceneGroups.length })}</summary>
+              <p class="muted small">{t('chapter.cutsceneHint')}</p>
+              <div class="groups">
+                {#each cutsceneGroups as g (g.name)}{@render groupChip(g)}{/each}
+              </div>
+            </details>
+          {/if}
+          {#if openGroup && data.groups.some((g) => g.name === openGroup)}
+            {@const og = openGroup}
+            <div class="group-units">
+              <table>
+                <thead>
+                  <tr><th></th><th>{t('chapter.character')}</th><th>{t('field.class')}</th><th>{t('chapter.levelShort')}</th><th>{t('chapter.positionShort')}</th><th>{t('ai.preset')}</th></tr>
+                </thead>
+                <tbody>
+                  {#each unitsOf(og) as u, i (i)}
+                    <tr class:picked={picked?.group === og && picked.index === i} onclick={() => (picked = { group: og, index: i })}>
+                      <td class="sprite"><img src={mapSpriteUrl(u.class, u.side, true)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></td>
+                      <td><button class="link" onclick={() => (picked = { group: og, index: i })}>{unitName(u)}</button></td>
+                      <td>{classById.get(u.class)?.name ?? u.class}<GenderSign gender={classById.get(u.class)?.gender} /></td>
+                      <td>{u.level}</td>
+                      <td>{u.endX}, {u.endY}</td>
+                      <td class="muted">{t(`ai.preset.${aiPreset(u.ai)}`)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              {#if !unitsOf(og).length}<p class="muted small">{t('chapter.emptyGroup')}</p>{/if}
+              <div class="row">
+                <button onclick={() => addUnit(og)}>＋ {t('chapter.addUnitShort')}</button>
+                <button onclick={() => (openGroup = null)}>{t('build.close')}</button>
+              </div>
+            </div>
+          {/if}
           {#each problems.filter((pr) => pr.kind === 'chapters' && data!.groups.some((g) => pr.id === `${g.name}#`)) as pr, i (i)}
             <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {t(`problem.${pr.code}`, pr.params)}</p>
           {/each}
@@ -217,6 +275,7 @@
                     <button
                       class="unit {u.side}"
                       class:picked={picked?.group === g.name && picked.index === i}
+                      class:dimmed={openGroup !== null && openGroup !== g.name}
                       class:locked={u.fixedPath}
                       style="left: {u.endX * CELL}px; top: {u.endY * CELL}px"
                       title="{unitName(u)} · {classById.get(u.class)?.name ?? u.class} {t('chapter.levelShort')}{u.level}"
@@ -239,6 +298,15 @@
             {@const cls = classById.get(unit.class)}
             {@const p = picked}
             <h3>{t(`chapter.side.${unit.side}`)}</h3>
+            {#if pickedOrigin === 'cutscene'}
+              {@const battle = battleUnitOf(unit.character)}
+              <div class="cutscene-warning">
+                {t('chapter.cutsceneUnit')}
+                {#if battle}
+                  <button class="link" onclick={() => { openGroup = null; hidden[battle.group] = false; picked = battle }}>{t('chapter.goToBattleUnit')}</button>
+                {/if}
+              </div>
+            {/if}
             <p class="big">
               {#if charById.has(unit.character)}<Mention kind="characters" id={unit.character}>{unitName(unit)}</Mention>{:else}{unitName(unit)} <span class="muted tiny">{unit.character}</span>{/if}
             </p>
@@ -303,7 +371,27 @@
   .id { font-size: 0.75rem; margin-left: 0.3rem; }
   .groups { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; color: var(--text); font-size: 0.85rem; }
-  .group { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .groups-title { margin: 0.25rem 0 0.4rem; font-size: 0.8rem; }
+  .cutscenes { margin-top: 0.6rem; }
+  .cutscenes summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+  .cutscenes[open] summary { margin-bottom: 0.3rem; }
+  .cutscene-warning { background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.82rem; line-height: 1.4; }
+  .cutscene-warning .link { color: inherit; text-decoration: underline; font-weight: 600; margin-left: 0.25rem; }
+  .group { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 6px; padding: 0 0.2rem; }
+  .group.open { background: var(--accent-soft); }
+  .group-name { border: none; background: none; padding: 0.1rem 0.2rem; font-size: 0.85rem; color: var(--text); text-align: left; }
+  .group-name:hover { text-decoration: underline; }
+  .group-units { margin-top: 0.75rem; border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .group-units table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  .group-units th { text-align: left; font-size: 0.75rem; color: var(--muted); font-weight: 600; padding: 0.15rem 0.4rem; }
+  .group-units td { padding: 0.1rem 0.4rem; vertical-align: middle; }
+  .group-units tbody tr { cursor: pointer; }
+  .group-units tbody tr:hover { background: var(--panel-2); }
+  .group-units tr.picked { background: var(--accent-soft); }
+  .group-units .sprite { width: 40px; text-align: center; }
+  .group-units .sprite img { image-rendering: pixelated; max-height: 32px; vertical-align: bottom; }
+  .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; }
+  .unit.dimmed { opacity: 0.35; }
   .add { padding: 0 0.4rem; line-height: 1.4; font-size: 0.85rem; }
   .actions { display: flex; gap: 0.5rem; }
   .actions button { flex: 1; }

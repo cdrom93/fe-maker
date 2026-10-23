@@ -26,7 +26,7 @@ DATA_FILES = {
     "combat": "export_combat",
     "chapters": "export_chapters",
 }
-DEFAULT_TEST_OPTIONS = {"start": "map"}  # see decomp/tweaks.py START_MODES
+DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
 FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
 
@@ -144,7 +144,8 @@ class Project:
         start = options.get("start", self.test_options["start"])
         if start not in START_MODES:
             raise ProjectError(f"Unknown start mode: {start}")
-        self.meta["testOptions"] = {"start": start}
+        simple = bool(options.get("simplePrologue", self.test_options["simplePrologue"]))
+        self.meta["testOptions"] = {"start": start, "simplePrologue": simple}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def generate_overlay(self, decomp_dir: Path | None = None, for_test: bool = False) -> Path:

@@ -34,7 +34,7 @@ def test_tweaks_refuse_unknown_source():
 
 def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
-    assert project.test_options == {"start": "map"}
+    assert project.test_options == {"start": "map", "simplePrologue": True}
 
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert "FEMaker_QuickStartOnMap" in (overlay / "src" / "gamecontrol.c").read_text(encoding="utf-8")
@@ -43,7 +43,7 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
     assert not (overlay / "src" / "gamecontrol.c").exists()
 
     project.set_test_options({"start": "normal"})
-    assert json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))["testOptions"] == {"start": "normal"}
+    assert json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))["testOptions"] == {"start": "normal", "simplePrologue": True}
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert not (overlay / "src" / "gamecontrol.c").exists()
 
@@ -54,4 +54,31 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
 def test_old_skip_intro_option_is_migrated(tmp_path, decomp_dir):
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
     project.meta["testOptions"] = {"skipIntro": True}
-    assert project.test_options == {"start": "menu"}
+    assert project.test_options == {"start": "menu", "simplePrologue": True}
+
+
+def test_simplified_prologue(tmp_path, decomp_dir):
+    from fe_maker.decomp import units
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    overlay = project.generate_overlay(decomp_dir, for_test=True)
+    script = (overlay / "src" / "events" / "prologue-eventscript.h").read_text(encoding="utf-8")
+    scene = script.split("EventScr_Prologue_BeginningScene[] = {")[1].split("};")[0]
+    assert "CALL(" not in scene and "Text(" not in scene
+    assert scene.index("UnitDef_Event_PrologueAlly") < scene.index("UnitDef_Event_PrologueEnemy")
+    assert "EventScr_Prologue_EndingScene" in script
+    # Units appear where their entry path ends.
+    (tmp_path / "read" / "src" / "events").mkdir(parents=True)
+    (tmp_path / "read" / "src" / "events" / "prologue-eventudefs.h").write_text(
+        (overlay / "src" / "events" / "prologue-eventudefs.h").read_text(encoding="utf-8"), encoding="utf-8")
+    units.read_unit_groups.cache_clear()
+    ally = units.read_unit_groups(tmp_path / "read")["UnitDef_Event_PrologueAlly"].units[0]
+    assert (ally["x"], ally["y"], ally["endX"], ally["endY"]) == (3, 4, 3, 4)
+
+    project.set_test_options({"simplePrologue": False})
+    overlay = project.generate_overlay(decomp_dir, for_test=True)
+    assert not (overlay / "src" / "events" / "prologue-eventscript.h").exists()
+    # Never in the exported game.
+    project.set_test_options({"simplePrologue": True})
+    overlay = project.generate_overlay(decomp_dir, for_test=False)
+    assert not (overlay / "src" / "events" / "prologue-eventscript.h").exists()

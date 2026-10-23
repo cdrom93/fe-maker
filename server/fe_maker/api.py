@@ -22,6 +22,8 @@ from .project import DATA_FILES, Project, ProjectError, slugify
 from .rom import InvalidRomError
 from .tickets import TicketError, TicketStore
 
+LANGUAGES = ("fr", "en", "es", "it")  # ui/src/locales
+
 app = FastAPI(title="FE Maker")
 
 
@@ -73,7 +75,7 @@ def status():
 
 @app.put("/api/settings")
 def update_settings(body: SettingsIn):
-    if body.language in ("fr", "en"):
+    if body.language in LANGUAGES:
         state.settings.language = body.language
     if body.mgbaPath is not None:
         state.settings.mgba_path = body.mgbaPath or None
@@ -308,6 +310,7 @@ def item_icon(icon_id: int):
 
 class TestOptionsIn(BaseModel):
     start: str | None = None
+    simplePrologue: bool | None = None
 
 
 @app.get("/api/project/test-options")

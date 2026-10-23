@@ -25,3 +25,22 @@ CONST_DATA struct ChapterEventGroup TestChapterEvents = {
     .playerUnitsInNormal  = UnitDef_TestChapter,
     .beginningSceneEvents = EventScr_TestOpening,
 };
+
+// A cutscene played on another map before the battle.
+CONST_DATA EventListScr EventScr_TestCutscene[] = {
+    LOMA(CHAPTER_TEST_OTHER)
+    LOAD2(1, UnitDef_TestCutsceneActors)
+    LOMA(CHAPTER_TEST)
+    ENDA
+};
+
+CONST_DATA EventListScr EventScr_TestOpeningWithCutscene[] = {
+    CALL(EventScr_TestCutscene)
+    LOAD1(1, UnitDef_TestEnemies)
+    ENDA
+};
+
+CONST_DATA struct ChapterEventGroup TestCutsceneChapterEvents = {
+    .playerUnitsInNormal  = UnitDef_TestChapter,
+    .beginningSceneEvents = EventScr_TestOpeningWithCutscene,
+};

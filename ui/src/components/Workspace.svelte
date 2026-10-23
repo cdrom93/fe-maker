@@ -25,6 +25,7 @@
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
   let start = $state('map')
+  let simplePrologue = $state(true)
   let focus = $state<Focus | null>(null)
 
   $effect(() => {
@@ -77,6 +78,7 @@
       api.testOptions(),
     ])
     start = testOpts.start
+    simplePrologue = testOpts.simplePrologue
     reference = ref
     lists.characters.load(chars)
     lists.classes.load(cls)
@@ -139,6 +141,10 @@
         <option value="normal">{t('ws.start.normal')}</option>
       </select>
     </label>
+    <label class="check" title={t('ws.simplePrologueHint')}>
+      <input type="checkbox" checked={simplePrologue} onchange={async (e) => (simplePrologue = (await api.setTestOptions({ simplePrologue: (e.target as HTMLInputElement).checked })).simplePrologue)} />
+      {t('ws.simplePrologue')}
+    </label>
     <button class="primary" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
     <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
@@ -180,7 +186,7 @@
   {:else if tab === 'items'}
     <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
   {:else if tab === 'combat'}
-    <CombatEditor list={lists.combat} {classes} {reference} {problems} />
+    <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
   {:else}
     <ChapterEditor list={lists.chapters} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {/if}

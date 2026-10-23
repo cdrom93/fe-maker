@@ -1,34 +1,14 @@
 <script lang="ts">
+  import { AI_ACTION_COUNT as ACTION_COUNT, AI_GUARD_TILE as GUARD_TILE, AI_MOVE_COUNT as MOVE_COUNT, AI_NAMED_TARGETS as NAMED_TARGETS,
+    AI_PRESETS as PRESETS, AI_RECOVERY_COUNT as RECOVERY_COUNT, AI_TARGET_COUNT as TARGET_COUNT, aiPreset } from '../lib/ai'
   import { t } from '../lib/i18n.svelte'
 
   /** The 4 AI bytes of a unit (src/cp_data.c): action, movement, target/recovery settings, flags. */
   let { ai, side, onchange }: { ai: number[] | string; side: string; onchange: (ai: number[]) => void } = $props()
 
-  const ACTION_COUNT = 0x15 // gAi1ScriptTable
-  const MOVE_COUNT = 0x13 // gAi2ScriptTable
-  const TARGET_COUNT = 32 // gAiCombatScoreCoefficientTable
-  const NAMED_TARGETS = 6
-  const RECOVERY_COUNT = 5 // gAI3HealingThresholdTable
-  const GUARD_TILE = 0x20
-
-  /** Common action + movement pairs, as used in the original game. */
-  const PRESETS: [string, number, number][] = [
-    ['chase', 0x00, 0x00],
-    ['inRange', 0x00, 0x03],
-    ['standGround', 0x03, 0x03],
-    ['approach', 0x00, 0x06],
-    ['afterTurn', 0x00, 0x12],
-    ['healer', 0x0e, 0x03],
-    ['brigand', 0x00, 0x04],
-    ['looter', 0x06, 0x05],
-    ['thief', 0x10, 0x05],
-    ['walls', 0x00, 0x0e],
-    ['nothing', 0x06, 0x03],
-  ]
-
   // Projects saved before the AI was editable keep the original text until the AI is edited.
   const bytes = $derived(Array.isArray(ai) ? ai : null)
-  const preset = $derived(bytes ? (PRESETS.find(([, a, m]) => a === bytes[0] && m === bytes[1])?.[0] ?? 'custom') : 'custom')
+  const preset = $derived(aiPreset(ai))
   let open = $state(false)
 
   function set(change: (b: number[]) => void) {

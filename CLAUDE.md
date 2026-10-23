@@ -13,7 +13,7 @@ Every commit that changes what FE Maker can do updates the docs in the same comm
 - This file: any new rule, pitfall or architecture fact worth knowing in a later session.
 - `CLAUDE.local.md` (personal, not committed, if present): the current status and next steps.
 
-Docs are written in French (README in French and English); code and comments in English; UI in FR and EN (`ui/src/locales/*.json`).
+Docs are written in French (README in French and English); code and comments in English; UI in FR, EN, ES and IT (`ui/src/locales/*.json`, flags in `LangFlag.svelte`): every new UI string goes into all four files (`tests/server/test_locales.py` checks they have the same keys).
 
 ## Rules
 
@@ -46,3 +46,5 @@ Docs are written in French (README in French and English); code and comments in 
 - Several chapters share an internal id: key chapters by index.
 - PowerShell eats backticks in inline scripts: edit files with the Edit tool or Python, not PowerShell strings.
 - Docker fails to start when CPU virtualization is off in the BIOS (happened several times on the user's PC).
+- Opening scenes often load units on other maps (cutscenes): `chapter_unit_groups` marks groups loaded before the last `LOMA` as "cutscene"; editing them does not change the battle.
+- Bash heredocs passed through the tool can mangle `\b` in Python sources: edit regex code with the Edit tool.

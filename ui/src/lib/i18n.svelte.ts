@@ -1,9 +1,20 @@
 import fr from '../locales/fr.json'
 import en from '../locales/en.json'
+import es from '../locales/es.json'
+import it from '../locales/it.json'
 
-const dictionaries: Record<string, Record<string, string>> = { fr, en }
+const dictionaries: Record<string, Record<string, string>> = { fr, en, es, it }
 
-export const i18n = $state({ lang: 'fr' as 'fr' | 'en' })
+/** Interface languages, with their own name (shown in the language picker). */
+export const LANGUAGES = [
+  { code: 'fr', name: 'Français' },
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'it', name: 'Italiano' },
+] as const
+export type Lang = (typeof LANGUAGES)[number]['code']
+
+export const i18n = $state({ lang: 'fr' as Lang })
 
 /** Translate a key, replacing {placeholders} with params. Falls back to French, then the key. */
 export function t(key: string, params: Record<string, string | number> = {}): string {
