@@ -173,6 +173,7 @@ fe-maker/
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).
 - **Placement des unités** sur les cartes existantes : alliés, ennemis, renforts, IA des ennemis, par glisser-déposer sur un aperçu de la carte.
 - **Éditeur de cartes** : peinture de tuiles à partir des tilesets, terrains, import de cartes depuis FE-Repo.
+- **Changements de carte automatiques** (demande de l'utilisateur, 23/10/2026, priorité) : régler les couches de changements à la main est trop pénible. On dessine la carte, on pose un coffre, un village à visiter, une porte, un mur fissuré… et FE Maker crée tout seul le changement (état « après » : coffre ouvert, village fermé, porte ouverte, décombres), sa position, son numéro et ce qu'il faut pour qu'il fonctionne (événements de village, contenu du coffre), au moins pour les cas classiques. But : dessiner la carte simplement et qu'elle fonctionne quasiment toute seule. Le réglage manuel des changements reste disponible pour les cas particuliers.
 
 ### Phase 4 — Dialogues et événements
 - Éditeur de dialogues avec aperçu (portraits, position, émotions).
