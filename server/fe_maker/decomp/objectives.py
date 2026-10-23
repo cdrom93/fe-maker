@@ -192,3 +192,78 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
         goal["windowTextId"] = WINDOW_TEXT[kind]
     goal["windowEndTurnNumber"] = turns + 1 if kind == "defense" else 0
     return sources
+
+
+# ---------- boss (defeat boss objective) ----------
+
+DEFEAT_TALK_FILE = "src/data_battlequotes.c"
+CHAPTERS_HEADER = "include/constants/chapters.h"
+_DEFEAT_TALK_ARRAY = ("DefeatTalkEnt", "gDefeatTalkList")
+
+
+def chapter_constants(header: str) -> dict[str, int]:
+    """CHAPTER_L_PROLOGUE -> 0... from include/constants/chapters.h."""
+    return {name: int(value, 0) for name, value in re.findall(r"\b(CHAPTER_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", header)}
+
+
+def _defeat_talks(source: str, constants: dict[str, int]):
+    """(span, fields, chapter index) of each death quote entry (terminator excluded)."""
+    from .units import _array_body_span, _entry_spans
+
+    clean = _blank_comments(source)
+    span = _array_body_span(clean, *_DEFEAT_TALK_ARRAY)
+    if span is None:
+        return clean, []
+    out = []
+    for s, e in _entry_spans(clean, *span):
+        fields = parse_fields(clean[s + 1: e - 1])
+        if fields.get("pid", "").strip() in ("-1", "0xFFFF", "0xffff"):
+            continue  # terminator
+        chapter = fields.get("chapter", "")
+        index = constants.get(chapter, None)
+        if index is None:
+            try:
+                index = int(chapter, 0)
+            except ValueError:
+                index = -1
+        out.append(((s, e), fields, index))
+    return clean, out
+
+
+def read_bosses(source: str, constants: dict[str, int]) -> dict[int, list[str]]:
+    """Chapter index -> characters whose defeat sets the "boss defeated" flag (gDefeatTalkList).
+    The engine does not use the Boss ability for this: the death quote entry does it."""
+    bosses: dict[int, list[str]] = {}
+    for _span, fields, index in _defeat_talks(source, constants)[1]:
+        if fields.get("flag", "").strip() == "EVFLAG_DEFEAT_BOSS":
+            bosses.setdefault(index, []).append(fields.get("pid", ""))
+    return bosses
+
+
+def set_boss(source: str, constants: dict[str, int], chapter_index: int, pid: str) -> str:
+    """Make `pid` the boss of a chapter: change its death quote entry, or add one.
+    A new or changed entry has no quote (msg 0): the previous boss's last words would not fit."""
+    from .units import _indent_at, _render_unit
+
+    clean, talks = _defeat_talks(source, constants)
+    mine = [(span, f) for span, f, index in talks if index == chapter_index and f.get("flag", "").strip() == "EVFLAG_DEFEAT_BOSS"]
+    if len(mine) > 1:
+        raise ObjectiveError("This chapter has several bosses (one per route): not editable yet")
+    if mine:
+        (s, e), fields = mine[0]
+        if fields.get("pid") == pid:
+            return source
+        fields["pid"] = pid
+        fields["msg"] = "0x0000"
+        fields.pop("event", None)
+        return source[:s] + _render_unit(fields, _indent_at(clean, s)) + source[e:]
+    chapter_name = next((name for name, value in constants.items() if value == chapter_index), f"0x{chapter_index:02X}")
+    fields = {"pid": pid, "route": "CHAPTER_MODE_ANY", "chapter": chapter_name, "flag": "EVFLAG_DEFEAT_BOSS", "msg": "0x0000"}
+    # Insert before the terminator, after the last entry.
+    from .units import _array_body_span
+
+    body_start, body_end = _array_body_span(clean, *_DEFEAT_TALK_ARRAY)
+    terminator = clean.rfind("{", body_start, clean.rfind(".pid", body_start, body_end))
+    indent = _indent_at(clean, terminator)
+    entry = _render_unit(fields, indent) + ",\n" + indent
+    return source[:terminator] + entry + source[terminator:]

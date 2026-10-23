@@ -58,8 +58,33 @@
   }
   const allLists = Object.values(lists)
 
+  // Classes the project uses (characters, generic units of edited chapters, and their promotions):
+  // they count as used even if the original game never used them.
+  const usedInProject = $derived.by(() => {
+    const used = new Set<string>(lists.characters.records.map((c) => c.class))
+    for (const units of Object.values(lists.chapters.records[0]?.unitGroups ?? {})) {
+      for (const u of units) if (!u.character.startsWith('CHARACTER_')) used.add(u.class)
+    }
+    const promotions = new Map(lists.classes.records.map((k) => [k.id, k.promotions]))
+    const todo = [...used]
+    while (todo.length) {
+      for (const next of promotions.get(todo.pop()!) ?? []) {
+        if (!used.has(next)) {
+          used.add(next)
+          todo.push(next)
+        }
+      }
+    }
+    return used
+  })
+
   const classes = $derived<ClassView[]>(
-    reference ? lists.classes.records.map((c) => ({ ...c, ...reference!.classFacts[c.id] })) : [],
+    reference
+      ? lists.classes.records.map((c) => {
+          const facts = reference!.classFacts[c.id]
+          return { ...c, ...facts, usedInGame: facts.usedInGame || usedInProject.has(c.id) }
+        })
+      : [],
   )
   const errors = $derived(problems.filter((p) => p.severity === 'error'))
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))

@@ -155,7 +155,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     return problems
 
 
-def _validate_objectives(problems, objectives_by_chapter: dict):
+def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=frozenset()):
     for index, o in objectives_by_chapter.items():
         rid = f"objective#{index}"
         kind = o.get("type")
@@ -169,6 +169,8 @@ def _validate_objectives(problems, objectives_by_chapter: dict):
                 _range(problems, "chapters", rid, "seize", tile.get("y"), 0, 63)
         if kind == "defense":
             _range(problems, "chapters", rid, "turns", o.get("turns"), 1, 99)
+        if kind == "defeat_boss" and o.get("boss") and o["boss"] not in character_ids:
+            problems.append(Problem("error", "chapters", rid, "boss", "unknownCharacter", {}, f"{rid}: unknown boss"))
         text = o.get("statusText")
         if text is not None:
             lines = text.strip().split("\n")
@@ -182,7 +184,7 @@ def _validate_objectives(problems, objectives_by_chapter: dict):
 
 
 def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
-    _validate_objectives(problems, chapters.get("objectives", {}))
+    _validate_objectives(problems, chapters.get("objectives", {}), character_ids)
     for group, unit_list in chapters.get("unitGroups", {}).items():
         for side, limit in UNITS_PER_SIDE.items():
             count = sum(1 for u in unit_list if u.get("side") == side)
@@ -228,7 +230,7 @@ def _validate_reservations(problems, items, class_ids, character_ids):
     groups = set()
     for it in items:
         res = it.get("reservedFor")
-        if not res:
+        if not res or not (res.get("classes") or res.get("characters")):
             continue
         for c in res.get("classes", []):
             if c not in class_ids:

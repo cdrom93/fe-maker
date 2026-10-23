@@ -348,6 +348,12 @@ class DecompData:
                 if rel not in self.unit_defs:
                     self.event_sources[rel] = self._read(rel)
         self._original_event_sources = dict(self.event_sources)
+        # Death quotes: the one flagged EVFLAG_DEFEAT_BOSS names the chapter's boss.
+        self._chapter_constants = {}
+        if (self.decomp_dir / objectives.CHAPTERS_HEADER).is_file():
+            self._chapter_constants = objectives.chapter_constants(self._read(objectives.CHAPTERS_HEADER))
+        self.defeat_talks = self._read(objectives.DEFEAT_TALK_FILE) if (self.decomp_dir / objectives.DEFEAT_TALK_FILE).is_file() else ""
+        self._original_defeat_talks = self.defeat_talks
 
     def _chapter_event_symbol(self, chapter: dict) -> str | None:
         table = maps.asset_table(self.decomp_dir)
@@ -366,6 +372,9 @@ class DecompData:
         objective["statusShared"] = max(0, sum(1 for c in chapters if status_id and c["goal"].get("statusObjectiveTextId") == status_id) - 1)
         symbol = self._chapter_event_symbol(chapter)
         objective["eventsShared"] = max(0, sum(1 for c in chapters if symbol and self._chapter_event_symbol(c) == symbol) - 1)
+        bosses = objectives.read_bosses(self.defeat_talks, self._chapter_constants).get(index, [])
+        objective["boss"] = bosses[0] if bosses else None
+        objective["bossEditable"] = len(bosses) <= 1 and bool(self.defeat_talks)
         return objective
 
     def apply_objective(self, index: int, new: dict) -> None:
@@ -376,6 +385,9 @@ class DecompData:
             self.event_sources = objectives.apply_objective(
                 chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), current,
                 {k: new.get(k, current[k]) for k in keys})
+        boss = new.get("boss")
+        if boss and boss != current["boss"] and new.get("type", current["type"]) == "defeat_boss":
+            self.defeat_talks = objectives.set_boss(self.defeat_talks, self._chapter_constants, index, boss)
         text = new.get("statusText")
         status_id = chapter["goal"].get("statusObjectiveTextId", 0)
         if text is not None and status_id and text.strip() != current["statusText"]:
@@ -638,9 +650,13 @@ class DecompData:
             if "reservedFor" not in it:
                 continue
             f = entries[it["id"]].fields
-            if it["reservedFor"] == self._reserved_for(f):
+            reserved = it["reservedFor"]
+            if reserved is not None and not reserved.get("characters") and not reserved.get("classes"):
+                # Reserved for nobody would make the weapon unusable: an empty list means no restriction.
+                reserved = None
+            if reserved == self._reserved_for(f):
                 continue
-            if it["reservedFor"] is None:
+            if reserved is None:
                 unrestricted.append(it["id"])
                 continue
             changed[it["id"]] = frozenset(
@@ -757,6 +773,8 @@ class DecompData:
             for rel, source in self.event_sources.items():
                 if source != self._original_event_sources[rel]:
                     out[rel] = source
+            if self.defeat_talks != self._original_defeat_talks:
+                out[objectives.DEFEAT_TALK_FILE] = self.defeat_talks
         return out
 
     # ---------- assets ----------

@@ -68,3 +68,12 @@ def test_monster_weapon_flag(decomp_dir):
     _item(d, items, "ITEM_TESTBLADE")["monsterWeapon"] = True
     d.apply_items(items)
     assert "IA_LOCK_3" in d.changed_files()["src/data_items.c"]
+
+
+def test_empty_reservation_means_unrestricted(decomp_dir):
+    d = DecompData(decomp_dir)
+    items = d.export_items()
+    _item(d, items, "ITEM_TESTBLADE")["reservedFor"] = {"characters": [], "classes": []}
+    d.apply_items(items)
+    entry = d.changed_files()["src/data_items.c"].split("[ITEM_TESTBLADE] = {")[1].split("}")[0]
+    assert ".attributes = IA_WEAPON," in entry

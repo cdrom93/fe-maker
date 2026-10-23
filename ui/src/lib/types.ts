@@ -131,6 +131,8 @@ export interface ObjectiveEdit {
   turns: number
   /** text of the status screen; lines separated by \n */
   statusText: string
+  /** defeat boss: the character whose defeat wins (death quote table) */
+  boss?: string | null
 }
 
 export interface Objective extends ObjectiveEdit {
@@ -142,6 +144,8 @@ export interface Objective extends ObjectiveEdit {
   /** other chapters sharing the status text / the events */
   statusShared: number
   eventsShared: number
+  /** false when the chapter has one boss per route (not editable yet) */
+  bossEditable: boolean
 }
 
 export interface UnitGroup {

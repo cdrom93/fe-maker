@@ -457,7 +457,7 @@
   "objective.type.special": "Special",
   "objective.hint.seize": "The lord wins by choosing \"Seize\" on the tile (throne, gate…).",
   "objective.hint.defeat_all": "The chapter is won when no enemy is left.",
-  "objective.hint.defeat_boss": "The chapter is won when the boss (\"Boss\" ability) is defeated, or when no enemy is left.",
+  "objective.hint.defeat_boss": "The chapter is won when the boss chosen below is defeated (or when no enemy is left).",
   "objective.hint.defense": "The chapter is won at the start of the turn after the last turn to hold.",
   "objective.hint.special": "Special objective of the original game.",
   "objective.tile": "Tile to seize",
@@ -483,5 +483,14 @@
   "list.unusedClassesGroup": "Never used in the game",
   "list.otherChapters": "Untitled maps and free slots ({n})",
   "ticket.showClosedShort": "Show closed too",
-  "ticket.confirmDeleteShort": "Delete for good"
+  "ticket.confirmDeleteShort": "Delete for good",
+  "reserve.empty": "Empty list: the weapon is not reserved, anyone can wield it (with the required rank).",
+  "objective.boss": "Boss:",
+  "objective.noBoss": "No boss: the chapter will only be won by defeating all enemies.",
+  "objective.bossAbsent": "This character is not among the chapter's battle units: add it, or it cannot be defeated.",
+  "objective.bossAbility": "Tip: give it the \"Boss\" ability on its sheet (icon on the map, EXP bonus). It is not needed to win.",
+  "objective.bossQuote": "The original boss's last words are not kept for the new boss.",
+  "objective.bossPerRoute": "This chapter has a different boss on each route: not editable yet.",
+  "objective.inBattle": "In this battle",
+  "objective.otherCharacters": "Other characters"
 }

@@ -81,3 +81,34 @@ def test_custom_objectives_are_read_only():
         objectives.apply_objective(_goal(), {"ev.h": custom}, "TestEvents", o, {"type": "defeat_all"})
     escort = dict(_goal("defense", 412, 11), protectCharacterIndex=29)
     assert objectives.read_objective(escort, {"ev.h": EVENTS}, "TestEvents", Texts())["reason"] == "escort"
+
+
+TALKS = """CONST_DATA struct DefeatTalkEnt gDefeatTalkList[] = {
+    {
+        .pid     = CHARACTER_TESTRIVAL,
+        .route   = CHAPTER_MODE_ANY,
+        .chapter = CHAPTER_TEST_0,
+        .flag    = EVFLAG_DEFEAT_BOSS,
+        .msg     = 0x0917,
+    },
+    {
+        .pid = -1
+    }
+};
+"""
+CHAPTERS = {"CHAPTER_TEST_0": 0, "CHAPTER_TEST_1": 1}
+
+
+def test_chapter_constants():
+    assert objectives.chapter_constants("enum {\n    CHAPTER_TEST_0 = 0x00, // a\n    CHAPTER_TEST_1 = 0x01,\n};") == CHAPTERS
+
+
+def test_boss_is_read_from_death_quotes_and_can_change():
+    assert objectives.read_bosses(TALKS, CHAPTERS) == {0: ["CHARACTER_TESTRIVAL"]}
+    changed = objectives.set_boss(TALKS, CHAPTERS, 0, "CHARACTER_TESTHERO")
+    assert objectives.read_bosses(changed, CHAPTERS) == {0: ["CHARACTER_TESTHERO"]}
+    assert "0x0917" not in changed  # the previous boss's last words are not kept
+    added = objectives.set_boss(TALKS, CHAPTERS, 1, "CHARACTER_TESTHERO")
+    assert objectives.read_bosses(added, CHAPTERS) == {0: ["CHARACTER_TESTRIVAL"], 1: ["CHARACTER_TESTHERO"]}
+    assert added.rstrip().endswith("{\n        .pid = -1\n    }\n};")
+    assert objectives.set_boss(TALKS, CHAPTERS, 0, "CHARACTER_TESTRIVAL") == TALKS

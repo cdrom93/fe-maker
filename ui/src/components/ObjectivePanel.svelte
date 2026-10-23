@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from '../lib/i18n.svelte'
-  import type { Objective, ObjectiveEdit, Problem } from '../lib/types'
+  import type { Character, Objective, ObjectiveEdit, Problem } from '../lib/types'
+  import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
 
   /** Objective of a chapter: what wins it and what the goal window and status screen say. */
@@ -9,11 +10,20 @@
     edited,
     problems,
     picking = $bindable(false),
+    characters,
+    battleCharacters,
+    originalBoss,
     onchange,
     onreset,
   }: {
     objective: Objective
     edited: boolean
+    /** named characters, to choose the boss */
+    characters: Character[]
+    /** characters present in the chapter's battle units */
+    battleCharacters: Set<string>
+    originalBoss: string | null
+
     problems: Problem[]
     picking?: boolean
     onchange: (change: Partial<ObjectiveEdit>) => void
@@ -28,6 +38,8 @@
   ] as const
 
   const tile = $derived(objective.seize[0])
+  const boss = $derived(characters.find((c) => c.id === objective.boss))
+  const named = $derived(characters.filter((c) => c.id.startsWith('CHARACTER_')))
   const problemFor = (field: string) => problems.find((p) => p.field === field)
 
   function setType(type: Objective['type']) {
@@ -66,6 +78,28 @@
           </select>
         </label>
       </div>
+    {:else if objective.type === 'defeat_boss'}
+      <div class="row">
+        <label class="inline">
+          {t('objective.boss')}
+          <select value={objective.boss ?? ''} disabled={!objective.bossEditable} onchange={(e) => onchange({ boss: (e.target as HTMLSelectElement).value || null })}>
+            <option value="">{t('field.none')}</option>
+            {#if objective.boss && !boss}<option value={objective.boss}>{objective.boss}</option>{/if}
+            <optgroup label={t('objective.inBattle')}>
+              {#each named.filter((c) => battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+            </optgroup>
+            <optgroup label={t('objective.otherCharacters')}>
+              {#each named.filter((c) => !battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+            </optgroup>
+          </select>
+        </label>
+        {#if boss}<Mention kind="characters" id={boss.id}><span class="open">↗</span></Mention>{/if}
+      </div>
+      {#if !objective.bossEditable}<p class="muted small">{t('objective.bossPerRoute')}</p>{/if}
+      {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
+      {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
+      {#if boss && !boss.abilities.includes('boss')}<p class="muted small">{t('objective.bossAbility')}</p>{/if}
+      {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
     {:else if objective.type === 'defense'}
       <div class="row">
         <NumberField label={t('objective.turns')} value={objective.turns} min={1} max={99} problem={problemFor('turns') ? t(`problem.${problemFor('turns')!.code}`, problemFor('turns')!.params) : ''} onchange={(v) => onchange({ turns: v })} />
@@ -104,4 +138,5 @@
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }
   .ghost { border-color: transparent; background: none; color: var(--muted); }
+  .open { font-size: 1rem; }
 </style>

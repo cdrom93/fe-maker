@@ -100,6 +100,10 @@
     padding: 0.6rem 1.25rem;
     border-bottom: 1px solid var(--border);
     background: var(--panel);
+    /* Always visible: tickets and languages stay at hand while scrolling. */
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand strong { font-size: 1.15rem; }

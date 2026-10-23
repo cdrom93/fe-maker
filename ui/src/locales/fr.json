@@ -457,7 +457,7 @@
   "objective.type.special": "Spécial",
   "objective.hint.seize": "Le seigneur gagne en choisissant « S'emparer » sur la case (trône, porte…).",
   "objective.hint.defeat_all": "Le chapitre est gagné quand il ne reste plus aucun ennemi.",
-  "objective.hint.defeat_boss": "Le chapitre est gagné quand le chef (capacité « Chef ») est vaincu, ou quand il ne reste plus d'ennemi.",
+  "objective.hint.defeat_boss": "Le chapitre est gagné quand le chef choisi ci-dessous est vaincu (ou quand il ne reste plus aucun ennemi).",
   "objective.hint.defense": "Le chapitre est gagné au début du tour qui suit le dernier tour à tenir.",
   "objective.hint.special": "Objectif particulier du jeu d'origine.",
   "objective.tile": "Case à prendre",
@@ -483,5 +483,14 @@
   "list.unusedClassesGroup": "Jamais utilisées dans le jeu",
   "list.otherChapters": "Cartes sans titre et emplacements libres ({n})",
   "ticket.showClosedShort": "Voir aussi les fermés",
-  "ticket.confirmDeleteShort": "Supprimer définitivement"
+  "ticket.confirmDeleteShort": "Supprimer définitivement",
+  "reserve.empty": "Liste vide : l'arme n'est réservée à personne, tout le monde peut la manier (avec le rang requis).",
+  "objective.boss": "Chef :",
+  "objective.noBoss": "Aucun chef : le chapitre ne se gagnera qu'en battant tous les ennemis.",
+  "objective.bossAbsent": "Ce personnage ne fait pas partie des unités du combat de ce chapitre : ajoutez-le, sinon on ne pourra pas le vaincre.",
+  "objective.bossAbility": "Conseil : donnez-lui la capacité « Chef » sur sa fiche (icône sur la carte, bonus d'EXP). Ce n'est pas obligatoire pour gagner.",
+  "objective.bossQuote": "Les dernières paroles du chef d'origine ne sont pas reprises pour le nouveau chef.",
+  "objective.bossPerRoute": "Ce chapitre a un chef différent selon la route : pas encore modifiable.",
+  "objective.inBattle": "Présents dans ce combat",
+  "objective.otherCharacters": "Autres personnages"
 }

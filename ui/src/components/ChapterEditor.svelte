@@ -62,7 +62,7 @@
     if (!objective) return
     const key = objectiveKey
     const base: ObjectiveEdit = {
-      type: objective.type, seize: objective.seize, seizeLabel: objective.seizeLabel, turns: objective.turns, statusText: objective.statusText,
+      type: objective.type, seize: objective.seize, seizeLabel: objective.seizeLabel, turns: objective.turns, statusText: objective.statusText, boss: objective.boss,
     }
     list.update(0, (c) => {
       c.objectives ??= {}
@@ -315,7 +315,9 @@
           {/each}
         {/if}
         {#if objective}
-          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} onchange={editObjective} onreset={resetObjective} />
+          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
+            battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
+            originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
         {/if}
       </section>
 

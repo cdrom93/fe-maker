@@ -457,7 +457,7 @@
   "objective.type.special": "Especial",
   "objective.hint.seize": "El señor gana eligiendo «Tomar» en la casilla (trono, puerta…).",
   "objective.hint.defeat_all": "El capítulo se gana cuando no queda ningún enemigo.",
-  "objective.hint.defeat_boss": "El capítulo se gana cuando el jefe (capacidad «Jefe») es derrotado, o cuando no queda ningún enemigo.",
+  "objective.hint.defeat_boss": "El capítulo se gana cuando el jefe elegido abajo es derrotado (o cuando no queda ningún enemigo).",
   "objective.hint.defense": "El capítulo se gana al empezar el turno que sigue al último turno que hay que aguantar.",
   "objective.hint.special": "Objetivo especial del juego original.",
   "objective.tile": "Casilla que tomar",
@@ -483,5 +483,14 @@
   "list.unusedClassesGroup": "Nunca usadas en el juego",
   "list.otherChapters": "Mapas sin título y huecos libres ({n})",
   "ticket.showClosedShort": "Ver también los cerrados",
-  "ticket.confirmDeleteShort": "Eliminar definitivamente"
+  "ticket.confirmDeleteShort": "Eliminar definitivamente",
+  "reserve.empty": "Lista vacía: el arma no está reservada, cualquiera puede usarla (con el rango necesario).",
+  "objective.boss": "Jefe:",
+  "objective.noBoss": "Sin jefe: el capítulo solo se ganará derrotando a todos los enemigos.",
+  "objective.bossAbsent": "Este personaje no está entre las unidades del combate de este capítulo: añádelo o no se podrá derrotar.",
+  "objective.bossAbility": "Consejo: dale la capacidad «Jefe» en su ficha (icono en el mapa, bonificación de EXP). No es necesario para ganar.",
+  "objective.bossQuote": "Las últimas palabras del jefe original no se conservan para el nuevo jefe.",
+  "objective.bossPerRoute": "Este capítulo tiene un jefe distinto según la ruta: aún no se puede modificar.",
+  "objective.inBattle": "Presentes en este combate",
+  "objective.otherCharacters": "Otros personajes"
 }

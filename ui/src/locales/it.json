@@ -457,7 +457,7 @@
   "objective.type.special": "Speciale",
   "objective.hint.seize": "Il lord vince scegliendo «Conquista» sulla casella (trono, porta…).",
   "objective.hint.defeat_all": "Il capitolo è vinto quando non resta più nessun nemico.",
-  "objective.hint.defeat_boss": "Il capitolo è vinto quando il capo (capacità «Boss») viene sconfitto, o quando non resta più nessun nemico.",
+  "objective.hint.defeat_boss": "Il capitolo è vinto quando il capo scelto qui sotto viene sconfitto (o quando non resta più nessun nemico).",
   "objective.hint.defense": "Il capitolo è vinto all'inizio del turno che segue l'ultimo turno da resistere.",
   "objective.hint.special": "Obiettivo speciale del gioco originale.",
   "objective.tile": "Casella da conquistare",
@@ -483,5 +483,14 @@
   "list.unusedClassesGroup": "Mai usate nel gioco",
   "list.otherChapters": "Mappe senza titolo e slot liberi ({n})",
   "ticket.showClosedShort": "Mostra anche i chiusi",
-  "ticket.confirmDeleteShort": "Elimina definitivamente"
+  "ticket.confirmDeleteShort": "Elimina definitivamente",
+  "reserve.empty": "Lista vuota: l'arma non è riservata, chiunque può usarla (con il livello richiesto).",
+  "objective.boss": "Capo:",
+  "objective.noBoss": "Nessun capo: il capitolo si vincerà solo sconfiggendo tutti i nemici.",
+  "objective.bossAbsent": "Questo personaggio non è tra le unità della battaglia di questo capitolo: aggiungilo, altrimenti non potrà essere sconfitto.",
+  "objective.bossAbility": "Consiglio: dagli la capacità «Boss» sulla sua scheda (icona sulla mappa, bonus ESP). Non è necessario per vincere.",
+  "objective.bossQuote": "Le ultime parole del capo originale non vengono mantenute per il nuovo capo.",
+  "objective.bossPerRoute": "Questo capitolo ha un capo diverso a seconda della via: non ancora modificabile.",
+  "objective.inBattle": "Presenti in questa battaglia",
+  "objective.otherCharacters": "Altri personaggi"
 }

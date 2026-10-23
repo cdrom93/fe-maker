@@ -37,6 +37,7 @@
   </label>
   {#if res}
     <p class="muted small">{t('reserve.hint')}</p>
+    {#if !res.characters.length && !res.classes.length}<p class="warn small">{t('reserve.empty')}</p>{/if}
     <div class="cols">
       <div>
         <h4>{t('reserve.characters')}</h4>
@@ -77,6 +78,7 @@
 </section>
 
 <style>
+  .warn { color: var(--warn); margin: 0; }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; color: var(--text); }
   .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
   h4 { margin: 0 0 0.4rem; font-size: 0.85rem; font-weight: 600; }
