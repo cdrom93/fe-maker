@@ -75,6 +75,12 @@ def test_modified_project_and_patch(tmp_path):
         "2": {"type": "defense", "seize": [], "seizeLabel": "throne", "turns": 8, "statusText": "Survive 8 turns"},
     }
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": group}, "objectives": objectives})
+    from fe_maker.decomp import maps
+
+    width, height, cells = maps.read_layout(maps.layouts(project.decomp_dir)["PrologueMap"]["assets"].layout)
+    rows = [cells[y * width: (y + 1) * width] for y in range(height)]
+    rows[0][0] = rows[0][1]  # paint one cell
+    project.save("maps", {"layouts": {"PrologueMap": {"rows": rows}}})
     assert [p for p in project.validate() if p.severity == "error"] == []
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))

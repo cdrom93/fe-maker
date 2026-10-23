@@ -98,3 +98,11 @@ def test_objective_problems(decomp_dir):
     assert ("objective#1", "turns", "outOfRange") in codes
     assert ("objective#1", "statusText", "objectiveTextTooLong") in codes
     assert not [c for c in codes if c[0] == "objective#2"]
+
+
+def test_painted_maps_are_checked(decomp_dir):
+    from fe_maker.validation import _validate_maps
+
+    problems = []
+    _validate_maps(problems, {"layouts": {"A": {"rows": [[0, 1], [2]]}, "B": {"rows": [[0, 1024]]}, "C": {"rows": [[5]]}}})
+    assert [(p.id, p.code) for p in problems] == [("A", "badLayout"), ("B", "badTile")]

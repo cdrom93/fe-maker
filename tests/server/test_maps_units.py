@@ -168,3 +168,42 @@ def test_named_character_class_comes_from_the_character_sheet(tmp_path, decomp_d
     out = _reread(tmp_path, units.apply_unit_groups(sources, {"UnitDef_TestChapter": group}))["UnitDef_TestChapter"].units
     assert (out[0]["character"], out[0]["class"]) == ("0x80", "CLASS_TESTKNIGHT")
     assert (out[1]["character"], out[1]["class"]) == ("CHARACTER_TESTHERO", "0")
+
+
+def test_layout_encoding_round_trip(tmp_path):
+    assets = _make_map(tmp_path)
+    mar, info = maps.encode_layout("Map", 2, 1, [1, 0])
+    assert mar == assets.layout.read_bytes() and info == assets.layout.with_suffix(".json").read_text(encoding="utf-8")
+
+
+def test_tileset_sheet_and_duplicates(tmp_path):
+    assets = _make_map(tmp_path)
+    sheet = Image.open(io.BytesIO(maps.render_tileset(assets))).convert("RGB")
+    assert sheet.size == (maps.TILESET_COLUMNS * 16, 1024 // maps.TILESET_COLUMNS * 16)
+    assert sheet.getpixel((16 + 4, 4)) == (200, 100, 50)  # metatile 1
+    duplicates = maps.duplicate_metatiles(assets)
+    assert duplicates[:3] == [False, False, True]  # metatiles 2+ are copies of the empty metatile 0
+    assert sum(not d for d in duplicates) == 2
+
+
+def test_painted_layout_reaches_the_overlay(tmp_path, decomp_dir, monkeypatch):
+    import shutil
+
+    from fe_maker.project import Project
+
+    decomp = tmp_path / "decomp"
+    shutil.copytree(decomp_dir, decomp)
+    layout_dir = decomp / "graphics" / "map" / "layout"
+    layout_dir.mkdir(parents=True)
+    assets = _make_map(layout_dir)
+    rel = "graphics/map/layout/Map.mar"
+    # The fixture decomp has no chapters: point the layout table at the fictional map.
+    monkeypatch.setattr(maps, "layouts", lambda _d: {"Map": {"mar": rel, "chapters": [0], "assets": assets}})
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp)
+    assert project.load("maps") == {"layouts": {}}
+    project.save("maps", {"layouts": {"Map": {"rows": [[1, 0]]}}})
+    assert not (project.generate_overlay(decomp) / rel).exists()  # unchanged: nothing written
+    project.save("maps", {"layouts": {"Map": {"rows": [[0, 1]]}}})
+    overlay = project.generate_overlay(decomp)
+    assert (overlay / rel).read_bytes() == struct.pack("<2H", 0, 1 << 5)
+    assert not (overlay / rel).with_suffix(".json").exists()  # same size

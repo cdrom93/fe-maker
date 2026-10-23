@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
-  import { api } from '../lib/api'
+  import { api, type DataKind } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
-  import type { ChaptersData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
+  import type { ChaptersData, MapsData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import ChapterEditor from './ChapterEditor.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
@@ -13,12 +13,13 @@
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import KeysDialog from './KeysDialog.svelte'
+  import MapEditor from './MapEditor.svelte'
   import Mention from './Mention.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
   type Tab = NavKind
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters']
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'maps']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -44,7 +45,7 @@
     },
   })
 
-  async function save(kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters', data: unknown) {
+  async function save(kind: DataKind, data: unknown) {
     problems = (await api.saveData(kind, data)).problems
   }
 
@@ -55,6 +56,7 @@
     // The combat data is a single object, kept as a one-element list for undo/autosave.
     combat: new EditableList<Combat>((r) => save('combat', r[0])),
     chapters: new EditableList<ChaptersData>((r) => save('chapters', r[0])),
+    maps: new EditableList<MapsData>((r) => save('maps', r[0])),
   }
   const allLists = Object.values(lists)
 
@@ -92,13 +94,14 @@
   const active = $derived(lists[tab])
 
   onMount(async () => {
-    const [ref, chars, cls, items, combat, chaptersData, probs, testOpts] = await Promise.all([
+    const [ref, chars, cls, items, combat, chaptersData, mapsData, probs, testOpts] = await Promise.all([
       api.reference(),
       api.getData<Character[]>('characters'),
       api.getData<ClassData[]>('classes'),
       api.getData<Item[]>('items'),
       api.getData<Combat>('combat'),
       api.getData<ChaptersData>('chapters'),
+      api.getData<MapsData>('maps'),
       api.problems(),
       api.testOptions(),
     ])
@@ -110,6 +113,7 @@
     lists.items.load(items)
     lists.combat.load([combat])
     lists.chapters.load([chaptersData])
+    lists.maps.load([mapsData])
     problems = probs.problems
   })
 
@@ -119,6 +123,7 @@
   function recordName(kind: Problem['kind'], id: string): string {
     if (kind === 'combat') return t('ws.combat')
     if (kind === 'chapters') return id.replace('UnitDef_Event_', '')
+    if (kind === 'maps') return id
     const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
     return record?.name || id || t(`ws.${kind}`)
   }
@@ -185,8 +190,9 @@
     <ul class="problems">
       {#each [...errors, ...warnings] as p, i (i)}
         {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && !!p.id}
+        {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
         <li class={p.severity}>
-          <Mention kind={p.kind} id={isRecord ? p.id : null}>{recordName(p.kind, p.id)}</Mention>
+          <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
           — {t(`problem.${p.code}`, p.params)}
         </li>
       {/each}
@@ -212,8 +218,10 @@
     <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
   {:else if tab === 'combat'}
     <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
+  {:else if tab === 'chapters'}
+    <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else}
-    <ChapterEditor list={lists.chapters} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
+    <MapEditor list={lists.maps} {problems} />
   {/if}
 {/if}
 

@@ -236,10 +236,57 @@ def list_chapters():
 
 @app.get("/api/chapters/{index}/map.png")
 def chapter_map(index: int, fog: bool = False):
+    """The chapter's map as painted in the project (the original one if never painted)."""
     try:
-        png, _w, _h = maps.render_map(maps.chapter_map_assets(DECOMP_DIR, _chapter(index)), scale=1, fog=fog)
+        assets = maps.chapter_map_assets(DECOMP_DIR, _chapter(index))
+        painted = state.project.load("maps").get("layouts", {}).get(assets.layout.stem) if state.project else None
+        layout = (len(painted["rows"][0]), len(painted["rows"]), [c for row in painted["rows"] for c in row]) if painted else None
+        png, _w, _h = maps.render_map(assets, scale=1, fog=fog, layout=layout)
     except maps.MapError as e:
         raise HTTPException(404, str(e))
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+# ---------- maps ----------
+
+def _layout(layout_id: str) -> dict:
+    layout = maps.layouts(DECOMP_DIR).get(layout_id)
+    if layout is None:
+        raise HTTPException(404)
+    return layout
+
+
+@app.get("/api/maps")
+def list_maps():
+    result = []
+    for layout_id, layout in maps.layouts(DECOMP_DIR).items():
+        width, height, _cells = maps.read_layout(layout["assets"].layout)
+        result.append({"id": layout_id, "width": width, "height": height, "chapters": layout["chapters"],
+                       "tileset": layout["assets"].config.stem})
+    return result
+
+
+@app.get("/api/maps/{layout_id}")
+def get_map(layout_id: str):
+    """The original layout, with what the editor needs about its tileset (terrains, duplicate metatiles)."""
+    assets = _layout(layout_id)["assets"]
+    width, height, cells = maps.read_layout(assets.layout)
+    _metatiles, terrain = maps.read_config(assets.config)
+    texts = state.get_decomp().texts
+    return {
+        "id": layout_id,
+        "rows": [cells[y * width: (y + 1) * width] for y in range(height)],
+        "tileset": assets.config.stem,
+        "terrains": list(terrain),
+        "duplicates": maps.duplicate_metatiles(assets),
+        "terrainNames": [texts.get_name(t) if t in texts.messages else "" for t in maps.terrain_text_ids(DECOMP_DIR)],
+        "columns": maps.TILESET_COLUMNS,
+    }
+
+
+@app.get("/api/maps/{layout_id}/tileset.png")
+def map_tileset(layout_id: str):
+    png = maps.render_tileset(_layout(layout_id)["assets"])
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 

@@ -148,6 +148,37 @@ export interface Objective extends ObjectiveEdit {
   bossEditable: boolean
 }
 
+/** A map layout of the original game (GET /api/maps). */
+export interface MapInfo {
+  id: string
+  width: number
+  height: number
+  /** indices of the chapters that use it */
+  chapters: number[]
+  tileset: string
+}
+
+/** What the map editor needs about a layout and its tileset (GET /api/maps/{id}). */
+export interface MapLayout {
+  id: string
+  /** original metatile number of each cell, row by row */
+  rows: number[][]
+  tileset: string
+  /** terrain id of each metatile */
+  terrains: number[]
+  /** metatiles identical to an earlier one: hidden from the palette */
+  duplicates: boolean[]
+  /** in-game terrain names, by terrain id */
+  terrainNames: string[]
+  /** metatiles per row of the tileset sheet */
+  columns: number
+}
+
+/** Project map data (data/maps.json): layouts once painted. */
+export interface MapsData {
+  layouts: Record<string, { rows: number[][] }>
+}
+
 export interface UnitGroup {
   name: string
   origin: 'players' | 'opening' | 'cutscene' | 'turn'
@@ -180,7 +211,7 @@ export interface Reference {
 
 export interface Problem {
   severity: 'error' | 'warning'
-  kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
+  kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
   id: string
   field: string
   code: string

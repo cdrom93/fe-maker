@@ -77,3 +77,15 @@ def test_empty_reservation_means_unrestricted(decomp_dir):
     d.apply_items(items)
     entry = d.changed_files()["src/data_items.c"].split("[ITEM_TESTBLADE] = {")[1].split("}")[0]
     assert ".attributes = IA_WEAPON," in entry
+
+
+def test_original_reservation_for_nobody_is_kept(decomp_dir):
+    # The original game has a weapon reserved for nobody (Mani Katti): an unmodified project must keep it.
+    d = DecompData(decomp_dir)
+    for e in d.classes.entries:
+        for fields in (e.fields, e.original_fields):
+            fields["attributes"] = fields.get("attributes", "0").replace(" | CA_LOCK_4", "")
+    items = d.export_items()
+    assert _item(d, items, "ITEM_TESTBLADE")["reservedFor"] == {"characters": [], "classes": []}
+    d.apply_items(items)
+    assert "src/data_items.c" not in d.changed_files()

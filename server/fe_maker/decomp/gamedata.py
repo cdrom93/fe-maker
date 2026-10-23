@@ -178,6 +178,8 @@ class DecompData:
                 rel = path.relative_to(decomp_dir).as_posix()
                 self.unit_defs[rel] = self._read(rel)
         self._original_unit_defs = dict(self.unit_defs)
+        # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
+        self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
         self.chapter_settings: dict | None = None
         self.event_sources: dict[str, str] = {}
@@ -333,6 +335,30 @@ class DecompData:
             self.unit_defs = units.apply_unit_groups(self.unit_defs, edits, units.ai_macros(self.decomp_dir))
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
+
+    # ---------- maps ----------
+
+    @staticmethod
+    def export_maps() -> dict:
+        """Project map data: layouts (by id) are stored only once painted."""
+        return {"layouts": {}}
+
+    def apply_maps(self, maps_data: dict) -> None:
+        painted = maps_data.get("layouts", {})
+        if not painted:
+            return
+        known = maps.layouts(self.decomp_dir)
+        for layout_id, layout in painted.items():
+            if layout_id not in known:
+                continue
+            rows = layout["rows"]
+            mar, info = maps.encode_layout(layout_id, len(rows[0]), len(rows), [c for row in rows for c in row])
+            rel = known[layout_id]["mar"]
+            if mar != (self.decomp_dir / rel).read_bytes():
+                self.map_files[rel] = mar
+            rel_info = rel[: -len(".mar")] + ".json"
+            if info != self._read(rel_info):
+                self.map_files[rel_info] = info
 
     # ---------- chapter objectives ----------
 
@@ -651,6 +677,8 @@ class DecompData:
                 continue
             f = entries[it["id"]].fields
             reserved = it["reservedFor"]
+            if reserved == self._reserved_for(f):
+                continue  # as in the original game (the Mani Katti is reserved for nobody there)
             if reserved is not None and not reserved.get("characters") and not reserved.get("classes"):
                 # Reserved for nobody would make the weapon unusable: an empty list means no restriction.
                 reserved = None
@@ -748,9 +776,10 @@ class DecompData:
                     f["attributes"] = " | ".join(tokens) if tokens else "0"
         self._apply_reservations(items)
 
-    def changed_files(self) -> dict[str, str]:
-        """Decomp-relative path -> new content, for files that differ from the decomp."""
-        out = {}
+    def changed_files(self) -> dict[str, str | bytes]:
+        """Decomp-relative path -> new content (text, or bytes for binary files), for files that
+        differ from the decomp."""
+        out: dict[str, str | bytes] = dict(self.map_files)
         for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
                 out[rel] = render_array(parsed)

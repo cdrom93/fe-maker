@@ -4,8 +4,9 @@
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
+  import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, Objective, ObjectiveEdit, Problem } from '../lib/types'
+  import type { ChapterInfo, ChapterUnits, ChaptersData, MapsData, Character, ClassView, Item, MapUnit, Objective, ObjectiveEdit, Problem } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -15,12 +16,15 @@
 
   let {
     list,
+    maps,
     characters,
     classes,
     items,
     problems,
   }: {
     list: EditableList<ChaptersData>
+    /** painted map layouts: the map shown is the project's one */
+    maps: MapsData | undefined
     characters: Character[]
     classes: ClassView[]
     items: Item[]
@@ -44,6 +48,17 @@
   let showCutscenes = $state(false)
 
   const chapter = $derived(chapters[selected])
+  // The map image changes with the project's painting of this chapter's layout.
+  const mapVersion = $derived.by(() => {
+    const rows = chapter?.map ? maps?.layouts?.[chapter.map]?.rows : undefined
+    if (!rows) return ''
+    let h = 0
+    for (const row of rows) for (const m of row) h = (h * 31 + m + 1) | 0
+    return (h >>> 0).toString(36)
+  })
+
+  const nav = useNavigator()
+  followFocus('chapters', nav, () => chapters.map((c) => c.id), (i) => load(i))
   // Groups whose units only appear in a cutscene before the battle (other map).
   const battleGroups = $derived(data?.groups.filter((g) => g.origin !== 'cutscene') ?? [])
   const cutsceneGroups = $derived(data?.groups.filter((g) => g.origin === 'cutscene') ?? [])
@@ -123,7 +138,9 @@
   onMount(async () => {
     const all = await api.chapters()
     chapters = all.map((c) => ({ ...c, code: c.id, id: String(c.index), name: c.title || c.id }))
-    if (chapters.length) await load(0)
+    // Opened from a link (e.g. the map editor): the chapter list was not loaded yet.
+    const asked = nav.focus?.kind === 'chapters' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1
+    if (chapters.length) await load(Math.max(0, asked))
   })
 
   async function load(index: number) {
@@ -257,7 +274,10 @@
     <div class="detail">
       <section class="panel">
         <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span></h2>
-        <p class="muted small">{t('chapter.editHint')}</p>
+        <p class="muted small">
+          {t('chapter.editHint')}
+          {#if chapter.map}<Mention kind="maps" id={chapter.map}>🗺 {t('chapter.editMap')}</Mention>{/if}
+        </p>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
@@ -336,7 +356,7 @@
                   pickTile(e)
                 }
               }}
-              style="width: {data.width * CELL}px; height: {data.height * CELL}px; background-image: url({chapterMapUrl(chapter.index)})"
+              style="width: {data.width * CELL}px; height: {data.height * CELL}px; background-image: url({chapterMapUrl(chapter.index, mapVersion)})"
               ondragover={(e) => e.preventDefault()}
               ondrop={drop}
             >

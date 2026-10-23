@@ -25,6 +25,7 @@ DATA_FILES = {
     "classes": "export_classes",
     "combat": "export_combat",
     "chapters": "export_chapters",
+    "maps": "export_maps",
 }
 DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
@@ -128,7 +129,8 @@ class Project:
 
     def validate(self) -> list[Problem]:
         return validate(self.load("characters"), self.load("items"), DecompData(self.decomp_dir),
-                        classes=self.load("classes"), combat=self.load("combat"), chapters=self.load("chapters"))
+                        classes=self.load("classes"), combat=self.load("combat"), chapters=self.load("chapters"),
+                        maps=self.load("maps"))
 
     # ---------- build ----------
 
@@ -157,6 +159,7 @@ class Project:
         data.apply_items(self.load("items"))
         data.apply_combat(self.load("combat"))
         data.apply_chapters(self.load("chapters"))
+        data.apply_maps(self.load("maps"))
         files = data.changed_files()
         if for_test:
             files = apply_test_tweaks(decomp_dir, self.test_options, files)
@@ -167,6 +170,9 @@ class Project:
         for rel, content in files.items():
             path = overlay / rel
             path.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(content, bytes):
+                path.write_bytes(content)
+                continue
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(content)
         return overlay

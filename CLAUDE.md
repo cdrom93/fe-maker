@@ -29,12 +29,13 @@ Docs are written in French (README in French and English); code and comments in 
 ## Architecture
 
 - `server/fe_maker/` (Python, FastAPI): `api.py` endpoints, `project.py` (project folder: `fe-maker.json` + `data/*.json`, migrations, build), `builder.py` (Docker build), `validation.py` (problems shown in the UI), `emulator.py` (mGBA launch and controls), `ups.py`.
-- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `objectives.py` (goal settings + victory events; DecompData.read_objective / apply_objective), `maps.py` (map rendering), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
-- `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab, `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
+- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `objectives.py` (goal settings + victory events; DecompData.read_objective / apply_objective), `maps.py` (map rendering, tileset sheet, layout encoding, terrain names; painted layouts in project `data/maps.json`, applied by `DecompData.apply_maps`), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
+- `changed_files()` values are text, or bytes for binary files (`.mar` map layouts); the overlay writer handles both.
+- `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab (`MapEditor.svelte` paints on a canvas from the tileset sheet `/api/maps/{id}/tileset.png`), `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
 - `docker/`: build image (Ubuntu 24.04, agbcc pinned). The decomp is mounted read-only, the working copy lives in a Docker volume, the overlay is applied with `rsync -rlp --checksum`.
 - Tests: `tests/server` (no ROM, fictional fixtures in `tests/server/fixtures/decomp`); `tests/local` (needs the ROM and Docker, never in public CI).
 - `tools/mgba-drive.ps1` (Windows, dev only): drives mGBA with key presses and screenshots for in-game checks. Only when the user is not using the PC: if mGBA loses focus, the keys go to other windows.
-- Feedback tickets: `server/fe_maker/tickets.py` (stored in the user's config dir, `tickets/tickets.json` + `images/`, never in the repo), `TicketDialog.svelte` (header button), `ui/src/lib/appContext.svelte.ts` (tab / record / detail attached to a ticket; `RecordList` and `ChapterEditor` fill it). List open tickets with `python -m fe_maker.tickets`.
+- Feedback tickets: `server/fe_maker/tickets.py` (stored in the user's config dir, `tickets/tickets.json` + `images/`, never in the repo), `TicketPanel.svelte` (side column opened by the header button), `ui/src/lib/appContext.svelte.ts` (tab / record / detail attached to a ticket; `RecordList` and `ChapterEditor` fill it). List open tickets with `python -m fe_maker.tickets`.
 
 ## Pitfalls already met
 
@@ -45,6 +46,9 @@ Docs are written in French (README in French and English); code and comments in 
 - Weapon locks: generic CA/IA_LOCK 1,2,4,5,6,7 are allocated automatically from items' `reservedFor`; LOCK_3 means monster weapon.
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.
 - Several chapters share an internal id: key chapters by index.
+- Map layouts are keyed by layout id (file stem): several chapters can share one, so painting it changes all of them (the UI says so).
+- Editors loaded asynchronously (chapters, maps) must read `nav.focus` once their list is loaded: `followFocus` alone misses a link that mounted the tab.
+- An item reservation equal to the original one is never rewritten (the original Mani Katti is reserved for nobody; an edited empty reservation means unrestricted).
 - PowerShell eats backticks in inline scripts: edit files with the Edit tool or Python, not PowerShell strings.
 - Docker fails to start when CPU virtualization is off in the BIOS (happened several times on the user's PC).
 - Opening scenes often load units on other maps (cutscenes): `chapter_unit_groups` marks groups loaded before the last `LOMA` as "cutscene"; editing them does not change the battle.

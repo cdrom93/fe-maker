@@ -25,13 +25,14 @@ MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.G
 UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/Green sizes (include/bmunit.h)
 AI_ACTION_MAX, AI_MOVE_MAX, AI_RECOVERY_MAX = 0x14, 0x12, 4  # last entries of the AI tables (src/cp_data.c)
 OBJECTIVE_TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "special")  # decomp/objectives.py TYPES + read-only "special"
+METATILE_COUNT = 1024  # metatiles of a tileset (decomp/maps.py, TileConfig)
 OBJECTIVE_LINE_MAX = 22  # longest line of the original status texts ("Defeat Fomortiis, the" = 21)
 
 
 @dataclass
 class Problem:
     severity: str          # "error" blocks the build, "warning" does not
-    kind: str              # "characters" | "items" | "classes" | "combat" | "chapters"
+    kind: str              # "characters" | "items" | "classes" | "combat" | "chapters" | "maps"
     id: str
     field: str
     code: str
@@ -75,7 +76,7 @@ def _duplicates(problems, kind, records):
 
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
-             chapters: dict | None = None) -> list[Problem]:
+             chapters: dict | None = None, maps: dict | None = None) -> list[Problem]:
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
@@ -152,7 +153,20 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         _validate_combat(problems, combat, class_ids, weapon_types)
     if chapters is not None:
         _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items})
+    if maps is not None:
+        _validate_maps(problems, maps)
     return problems
+
+
+def _validate_maps(problems, maps_data: dict):
+    for layout_id, layout in maps_data.get("layouts", {}).items():
+        rows = layout.get("rows")
+        if not rows or not isinstance(rows, list) or any(not isinstance(r, list) or len(r) != len(rows[0]) for r in rows)                 or not rows[0]:
+            problems.append(Problem("error", "maps", layout_id, "rows", "badLayout", {}, f"{layout_id}: rows of different lengths"))
+            continue
+        if any(not isinstance(c, int) or not 0 <= c < METATILE_COUNT for row in rows for c in row):
+            problems.append(Problem("error", "maps", layout_id, "rows", "badTile", {"max": METATILE_COUNT - 1},
+                                    f"{layout_id}: tile numbers go from 0 to {METATILE_COUNT - 1}"))
 
 
 def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=frozenset()):

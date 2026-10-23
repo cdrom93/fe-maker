@@ -139,24 +139,18 @@ def _tiles(tileset_paths: list[Path]) -> list[Image.Image]:
     return tiles
 
 
-def render_map(assets: MapAssets, scale: int = 1, fog: bool = False) -> tuple[bytes, int, int]:
-    """PNG of the map, plus its size in cells.
+TILESET_COLUMNS = 32  # metatiles per row of the tileset sheet
 
-    The palette file holds two sets of 5 palettes: the normal ones, then faded ones for cells
-    hidden by fog of war (DisplayBmTile in src/bmmap.c adds 6 for visible cells, 11 otherwise;
-    gBmMapFog is non-zero for visible cells). Checked against an in-game screenshot.
-    """
+
+def _metatile_painter(assets: MapAssets, fog: bool = False):
+    """(palette, draw(canvas, metatile, x, y)) for the chapter's tileset."""
     pal_base = 5 if fog else 0
-    width, height, cells = read_layout(assets.layout)
     metatiles, _terrain = read_config(assets.config)
     palette = read_jasc_palette(assets.palette)
     tiles = _tiles(assets.tileset)
-
     # 16 palettes of 16 colors -> one 256-color palette; tile pixel = palette * 16 + index.
     flat = [c for rgb in palette for c in rgb]
     flat += [0] * (768 - len(flat))
-    canvas = Image.new("P", (width * 16, height * 16))
-    canvas.putpalette(flat)
     cache: dict[int, Image.Image] = {}
 
     def tile_image(entry: int) -> Image.Image:
@@ -173,19 +167,85 @@ def render_map(assets: MapAssets, scale: int = 1, fog: bool = False) -> tuple[by
             cache[entry] = img
         return cache[entry]
 
-    for i, metatile in enumerate(cells[: width * height]):
-        x, y = (i % width) * 16, (i // width) * 16
+    def draw(canvas: Image.Image, metatile: int, x: int, y: int) -> None:
         if metatile >= len(metatiles):
-            continue
+            return
         for k, entry in enumerate(metatiles[metatile]):
             canvas.paste(tile_image(entry), (x + (k % 2) * 8, y + (k // 2) * 8))
 
+    return flat, draw
+
+
+def _png(canvas: Image.Image, scale: int = 1) -> bytes:
     out = canvas.convert("RGB")
     if scale > 1:
         out = out.resize((out.width * scale, out.height * scale), Image.NEAREST)
     buffer = io.BytesIO()
     out.save(buffer, "PNG")
-    return buffer.getvalue(), width, height
+    return buffer.getvalue()
+
+
+def render_map(assets: MapAssets, scale: int = 1, fog: bool = False,
+               layout: tuple[int, int, list[int]] | None = None) -> tuple[bytes, int, int]:
+    """PNG of the map, plus its size in cells. `layout` (width, height, cells) replaces the original one.
+
+    The palette file holds two sets of 5 palettes: the normal ones, then faded ones for cells
+    hidden by fog of war (DisplayBmTile in src/bmmap.c adds 6 for visible cells, 11 otherwise;
+    gBmMapFog is non-zero for visible cells). Checked against an in-game screenshot.
+    """
+    width, height, cells = layout or read_layout(assets.layout)
+    palette, draw = _metatile_painter(assets, fog)
+    canvas = Image.new("P", (width * 16, height * 16))
+    canvas.putpalette(palette)
+    for i, metatile in enumerate(cells[: width * height]):
+        draw(canvas, metatile, (i % width) * 16, (i // width) * 16)
+    return _png(canvas, scale), width, height
+
+
+def render_tileset(assets: MapAssets) -> bytes:
+    """PNG of all the tileset's metatiles, TILESET_COLUMNS per row (the map editor's palette)."""
+    metatiles, _terrain = read_config(assets.config)
+    palette, draw = _metatile_painter(assets)
+    rows = -(-len(metatiles) // TILESET_COLUMNS)
+    canvas = Image.new("P", (TILESET_COLUMNS * 16, rows * 16))
+    canvas.putpalette(palette)
+    for i in range(len(metatiles)):
+        draw(canvas, i, (i % TILESET_COLUMNS) * 16, (i // TILESET_COLUMNS) * 16)
+    return _png(canvas)
+
+
+def duplicate_metatiles(assets: MapAssets) -> list[bool]:
+    """Metatiles identical to an earlier one (same tiles, same terrain): hidden from the palette.
+    Unused slots of a tileset are all copies of one filler metatile."""
+    metatiles, terrain = read_config(assets.config)
+    seen: set[tuple] = set()
+    result = []
+    for i, m in enumerate(metatiles):
+        key = (m, terrain[i])
+        result.append(key in seen)
+        seen.add(key)
+    return result
+
+
+def encode_layout(layout_id: str, width: int, height: int, cells: list[int]) -> tuple[bytes, str]:
+    """(.mar bytes, .json text) of a layout, in the decomp's format (see scripts/mar_to_map.py)."""
+    mar = b"".join(struct.pack("<H", c << 5) for c in cells[: width * height])
+    return mar, json.dumps({"id": layout_id, "width": width, "height": height})
+
+
+@lru_cache(maxsize=4)
+def layouts(decomp_dir: Path) -> dict[str, dict]:
+    """Layout id (file stem) -> {"mar": decomp-relative path, "chapters": [indices], "assets": MapAssets}."""
+    result: dict[str, dict] = {}
+    for i, chapter in enumerate(chapter_settings(decomp_dir)):
+        try:
+            assets = chapter_map_assets(decomp_dir, chapter)
+        except MapError:
+            continue
+        entry = result.setdefault(assets.layout.stem, {
+            "mar": assets.layout.relative_to(decomp_dir).as_posix(), "chapters": [], "assets": assets})
+        entry["chapters"].append(i)
+    return result
 
 
 def terrain_grid(assets: MapAssets) -> list[list[int]]:
@@ -194,3 +254,22 @@ def terrain_grid(assets: MapAssets) -> list[list[int]]:
     _metatiles, terrain = read_config(assets.config)
     return [[terrain[cells[y * width + x]] if cells[y * width + x] < len(terrain) else 0
              for x in range(width)] for y in range(height)]
+
+
+TERRAINS_HEADER = "include/constants/terrains.h"
+TERRAIN_DATA_FILE = "src/data_terrains.c"
+
+
+@lru_cache(maxsize=4)
+def terrain_text_ids(decomp_dir: Path) -> list[int]:
+    """Text id of each terrain's in-game name, by terrain id (gUnknown_0880D374, GetTerrainName)."""
+    constants = {name: int(value, 0) for name, value in
+                 re.findall(r"^\s*(TERRAIN_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", _read(decomp_dir, TERRAINS_HEADER), re.MULTILINE)}
+    source = _read(decomp_dir, TERRAIN_DATA_FILE)
+    table = source[source.index("gUnknown_0880D374[]"):]
+    table = table[: table.index("};")]
+    ids = [0] * constants.get("TERRAIN_COUNT", 0x41)
+    for name, text in re.findall(r"\[(TERRAIN_\w+)\]\s*=\s*(0x[0-9A-Fa-f]+|\d+)", table):
+        if name in constants and constants[name] < len(ids):
+            ids[constants[name]] = int(text, 0)
+    return ids

@@ -1,6 +1,6 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapInfo, MapLayout, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
-export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {
@@ -47,6 +47,8 @@ export const api = {
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
+  maps: () => request<MapInfo[]>('GET', '/api/maps'),
+  map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),
@@ -60,7 +62,9 @@ export const api = {
 }
 
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
-export const chapterMapUrl = (index: number) => `/api/chapters/${index}/map.png`
+/** `version` changes when the project's painted layout changes (the image is not cached then). */
+export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${index}/map.png${version ? `?v=${version}` : ''}`
+export const mapTilesetUrl = (id: string) => `/api/maps/${id}/tileset.png`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
 export const portraitUrl = (id: number) => `/api/assets/portrait/${id}`
