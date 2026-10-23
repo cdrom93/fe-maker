@@ -13,8 +13,8 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import maps, units
-from .decomp.assets import item_icon_preview, portrait_names, portrait_preview
+from .decomp import mapobjects, maps, units
+from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
 from .paths import DECOMP_DIR, REPO_ROOT
@@ -287,6 +287,33 @@ def get_map(layout_id: str):
     }
 
 
+class MapObjectsIn(BaseModel):
+    rows: list[list[int]]
+    changes: list[dict] | None = None   # None: the original change set
+    objects: dict = {}
+
+
+@app.post("/api/maps/{layout_id}/objects")
+def map_objects(layout_id: str, body: MapObjectsIn):
+    """Villages, houses, chests, doors, walls and snags of the map being painted, with what the build
+    does for them (see mapobjects.py) and their original location event, if any."""
+    layout = _layout(layout_id)
+    changes = body.changes
+    if changes is None:
+        changes = maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else []
+    try:
+        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects)
+    except (IndexError, ValueError) as e:
+        raise HTTPException(400, str(e)) from e
+    events = state.get_decomp().map_object_events(layout_id)
+    for obj in objects:
+        found = next((events[tuple(c)] for c in obj["cells"]
+                      if tuple(c) in events and events[tuple(c)]["kind"] == obj["kind"]), None)
+        obj["event"] = {k: v for k, v in found.items() if k != "span"} if found else None
+    return {"objects": objects, "hasChangeLayer": bool(layout["changes"]), "defaults": mapobjects.DEFAULTS,
+            "faces": [{"id": fid, "portrait": portrait} for fid, portrait in mapobjects.FACES.items()]}
+
+
 @app.get("/api/maps/{layout_id}/tileset.png")
 def map_tileset(layout_id: str):
     png = maps.render_tileset(_layout(layout_id)["assets"])
@@ -348,8 +375,9 @@ def map_sprite(class_id: str, side: str = "player", trim: bool = False):
 
 
 @app.get("/api/assets/portrait/{portrait_id}")
-def portrait(portrait_id: int):
-    png = portrait_preview(DECOMP_DIR, portrait_id)
+def portrait(portrait_id: int, face: bool = False):
+    """Small portrait (menus), or the big one shown in dialogues with `face`."""
+    png = face_preview(DECOMP_DIR, portrait_id) if face else portrait_preview(DECOMP_DIR, portrait_id)
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")

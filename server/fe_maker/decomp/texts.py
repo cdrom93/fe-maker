@@ -42,6 +42,7 @@ class TextFile:
         self.lines = source.split("\n")
         self.messages: dict[int, _Message] = {}
         self.edits: dict[int, str] = {}
+        self.added: dict[int, str] = {}  # new messages, after the last one
         self._parse()
 
     def _parse(self) -> None:
@@ -60,7 +61,15 @@ class TextFile:
             else:
                 i += 1
 
+    def add(self, body: str) -> int:
+        """New message at the end of the file; returns its index."""
+        index = max([*self.messages, *self.added, -1]) + 1
+        self.added[index] = body
+        return index
+
     def raw(self, index: int) -> str:
+        if index in self.added:
+            return self.added[index]
         if index in self.edits:
             return self.edits[index]
         msg = self.messages[index]
@@ -92,4 +101,8 @@ class TextFile:
         for index in sorted(self.edits, key=lambda k: self.messages[k].body_start, reverse=True):
             msg = self.messages[index]
             lines[msg.body_start:msg.body_end] = self.edits[index].split("\n") + [""]
-        return "\n".join(lines)
+        text = "\n".join(lines)
+        if self.added:
+            text = text.rstrip("\n") + "\n\n" + "".join(
+                f"## MSG_{index:03X}\n{body}\n\n" for index, body in sorted(self.added.items()))
+        return text

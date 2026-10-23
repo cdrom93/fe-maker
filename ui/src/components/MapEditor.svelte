@@ -18,25 +18,32 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
-  import { api, mapTilesetUrl } from '../lib/api'
+  import { api, itemIconUrl, mapTilesetUrl, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import type { ChapterInfo, MapChange, MapInfo, MapsData, Problem } from '../lib/types'
+  import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
-  let { list, problems }: { list: EditableList<MapsData>; problems: Problem[] } = $props()
+  let { list, items, problems }: { list: EditableList<MapsData>; items: Item[]; problems: Problem[] } = $props()
 
-  type Tool = 'pen' | 'rect' | 'fill' | 'pick'
+  type Tool = 'pen' | 'rect' | 'fill' | 'pick' | 'select'
   type Cell = { x: number; y: number }
   const TOOLS: { id: Tool; icon: string }[] = [
     { id: 'pen', icon: '✏️' },
     { id: 'rect', icon: '▭' },
     { id: 'fill', icon: '🪣' },
     { id: 'pick', icon: '💧' },
+    { id: 'select', icon: '👆' },
   ]
+  // Objects the engine recognizes by their terrain (server: mapobjects.py).
+  const OBJECT_ICONS: Record<MapObjectKind, string> = { village: '🏘️', house: '🏠', chest: '🎁', door: '🚪', wall: '🧱', snag: '🪵' }
+  const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'chest', 'door']
+  const CHANGE_KINDS: MapObjectKind[] = ['village', 'chest', 'door', 'wall', 'snag']
+  const GOLD = '__gold'
+  const MAX_GOLD = 65535
   const PALETTE_COLUMNS = 8
   const PALETTE_CELL = 32
   const TILE = 16 // metatile size in the game
@@ -68,6 +75,12 @@
   let showGrid = $state(true)
   let showTerrain = $state(false)
   let showChanges = $state(true)
+  let showObjects = $state(true)
+  /** Show the map as it is once every object was used (open chests, closed villages...). */
+  let preview = $state(false)
+  let objectsInfo = $state<MapObjects | null>(null)
+  /** "x,y" of the selected object */
+  let selectedObject = $state<string | null>(null)
   let terrainFilter = $state<number | null>(null)
   let hover = $state<Cell | null>(null)
   /** Index of the map change being edited; null = the map itself. */
@@ -96,10 +109,30 @@
   const sizeProblem = $derived(mapProblems.find((p) => p.field === 'size'))
   const chapterTitle = (i: number) => chapters[i]?.title || chapters[i]?.id || String(i)
 
+  const objectSettings = $derived<Record<string, MapObjectSettings>>((info && list.records[0]?.objects?.[info.id]) ?? {})
+  const objects = $derived(objectsInfo?.objects ?? [])
+  const keyOf = (o: { x: number; y: number }) => `${o.x},${o.y}`
+  const selectedObj = $derived(objects.find((o) => keyOf(o) === selectedObject) ?? null)
+  const itemById = $derived(new Map(items.map((i) => [i.id, i])))
+  // Tiles of the used objects (preview): the change each object gets.
+  const previewTiles = $derived.by(() => {
+    const out = new Map<string, number>()
+    if (!preview) return out
+    for (const o of objects) {
+      const c = o.auto ?? (o.change !== null ? changes?.find((k) => k.id === o.change) : undefined)
+      c?.rows.forEach((row, j) => row.forEach((m, i) => out.set(`${c.x + i},${c.y + j}`, m)))
+    }
+    return out
+  })
+
   /** Tile shown at a map cell (the edited change's tile inside its rectangle). */
   function shownTile(x: number, y: number): number {
     if (change && changeRows && x >= change.x && y >= change.y && x < change.x + change.w && y < change.y + change.h) {
       return changeRows[y - change.y][x - change.x]
+    }
+    if (preview && !change) {
+      const used = previewTiles.get(`${x},${y}`)
+      if (used !== undefined) return used
     }
     return rows[y]?.[x] ?? 0
   }
@@ -122,6 +155,24 @@
 
   const nav = useNavigator()
   followFocus('maps', nav, () => maps.map((m) => m.id), (i) => load(i))
+
+  // Objects of the map and what the build does for them, asked again after each edit.
+  let objectsRequest = 0
+  $effect(() => {
+    if (!info || !layout) return
+    const id = info.id
+    const body = JSON.parse(JSON.stringify({ rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings }))
+    const timer = setTimeout(async () => {
+      const n = ++objectsRequest
+      try {
+        const result = await api.mapObjects(id, body)
+        if (n === objectsRequest && maps[selected]?.id === id) objectsInfo = result
+      } catch {
+        // the map is being changed: the next edit asks again
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  })
 
   $effect(() => {
     appContext.detail = info ? `${info.id}${change ? ` · ${t('maps.change', { id: change.id })}` : ''}${hover ? ` · ${hover.x}, ${hover.y}` : ''}` : ''
@@ -148,6 +199,8 @@
     hover = null
     layer = null
     terrainFilter = null
+    objectsInfo = null
+    selectedObject = null
     const id = maps[index].id
     const [data, img] = await Promise.all([api.map(id), loadImage(mapTilesetUrl(id))])
     if (maps[selected]?.id !== id) return
@@ -242,6 +295,35 @@
         ctx.fillStyle = '#f1c40f'
         ctx.fillText(String(c.id), c.x * cell + 4, c.y * cell + 3)
       })
+    }
+    // Objects: an icon on each one, the change FE Maker adds for new ones.
+    if (showObjects && !change) {
+      const size = Math.max(11, Math.round(cell * 0.5))
+      ctx.font = `${size - 2}px sans-serif`
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'center'
+      for (const o of objects) {
+        const selectedHere = keyOf(o) === selectedObject
+        if (o.auto && (showChanges || selectedHere)) {
+          ctx.strokeStyle = '#1abc9c'
+          ctx.lineWidth = 2
+          ctx.setLineDash([4, 3])
+          ctx.strokeRect(o.auto.x * cell + 1.5, o.auto.y * cell + 1.5, o.auto.w * cell - 3, o.auto.h * cell - 3)
+          ctx.setLineDash([])
+        }
+        if (selectedHere) {
+          ctx.strokeStyle = '#fff'
+          ctx.lineWidth = 3
+          for (const [x, y] of o.cells) ctx.strokeRect(x * cell + 1.5, y * cell + 1.5, cell - 3, cell - 3)
+        }
+        const bx = o.x * cell + cell - size
+        const by = o.y * cell
+        ctx.fillStyle = o.noAfter ? 'rgb(231 76 60 / 0.9)' : o.new ? 'rgb(22 160 133 / 0.9)' : 'rgb(0 0 0 / 0.6)'
+        ctx.fillRect(bx, by, size, size)
+        ctx.fillStyle = '#fff'
+        ctx.fillText(OBJECT_ICONS[o.kind], bx + size / 2, by + size / 2 + 1)
+      }
+      ctx.textAlign = 'start'
     }
     // Units with a problem (outside the map, impassable terrain).
     ctx.strokeStyle = '#e74c3c'
@@ -384,6 +466,11 @@
       copyStart = p
       return
     }
+    if (tool === 'select') {
+      const found = objects.find((o) => o.cells.some(([x, y]) => x === p.x && y === p.y))
+      selectedObject = found ? keyOf(found) : null
+      return
+    }
     if (e.altKey || tool === 'pick') {
       setBrush(shownTile(p.x, p.y))
       return
@@ -465,7 +552,70 @@
     list.update(0, (d) => {
       if (d.layouts) delete d.layouts[id]
       if (d.changes) delete d.changes[id]
+      if (d.objects) delete d.objects[id]
     })
+  }
+
+  /** Does the build give the object its event and change? */
+  function isActive(o: MapObject): boolean {
+    const own = objectSettings[keyOf(o)]
+    if (own) return !own.off
+    return o.new || !!o.event || !EVENT_KINDS.includes(o.kind)
+  }
+
+  /** What the object holds or says: the project's settings, else its original event, else the defaults. */
+  function settingsOf(o: MapObject): MapObjectSettings {
+    const own = objectSettings[keyOf(o)]
+    if (own) return own
+    if (o.event?.gold) return { gold: o.event.gold }
+    if (o.event?.item) return { item: o.event.item }
+    return objectsInfo?.defaults[o.kind] ?? {}
+  }
+
+  function setObject(o: MapObject, patch: Partial<MapObjectSettings>) {
+    if (!info) return
+    const id = info.id
+    const key = keyOf(o)
+    const base = objectSettings[key] ?? { ...(objectsInfo?.defaults[o.kind] ?? {}), ...(o.event?.gold || o.event?.item ? settingsOf(o) : {}) }
+    list.update(0, (d) => {
+      d.objects ??= {}
+      d.objects[id] ??= {}
+      d.objects[id][key] = JSON.parse(JSON.stringify({ ...base, ...patch }))
+    })
+  }
+
+  function resetObject(o: MapObject) {
+    if (!info) return
+    const id = info.id
+    const key = keyOf(o)
+    list.update(0, (d) => {
+      if (!d.objects?.[id]) return
+      delete d.objects[id][key]
+      if (!Object.keys(d.objects[id]).length) delete d.objects[id]
+    })
+  }
+
+  /** One line on what happens with the object in the game. */
+  function objectStatus(o: MapObject): { text: string; cls: string } {
+    const own = objectSettings[keyOf(o)]
+    if (own?.off) return { text: t('maps.obj.off'), cls: 'muted' }
+    if (o.noAfter) return { text: t('maps.obj.noAfter'), cls: 'warn' }
+    if (o.new) {
+      if (o.auto) return { text: t('maps.obj.auto', { id: o.auto.id }), cls: 'good' }
+      if (o.change !== null) return { text: t('maps.obj.usesChange', { id: o.change }), cls: 'good' }
+      if (CHANGE_KINDS.includes(o.kind)) return { text: t('maps.obj.noChange'), cls: 'warn' }
+      return { text: t('maps.obj.new'), cls: 'good' }
+    }
+    if (own) return { text: t('maps.obj.replaced'), cls: 'good' }
+    if (EVENT_KINDS.includes(o.kind) && !o.event) return { text: t('maps.obj.decor'), cls: 'muted' }
+    return { text: t('maps.obj.original'), cls: 'muted' }
+  }
+
+  /** What a chest or village gives, in a few words. */
+  function giftText(st: MapObjectSettings): string {
+    if (st.gold) return t('maps.obj.goldAmountShort', { n: st.gold })
+    if (st.item) return itemById.get(st.item)?.name ?? st.item
+    return ''
   }
 
   /** New size: rows and columns are added or removed on the right and at the bottom; new cells get the selected tile. */
@@ -535,6 +685,7 @@
     painted && layout ? painted.rows.reduce((n, row, y) => n + row.filter((m, x) => m !== layout!.rows[y]?.[x]).length, 0) : 0,
   )
   const changesEdited = $derived(!!(info && list.records[0]?.changes?.[info.id]))
+  const objectsEdited = $derived(!!(info && list.records[0]?.objects?.[info.id]))
 </script>
 
 <svelte:window onmouseup={onUp} />
@@ -542,7 +693,7 @@
 <div class="editor">
   <RecordList records={maps} {selected} onselect={(i) => load(i)} secondary={(m) => m.name === m.id} secondaryLabel={t('maps.otherMaps')} problemIds={new Set(problems.filter((p) => p.kind === 'maps').map((p) => p.id))}>
     {#snippet suffix(m: MapInfo)}
-      {#if list.records[0]?.layouts?.[m.id] || list.records[0]?.changes?.[m.id]}<span class="edited" title={t('maps.edited')}>✎</span>{/if}
+      {#if list.records[0]?.layouts?.[m.id] || list.records[0]?.changes?.[m.id] || list.records[0]?.objects?.[m.id]}<span class="edited" title={t('maps.edited')}>✎</span>{/if}
       <span class="muted id">{m.width}×{m.height}</span>
     {/snippet}
   </RecordList>
@@ -565,11 +716,12 @@
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
         {/if}
-        {#if painted || changesEdited}
+        {#if painted || changesEdited || objectsEdited}
           <p class="small">
             <span class="edited">✎</span>
             {#if painted}{t('maps.changed', { n: changedCells })}{/if}
             {#if changesEdited}{t('maps.changesEdited')}{/if}
+            {#if objectsEdited}{t('maps.objectsEdited')}{/if}
             <button class="link" onclick={reset}>{t('maps.reset')}</button>
           </p>
         {/if}
@@ -598,6 +750,8 @@
             <label class="check"><input type="checkbox" bind:checked={showGrid} /> {t('maps.grid')}</label>
             <label class="check"><input type="checkbox" bind:checked={showTerrain} /> {t('maps.terrains')}</label>
             {#if changes}<label class="check" title={t('maps.changesHint')}><input type="checkbox" bind:checked={showChanges} /> {t('maps.changes')}</label>{/if}
+            <label class="check" title={t('maps.showObjectsHint')}><input type="checkbox" bind:checked={showObjects} /> {t('maps.showObjects')}</label>
+            <label class="check" title={t('maps.previewHint')}><input type="checkbox" bind:checked={preview} /> {t('maps.preview')}</label>
             <label class="check">
               {t('maps.zoom')}
               <select bind:value={zoom}>
@@ -657,6 +811,9 @@
                 {#each (changes ?? []).filter((c) => hover && hover.x >= c.x && hover.y >= c.y && hover.x < c.x + c.w && hover.y < c.y + c.h) as c (c.id)}
                   · <span class="change-tag">{t('maps.change', { id: c.id })}</span>
                 {/each}
+                {#each objects.filter((o) => hover && o.cells.some(([x, y]) => x === hover!.x && y === hover!.y)) as o (keyOf(o))}
+                  · {OBJECT_ICONS[o.kind]} {t(`maps.kind.${o.kind}`)}
+                {/each}
               {:else}
                 {t('maps.mouseHint')}
               {/if}
@@ -670,6 +827,7 @@
                 {/each}
               </div>
             {/if}
+            {@render objectsPanel()}
           {:else}
             <p class="muted">…</p>
           {/if}
@@ -722,6 +880,107 @@
   {/if}
 </div>
 
+{#snippet objectsPanel()}
+  <div class="objects">
+    <h3>{t('maps.objects', { n: objects.length })}</h3>
+    <p class="muted small">{t('maps.objectsHint')}</p>
+    {#if objectsInfo && !objectsInfo.hasChangeLayer && objects.some((o) => o.new && CHANGE_KINDS.includes(o.kind))}
+      <p class="warn small">{t('maps.obj.noChangeLayer')}</p>
+    {/if}
+    {#if objects.length}
+      <div class="object-list">
+        {#each objects as o (keyOf(o))}
+          {@const st = objectStatus(o)}
+          {@const scripted = !!o.event?.script && !objectSettings[keyOf(o)]}
+          {@const gift = EVENT_KINDS.includes(o.kind) && isActive(o) && !scripted ? giftText(settingsOf(o)) : ''}
+          <button class="object" class:active={keyOf(o) === selectedObject} onclick={() => (selectedObject = selectedObject === keyOf(o) ? null : keyOf(o))}>
+            <span aria-hidden="true">{OBJECT_ICONS[o.kind]}</span>
+            <span>{t(`maps.kind.${o.kind}`)}</span>
+            <span class="muted tiny">{o.x}, {o.y}</span>
+            {#if gift}<span class="tiny">· {gift}</span>{/if}
+            <span class="{st.cls} tiny status-text">{st.text}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+    {#if selectedObj}
+      {@const o = selectedObj}
+      {@const st = settingsOf(o)}
+      {@const own = objectSettings[keyOf(o)]}
+      <div class="object-panel">
+        <h4>{OBJECT_ICONS[o.kind]} {t(`maps.kind.${o.kind}`)} <span class="muted tiny">{o.x}, {o.y}</span></h4>
+        <p class="muted small">{t(`maps.kindHint.${o.kind}`)}</p>
+        {#if EVENT_KINDS.includes(o.kind) || o.new}
+          <label class="check">
+            <input type="checkbox" checked={isActive(o)} onchange={(e) => setObject(o, { off: !(e.target as HTMLInputElement).checked })} />
+            {t('maps.obj.active')}
+          </label>
+        {/if}
+        {#if isActive(o)}
+          {#if o.kind === 'chest'}
+            <div class="row">
+              <label>
+                <span>{t('maps.obj.content')}</span>
+                <select value={st.gold ? GOLD : (st.item ?? '')} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined }) }}>
+                  <option value={GOLD}>{t('maps.obj.gold')}</option>
+                  {#each items as it (it.id)}<option value={it.id}>{it.name}</option>{/each}
+                </select>
+              </label>
+              {#if st.gold}
+                <NumberField label={t('maps.obj.goldAmount')} value={st.gold} min={1} max={MAX_GOLD} compact onchange={(v) => setObject(o, { gold: v })} />
+              {:else if st.item && itemById.get(st.item)}
+                <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt="" /> {itemById.get(st.item)!.name}</Mention>
+              {/if}
+            </div>
+          {:else if o.kind === 'village' || o.kind === 'house'}
+            {#if o.event?.script && !own}
+              <p class="small">
+                {t('maps.obj.originalEvent', { script: o.event.script })}
+                <button class="link" onclick={() => setObject(o, {})}>{t('maps.obj.replace')}</button>
+              </p>
+            {:else}
+              {#if o.kind === 'village'}
+                <div class="row">
+                  <label>
+                    <span>{t('maps.obj.gift')}</span>
+                    <select value={st.gold ? GOLD : (st.item ?? '')} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined }) }}>
+                      <option value="">{t('field.none')}</option>
+                      <option value={GOLD}>{t('maps.obj.gold')}</option>
+                      {#each items as it (it.id)}<option value={it.id}>{it.name}</option>{/each}
+                    </select>
+                  </label>
+                  {#if st.gold}
+                    <NumberField label={t('maps.obj.goldAmount')} value={st.gold} min={1} max={MAX_GOLD} compact onchange={(v) => setObject(o, { gold: v })} />
+                  {:else if st.item && itemById.get(st.item)}
+                    <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt="" /> {itemById.get(st.item)!.name}</Mention>
+                  {/if}
+                </div>
+              {/if}
+              <span class="small">{t('maps.obj.face')}</span>
+              <div class="faces" role="radiogroup" aria-label={t('maps.obj.face')}>
+                {#each objectsInfo?.faces ?? [] as f (f.id)}
+                  <button role="radio" aria-checked={st.face === f.id} class:active={st.face === f.id} title={f.id.replace('FID_', '')} onclick={() => setObject(o, { face: f.id })}>
+                    <img src={portraitUrl(f.portrait, true)} alt={f.id} />
+                  </button>
+                {/each}
+              </div>
+              <label>
+                <span>{t('maps.obj.text')}</span>
+                <textarea rows="3" value={st.text ?? ''} onchange={(e) => setObject(o, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
+              </label>
+              <p class="muted tiny">{t('maps.obj.textHint')}</p>
+              {#each mapProblems.filter((p) => p.field === 'objects' && p.params.at === keyOf(o)) as pr, i (i)}<p class="bad small">{problemText(pr)}</p>{/each}
+            {/if}
+          {/if}
+        {/if}
+        {#if own}<button class="link reset" onclick={() => resetObject(o)}>{t(o.new ? 'maps.obj.resetNew' : 'maps.obj.resetOriginal')}</button>{/if}
+      </div>
+    {:else if objects.length}
+      <p class="muted tiny">{t('maps.obj.pick')}</p>
+    {/if}
+  </div>
+{/snippet}
+
 <style>
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
@@ -762,6 +1021,23 @@
   .chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; padding: 0.1rem 0.45rem; border-radius: 999px; }
   .chip.active { border-color: var(--accent); background: var(--accent-soft); }
   .swatch { width: 0.75rem; height: 0.75rem; border-radius: 3px; display: inline-block; }
+  .objects { border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .objects h3, .objects p, .object-panel h4 { margin: 0; }
+  .object-list { display: flex; flex-direction: column; gap: 0.15rem; max-height: 220px; overflow: auto; }
+  .object { display: flex; align-items: center; gap: 0.4rem; text-align: left; font-size: 0.85rem; padding: 0.2rem 0.5rem; border-color: transparent; background: none; }
+  .object:hover { background: var(--accent-soft); }
+  .object.active { border-color: var(--accent); background: var(--accent-soft); }
+  .status-text { margin-left: auto; }
+  .good { color: var(--good); }
+  .object-panel { border-left: 3px solid #1abc9c; padding-left: 0.6rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .object-panel .row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
+  .object-panel textarea { width: 100%; max-width: 32rem; font: inherit; }
+  .object-panel .reset { align-self: flex-start; margin-left: 0; }
+  .faces { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .faces button { padding: 0.1rem; border-radius: 6px; line-height: 0; }
+  .faces button.active { border-color: var(--accent); background: var(--accent-soft); }
+  .faces img { width: 48px; height: 40px; image-rendering: pixelated; }
+  .pixel { image-rendering: pixelated; vertical-align: middle; }
   .palette-panel { display: flex; flex-direction: column; gap: 0.5rem; }
   .palette-panel h3 { margin: 0; }
   .brush { display: flex; align-items: center; gap: 0.6rem; }

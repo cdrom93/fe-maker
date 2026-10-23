@@ -26,5 +26,6 @@ export function t(key: string, params: Record<string, string | number> = {}): st
 export function problemText(p: { code: string; params: Record<string, string | number> }): string {
   const params = { ...p.params }
   if (typeof params.terrain === 'number') params.terrain = t(`terrain.${params.terrain}`)
+  if (typeof params.object === 'string') params.object = t(`maps.kind.${params.object}`)
   return t(`problem.${p.code}`, params)
 }

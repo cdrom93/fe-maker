@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
+from .decomp import mapobjects, units
 from .decomp import maps as decomp_maps
-from .decomp import units
 from .decomp.gamedata import (
     ABILITIES_REV,
     AFFINITIES_REV,
@@ -226,6 +226,39 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
             elif c["x"] < 0 or c["y"] < 0 or c["x"] + w > width or c["y"] + h > height:
                 problems.append(Problem("error", "maps", layout_id, "changes", "changeOutOfMap", {"id": str(cid)},
                                         f"{layout_id}: change {cid} goes past the edge of the map"))
+    _validate_map_objects(problems, maps_data, known_layouts, decomp_dir, sizes)
+
+
+def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp_dir, sizes: dict):
+    """New villages, chests, doors...: their used state must be known, and their texts readable."""
+    painted = maps_data.get("layouts", {})
+    settings = maps_data.get("objects", {})
+    for layout_id, objects in settings.items():
+        for key, s in objects.items():
+            text = s.get("text") if isinstance(s, dict) else None
+            if isinstance(text, str) and not text.isascii():
+                problems.append(Problem("error", "maps", layout_id, "objects", "nameNonAscii", {"at": key},
+                                        f"{layout_id} {key}: the game font has no accented letters"))
+    for layout_id, layout in painted.items():
+        if layout_id not in known_layouts or layout_id not in sizes:
+            continue
+        try:
+            found = mapobjects.map_objects(decomp_dir, layout_id, layout["rows"], maps_data.get("changes", {}).get(
+                layout_id, decomp_maps.read_changes(decomp_dir, known_layouts[layout_id]["changes"])
+                if known_layouts[layout_id]["changes"] else []), settings.get(layout_id))
+        except (IndexError, TypeError, ValueError):
+            continue  # malformed rows: reported above
+        for obj in found:
+            params = {"object": obj["kind"], "x": obj["x"], "y": obj["y"]}
+            if obj["noAfter"]:
+                problems.append(Problem("warning", "maps", layout_id, "objects", "noUsedState", params,
+                                        f"{layout_id}: {obj['kind']} at {obj['x']}, {obj['y']}: no used state known"))
+            off = settings.get(layout_id, {}).get(f"{obj['x']},{obj['y']}", {}).get("off")
+            if not obj["noAfter"] and obj["new"] and obj["change"] is None and obj["kind"] in mapobjects.CHANGE_KINDS \
+                    and not off:
+                code = "noChangeLayer" if not known_layouts[layout_id]["changes"] else "tooManyChanges"
+                problems.append(Problem("warning", "maps", layout_id, "objects", code, params,
+                                        f"{layout_id}: {obj['kind']} at {obj['x']}, {obj['y']} will not change"))
 
 
 def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, characters: list[dict], classes: list[dict]):

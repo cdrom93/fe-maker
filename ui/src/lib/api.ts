@@ -1,4 +1,4 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapInfo, MapLayout, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
 
@@ -49,6 +49,8 @@ export const api = {
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   maps: () => request<MapInfo[]>('GET', '/api/maps'),
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
+  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings> }) =>
+    request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),
@@ -67,6 +69,6 @@ export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${i
 export const mapTilesetUrl = (id: string) => `/api/maps/${id}/tileset.png`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
-export const portraitUrl = (id: number) => `/api/assets/portrait/${id}`
+export const portraitUrl = (id: number, face = false) => `/api/assets/portrait/${id}${face ? '?face=true' : ''}`
 export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
 export const patchUrl = '/api/project/patch'

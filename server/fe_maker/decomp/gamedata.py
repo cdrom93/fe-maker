@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, maps, objectives, units
+from . import combat, mapobjects, maps, objectives, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -340,22 +340,38 @@ class DecompData:
 
     @staticmethod
     def export_maps() -> dict:
-        """Project map data: layouts and map change sets (by layout id) are stored only once edited."""
-        return {"layouts": {}, "changes": {}}
+        """Project map data: layouts, map change sets and object settings (by layout id) are stored
+        only once edited. Objects: "x,y" of the object's first cell -> what a chest holds, what a
+        village or house says (see mapobjects.py)."""
+        return {"layouts": {}, "changes": {}, "objects": {}}
 
     def apply_maps(self, maps_data: dict) -> None:
+        """Painted layouts, edited change sets, and what new objects need: a change putting them in
+        their used state (open chest, closed village...) and their location event."""
         painted = maps_data.get("layouts", {})
         changes = maps_data.get("changes", {})
-        if not painted and not changes:
+        settings = maps_data.get("objects", {})
+        if not painted and not changes and not settings:
             return
         known = maps.layouts(self.decomp_dir)
-        map_change_source = self._read(maps.MAP_CHANGE_FILE) if changes else ""
-        original_source = map_change_source
-        for layout_id, change_list in changes.items():
-            json_rel = known.get(layout_id, {}).get("changes")
-            if json_rel:
-                files, map_change_source = maps.write_changes(self.decomp_dir, json_rel, change_list, map_change_source)
+        map_change_source = original_source = None  # read when a change set is written
+        for layout_id in sorted(set(painted) | set(changes) | set(settings)):
+            if layout_id not in known:
+                continue
+            json_rel = known[layout_id]["changes"]
+            rows = painted[layout_id]["rows"] if layout_id in painted else self._original_rows(layout_id)
+            change_list = changes.get(layout_id)
+            explicit = change_list if change_list is not None else (
+                maps.read_changes(self.decomp_dir, json_rel) if json_rel else [])
+            objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id))
+            autos = [o["auto"] for o in objects if o["auto"]]
+            if json_rel and (change_list is not None or autos):
+                if map_change_source is None:
+                    map_change_source = original_source = self._read(maps.MAP_CHANGE_FILE)
+                files, map_change_source = maps.write_changes(
+                    self.decomp_dir, json_rel, list(explicit) + autos, map_change_source)
                 self.map_files.update(files)
+            self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}))
         if map_change_source != original_source:
             self.map_files[maps.MAP_CHANGE_FILE] = map_change_source
         for layout_id, layout in painted.items():
@@ -369,6 +385,116 @@ class DecompData:
             rel_info = rel[: -len(".mar")] + ".json"
             if info != self._read(rel_info):
                 self.map_files[rel_info] = info
+
+    def _original_rows(self, layout_id: str) -> list[list[int]]:
+        width, height, cells = maps.read_layout(maps.layouts(self.decomp_dir)[layout_id]["assets"].layout)
+        return [cells[y * width: (y + 1) * width] for y in range(height)]
+
+    def map_object_events(self, layout_id: str) -> dict[tuple[int, int], dict]:
+        """Original location events (chest, door, village, house) of the first chapter using a layout,
+        by position."""
+        self._load_chapter_events()
+        for index in maps.layouts(self.decomp_dir)[layout_id]["chapters"]:
+            found = self._location_list(index)
+            if found:
+                rel, start, end = found
+                return {(e["x"], e["y"]): e for e in mapobjects.read_location_events(self.event_sources[rel][start:end])}
+        return {}
+
+    def _location_list(self, chapter_index: int) -> tuple[str, int, int] | None:
+        symbol = self._chapter_event_symbol(self.chapter_settings["chapters"][chapter_index])
+        if not symbol:
+            return None
+        try:
+            group = objectives.event_group(self.event_sources, symbol)
+        except objectives.ObjectiveError:
+            return None
+        name = group.get("locationBasedEvents", "")
+        return objectives._list(self.event_sources, name) if re.fullmatch(r"\w+", name) else None
+
+    def _apply_map_events(self, layout_id: str, rows: list[list[int]], objects: list[dict], settings: dict) -> None:
+        """Location events of the chapters using a layout: events added for new villages, houses,
+        chests and doors (or set in the project), removed where the painting erased the object."""
+        layout = maps.layouts(self.decomp_dir)[layout_id]
+        _metatiles, terrain = maps.read_config(layout["assets"].config)
+        original = self._original_rows(layout_id)
+
+        def kind_at(grid, x, y):
+            if 0 <= y < len(grid) and 0 <= x < len(grid[0]) and grid[y][x] < len(terrain):
+                return mapobjects.KINDS.get(terrain[grid[y][x]])
+            return None
+
+        erased = any(kind_at(original, x, y) in mapobjects.EVENT_KINDS and kind_at(rows, x, y) != kind_at(original, x, y)
+                     for y in range(len(original)) for x in range(len(original[0])))
+        added = any(o["new"] and o["kind"] in mapobjects.EVENT_KINDS for o in objects)
+        if not (erased or added or settings):
+            return
+        self._load_chapter_events()
+
+        done = set()
+        for index in layout["chapters"]:
+            found = self._location_list(index)
+            if not found or found in done:
+                continue
+            done.add(found)
+            rel, start, end = found
+            source = self.event_sources[rel]
+            body = source[start:end]
+            events = mapobjects.read_location_events(body)
+            prefix = rel.rsplit("-", 1)[0]
+            flags = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
+            remove: set[tuple[int, int]] = set()
+            lines: list[str] = []
+            scripts = ""
+            for e in events:
+                # The painting erased the object: its event would point at nothing.
+                if kind_at(original, e["x"], e["y"]) == e["kind"] and kind_at(rows, e["x"], e["y"]) != e["kind"]:
+                    remove.add(e["span"])
+
+            def flag() -> str:
+                n = next(n for n in range(mapobjects.FIRST_FLAG, mapobjects.LAST_FLAG + 1) if n not in flags)
+                flags.add(n)
+                return f"EVFLAG_TMP({n})"
+
+            for obj in objects:
+                kind = obj["kind"]
+                if kind not in mapobjects.EVENT_KINDS:
+                    continue
+                cells = {tuple(c) for c in obj["cells"]}
+                mine = [e for e in events if (e["x"], e["y"]) in cells and e["kind"] == kind]
+                own = settings.get(f"{obj['x']},{obj['y']}")
+                if own is None and (mine or not obj["new"]):
+                    continue  # original behavior (an original object without event is decoration)
+                remove.update(e["span"] for e in mine)
+                if own and own.get("off"):
+                    continue
+                s = {**mapobjects.DEFAULTS[kind], **(own or {})}
+                x, y = obj["x"], obj["y"]
+                if kind == "chest":
+                    lines.append(f"ChestMoney({int(s['gold'])}, {x}, {y})" if s.get("gold")
+                                 else f"Chest({s.get('item') or 'ITEM_VULNERARY'}, {x}, {y})")
+                elif kind == "door":
+                    door_flag = flag()
+                    lines += [f"Door({cx}, {cy}, {door_flag})" for cx, cy in obj["cells"]]
+                else:
+                    name = f"EventScr_FEM_{layout_id}_{x}_{y}"
+                    message = self.texts.add(mapobjects.dialogue_message(
+                        s.get("face") if s.get("face") in mapobjects.FACES else "FID_VillagerOldMan", s.get("text") or "..."))
+                    house = kind == "house"
+                    scripts += mapobjects.village_script(name, message, None if house else s.get("item"),
+                                                         None if house else s.get("gold"), house)
+                    lines.append(f"House(0, {name}, {x}, {y})" if house else f"Village({flag()}, {name}, {x}, {y})")
+            if not remove and not lines:
+                continue
+            for s0, e0 in sorted(remove, reverse=True):
+                body = body[:s0] + body[e0:]
+            if lines:
+                m = objectives._END_RE.search(body)
+                indent = m.group(1) if m else "    "
+                block = "".join(f"{indent}{line}\n" for line in lines)
+                body = body[: m.start()] + block + body[m.start():] if m else body + block
+            declaration = source.rfind("\n", 0, start) + 1
+            self.event_sources[rel] = source[:declaration] + scripts + source[declaration:start] + body + source[end:]
 
     # ---------- chapter objectives ----------
 
@@ -796,7 +922,7 @@ class DecompData:
         for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
                 out[rel] = render_array(parsed)
-        if self.texts.edits:
+        if self.texts.edits or self.texts.added:
             out[TEXTS_FILE] = self.texts.render()
         for rel, source in self.unit_defs.items():
             if source != self._original_unit_defs[rel]:

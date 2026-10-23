@@ -214,6 +214,18 @@ def render_tileset(assets: MapAssets) -> bytes:
     return _png(canvas)
 
 
+def metatile_pixels(assets: MapAssets) -> list[bytes]:
+    """Pixels (combined palette indices) of each metatile, to compare tiles across tilesets."""
+    metatiles, _terrain = read_config(assets.config)
+    _palette, draw = _metatile_painter(assets)
+    out = []
+    for i in range(len(metatiles)):
+        canvas = Image.new("P", (16, 16))
+        draw(canvas, i, 0, 0)
+        out.append(canvas.tobytes())
+    return out
+
+
 def duplicate_metatiles(assets: MapAssets) -> list[bool]:
     """Metatiles identical to an earlier one (same tiles, same terrain): hidden from the palette.
     Unused slots of a tileset are all copies of one filler metatile."""

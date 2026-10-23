@@ -93,3 +93,29 @@ def test_modified_project_and_patch(tmp_path):
     built = out.rom_path.read_bytes()
     assert not out.matches_original
     assert ups.apply(Path(ROM).read_bytes(), out.patch_path.read_bytes()) == built
+
+
+def test_painted_objects_build(tmp_path):
+    """New chest, village, house and door on a map: FE Maker adds their map changes, location
+    events, village scripts and texts, and the decomp still builds."""
+    from fe_maker.decomp import mapobjects, maps
+
+    project = Project.create(tmp_path / "objects", "Objects")
+    layout = maps.layouts(project.decomp_dir)["Ch5Map"]
+    width, height, cells = maps.read_layout(layout["assets"].layout)
+    rows = [cells[y * width: (y + 1) * width] for y in range(height)]
+    _metatiles, terrain = maps.read_config(layout["assets"].config)
+    rule = mapobjects.rules(project.decomp_dir)[layout["assets"].config.name]
+    tile = {t: next(m for m in rule["tiles"] if terrain[m] == t) for t in (0x21, 0x03, 0x1E)}
+    tile[0x05] = next(m for m in range(len(terrain)) if terrain[m] == 0x05)
+    for t, (x, y) in ((0x21, (1, 1)), (0x03, (3, 2)), (0x05, (5, 2)), (0x1E, (7, 1))):
+        rows[y][x] = tile[t]
+    objects = {"3,2": {"item": "ITEM_ELIXIR", "face": "FID_VillagerGirlYoung", "text": "Take this elixir, please."},
+               "1,1": {"gold": 3000}}
+    project.save("maps", {"layouts": {"Ch5Map": {"rows": rows}}, "objects": {"Ch5Map": objects}})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    found = mapobjects.map_objects(project.decomp_dir, "Ch5Map", rows, maps.read_changes(project.decomp_dir, layout["changes"]))
+    assert all(o["auto"] for o in found if o["new"] and o["kind"] != "house")
+
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

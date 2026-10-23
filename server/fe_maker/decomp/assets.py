@@ -59,6 +59,12 @@ def portrait_names(decomp_dir: Path) -> list[str | None]:
     return names
 
 
+# Big portrait (96x80) from its 256x32 tile sheet: (sheet x, y, width, height, face x, y), as the
+# face sprite gSprite_Face96x96 puts the tiles (src/face.c, 32 tiles per sheet row).
+FACE_PARTS = [(0, 0, 64, 32, 16, 0), (64, 0, 64, 32, 16, 32), (128, 0, 32, 16, 16, 64), (128, 16, 32, 16, 48, 64),
+              (160, 0, 16, 32, 0, 48), (176, 0, 16, 32, 80, 48)]
+
+
 def portrait_preview(decomp_dir: Path, portrait_id: int, scale: int = 3) -> bytes | None:
     names = portrait_names(decomp_dir)
     if not 0 <= portrait_id < len(names) or names[portrait_id] is None:
@@ -68,6 +74,26 @@ def portrait_preview(decomp_dir: Path, portrait_id: int, scale: int = 3) -> byte
     if not chibi.is_file() or not palette.is_file():
         return None
     return render_indexed(chibi, read_agbpal(palette), scale)
+
+
+def face_preview(decomp_dir: Path, portrait_id: int, scale: int = 1) -> bytes | None:
+    """The big portrait shown in dialogues (generic villagers have no small one)."""
+    names = portrait_names(decomp_dir)
+    if not 0 <= portrait_id < len(names) or names[portrait_id] is None:
+        return None
+    base = decomp_dir / "graphics" / "portrait" / f"portrait_{names[portrait_id]}"
+    sheet, palette = Path(f"{base}_tileset.png"), Path(f"{base}_palette.agbpal")
+    if not sheet.is_file() or not palette.is_file():
+        return None
+    tiles = Image.open(io.BytesIO(render_indexed(sheet, read_agbpal(palette))))
+    face = Image.new("RGBA", (96, 80))
+    for sx, sy, w, h, fx, fy in FACE_PARTS:
+        face.paste(tiles.crop((sx, sy, sx + w, sy + h)), (fx, fy))
+    if scale > 1:
+        face = face.resize((96 * scale, 80 * scale), Image.NEAREST)
+    out = io.BytesIO()
+    face.save(out, "PNG")
+    return out.getvalue()
 
 
 MAP_SPRITE_TABLE = "src/unit_icon_wait_data.c"

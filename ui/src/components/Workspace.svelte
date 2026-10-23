@@ -221,7 +221,7 @@
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else}
-    <MapEditor list={lists.maps} {problems} />
+    <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {/if}
 {/if}
 

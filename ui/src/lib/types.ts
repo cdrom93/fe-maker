@@ -195,6 +195,45 @@ export interface MapsData {
   layouts: Record<string, { rows: number[][] }>
   /** map changes by layout id, once edited (the whole list) */
   changes?: Record<string, MapChange[]>
+  /** object settings by layout id, then by "x,y" of the object's first cell */
+  objects?: Record<string, Record<string, MapObjectSettings>>
+}
+
+export type MapObjectKind = 'village' | 'house' | 'chest' | 'door' | 'wall' | 'snag'
+
+/** What a chest holds, what a village gives and says (server: mapobjects.py). */
+export interface MapObjectSettings {
+  item?: string
+  gold?: number
+  face?: string
+  text?: string
+  /** no event and no automatic change: the object is only decoration */
+  off?: boolean
+}
+
+/** A village, house, chest, door, cracked wall or snag found on the map. */
+export interface MapObject {
+  kind: MapObjectKind
+  x: number
+  y: number
+  cells: number[][]
+  /** not on the original map */
+  new: boolean
+  /** id of the change applied when it is used (null: none) */
+  change: number | null
+  /** the change FE Maker adds by itself */
+  auto: MapChange | null
+  /** new object whose used state is unknown for this tileset */
+  noAfter: boolean
+  /** its location event in the original game */
+  event: { macro: string; item?: string; gold?: number; script?: string } | null
+}
+
+export interface MapObjects {
+  objects: MapObject[]
+  hasChangeLayer: boolean
+  defaults: Record<MapObjectKind, MapObjectSettings>
+  faces: { id: string; portrait: number }[]
 }
 
 export interface UnitGroup {
