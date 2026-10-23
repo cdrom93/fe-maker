@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, mapobjects, maps, objectives, tileedit, units
+from . import combat, dialogues, mapobjects, maps, objectives, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -522,6 +522,66 @@ class DecompData:
                 body = body[: m.start()] + block + body[m.start():] if m else body + block
             declaration = source.rfind("\n", 0, start) + 1
             self.event_sources[rel] = source[:declaration] + scripts + source[declaration:start] + body + source[end:]
+
+    # ---------- dialogues ----------
+
+    @staticmethod
+    def export_dialogues() -> dict:
+        """Project dialogues: edited messages only, as steps (see dialogues.py), by message id."""
+        return {"messages": {}}
+
+    def apply_dialogues(self, data: dict) -> None:
+        for key, steps in data.get("messages", {}).items():
+            index = int(key, 0) if isinstance(key, str) else int(key)
+            if index not in self.texts.messages:
+                raise GameDataError(f"Unknown message {key}")
+            body = dialogues.render(steps)
+            if not dialogues.same_message(self.texts.raw(index), body):
+                self.texts.set_raw(index, body)
+
+    def chapter_dialogues(self, index: int) -> list[dict]:
+        """Event scripts of a chapter that show messages, with what starts them and their messages."""
+        self._load_chapter_events()
+        symbol = self._chapter_event_symbol(self.chapter_settings["chapters"][index])
+        if not symbol:
+            return []
+        try:
+            group = objectives.event_group(self.event_sources, symbol)
+        except objectives.ObjectiveError:
+            return []
+        rel = next((r for r, s in self.event_sources.items() if re.search(rf"ChapterEventGroup\s+{symbol}\b", s)), None)
+        if rel is None:
+            return []
+        prefix = rel.rsplit("-", 1)[0] + "-"
+        files = {r: s for r, s in self.event_sources.items() if r.startswith(prefix)}
+        scenes = []
+        for r in sorted(files):
+            scenes += [{"script": name, "messages": ids, "file": r} for name, ids in dialogues.script_messages(files[r])]
+        lists = {}
+        for source in files.values():
+            for name, body in re.findall(r"EventListScr\s+(\w+)\s*\[\s*\]\s*=\s*\{(.*?)\n\};", source, re.S):
+                lists[name] = body
+        triggers = dialogues.scene_triggers(group, lists, set(lists))
+        tutorials = set(re.findall(r"\w+", lists.get(group.get("tutorialEvents", ""), "")))
+
+        def trigger(script: str, seen: frozenset = frozenset()) -> dict:
+            """What starts a script; a script started by another one gets its caller's trigger."""
+            if script in triggers:
+                return triggers[script]
+            if script in tutorials or "Tut" in script:
+                return {"kind": "tutorial"}
+            caller = next((name for name, body in lists.items()
+                           if name != script and name not in seen and re.search(rf"\b{script}\b", body)), None)
+            if caller is None:
+                return {"kind": "other"}
+            return {**trigger(caller, seen | {script}), "via": caller}
+
+        for scene in scenes:
+            scene["trigger"] = trigger(scene["script"])
+        order = {k: i for i, k in enumerate(dialogues.SCENE_ORDER)}
+        scenes.sort(key=lambda s: (order.get(s["trigger"]["kind"], 99),
+                                   int(s["trigger"].get("turn", "0"), 0) if str(s["trigger"].get("turn", "0")).isdigit() else 0))
+        return scenes
 
     # ---------- chapter objectives ----------
 

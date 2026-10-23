@@ -26,6 +26,7 @@ DATA_FILES = {
     "combat": "export_combat",
     "chapters": "export_chapters",
     "maps": "export_maps",
+    "dialogues": "export_dialogues",
 }
 DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
@@ -130,7 +131,7 @@ class Project:
     def validate(self) -> list[Problem]:
         return validate(self.load("characters"), self.load("items"), DecompData(self.decomp_dir),
                         classes=self.load("classes"), combat=self.load("combat"), chapters=self.load("chapters"),
-                        maps=self.load("maps"))
+                        maps=self.load("maps"), dialogues=self.load("dialogues"))
 
     # ---------- build ----------
 
@@ -160,6 +161,7 @@ class Project:
         data.apply_combat(self.load("combat"))
         data.apply_chapters(self.load("chapters"))
         data.apply_maps(self.load("maps"))
+        data.apply_dialogues(self.load("dialogues"))
         files = data.changed_files()
         if for_test:
             files = apply_test_tweaks(decomp_dir, self.test_options, files)

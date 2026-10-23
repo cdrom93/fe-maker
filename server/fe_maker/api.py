@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import mapobjects, maps, tileedit, units
+from .decomp import dialogues, mapobjects, maps, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
@@ -373,6 +373,28 @@ def transform_tiles(layout_id: str, body: TransformIn):
 def map_tileset(layout_id: str):
     png = maps.render_tileset(_layout(layout_id)["assets"])
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+@app.get("/api/chapters/{index}/dialogues")
+def chapter_dialogues(index: int):
+    """Scenes of a chapter that show messages (what starts them) and their messages as steps,
+    as in the original game (the editor adds the project's edits)."""
+    _chapter(index)
+    decomp = state.get_decomp()
+    scenes = decomp.chapter_dialogues(index)
+    ids = {i for s in scenes for i in s["messages"]}
+    messages = {}
+    for i in sorted(ids):
+        if i in decomp.texts.messages:
+            messages[str(i)] = dialogues.parse(decomp.texts.raw(i))
+    return {"scenes": scenes, "messages": messages}
+
+
+@app.get("/api/dialogues/faces")
+def dialogue_faces():
+    """Portraits a dialogue can show: text code (FID_...) and portrait id."""
+    defs = DECOMP_DIR / dialogues.TEXT_DEFS_FILE
+    return [{"id": fid, "portrait": pid} for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
 
 
 @app.get("/api/chapters/{index}/units")

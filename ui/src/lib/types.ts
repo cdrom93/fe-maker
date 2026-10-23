@@ -279,9 +279,40 @@ export interface Reference {
   portraits: (string | null)[]
 }
 
+/** A step of a dialogue (server: decomp/dialogues.py). */
+export interface DialogueStep {
+  kind: 'face' | 'clear' | 'move' | 'say' | 'code'
+  /** speaker slot (FarLeft... FarFarRight); null for a line without speaker */
+  pos?: string | null
+  face?: string
+  to?: string
+  /** a line: "\n" new line, blank line = new box after a button press, other codes kept as [Code] */
+  text?: string
+  wait?: boolean
+  open?: boolean
+  code?: string
+}
+
+export interface DialogueScene {
+  script: string
+  file: string
+  messages: number[]
+  trigger: { kind: string; turn?: string; faction?: string; a?: string; b?: string; x?: string; y?: string; via?: string }
+}
+
+export interface DialogueFace {
+  id: string
+  portrait: number
+}
+
+export interface DialoguesData {
+  /** edited messages by id (decimal), as steps */
+  messages: Record<string, DialogueStep[]>
+}
+
 export interface Problem {
   severity: 'error' | 'warning'
-  kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
+  kind: 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues'
   id: string
   field: string
   code: string

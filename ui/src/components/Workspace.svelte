@@ -5,11 +5,12 @@
   import { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
-  import type { ChaptersData, MapsData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
+  import type { ChaptersData, DialoguesData, MapsData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import ChapterEditor from './ChapterEditor.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
   import ClassEditor from './ClassEditor.svelte'
+  import DialogueEditor from './DialogueEditor.svelte'
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import KeysDialog from './KeysDialog.svelte'
@@ -19,7 +20,7 @@
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
   type Tab = NavKind
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'maps']
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'maps', 'dialogues']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -57,6 +58,7 @@
     combat: new EditableList<Combat>((r) => save('combat', r[0])),
     chapters: new EditableList<ChaptersData>((r) => save('chapters', r[0])),
     maps: new EditableList<MapsData>((r) => save('maps', r[0])),
+    dialogues: new EditableList<DialoguesData>((r) => save('dialogues', r[0])),
   }
   const allLists = Object.values(lists)
 
@@ -94,7 +96,7 @@
   const active = $derived(lists[tab])
 
   onMount(async () => {
-    const [ref, chars, cls, items, combat, chaptersData, mapsData, probs, testOpts] = await Promise.all([
+    const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts] = await Promise.all([
       api.reference(),
       api.getData<Character[]>('characters'),
       api.getData<ClassData[]>('classes'),
@@ -102,6 +104,7 @@
       api.getData<Combat>('combat'),
       api.getData<ChaptersData>('chapters'),
       api.getData<MapsData>('maps'),
+      api.getData<DialoguesData>('dialogues'),
       api.problems(),
       api.testOptions(),
     ])
@@ -114,6 +117,7 @@
     lists.combat.load([combat])
     lists.chapters.load([chaptersData])
     lists.maps.load([mapsData])
+    lists.dialogues.load([dialoguesData])
     problems = probs.problems
   })
 
@@ -124,6 +128,7 @@
     if (kind === 'combat') return t('ws.combat')
     if (kind === 'chapters') return id.replace('UnitDef_Event_', '')
     if (kind === 'maps') return id
+    if (kind === 'dialogues') return t('dlg.message', { id: `0x${Number(id.split('#')[0]).toString(16).toUpperCase()}` })
     const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
     return record?.name || id || t(`ws.${kind}`)
   }
@@ -189,7 +194,7 @@
     </summary>
     <ul class="problems">
       {#each [...errors, ...warnings] as p, i (i)}
-        {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && !!p.id}
+        {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && p.kind !== 'dialogues' && !!p.id}
         {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
         <li class={p.severity}>
           <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
@@ -220,8 +225,10 @@
     <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
-  {:else}
+  {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
+  {:else}
+    <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
   {/if}
 {/if}
 

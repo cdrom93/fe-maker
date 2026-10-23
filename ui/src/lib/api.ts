@@ -1,6 +1,6 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueScene, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
-export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues'
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {
@@ -48,6 +48,9 @@ export const api = {
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   maps: () => request<MapInfo[]>('GET', '/api/maps'),
+  chapterDialogues: (index: number) =>
+    request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
+  dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),

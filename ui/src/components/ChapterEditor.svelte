@@ -277,6 +277,7 @@
         <p class="muted small">
           {t('chapter.editHint')}
           {#if chapter.map}<Mention kind="maps" id={chapter.map}>🗺 {t('chapter.editMap')}</Mention>{/if}
+          <Mention kind="dialogues" id={String(chapter.index)}>💬 {t('chapter.editDialogues')}</Mention>
         </p>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}

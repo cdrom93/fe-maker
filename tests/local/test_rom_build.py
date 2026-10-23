@@ -144,3 +144,24 @@ def test_turned_tiles_build(tmp_path):
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original
+
+
+def test_edited_dialogue_build(tmp_path):
+    """A prologue conversation changed through steps (new line, new portrait, removed line) still builds."""
+    from fe_maker.decomp import dialogues
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "talk", "Talk")
+    decomp = DecompData(project.decomp_dir)
+    message = decomp.chapter_dialogues(0)[0]["messages"][0]
+    steps = dialogues.parse(decomp.texts.raw(message))
+    says = [i for i, s in enumerate(steps) if s["kind"] == "say"]
+    steps[says[0]]["text"] = "A new first line.\nWritten in FE Maker.\n\nAnd a second box!"
+    del steps[says[-1]]
+    steps.insert(0, {"kind": "face", "pos": "FarLeft", "face": "FID_Franz"})
+    steps.insert(1, {"kind": "say", "pos": "FarLeft", "text": "Franz is here too.", "wait": True})
+    project.save("dialogues", {"messages": {str(message): steps}})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

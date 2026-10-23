@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
+from .decomp import dialogues as decomp_dialogues
 from .decomp import mapobjects, units
 from .decomp import maps as decomp_maps
 from .decomp.gamedata import (
@@ -81,7 +82,7 @@ def _duplicates(problems, kind, records):
 
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
-             chapters: dict | None = None, maps: dict | None = None) -> list[Problem]:
+             chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None) -> list[Problem]:
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
@@ -163,7 +164,32 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         if chapters is not None:
             _validate_chapter_maps(problems, decomp, chapters, maps, characters,
                                    classes if classes is not None else decomp.export_classes())
+    if dialogues is not None:
+        defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
+        faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
+        _validate_dialogues(problems, dialogues, faces)
     return problems
+
+
+def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
+    """Edited messages: steps the writer knows, existing portraits, text the game font can show."""
+    for key, steps in data.get("messages", {}).items():
+        for n, step in enumerate(steps if isinstance(steps, list) else []):
+            kind = step.get("kind")
+            rid = f"{key}#{n}"
+            if kind == "face" and faces and step.get("face") not in faces:
+                problems.append(Problem("error", "dialogues", rid, "face", "unknownFace", {"face": str(step.get("face"))},
+                                        f"{key}: unknown portrait"))
+            if kind == "say" and not str(step.get("text", "")).isascii():
+                problems.append(Problem("error", "dialogues", rid, "text", "nameNonAscii", {},
+                                        f"{key}: the game font has no accented letters"))
+            for pos in (step.get("pos"), step.get("to")):
+                if pos is not None and pos not in decomp_dialogues.POSITIONS:
+                    problems.append(Problem("error", "dialogues", rid, "pos", "unknownPosition", {}, f"{key}: unknown position"))
+        try:
+            decomp_dialogues.render(steps)
+        except (decomp_dialogues.DialogueError, KeyError, TypeError, AttributeError):
+            problems.append(Problem("error", "dialogues", key, "steps", "badDialogue", {}, f"{key}: malformed dialogue"))
 
 
 def map_size_problem(width: int, height: int) -> dict | None:
