@@ -78,6 +78,11 @@ def test_new_quotes():
         ("CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C), ("CHARACTER_BONE", "CHARACTER_ROSS", 0xD4C)]
     assert [(q["a"], q["chapter"], q["msg"], q["flag"]) for q in found["death"]] == [
         ("CHARACTER_BONE", 2, 0xD4D, "EVFLAG_DEFEAT_BOSS"), ("CHARACTER_ROSS", 255, 0xD4E, "0")]
+    # Ross must survive chapter 2: a chapter entry before his every-chapter one, with his words.
+    source = quotes.set_death_flag(source, constants, 2, "CHARACTER_ROSS", "EVFLAG_GAMEOVER")
+    found = quotes.read_quotes(source, constants)
+    assert (found["death"][0]["a"], found["death"][0]["chapter"], found["death"][0]["flag"], found["death"][0]["msg"]) == (
+        "CHARACTER_ROSS", 2, "EVFLAG_GAMEOVER", 0xD4E)
 
 
 def test_talk_script():

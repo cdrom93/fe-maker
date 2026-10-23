@@ -20,7 +20,7 @@ import re
 
 from .cparse import _blank_comments, _match_brace, parse_fields
 
-TYPES = ("seize", "defeat_all", "defeat_boss", "defense")
+TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "area")
 SEIZE_LABELS = {"throne": 417, "gate": 415}
 WINDOW_TEXT = {"defense": 412, "defeat_boss": 413, "defeat_all": 414}
 
@@ -29,6 +29,19 @@ _DEFEAT_RE = re.compile(r"^[ \t]*(DefeatAll|DefeatBoss)\s*\(\s*(\w+)\s*\)[ \t]*\
 _WIN_TURN_RE = re.compile(
     r"^[ \t]*TURN\s*\(\s*EVFLAG_WIN\s*,\s*(\w+)\s*,\s*(\d+)\s*,\s*0\s*,\s*FACTION_BLUE\s*\)[ \t]*\r?\n", re.M)
 _END_RE = re.compile(r"^([ \t]*)END_MAIN\b", re.M)
+# "Reach an area": AREA(EVFLAG_WIN, script, x1, y1, x2, y2) in the misc list; the script cancels the
+# event when the unit that moved there is not a player unit (or not the chosen character).
+_AREA_WIN_RE = re.compile(r"^[ \t]*AREA\s*\(\s*EVFLAG_WIN\s*,[^\n]*\)[ \t]*\r?\n", re.M)
+AREA_SCRIPT = "EventScr_FEM_ReachArea"
+GAME_OVER_RE = re.compile(r"CauseGameOverIfLordDies|AFEV\s*\([^)]*EVFLAG_GAMEOVER")
+
+
+def area_script(name: str, who: str) -> str:
+    """Event of the "reach an area" objective: it only counts for the player's units, or for `who`
+    (EventScr_UnTriggerIfNotFaction / EventScr_UnTriggerIfNotUnit, src/events_script_utils.c)."""
+    check = (f"    SVAL(EVT_SLOT_2, {who})\n    CALL(EventScr_UnTriggerIfNotUnit)\n" if who
+             else "    SVAL(EVT_SLOT_2, 0)\n    CALL(EventScr_UnTriggerIfNotFaction)\n")
+    return f"CONST_DATA EventListScr {name}[] = {{\n{check}    NoFade\n    ENDA\n}};\n\n"
 
 
 class ObjectiveError(Exception):
@@ -97,6 +110,8 @@ def read_objective(goal: dict, sources: dict[str, str], symbol: str | None, text
         "seizeLabel": "gate" if goal.get("windowTextId") in (415, 416) else "throne",
         "turns": max(0, goal.get("windowEndTurnNumber", 0) - 1),
         "statusText": status,
+        "area": None,
+        "areaWho": "",
         "editable": False,
         "reason": "",
     }
@@ -125,9 +140,7 @@ def read_objective(goal: dict, sources: dict[str, str], symbol: str | None, text
         "defeat_boss": [d[0] for d in defeats] == ["DefeatBoss"] and not seize and not win_turns and win_flag_uses == 0,
         "defense": len(win_turns) == 1 and not seize and not defeats and win_flag_uses == 1,
     }
-    if goal.get("protectCharacterIndex", 0):
-        objective["reason"] = "escort"
-    elif not standard.get(objective["type"], False):
+    if not standard.get(objective["type"], False):
         objective["reason"] = "custom"
     else:
         objective["editable"] = True
@@ -147,13 +160,16 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
     turns = int(new.get("turns", 0))
     if kind == "defense" and not 1 <= turns <= 99:
         raise ObjectiveError("A defense objective needs a number of turns between 1 and 99")
+    area = new.get("area") or {}
+    if kind == "area" and not all(isinstance(area.get(k), int) and 0 <= area[k] < 64 for k in ("x1", "y1", "x2", "y2")):
+        raise ObjectiveError("A \"reach an area\" objective needs an area")
 
     group = event_group(sources, symbol)
     sources = dict(sources)
     misc_name = group.get("miscBasedEvents", "")
     defeats = _DEFEAT_RE.findall(_body(sources, misc_name))
     ending = defeats[0][1] if defeats else group.get("endingSceneEvents", "")
-    if kind != "seize" and not re.fullmatch(r"\w+", ending or ""):
+    if kind not in ("seize", "area") and not re.fullmatch(r"\w+", ending or ""):
         raise ObjectiveError(f"{symbol}: no ending scene to play")
 
     def rewrite(list_name: str, pattern: re.Pattern, lines: list[str], at_start: bool = False):
@@ -185,9 +201,20 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
             at_start=True)
     rewrite(group.get("turnBasedEvents", ""), _WIN_TURN_RE,
             [f"TURN(EVFLAG_WIN, {ending}, {turns + 1}, 0, FACTION_BLUE)"] if kind == "defense" else [])
+    area_name = f"{AREA_SCRIPT}_{symbol}"
+    rewrite(misc_name, _AREA_WIN_RE,
+            [f"AREA(EVFLAG_WIN, {area_name}, {area['x1']}, {area['y1']}, {area['x2']}, {area['y2']})"]
+            if kind == "area" else [], at_start=True)
+    if kind == "area":
+        rel, start, _end = _list(sources, misc_name)
+        declaration = sources[rel].rfind("\n", 0, start) + 1
+        script = area_script(area_name, new.get("areaWho") or "")
+        sources[rel] = sources[rel][:declaration] + script + sources[rel][declaration:]
 
-    goal["windowDataType"] = kind
-    if kind == "seize":
+    goal["windowDataType"] = "seize" if kind == "area" else kind
+    if kind == "area":
+        goal["windowTextId"] = 0  # a message added by DecompData.apply_objective
+    elif kind == "seize":
         goal["windowTextId"] = SEIZE_LABELS.get(new.get("seizeLabel", "throne"), 417)
     else:
         goal["windowTextId"] = WINDOW_TEXT[kind]
@@ -200,6 +227,23 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
 DEFEAT_TALK_FILE = "src/data_battlequotes.c"
 CHAPTERS_HEADER = "include/constants/chapters.h"
 _DEFEAT_TALK_ARRAY = ("DefeatTalkEnt", "gDefeatTalkList")
+
+
+def ensure_game_over(sources: dict[str, str], symbol: str) -> dict[str, str]:
+    """The misc list of a chapter ends the game when EVFLAG_GAMEOVER is set (a protected character
+    died): CauseGameOverIfLordDies, added if missing."""
+    group = event_group(sources, symbol)
+    found = _list(sources, group.get("miscBasedEvents", ""))
+    if found is None:
+        raise ObjectiveError(f"{symbol}: no misc event list")
+    rel, start, end = found
+    body = sources[rel][start:end]
+    if GAME_OVER_RE.search(body):
+        return sources
+    m = _END_RE.search(body)
+    indent = m.group(1) if m else "    "
+    body = body[: m.start()] + f"{indent}CauseGameOverIfLordDies\n" + body[m.start():] if m else body
+    return {**sources, rel: sources[rel][:start] + body + sources[rel][end:]}
 
 
 def chapter_constants(header: str) -> dict[str, int]:

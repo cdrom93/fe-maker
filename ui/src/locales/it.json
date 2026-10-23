@@ -472,7 +472,6 @@
   "objective.statusShared": "Questo testo è condiviso con altri {n} capitolo/i: modificarlo cambia anche quelli.",
   "objective.eventsShared": "Gli eventi di questo capitolo sono condivisi con altri {n} capitolo/i: cambiare l'obiettivo cambia anche quelli.",
   "objective.readOnly.custom": "Questo obiettivo è scritto con uno script speciale del gioco originale (zone, condizioni combinate…): FE Maker non sa ancora modificarlo. Il testo resta modificabile.",
-  "objective.readOnly.escort": "Obiettivo di scorta (proteggere un personaggio): FE Maker non sa ancora modificarlo. Il testo resta modificabile.",
   "objective.readOnly.noEvents": "Questo capitolo non ha eventi: nessun obiettivo da modificare.",
   "problem.unknownObjective": "tipo di obiettivo sconosciuto",
   "problem.noSeizeTile": "nessuna casella da conquistare",
@@ -776,5 +775,15 @@
   "chapter.addReinforcements": "Rinforzi",
   "chapter.addReinforcementsHint": "Nuovo gruppo di unità che arriva all'inizio di un turno (copia del primo nemico del capitolo, da cambiare).",
   "chapter.removeReinforcements": "Elimina questi rinforzi",
-  "chapter.newGroupHint": "Le unità appaiono all'inizio del turno scelto, con la telecamera del gioco su di loro. Posizionale sulla mappa."
+  "chapter.newGroupHint": "Le unità appaiono all'inizio del turno scelto, con la telecamera del gioco su di loro. Posizionale sulla mappa.",
+  "objective.type.area": "Raggiungere una zona",
+  "objective.hint.area": "Il capitolo è vinto quando un'unità del giocatore (o il personaggio scelto) termina il movimento nella zona.",
+  "objective.area": "Zona",
+  "objective.pickArea": "Traccia sulla mappa",
+  "objective.pickingArea": "Clicca su due angoli opposti…",
+  "objective.areaWho": "Chi:",
+  "objective.anyPlayerUnit": "qualsiasi unità del giocatore",
+  "objective.protect": "Da proteggere:",
+  "objective.protectHint": "La partita è persa se questo personaggio muore (icona di protezione sulla mappa). Si combina con l'obiettivo.",
+  "problem.noArea": "nessuna zona da raggiungere"
 }

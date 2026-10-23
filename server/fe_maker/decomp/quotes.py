@@ -71,12 +71,14 @@ def _chapter_name(index: int, constants: dict[str, int]) -> str:
     return next((name for name, value in constants.items() if value == index), f"0x{index:02X}")
 
 
-def _insert(source: str, array: tuple[str, str], key: str, fields_list: list[dict[str, str]]) -> str:
-    """Entries added before the terminator of an array."""
+def _insert(source: str, array: tuple[str, str], key: str, fields_list: list[dict[str, str]], first: bool = False) -> str:
+    """Entries added before the terminator of an array, or before its first entry with `first` (the
+    game uses the first entry that matches: a chapter's entry must come before an every-chapter one)."""
     clean = _blank_comments(source)
     start, end = _array_body_span(clean, *array)
-    term = None
-    for s, e in _entry_spans(clean, start, end):
+    spans = _entry_spans(clean, start, end)
+    term = spans[0][0] if first and spans else None
+    for s, e in ([] if first else spans):
         if parse_fields(clean[s + 1: e - 1]).get(key, "").strip().lower() in ("0xffff", "-1"):
             term = s
     if term is None:
@@ -94,6 +96,24 @@ def add_battle_quote(source: str, constants: dict[str, int], chapter: int, a: st
     return _insert(source, BATTLE, "pidA", [first, second])
 
 
+def set_death_flag(source: str, constants: dict[str, int], chapter: int, a: str, flag: str) -> str:
+    """The flag set when `a` dies in a chapter (EVFLAG_GAMEOVER: the game is lost): its entry for the
+    chapter, or a new entry without words."""
+    clean = _blank_comments(source)
+    for (s, e), f in _entries(source, DEATH, "pid"):
+        if f.get("pid", "").strip() == a and _int(f.get("chapter", "0"), constants) == chapter:
+            if f.get("flag", "").strip() == flag:
+                return source
+            f["flag"] = flag
+            return source[:s] + _render_unit(f, _indent_at(clean, s)) + source[e:]
+    # Keep the character's every-chapter last words, if any.
+    words = next((_int(f.get("msg", "0"), constants) or 0 for _span, f in _entries(source, DEATH, "pid")
+                  if f.get("pid", "").strip() == a and _int(f.get("chapter", "0"), constants) == ANY_CHAPTER), 0)
+    fields = {"pid": a, "route": "CHAPTER_MODE_ANY", "chapter": _chapter_name(chapter, constants), "flag": flag,
+              "msg": f"0x{words:04X}"}
+    return _insert(source, DEATH, "pid", [fields], first=True)
+
+
 def add_death_quote(source: str, constants: dict[str, int], chapter: int, a: str, msg: int) -> str:
     """Last words of `a` in a chapter: the message of its entry when it has one without words (a boss
     set by FE Maker), else a new entry."""
@@ -104,4 +124,4 @@ def add_death_quote(source: str, constants: dict[str, int], chapter: int, a: str
             f["msg"] = f"0x{msg:04X}"
             return source[:s] + _render_unit(f, _indent_at(clean, s)) + source[e:]
     fields = {"pid": a, "route": "CHAPTER_MODE_ANY", "chapter": _chapter_name(chapter, constants), "msg": f"0x{msg:04X}"}
-    return _insert(source, DEATH, "pid", [fields])
+    return _insert(source, DEATH, "pid", [fields], first=chapter != ANY_CHAPTER)

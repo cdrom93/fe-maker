@@ -35,6 +35,7 @@
     ['defeat_all', '⚔️'],
     ['defeat_boss', '👑'],
     ['defense', '🛡️'],
+    ['area', '🚩'],
   ] as const
 
   const tile = $derived(objective.seize[0])
@@ -46,8 +47,9 @@
     const change: Partial<ObjectiveEdit> = { type }
     if (type === 'defense' && !objective.turns) change.turns = 10
     onchange(change)
-    if (type === 'seize' && !objective.seize.length) picking = true
+    if ((type === 'seize' && !objective.seize.length) || (type === 'area' && !objective.area)) picking = true
   }
+  const protectChar = $derived(characters.find((c) => c.id === objective.protect))
 </script>
 
 <section class="objective">
@@ -100,6 +102,18 @@
       {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
       {#if boss && !boss.abilities.includes('boss')}<p class="muted small">{t('objective.bossAbility')}</p>{/if}
       {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
+    {:else if objective.type === 'area'}
+      <div class="row">
+        <span>{t('objective.area')} : {#if objective.area}<strong>{objective.area.x1}, {objective.area.y1} → {objective.area.x2}, {objective.area.y2}</strong>{:else}<span class="bad">{t('objective.noTile')}</span>{/if}</span>
+        <button class:active={picking} onclick={() => (picking = !picking)}>🎯 {picking ? t('objective.pickingArea') : t('objective.pickArea')}</button>
+        <label class="inline">
+          {t('objective.areaWho')}
+          <select value={objective.areaWho ?? ''} onchange={(e) => onchange({ areaWho: (e.target as HTMLSelectElement).value })}>
+            <option value="">{t('objective.anyPlayerUnit')}</option>
+            {#each named.filter((c) => battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+          </select>
+        </label>
+      </div>
     {:else if objective.type === 'defense'}
       <div class="row">
         <NumberField label={t('objective.turns')} value={objective.turns} min={1} max={99} problem={problemFor('turns') ? t(`problem.${problemFor('turns')!.code}`, problemFor('turns')!.params) : ''} onchange={(v) => onchange({ turns: v })} />
@@ -108,6 +122,20 @@
   {:else}
     <p><strong>{t(`objective.type.${objective.type}`)}</strong></p>
     <p class="muted small">{t(`objective.readOnly.${objective.reason || 'custom'}`)}</p>
+  {/if}
+
+  {#if objective.editable}
+    <div class="row">
+      <label class="inline" title={t('objective.protectHint')}>
+        🛡 {t('objective.protect')}
+        <select value={objective.protect ?? ''} onchange={(e) => onchange({ protect: (e.target as HTMLSelectElement).value || null })}>
+          <option value="">{t('field.none')}</option>
+          {#if objective.protect && !protectChar}<option value={objective.protect}>{objective.protect}</option>{/if}
+          {#each named.filter((c) => battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+        </select>
+      </label>
+      {#if protectChar}<Mention kind="characters" id={protectChar.id}><span class="open">↗</span></Mention>{/if}
+    </div>
   {/if}
 
   {#if objective.hasStatusText}

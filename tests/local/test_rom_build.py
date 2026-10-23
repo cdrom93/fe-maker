@@ -184,3 +184,15 @@ def test_reinforcements_build(tmp_path):
     assert [p for p in project.validate() if p.severity == "error"] == []
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original
+
+
+def test_area_and_protect_objective_build(tmp_path):
+    """Chapter 2 won by reaching an area with Eirika, while Ross must survive; the decomp still builds."""
+    project = Project.create(tmp_path / "area", "Area")
+    objectives = {"2": {"type": "area", "seize": [], "seizeLabel": "throne", "turns": 0, "statusText": "Reach the hills",
+                        "area": {"x1": 0, "y1": 0, "x2": 3, "y2": 3}, "areaWho": "CHARACTER_EIRIKA",
+                        "protect": "CHARACTER_ROSS"}}
+    project.save("chapters", {"unitGroups": {}, "objectives": objectives})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

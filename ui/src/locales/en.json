@@ -472,7 +472,6 @@
   "objective.statusShared": "This text is shared with {n} other chapter(s): editing it changes them too.",
   "objective.eventsShared": "This chapter's events are shared with {n} other chapter(s): changing the objective changes them too.",
   "objective.readOnly.custom": "This objective is written with a special script of the original game (areas, combined conditions…): FE Maker cannot edit it yet. The text can still be edited.",
-  "objective.readOnly.escort": "Escort objective (protect a character): FE Maker cannot edit it yet. The text can still be edited.",
   "objective.readOnly.noEvents": "This chapter has no events: no objective to edit.",
   "problem.unknownObjective": "unknown objective type",
   "problem.noSeizeTile": "no tile to seize",
@@ -776,5 +775,15 @@
   "chapter.addReinforcements": "Reinforcements",
   "chapter.addReinforcementsHint": "New group of units arriving at the start of a turn (a copy of the chapter's first enemy, to change).",
   "chapter.removeReinforcements": "Delete these reinforcements",
-  "chapter.newGroupHint": "The units appear at the start of the chosen turn, with the game's camera on them. Place them on the map."
+  "chapter.newGroupHint": "The units appear at the start of the chosen turn, with the game's camera on them. Place them on the map.",
+  "objective.type.area": "Reach an area",
+  "objective.hint.area": "The chapter is won when a player unit (or the chosen character) ends its move in the area.",
+  "objective.area": "Area",
+  "objective.pickArea": "Draw on the map",
+  "objective.pickingArea": "Click two opposite corners…",
+  "objective.areaWho": "Who:",
+  "objective.anyPlayerUnit": "any player unit",
+  "objective.protect": "To protect:",
+  "objective.protectHint": "The game is lost if this character dies (protection icon on the map). Works with any objective.",
+  "problem.noArea": "no area to reach"
 }

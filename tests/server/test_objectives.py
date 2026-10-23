@@ -80,8 +80,31 @@ def test_custom_objectives_are_read_only():
     assert not o["editable"] and o["reason"] == "custom"
     with pytest.raises(objectives.ObjectiveError):
         objectives.apply_objective(_goal(), {"ev.h": custom}, "TestEvents", o, {"type": "defeat_all"})
-    escort = dict(_goal("defense", 412, 11), protectCharacterIndex=29)
-    assert objectives.read_objective(escort, {"ev.h": EVENTS}, "TestEvents", Texts())["reason"] == "escort"
+    # A protected character does not make the objective read-only: it combines with any objective.
+    escort = dict(_goal(), protectCharacterIndex=29)
+    assert objectives.read_objective(escort, {"ev.h": EVENTS}, "TestEvents", Texts())["editable"]
+
+
+def test_reach_an_area():
+    sources, goal = {"ev.h": EVENTS}, _goal()
+    current = objectives.read_objective(goal, sources, "TestEvents", Texts())
+    area = {"type": "area", "area": {"x1": 1, "y1": 2, "x2": 3, "y2": 4}, "areaWho": "CHARACTER_TESTHERO"}
+    out = objectives.apply_objective(goal, sources, "TestEvents", current, area)
+    assert "Seize(" not in out["ev.h"]
+    assert "AREA(EVFLAG_WIN, EventScr_FEM_ReachArea_TestEvents, 1, 2, 3, 4)" in out["ev.h"]
+    script = out["ev.h"].index("CONST_DATA EventListScr EventScr_FEM_ReachArea_TestEvents[]")
+    assert script < out["ev.h"].index("EventListScr_Test_Misc[]")
+    assert "SVAL(EVT_SLOT_2, CHARACTER_TESTHERO)" in out["ev.h"] and "EventScr_UnTriggerIfNotUnit" in out["ev.h"]
+    assert goal["windowDataType"] == "seize"
+    with pytest.raises(objectives.ObjectiveError):
+        objectives.apply_objective(_goal(), sources, "TestEvents", current, {"type": "area"})
+
+
+def test_game_over_when_protected_character_dies():
+    assert objectives.ensure_game_over({"ev.h": EVENTS}, "TestEvents") == {"ev.h": EVENTS}
+    without = EVENTS.replace("    CauseGameOverIfLordDies\n", "")
+    out = objectives.ensure_game_over({"ev.h": without}, "TestEvents")
+    assert "    CauseGameOverIfLordDies\n    END_MAIN" in out["ev.h"]
 
 
 TALKS = """CONST_DATA struct DefeatTalkEnt gDefeatTalkList[] = {

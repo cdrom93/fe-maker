@@ -27,7 +27,8 @@ NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.GENERIC_LOCKS)
 UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/Green sizes (include/bmunit.h)
 AI_ACTION_MAX, AI_MOVE_MAX, AI_RECOVERY_MAX = 0x14, 0x12, 4  # last entries of the AI tables (src/cp_data.c)
-OBJECTIVE_TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "special")  # decomp/objectives.py TYPES + read-only "special"
+# decomp/objectives.py TYPES + read-only "special"
+OBJECTIVE_TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "area", "special")
 METATILE_COUNT = 1024  # metatiles of a tileset (decomp/maps.py, TileConfig)
 MAP_MIN_WIDTH, MAP_MIN_HEIGHT = 15, 10  # one screen (DISPLAY_WIDTH / 16, DISPLAY_HEIGHT / 16)
 MAP_BUFFER_BYTES = 0x800  # gBmMapBuffer (src/bmmap.c)
@@ -388,6 +389,11 @@ def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=fr
                 _range(problems, "chapters", rid, "seize", tile.get("y"), 0, 63)
         if kind == "defense":
             _range(problems, "chapters", rid, "turns", o.get("turns"), 1, 99)
+        if kind == "area" and not o.get("area"):
+            problems.append(Problem("error", "chapters", rid, "area", "noArea", {}, f"{rid}: no area to reach"))
+        for key in ("areaWho", "protect"):
+            if o.get(key) and o[key] not in character_ids:
+                problems.append(Problem("error", "chapters", rid, key, "unknownCharacter", {}, f"{rid}: unknown character"))
         if kind == "defeat_boss" and o.get("boss") and o["boss"] not in character_ids:
             problems.append(Problem("error", "chapters", rid, "boss", "unknownCharacter", {}, f"{rid}: unknown boss"))
         text = o.get("statusText")

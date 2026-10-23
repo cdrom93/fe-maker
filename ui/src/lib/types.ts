@@ -122,7 +122,7 @@ export interface ChaptersData {
   objectives?: Record<string, ObjectiveEdit>
 }
 
-export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'special'
+export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'area' | 'special'
 
 /** What the project stores for an edited objective (server/fe_maker/decomp/objectives.py). */
 export interface ObjectiveEdit {
@@ -135,6 +135,11 @@ export interface ObjectiveEdit {
   statusText: string
   /** defeat boss: the character whose defeat wins (death quote table) */
   boss?: string | null
+  /** reach an area: its corners, and who must reach it ("" = any player unit) */
+  area?: { x1: number; y1: number; x2: number; y2: number } | null
+  areaWho?: string
+  /** the game is lost if this character dies (any objective) */
+  protect?: string | null
 }
 
 export interface Objective extends ObjectiveEdit {

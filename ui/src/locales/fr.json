@@ -472,7 +472,6 @@
   "objective.statusShared": "Ce texte est partagé avec {n} autre(s) chapitre(s) : le modifier les change aussi.",
   "objective.eventsShared": "Les événements de ce chapitre sont partagés avec {n} autre(s) chapitre(s) : changer l'objectif les change aussi.",
   "objective.readOnly.custom": "Cet objectif est écrit avec un script particulier du jeu d'origine (zones, conditions combinées…) : FE Maker ne sait pas encore le modifier. Le texte reste modifiable.",
-  "objective.readOnly.escort": "Objectif d'escorte (protéger un personnage) : FE Maker ne sait pas encore le modifier. Le texte reste modifiable.",
   "objective.readOnly.noEvents": "Ce chapitre n'a pas d'événements : pas d'objectif à modifier.",
   "problem.unknownObjective": "type d'objectif inconnu",
   "problem.noSeizeTile": "aucune case à prendre",
@@ -776,5 +775,15 @@
   "chapter.addReinforcements": "Renforts",
   "chapter.addReinforcementsHint": "Nouveau groupe d'unités qui arrive au début d'un tour (copie du premier ennemi du chapitre, à modifier).",
   "chapter.removeReinforcements": "Supprimer ces renforts",
-  "chapter.newGroupHint": "Les unités apparaissent au début du tour choisi, avec la caméra du jeu sur elles. Placez-les sur la carte."
+  "chapter.newGroupHint": "Les unités apparaissent au début du tour choisi, avec la caméra du jeu sur elles. Placez-les sur la carte.",
+  "objective.type.area": "Atteindre une zone",
+  "objective.hint.area": "Le chapitre est gagné quand une unité du joueur (ou le personnage choisi) termine son déplacement dans la zone.",
+  "objective.area": "Zone",
+  "objective.pickArea": "Tracer sur la carte",
+  "objective.pickingArea": "Cliquez deux coins opposés…",
+  "objective.areaWho": "Qui :",
+  "objective.anyPlayerUnit": "n'importe quelle unité du joueur",
+  "objective.protect": "À protéger :",
+  "objective.protectHint": "La partie est perdue si ce personnage meurt (icône de protection sur la carte). Se combine avec l'objectif.",
+  "problem.noArea": "aucune zone à atteindre"
 }

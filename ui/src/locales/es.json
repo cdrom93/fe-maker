@@ -472,7 +472,6 @@
   "objective.statusShared": "Este texto se comparte con {n} capítulo(s) más: modificarlo también los cambia.",
   "objective.eventsShared": "Los eventos de este capítulo se comparten con {n} capítulo(s) más: cambiar el objetivo también los cambia.",
   "objective.readOnly.custom": "Este objetivo está escrito con un script especial del juego original (zonas, condiciones combinadas…): FE Maker aún no sabe modificarlo. El texto sigue siendo editable.",
-  "objective.readOnly.escort": "Objetivo de escolta (proteger a un personaje): FE Maker aún no sabe modificarlo. El texto sigue siendo editable.",
   "objective.readOnly.noEvents": "Este capítulo no tiene eventos: no hay objetivo que modificar.",
   "problem.unknownObjective": "tipo de objetivo desconocido",
   "problem.noSeizeTile": "ninguna casilla que tomar",
@@ -776,5 +775,15 @@
   "chapter.addReinforcements": "Refuerzos",
   "chapter.addReinforcementsHint": "Nuevo grupo de unidades que llega al inicio de un turno (copia del primer enemigo del capítulo, para cambiar).",
   "chapter.removeReinforcements": "Borrar estos refuerzos",
-  "chapter.newGroupHint": "Las unidades aparecen al inicio del turno elegido, con la cámara del juego sobre ellas. Colócalas en el mapa."
+  "chapter.newGroupHint": "Las unidades aparecen al inicio del turno elegido, con la cámara del juego sobre ellas. Colócalas en el mapa.",
+  "objective.type.area": "Alcanzar una zona",
+  "objective.hint.area": "El capítulo se gana cuando una unidad del jugador (o el personaje elegido) termina su movimiento en la zona.",
+  "objective.area": "Zona",
+  "objective.pickArea": "Trazar en el mapa",
+  "objective.pickingArea": "Haz clic en dos esquinas opuestas…",
+  "objective.areaWho": "Quién:",
+  "objective.anyPlayerUnit": "cualquier unidad del jugador",
+  "objective.protect": "A proteger:",
+  "objective.protectHint": "La partida se pierde si este personaje muere (icono de protección en el mapa). Se combina con el objetivo.",
+  "problem.noArea": "ninguna zona que alcanzar"
 }

@@ -139,12 +139,26 @@
     })
   }
 
-  /** Map click while choosing the tile to seize. */
+  // First corner of the area being chosen ("reach an area" objective).
+  let areaCorner = $state<{ x: number; y: number } | null>(null)
+
+  /** Map click while choosing the tile to seize, or the two corners of the area to reach. */
   function pickTile(e: MouseEvent) {
     if (!pickingSeize || !mapEl || !data) return
     const rect = mapEl.getBoundingClientRect()
     const x = Math.max(0, Math.min(data.width - 1, Math.floor((e.clientX - rect.left) / CELL)))
     const y = Math.max(0, Math.min(data.height - 1, Math.floor((e.clientY - rect.top) / CELL)))
+    if (objective?.type === 'area') {
+      if (!areaCorner) {
+        areaCorner = { x, y }
+        return
+      }
+      const a = areaCorner
+      editObjective({ area: { x1: Math.min(a.x, x), y1: Math.min(a.y, y), x2: Math.max(a.x, x), y2: Math.max(a.y, y) } })
+      areaCorner = null
+      pickingSeize = false
+      return
+    }
     editObjective({ seize: [{ x, y }] })
     pickingSeize = false
   }
@@ -422,6 +436,10 @@
               ondragover={(e) => e.preventDefault()}
               ondrop={drop}
             >
+              {#if objective?.type === 'area' && (objective.area || areaCorner)}
+                {@const a = objective.area && !areaCorner ? objective.area : { x1: areaCorner!.x, y1: areaCorner!.y, x2: areaCorner!.x, y2: areaCorner!.y }}
+                <span class="area-marker" style="left: {a.x1 * CELL}px; top: {a.y1 * CELL}px; width: {(a.x2 - a.x1 + 1) * CELL}px; height: {(a.y2 - a.y1 + 1) * CELL}px" title={t('objective.type.area')}>🚩</span>
+              {/if}
               {#if objective?.type === 'seize'}
                 {#each objective.seize as tile, k (k)}
                   <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}>🏰</span>
@@ -568,6 +586,7 @@
   .from-sheet { display: flex; flex-direction: column; gap: 0.15rem; }
   .map.picking { cursor: crosshair; }
   .map.picking .unit { pointer-events: none; }
+  .area-marker { position: absolute; box-sizing: border-box; border: 3px dashed #e74c3c; background: rgb(231 76 60 / 0.15); pointer-events: none; font-size: 16px; padding: 2px; }
   .seize-marker {
     position: absolute; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center;
     border: 3px solid #f1c40f; border-radius: 4px; background: rgb(241 196 15 / 0.25); font-size: 15px; pointer-events: none;

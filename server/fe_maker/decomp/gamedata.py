@@ -777,16 +777,36 @@ class DecompData:
         bosses = objectives.read_bosses(self.defeat_talks, self._chapter_constants).get(index, [])
         objective["boss"] = bosses[0] if bosses else None
         objective["bossEditable"] = len(bosses) <= 1 and bool(self.defeat_talks)
+        protect = chapter["goal"].get("protectCharacterIndex", 0)
+        names = {v: k for k, v in self._character_constants().items()}
+        objective["protect"] = names.get(protect, f"0x{protect:02X}") if protect else None
         return objective
+
+    def _character_constants(self) -> dict[str, int]:
+        header = self.decomp_dir / "include/constants/characters.h"
+        if not header.is_file():
+            return {}
+        return {name: int(value, 0) for name, value in
+                re.findall(r"\b(CHARACTER_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read("include/constants/characters.h"))}
 
     def apply_objective(self, index: int, new: dict) -> None:
         current = self.read_objective(index)
         chapter = self.chapter_settings["chapters"][index]
-        keys = ("type", "seize", "seizeLabel", "turns")
+        keys = ("type", "seize", "seizeLabel", "turns", "area", "areaWho")
         if any(new.get(k, current[k]) != current[k] for k in keys):
             self.event_sources = objectives.apply_objective(
                 chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), current,
                 {k: new.get(k, current[k]) for k in keys})
+            if new.get("type") == "area":
+                chapter["goal"]["windowTextId"] = self.texts.add("Reach the goal[X]")
+        protect = new.get("protect", current["protect"])
+        if protect != current["protect"]:
+            # The protected character: an icon on the map, and the game is lost if they die.
+            chapter["goal"]["protectCharacterIndex"] = self._character_constants().get(protect, 0) if protect else 0
+            if protect:
+                self.defeat_talks = quotes.set_death_flag(self.defeat_talks, self._chapter_constants, index, protect,
+                                                          "EVFLAG_GAMEOVER")
+                self.event_sources = objectives.ensure_game_over(self.event_sources, self._chapter_event_symbol(chapter))
         boss = new.get("boss")
         if boss and boss != current["boss"] and new.get("type", current["type"]) == "defeat_boss":
             self.defeat_talks = objectives.set_boss(self.defeat_talks, self._chapter_constants, index, boss)
