@@ -101,8 +101,27 @@ def test_objective_problems(decomp_dir):
 
 
 def test_painted_maps_are_checked(decomp_dir):
+    from fe_maker.validation import _validate_maps, map_size_problem
+
+    good = [[5] * 15 for _ in range(10)]
+    problems = []
+    _validate_maps(problems, {"layouts": {
+        "A": {"rows": [[0, 1], [2]]},
+        "B": {"rows": [[0] * 14 + [1024]] + good[1:]},
+        "C": {"rows": good},
+        "D": {"rows": [[5] * 15 for _ in range(9)]},
+    }})
+    assert [(p.id, p.code) for p in problems] == [("A", "badLayout"), ("B", "badTile"), ("D", "mapTooSmall")]
+    # Engine buffers (src/bmmap.c): the largest original map is 30 x 31.
+    assert map_size_problem(30, 31) is None and map_size_problem(40, 30)["code"] == "mapTooBig"
+
+
+def test_map_changes_are_checked(decomp_dir):
     from fe_maker.validation import _validate_maps
 
+    good = [[5] * 15 for _ in range(10)]
+    change = {"id": 0, "x": 14, "y": 9, "w": 1, "h": 1, "rows": [[3]]}
     problems = []
-    _validate_maps(problems, {"layouts": {"A": {"rows": [[0, 1], [2]]}, "B": {"rows": [[0, 1024]]}, "C": {"rows": [[5]]}}})
-    assert [(p.id, p.code) for p in problems] == [("A", "badLayout"), ("B", "badTile")]
+    _validate_maps(problems, {"layouts": {"M": {"rows": good}}, "changes": {"M": [
+        change, dict(change, x=14, w=2, rows=[[3, 3]]), dict(change, id=1, rows=[[3], [3]])]}})
+    assert [p.code for p in problems] == ["badChangeId", "changeOutOfMap", "badLayout"]

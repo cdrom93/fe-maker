@@ -269,7 +269,8 @@ def list_maps():
 @app.get("/api/maps/{layout_id}")
 def get_map(layout_id: str):
     """The original layout, with what the editor needs about its tileset (terrains, duplicate metatiles)."""
-    assets = _layout(layout_id)["assets"]
+    layout = _layout(layout_id)
+    assets = layout["assets"]
     width, height, cells = maps.read_layout(assets.layout)
     _metatiles, terrain = maps.read_config(assets.config)
     texts = state.get_decomp().texts
@@ -281,6 +282,8 @@ def get_map(layout_id: str):
         "duplicates": maps.duplicate_metatiles(assets),
         "terrainNames": [texts.get_name(t) if t in texts.messages else "" for t in maps.terrain_text_ids(DECOMP_DIR)],
         "columns": maps.TILESET_COLUMNS,
+        # Original map changes (doors, villages...); None when the map has no change layer
+        "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,
     }
 
 

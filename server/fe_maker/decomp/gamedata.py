@@ -340,14 +340,24 @@ class DecompData:
 
     @staticmethod
     def export_maps() -> dict:
-        """Project map data: layouts (by id) are stored only once painted."""
-        return {"layouts": {}}
+        """Project map data: layouts and map change sets (by layout id) are stored only once edited."""
+        return {"layouts": {}, "changes": {}}
 
     def apply_maps(self, maps_data: dict) -> None:
         painted = maps_data.get("layouts", {})
-        if not painted:
+        changes = maps_data.get("changes", {})
+        if not painted and not changes:
             return
         known = maps.layouts(self.decomp_dir)
+        map_change_source = self._read(maps.MAP_CHANGE_FILE) if changes else ""
+        original_source = map_change_source
+        for layout_id, change_list in changes.items():
+            json_rel = known.get(layout_id, {}).get("changes")
+            if json_rel:
+                files, map_change_source = maps.write_changes(self.decomp_dir, json_rel, change_list, map_change_source)
+                self.map_files.update(files)
+        if map_change_source != original_source:
+            self.map_files[maps.MAP_CHANGE_FILE] = map_change_source
         for layout_id, layout in painted.items():
             if layout_id not in known:
                 continue

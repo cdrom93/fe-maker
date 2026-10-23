@@ -235,15 +235,19 @@ def encode_layout(layout_id: str, width: int, height: int, cells: list[int]) -> 
 
 @lru_cache(maxsize=4)
 def layouts(decomp_dir: Path) -> dict[str, dict]:
-    """Layout id (file stem) -> {"mar": decomp-relative path, "chapters": [indices], "assets": MapAssets}."""
+    """Layout id (file stem) -> {"mar": decomp-relative path, "chapters": [indices], "assets": MapAssets,
+    "changes": decomp-relative JSON of its map change set, or None}. Each layout is used with a single
+    tileset and a single change set (checked on the original game)."""
     result: dict[str, dict] = {}
     for i, chapter in enumerate(chapter_settings(decomp_dir)):
         try:
             assets = chapter_map_assets(decomp_dir, chapter)
         except MapError:
             continue
+        change_set = chapter_change_set(decomp_dir, chapter)
         entry = result.setdefault(assets.layout.stem, {
-            "mar": assets.layout.relative_to(decomp_dir).as_posix(), "chapters": [], "assets": assets})
+            "mar": assets.layout.relative_to(decomp_dir).as_posix(), "chapters": [], "assets": assets,
+            "changes": change_set_json(decomp_dir, change_set) if change_set else None})
         entry["chapters"].append(i)
     return result
 
@@ -273,3 +277,91 @@ def terrain_text_ids(decomp_dir: Path) -> list[int]:
         if name in constants and constants[name] < len(ids):
             ids[constants[name]] = int(text, 0)
     return ids
+
+
+# ---------- map changes (doors, villages, walls...) ----------
+
+MAP_CHANGE_FILE = "data/data_map_change.s"
+MAP_CHANGE_DIR = "src/data/map/change"
+CHANGE_TILES_DIR = "graphics/map"
+MAX_CHANGE_ID = 127  # MapChange.id is an s8; 0xFF ends the list
+
+
+def change_set_json(decomp_dir: Path, symbol: str) -> str | None:
+    """Decomp-relative JSON file of a map change set (data/data_map_change.s includes its .inc)."""
+    m = re.search(rf"^{re.escape(symbol)}:[^\n]*\n\s*\.include\s+\"([^\"]+)\.inc\"", _read(decomp_dir, MAP_CHANGE_FILE), re.MULTILINE)
+    return f"{m.group(1)}.json" if m else None
+
+
+def chapter_change_set(decomp_dir: Path, chapter: dict) -> str | None:
+    index = chapter["map"].get("changeLayerId", 0)
+    table = asset_table(decomp_dir)
+    return table[index] if 0 < index < len(table) else None
+
+
+def read_changes(decomp_dir: Path, json_rel: str) -> list[dict]:
+    """Changes of a set: id, rectangle, tiles symbol and the metatiles put there (rows)."""
+    result = []
+    for c in json.loads(_read(decomp_dir, json_rel))["changes"]:
+        data = (decomp_dir / CHANGE_TILES_DIR / f"{c['tiles']}.bin").read_bytes()
+        cells = [v >> 2 for (v,) in struct.iter_unpack("<H", data)]
+        rows = [cells[y * c["w"]: (y + 1) * c["w"]] for y in range(c["h"])]
+        result.append({"id": c["id"], "x": c["x"], "y": c["y"], "w": c["w"], "h": c["h"], "tiles": c["tiles"], "rows": rows})
+    return result
+
+
+def encode_change_tiles(rows: list[list[int]]) -> bytes:
+    return b"".join(struct.pack("<H", c << 2) for row in rows for c in row)
+
+
+def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict], map_change_source: str) -> tuple[dict[str, str | bytes], str]:
+    """Files for an edited change set, and the new data/data_map_change.s (new tile blocks appended).
+
+    Changes keep their tile block when they had one; new changes get a new block named after the set.
+    """
+    original = json.loads(_read(decomp_dir, json_rel))
+    name = original["name"]
+    taken = set(re.findall(r"^(\w+):", map_change_source, re.MULTILINE))
+    out: dict[str, str | bytes] = {}
+    entries = []
+    for c in changes:
+        tiles = c.get("tiles")
+        if not tiles or tiles not in taken:
+            k = 0
+            while f"{name}_change_{k}" in taken:
+                k += 1
+            tiles = f"{name}_change_{k}"
+            taken.add(tiles)
+            map_change_source = map_change_source.rstrip("\n") + (
+                f"\n\n\t.align 2, 0\n\t.global {tiles}\n{tiles}:\n\t.incbin \"{CHANGE_TILES_DIR}/{tiles}.bin\"\n")
+        rel = f"{CHANGE_TILES_DIR}/{tiles}.bin"
+        data = encode_change_tiles(c["rows"])
+        path = decomp_dir / rel
+        if not path.is_file() or path.read_bytes() != data:
+            out[rel] = data
+        entries.append({"id": c["id"], "x": c["x"], "y": c["y"], "w": c["w"], "h": c["h"], "tiles": tiles})
+    text = json.dumps({**original, "changes": entries}, indent=2)
+    if text != _read(decomp_dir, json_rel):
+        out[json_rel] = text
+    return out, map_change_source
+
+
+# ---------- movement ----------
+
+@lru_cache(maxsize=4)
+def movement_costs(decomp_dir: Path) -> dict[str, list[int]]:
+    """Movement family (Foot... as in class data) -> cost per terrain in normal weather (-1: impassable)."""
+    constants = {name: int(value, 0) for name, value in
+                 re.findall(r"^\s*(TERRAIN_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", _read(decomp_dir, TERRAINS_HEADER), re.MULTILINE)}
+    count = constants.get("TERRAIN_COUNT", 0x41)
+    result = {}
+    source = _read(decomp_dir, TERRAIN_DATA_FILE)
+    for name, body in re.findall(r"TerrainTable_MovCost_(\w+?)(?:Normal)?\[\]\s*=\s*\{(.*?)\};", source, re.DOTALL):
+        if name.endswith(("Rain", "Snow")):
+            continue
+        costs = [-1] * count
+        for terrain, value in re.findall(r"\[(TERRAIN_\w+)\]\s*=\s*(-?\d+)", body):
+            if constants.get(terrain, count) < count:
+                costs[constants[terrain]] = int(value)
+        result[name] = costs
+    return result

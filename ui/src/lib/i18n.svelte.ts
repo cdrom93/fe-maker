@@ -21,3 +21,10 @@ export function t(key: string, params: Record<string, string | number> = {}): st
   const text = dictionaries[i18n.lang][key] ?? dictionaries.fr[key] ?? key
   return text.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`))
 }
+
+/** Text of a validation problem. A `terrain` parameter is a terrain id, shown by its name. */
+export function problemText(p: { code: string; params: Record<string, string | number> }): string {
+  const params = { ...p.params }
+  if (typeof params.terrain === 'number') params.terrain = t(`terrain.${params.terrain}`)
+  return t(`problem.${p.code}`, params)
+}

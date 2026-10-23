@@ -5,7 +5,7 @@
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { problemText, t } from '../lib/i18n.svelte'
   import type { ChapterInfo, ChapterUnits, ChaptersData, MapsData, Character, ClassView, Item, MapUnit, Objective, ObjectiveEdit, Problem } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
@@ -331,7 +331,7 @@
             </div>
           {/if}
           {#each problems.filter((pr) => pr.kind === 'chapters' && data!.groups.some((g) => pr.id === `${g.name}#`)) as pr, i (i)}
-            <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {t(`problem.${pr.code}`, pr.params)}</p>
+            <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {problemText(pr)}</p>
           {/each}
         {/if}
         {#if objective}
@@ -466,7 +466,7 @@
               </div>
             {/each}
             <AiPanel ai={unit.ai} side={unit.side} onchange={(ai) => editUnit(p.group, p.index, (u) => (u.ai = ai))} />
-            {#each unitProblems as pr, i (i)}<p class="bad small">{t(`problem.${pr.code}`, pr.params)}</p>{/each}
+            {#each unitProblems as pr, i (i)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
           {:else}
             <p class="muted">{t('chapter.pickUnit')}</p>
           {/if}

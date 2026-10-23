@@ -200,7 +200,7 @@ def test_painted_layout_reaches_the_overlay(tmp_path, decomp_dir, monkeypatch):
     # The fixture decomp has no chapters: point the layout table at the fictional map.
     monkeypatch.setattr(maps, "layouts", lambda _d: {"Map": {"mar": rel, "chapters": [0], "assets": assets}})
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp)
-    assert project.load("maps") == {"layouts": {}}
+    assert project.load("maps") == {"layouts": {}, "changes": {}}
     project.save("maps", {"layouts": {"Map": {"rows": [[1, 0]]}}})
     assert not (project.generate_overlay(decomp) / rel).exists()  # unchanged: nothing written
     project.save("maps", {"layouts": {"Map": {"rows": [[0, 1]]}}})

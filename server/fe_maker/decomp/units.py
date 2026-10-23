@@ -452,3 +452,17 @@ def chapter_unit_groups(decomp_dir: Path, event_group_symbol: str) -> list[dict]
         for name, in_cutscene in _script_loads(decomp_dir, m.group(1)):
             add(name, "cutscene" if in_cutscene else "turn", int(m.group(2)))
     return result
+
+
+@lru_cache(maxsize=4)
+def all_chapter_unit_groups(decomp_dir: Path) -> dict[int, list[dict]]:
+    """Chapter index -> chapter_unit_groups(), for every chapter with events (cached: used by validation)."""
+    from . import maps
+
+    table = maps.asset_table(decomp_dir)
+    result = {}
+    for i, chapter in enumerate(maps.chapter_settings(decomp_dir)):
+        index = chapter.get("mapEventDataId", 0)
+        if 0 < index < len(table) and table[index]:
+            result[i] = chapter_unit_groups(decomp_dir, table[index])
+    return result

@@ -172,11 +172,29 @@ export interface MapLayout {
   terrainNames: string[]
   /** metatiles per row of the tileset sheet */
   columns: number
+  /** original map changes; null when the map has no change layer */
+  changes: MapChange[] | null
+}
+
+/** A map change: tiles put over a rectangle of the map during the game (door, village, wall...). */
+export interface MapChange {
+  /** number used by events; doors, villages and chests use the change covering them */
+  id: number
+  x: number
+  y: number
+  w: number
+  h: number
+  /** metatile of each cell of the rectangle */
+  rows: number[][]
+  /** tile block of the original change (kept when edited) */
+  tiles?: string
 }
 
 /** Project map data (data/maps.json): layouts once painted. */
 export interface MapsData {
   layouts: Record<string, { rows: number[][] }>
+  /** map changes by layout id, once edited (the whole list) */
+  changes?: Record<string, MapChange[]>
 }
 
 export interface UnitGroup {

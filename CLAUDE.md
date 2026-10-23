@@ -29,7 +29,7 @@ Docs are written in French (README in French and English); code and comments in 
 ## Architecture
 
 - `server/fe_maker/` (Python, FastAPI): `api.py` endpoints, `project.py` (project folder: `fe-maker.json` + `data/*.json`, migrations, build), `builder.py` (Docker build), `validation.py` (problems shown in the UI), `emulator.py` (mGBA launch and controls), `ups.py`.
-- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `objectives.py` (goal settings + victory events; DecompData.read_objective / apply_objective), `maps.py` (map rendering, tileset sheet, layout encoding, terrain names; painted layouts in project `data/maps.json`, applied by `DecompData.apply_maps`), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
+- `server/fe_maker/decomp/`: reading and writing the decomp. `gamedata.py` (characters, items, classes, combat, chapters; apply order classes → characters → items → combat → chapters), `cparse.py` (designated-initializer parser), `combat.py`, `units.py` (unit groups, REDA paths, chapter event groups), `objectives.py` (goal settings + victory events; DecompData.read_objective / apply_objective), `maps.py` (map rendering, tileset sheet, layout encoding, terrain names; map changes, movement costs; painted layouts and edited change sets in project `data/maps.json`, applied by `DecompData.apply_maps`), `assets.py` (portraits, item icons, map sprites), `tweaks.py` (test start modes).
 - `changed_files()` values are text, or bytes for binary files (`.mar` map layouts); the overlay writer handles both.
 - `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab (`MapEditor.svelte` paints on a canvas from the tileset sheet `/api/maps/{id}/tileset.png`), `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
 - `docker/`: build image (Ubuntu 24.04, agbcc pinned). The decomp is mounted read-only, the working copy lives in a Docker volume, the overlay is applied with `rsync -rlp --checksum`.
@@ -46,7 +46,9 @@ Docs are written in French (README in French and English); code and comments in 
 - Weapon locks: generic CA/IA_LOCK 1,2,4,5,6,7 are allocated automatically from items' `reservedFor`; LOCK_3 means monster weapon.
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.
 - Several chapters share an internal id: key chapters by index.
-- Map layouts are keyed by layout id (file stem): several chapters can share one, so painting it changes all of them (the UI says so).
+- Map layouts are keyed by layout id (file stem): several chapters can share one, so painting it changes all of them (the UI says so). Map change sets are keyed by layout id too (one per layout).
+- Map checks against units (`_validate_chapter_maps`) only report what the project changed: the original game has units outside their map and under roofs removed by map changes.
+- Bash heredocs passed through the tool break on some quote/backslash mixes ("unexpected EOF"): write the patch script to the scratchpad and run it.
 - Editors loaded asynchronously (chapters, maps) must read `nav.focus` once their list is loaded: `followFocus` alone misses a link that mounted the tab.
 - An item reservation equal to the original one is never rewritten (the original Mani Katti is reserved for nobody; an edited empty reservation means unrestricted).
 - PowerShell eats backticks in inline scripts: edit files with the Edit tool or Python, not PowerShell strings.

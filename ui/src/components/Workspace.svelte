@@ -3,7 +3,7 @@
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api, type DataKind } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { problemText, t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
   import type { ChaptersData, MapsData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
@@ -193,7 +193,7 @@
         {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
         <li class={p.severity}>
           <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
-          — {t(`problem.${p.code}`, p.params)}
+          — {problemText(p)}
         </li>
       {/each}
     </ul>

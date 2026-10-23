@@ -80,7 +80,12 @@ def test_modified_project_and_patch(tmp_path):
     width, height, cells = maps.read_layout(maps.layouts(project.decomp_dir)["PrologueMap"]["assets"].layout)
     rows = [cells[y * width: (y + 1) * width] for y in range(height)]
     rows[0][0] = rows[0][1]  # paint one cell
-    project.save("maps", {"layouts": {"PrologueMap": {"rows": rows}}})
+    rows = [row + [row[-1]] for row in rows]  # one more column
+    known = maps.layouts(project.decomp_dir)["Ch2Map"]
+    changes = maps.read_changes(project.decomp_dir, known["changes"])
+    changes[0]["rows"][0][0] = changes[0]["rows"][0][1]  # edit a change
+    changes.append({"id": 99, "x": 0, "y": 0, "w": 1, "h": 1, "rows": [[changes[0]["rows"][0][0]]]})  # and add one
+    project.save("maps", {"layouts": {"PrologueMap": {"rows": rows}}, "changes": {"Ch2Map": changes}})
     assert [p for p in project.validate() if p.severity == "error"] == []
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))

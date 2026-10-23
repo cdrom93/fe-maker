@@ -20,15 +20,17 @@
   import { appContext } from '../lib/appContext.svelte'
   import { api, mapTilesetUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import type { ChapterInfo, MapInfo, MapsData, Problem } from '../lib/types'
+  import type { ChapterInfo, MapChange, MapInfo, MapsData, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
+  import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
   let { list, problems }: { list: EditableList<MapsData>; problems: Problem[] } = $props()
 
   type Tool = 'pen' | 'rect' | 'fill' | 'pick'
+  type Cell = { x: number; y: number }
   const TOOLS: { id: Tool; icon: string }[] = [
     { id: 'pen', icon: '✏️' },
     { id: 'rect', icon: '▭' },
@@ -36,7 +38,13 @@
     { id: 'pick', icon: '💧' },
   ]
   const PALETTE_COLUMNS = 8
+  const PALETTE_CELL = 32
   const TILE = 16 // metatile size in the game
+  // Engine limits (server/fe_maker/validation.py, map_size_problem): one screen at least.
+  const MIN_WIDTH = 15
+  const MIN_HEIGHT = 10
+  const MAX_SIDE = 60
+  const MAX_CHANGE_ID = 127
 
   let maps = $state<(MapInfo & { name: string })[]>([])
   let chapters = $state<ChapterInfo[]>([])
@@ -44,26 +52,57 @@
   let layout = $state<MapLayout | null>(null)
   let sheet = $state<HTMLImageElement | null>(null)
   let tool = $state<Tool>('pen')
-  let brush = $state(0)
+  /** What the tools paint: one tile, or a block taken from the palette or the map (right-drag). */
+  let stamp = $state<number[][]>([[0]])
+  const brush = $derived(stamp[0][0])
+  const stampW = $derived(stamp[0].length)
+  const stampH = $derived(stamp.length)
+  /** Palette: one copy of each tile (by terrain), or the whole tileset sheet as in the game. */
+  let paletteMode = $state<'unique' | 'sheet'>('unique')
+  // Palette rectangle being dragged, and the one the current block was taken from (highlighted).
+  let paletteDrag = $state<{ a: Cell; b: Cell } | null>(null)
+  let palettePicked = $state<{ a: Cell; b: Cell } | null>(null)
+  // Map rectangle being copied with the right button.
+  let copyStart = $state<Cell | null>(null)
   let zoom = $state(2)
   let showGrid = $state(true)
   let showTerrain = $state(false)
+  let showChanges = $state(true)
   let terrainFilter = $state<number | null>(null)
-  let hover = $state<{ x: number; y: number } | null>(null)
-  // Cells being painted (one stroke or rectangle); saved as one undo step when the mouse is released.
+  let hover = $state<Cell | null>(null)
+  /** Index of the map change being edited; null = the map itself. */
+  let layer = $state<number | null>(null)
+  // Cells being painted (one stroke or rectangle) in the edited grid (map or change);
+  // saved as one undo step when the mouse is released.
   let draft = $state<number[][] | null>(null)
-  let rectStart = $state<{ x: number; y: number } | null>(null)
+  let rectStart = $state<Cell | null>(null)
   let mapCanvas = $state<HTMLCanvasElement>()
   let paletteCanvas = $state<HTMLCanvasElement>()
 
   const info = $derived(maps[selected])
   const painted = $derived(info ? list.records[0]?.layouts?.[info.id] : undefined)
-  const rows = $derived(draft ?? painted?.rows ?? layout?.rows ?? [])
+  const savedRows = $derived(painted?.rows ?? layout?.rows ?? [])
+  const changes = $derived<MapChange[] | null>((info && list.records[0]?.changes?.[info.id]) ?? layout?.changes ?? null)
+  const change = $derived(layer !== null ? changes?.[layer] : undefined)
+  // What is shown: the map (being painted or not) and, when a change is edited, its tiles over it.
+  const rows = $derived(!change && draft ? draft : savedRows)
+  const changeRows = $derived(change ? (draft ?? change.rows) : null)
   const width = $derived(rows[0]?.length ?? 0)
   const height = $derived(rows.length)
   const cell = $derived(TILE * zoom)
   const mapProblems = $derived(info ? problems.filter((p) => p.kind === 'maps' && p.id === info.id) : [])
+  // Units and seize tiles of the chapters using this map (outside the map, impassable terrain).
+  const chapterProblems = $derived(info ? problems.filter((p) => p.kind === 'chapters' && p.params.map === info.id) : [])
+  const sizeProblem = $derived(mapProblems.find((p) => p.field === 'size'))
   const chapterTitle = (i: number) => chapters[i]?.title || chapters[i]?.id || String(i)
+
+  /** Tile shown at a map cell (the edited change's tile inside its rectangle). */
+  function shownTile(x: number, y: number): number {
+    if (change && changeRows && x >= change.x && y >= change.y && x < change.x + change.w && y < change.y + change.h) {
+      return changeRows[y - change.y][x - change.x]
+    }
+    return rows[y]?.[x] ?? 0
+  }
 
   // Palette: one copy of each metatile, optionally only those of one terrain.
   const paletteTiles = $derived(
@@ -76,13 +115,16 @@
     for (const row of rows) for (const m of row) count.set(layout.terrains[m], (count.get(layout.terrains[m]) ?? 0) + 1)
     return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id)
   })
+  const palColumns = $derived(paletteMode === 'sheet' && layout ? layout.columns : PALETTE_COLUMNS)
+  const palCell = $derived(paletteMode === 'sheet' ? TILE : PALETTE_CELL)
+  const palTiles = $derived(paletteMode === 'sheet' && layout ? [...layout.terrains.keys()] : paletteTiles)
   const allTerrains = $derived(layout ? [...new Set(layout.terrains.filter((_, m) => !layout!.duplicates[m]))].sort((a, b) => a - b) : [])
 
   const nav = useNavigator()
   followFocus('maps', nav, () => maps.map((m) => m.id), (i) => load(i))
 
   $effect(() => {
-    appContext.detail = info ? `${info.id}${hover ? ` · ${hover.x}, ${hover.y}` : ''}` : ''
+    appContext.detail = info ? `${info.id}${change ? ` · ${t('maps.change', { id: change.id })}` : ''}${hover ? ` · ${hover.x}, ${hover.y}` : ''}` : ''
     return () => (appContext.detail = '')
   })
 
@@ -104,6 +146,7 @@
     draft = null
     rectStart = null
     hover = null
+    layer = null
     terrainFilter = null
     const id = maps[index].id
     const [data, img] = await Promise.all([api.map(id), loadImage(mapTilesetUrl(id))])
@@ -113,7 +156,7 @@
     // Start with the map's most common tile (usually its ground).
     const count = new Map<number, number>()
     for (const row of data.rows) for (const c of row) count.set(c, (count.get(c) ?? 0) + 1)
-    brush = [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0
+    setBrush([...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0)
   }
 
   function loadImage(url: string): Promise<HTMLImageElement> {
@@ -153,12 +196,14 @@
     if (!ctx || !layout || !sheet) return
     ctx.imageSmoothingEnabled = false
     ctx.clearRect(0, 0, width * cell, height * cell)
-    rows.forEach((row, y) => row.forEach((m, x) => drawTile(ctx, m, x * cell, y * cell, cell)))
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) drawTile(ctx, shownTile(x, y), x * cell, y * cell, cell)
     if (showTerrain) {
-      rows.forEach((row, y) => row.forEach((m, x) => {
-        ctx.fillStyle = terrainColor(layout!.terrains[m])
-        ctx.fillRect(x * cell, y * cell, cell, cell)
-      }))
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          ctx.fillStyle = terrainColor(layout.terrains[shownTile(x, y)])
+          ctx.fillRect(x * cell, y * cell, cell, cell)
+        }
+      }
     }
     if (showGrid) {
       ctx.strokeStyle = 'rgb(0 0 0 / 0.25)'
@@ -174,44 +219,90 @@
       }
       ctx.stroke()
     }
-    // Brush preview under the mouse, or the rectangle being drawn.
-    const area = rectStart && hover ? rectOf(rectStart, hover) : hover && tool !== 'pick' && tool !== 'fill' ? { x0: hover.x, y0: hover.y, x1: hover.x, y1: hover.y } : null
-    if (area) {
-      ctx.globalAlpha = rectStart ? 1 : 0.6
-      for (let y = area.y0; y <= area.y1; y++) for (let x = area.x0; x <= area.x1; x++) drawTile(ctx, brush, x * cell, y * cell, cell)
+    // Map changes: the edited one stands out, the rest of the map is dimmed.
+    if (change) {
+      ctx.fillStyle = 'rgb(0 0 0 / 0.45)'
+      ctx.fillRect(0, 0, width * cell, change.y * cell)
+      ctx.fillRect(0, (change.y + change.h) * cell, width * cell, (height - change.y - change.h) * cell)
+      ctx.fillRect(0, change.y * cell, change.x * cell, change.h * cell)
+      ctx.fillRect((change.x + change.w) * cell, change.y * cell, (width - change.x - change.w) * cell, change.h * cell)
+    }
+    if (showChanges || change) {
+      ctx.font = `bold ${Math.max(10, cell / 2.6)}px sans-serif`
+      ctx.textBaseline = 'top'
+      changes?.forEach((c, i) => {
+        if (layer !== null && i !== layer) return
+        ctx.strokeStyle = i === layer ? '#f1c40f' : 'rgb(241 196 15 / 0.8)'
+        ctx.lineWidth = i === layer ? 3 : 2
+        ctx.setLineDash(i === layer ? [] : [5, 3])
+        ctx.strokeRect(c.x * cell + 1.5, c.y * cell + 1.5, c.w * cell - 3, c.h * cell - 3)
+        ctx.setLineDash([])
+        ctx.fillStyle = 'rgb(0 0 0 / 0.65)'
+        ctx.fillRect(c.x * cell + 2, c.y * cell + 2, cell / 1.6, cell / 2.2)
+        ctx.fillStyle = '#f1c40f'
+        ctx.fillText(String(c.id), c.x * cell + 4, c.y * cell + 3)
+      })
+    }
+    // Units with a problem (outside the map, impassable terrain).
+    ctx.strokeStyle = '#e74c3c'
+    ctx.lineWidth = 3
+    for (const p of chapterProblems) {
+      if (typeof p.params.x === 'number' && typeof p.params.y === 'number') ctx.strokeRect(p.params.x * cell + 2.5, p.params.y * cell + 2.5, cell - 5, cell - 5)
+    }
+    // Preview under the mouse: the block, the rectangle being drawn, or the area being copied.
+    let area = hover ? { x0: hover.x, y0: hover.y, x1: hover.x, y1: hover.y } : null
+    if (copyStart && hover) {
+      area = rectOf(copyStart, hover)
+    } else if (rectStart && hover) {
+      area = rectOf(rectStart, hover)
+      const origin = { x: area.x0, y: area.y0 }
+      for (let y = area.y0; y <= area.y1; y++) for (let x = area.x0; x <= area.x1; x++) if (editable({ x, y })) drawTile(ctx, stampTile(x, y, origin), x * cell, y * cell, cell)
+    } else if (hover && (tool === 'pen' || tool === 'rect')) {
+      area = { x0: hover.x, y0: hover.y, x1: Math.min(width, hover.x + stampW) - 1, y1: Math.min(height, hover.y + stampH) - 1 }
+      ctx.globalAlpha = 0.6
+      for (let y = area.y0; y <= area.y1; y++) for (let x = area.x0; x <= area.x1; x++) if (editable({ x, y })) drawTile(ctx, stampTile(x, y, hover), x * cell, y * cell, cell)
       ctx.globalAlpha = 1
     }
-    if (hover) {
+    if (area) {
       ctx.strokeStyle = '#fff'
       ctx.lineWidth = 2
-      const a = area ?? { x0: hover.x, y0: hover.y, x1: hover.x, y1: hover.y }
-      ctx.strokeRect(a.x0 * cell + 1, a.y0 * cell + 1, (a.x1 - a.x0 + 1) * cell - 2, (a.y1 - a.y0 + 1) * cell - 2)
+      ctx.setLineDash(copyStart ? [6, 4] : [])
+      ctx.strokeRect(area.x0 * cell + 1, area.y0 * cell + 1, (area.x1 - area.x0 + 1) * cell - 2, (area.y1 - area.y0 + 1) * cell - 2)
+      ctx.setLineDash([])
     }
   })
 
   // Palette canvas
-  const PALETTE_CELL = 32
   $effect(() => {
     const ctx = paletteCanvas?.getContext('2d')
     if (!ctx || !layout || !sheet) return
     ctx.imageSmoothingEnabled = false
     ctx.clearRect(0, 0, paletteCanvas!.width, paletteCanvas!.height)
-    paletteTiles.forEach((m, i) => {
-      const x = (i % PALETTE_COLUMNS) * PALETTE_CELL
-      const y = Math.floor(i / PALETTE_COLUMNS) * PALETTE_CELL
-      drawTile(ctx, m, x, y, PALETTE_CELL)
-      if (m === brush) {
-        ctx.strokeStyle = '#fff'
-        ctx.lineWidth = 3
-        ctx.strokeRect(x + 1.5, y + 1.5, PALETTE_CELL - 3, PALETTE_CELL - 3)
-        ctx.strokeStyle = '#000'
-        ctx.lineWidth = 1
-        ctx.strokeRect(x + 0.5, y + 0.5, PALETTE_CELL - 1, PALETTE_CELL - 1)
+    palTiles.forEach((m, i) => {
+      const x = (i % palColumns) * palCell
+      const y = Math.floor(i / palColumns) * palCell
+      drawTile(ctx, m, x, y, palCell)
+      // The whole sheet keeps every tile in place: other terrains are dimmed instead of hidden.
+      if (paletteMode === 'sheet' && terrainFilter !== null && layout!.terrains[m] !== terrainFilter) {
+        ctx.fillStyle = 'rgb(0 0 0 / 0.6)'
+        ctx.fillRect(x, y, palCell, palCell)
       }
     })
+    const box = paletteDrag ?? palettePicked
+    const one = stampW === 1 && stampH === 1 ? palTiles.indexOf(brush) : -1
+    const r = box ? rectOf(box.a, box.b) : one >= 0 ? { x0: one % palColumns, y0: Math.floor(one / palColumns), x1: one % palColumns, y1: Math.floor(one / palColumns) } : null
+    if (r) {
+      const [x, y, w, h] = [r.x0 * palCell, r.y0 * palCell, (r.x1 - r.x0 + 1) * palCell, (r.y1 - r.y0 + 1) * palCell]
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 3
+      ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3)
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = 1
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
+    }
   })
 
-  function cellAt(e: MouseEvent): { x: number; y: number } | null {
+  function cellAt(e: MouseEvent): Cell | null {
     if (!mapCanvas) return null
     const r = mapCanvas.getBoundingClientRect()
     const x = Math.floor((e.clientX - r.left) / cell)
@@ -219,37 +310,67 @@
     return x >= 0 && y >= 0 && x < width && y < height ? { x, y } : null
   }
 
-  function rectOf(a: { x: number; y: number }, b: { x: number; y: number }) {
+  function rectOf(a: Cell, b: Cell) {
     return { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) }
   }
 
-  const copyRows = () => rows.map((r) => [...r])
+  /** Can this map cell be painted? Editing a change: only inside its rectangle. */
+  const editable = (p: Cell) => !change || (p.x >= change.x && p.y >= change.y && p.x < change.x + change.w && p.y < change.y + change.h)
+  /** Map cell -> cell of the edited grid. */
+  const toGrid = (p: Cell): Cell => (change ? { x: p.x - change.x, y: p.y - change.y } : p)
+  const copyGrid = () => (change ? change.rows : rows).map((r) => [...r])
 
-  let last: { x: number; y: number } | null = null
+  const setBrush = (m: number) => {
+    stamp = [[m]]
+    palettePicked = null
+  }
+  const mod = (a: number, n: number) => ((a % n) + n) % n
+  /** Tile of the block at a map cell, the pattern repeating from `origin`. */
+  const stampTile = (x: number, y: number, origin: Cell) => stamp[mod(y - origin.y, stampH)][mod(x - origin.x, stampW)]
 
-  /** Paint a cell, and the cells between it and the previous one (the mouse can skip cells). */
-  function paint(p: { x: number; y: number }) {
+  function setCell(grid: number[][], c: Cell, m: number) {
+    if (c.x < 0 || c.y < 0 || c.x >= width || c.y >= height || !editable(c)) return
+    const g = toGrid(c)
+    if (grid[g.y][g.x] !== m) grid[g.y][g.x] = m
+  }
+
+  let last: Cell | null = null
+  let anchor: Cell = { x: 0, y: 0 }
+
+  /** Paint the block at a cell, and between it and the previous one (the mouse can skip cells).
+   *  Blocks are laid side by side from where the stroke started. */
+  function paint(p: Cell) {
     if (!draft) return
     const from = last ?? p
     const steps = Math.max(Math.abs(p.x - from.x), Math.abs(p.y - from.y))
     for (let k = 0; k <= steps; k++) {
-      const x = Math.round(from.x + ((p.x - from.x) * k) / (steps || 1))
-      const y = Math.round(from.y + ((p.y - from.y) * k) / (steps || 1))
-      if (draft[y][x] !== brush) draft[y][x] = brush
+      const c = { x: Math.round(from.x + ((p.x - from.x) * k) / (steps || 1)), y: Math.round(from.y + ((p.y - from.y) * k) / (steps || 1)) }
+      const ox = anchor.x + Math.floor((c.x - anchor.x) / stampW) * stampW
+      const oy = anchor.y + Math.floor((c.y - anchor.y) / stampH) * stampH
+      for (let j = 0; j < stampH; j++) for (let i = 0; i < stampW; i++) setCell(draft, { x: ox + i, y: oy + j }, stamp[j][i])
     }
     last = p
   }
 
-  function floodFill(start: { x: number; y: number }) {
-    const next = copyRows()
-    const target = next[start.y][start.x]
-    if (target === brush) return
-    const stack = [start]
+  function floodFill(start: Cell) {
+    if (!editable(start)) return
+    const next = copyGrid()
+    const s = toGrid(start)
+    const target = next[s.y][s.x]
+    if (stampW === 1 && stampH === 1 && target === brush) return
+    const offset = change ? { x: change.x, y: change.y } : { x: 0, y: 0 }
+    const seen = new Set<string>()
+    const stack = [s]
     while (stack.length) {
       const { x, y } = stack.pop()!
-      if (x < 0 || y < 0 || x >= width || y >= height || next[y][x] !== target) continue
-      next[y][x] = brush
+      const key = `${x},${y}`
+      if (seen.has(key) || y < 0 || y >= next.length || x < 0 || x >= next[y].length || next[y][x] !== target) continue
+      seen.add(key)
       stack.push({ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 })
+    }
+    for (const key of seen) {
+      const [x, y] = key.split(',').map(Number)
+      next[y][x] = stampTile(x + offset.x, y + offset.y, start)
     }
     commit(next)
   }
@@ -258,15 +379,20 @@
     const p = cellAt(e)
     if (!p) return
     e.preventDefault()
-    // Right click or Alt+click: take the tile under the mouse, whatever the tool.
-    if (e.button === 2 || e.altKey || tool === 'pick') {
-      brush = rows[p.y][p.x]
+    // Right button: take the tile under the mouse, or a block by dragging (whatever the tool).
+    if (e.button === 2) {
+      copyStart = p
+      return
+    }
+    if (e.altKey || tool === 'pick') {
+      setBrush(shownTile(p.x, p.y))
       return
     }
     if (e.button !== 0) return
     if (tool === 'fill') return floodFill(p)
-    draft = copyRows()
+    draft = copyGrid()
     last = null
+    anchor = p
     if (tool === 'rect') rectStart = p
     else paint(p)
   }
@@ -277,10 +403,20 @@
   }
 
   function onUp() {
+    if (paletteDrag) return pickFromPalette()
+    if (copyStart) {
+      const a = rectOf(copyStart, hover ?? copyStart)
+      stamp = Array.from({ length: a.y1 - a.y0 + 1 }, (_, j) => Array.from({ length: a.x1 - a.x0 + 1 }, (_, i) => shownTile(a.x0 + i, a.y0 + j)))
+      palettePicked = null
+      copyStart = null
+      if (tool === 'pick' || tool === 'fill') tool = 'pen'
+      return
+    }
     if (!draft) return
     if (rectStart && hover) {
       const a = rectOf(rectStart, hover)
-      for (let y = a.y0; y <= a.y1; y++) for (let x = a.x0; x <= a.x1; x++) draft[y][x] = brush
+      const origin = { x: a.x0, y: a.y0 }
+      for (let y = a.y0; y <= a.y1; y++) for (let x = a.x0; x <= a.x1; x++) setCell(draft, { x, y }, stampTile(x, y, origin))
     }
     const result = $state.snapshot(draft) as number[][]
     draft = null
@@ -288,8 +424,18 @@
     commit(result)
   }
 
-  /** Save painted cells as one undo step. A map painted back to the original is no longer stored. */
+  /** Save the painted grid (map or edited change) as one undo step. */
   function commit(next: number[][]) {
+    if (layer !== null && changes) {
+      const i = layer
+      saveChanges(changes.map((c, k) => (k === i ? { ...c, rows: next } : c)))
+    } else {
+      saveRows(next)
+    }
+  }
+
+  /** A map painted back to the original is no longer stored. */
+  function saveRows(next: number[][]) {
     if (!info || !layout) return
     const id = info.id
     const same = JSON.stringify(next) === JSON.stringify(layout.rows)
@@ -301,26 +447,94 @@
     })
   }
 
-  function reset() {
-    if (!info) return
+  function saveChanges(next: MapChange[]) {
+    if (!info || !layout) return
     const id = info.id
+    const same = JSON.stringify(next) === JSON.stringify(layout.changes)
     list.update(0, (d) => {
-      if (d.layouts) delete d.layouts[id]
+      d.changes ??= {}
+      if (same) delete d.changes[id]
+      else d.changes[id] = $state.snapshot(next) as MapChange[]
     })
   }
 
-  function pickFromPalette(e: MouseEvent) {
-    const r = paletteCanvas!.getBoundingClientRect()
-    const i = Math.floor((e.clientY - r.top) / PALETTE_CELL) * PALETTE_COLUMNS + Math.floor((e.clientX - r.left) / PALETTE_CELL)
-    if (i >= 0 && i < paletteTiles.length) {
-      brush = paletteTiles[i]
-      if (tool === 'pick') tool = 'pen'
+  function reset() {
+    if (!info) return
+    const id = info.id
+    layer = null
+    list.update(0, (d) => {
+      if (d.layouts) delete d.layouts[id]
+      if (d.changes) delete d.changes[id]
+    })
+  }
+
+  /** New size: rows and columns are added or removed on the right and at the bottom; new cells get the selected tile. */
+  function resize(w: number, h: number) {
+    if (w === width && h === height) return
+    saveRows(Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => rows[y]?.[x] ?? brush)))
+  }
+
+  /** Map tiles under a rectangle (what a new or enlarged change starts from). */
+  const tilesUnder = (x: number, y: number, w: number, h: number) =>
+    Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => rows[y + j]?.[x + i] ?? brush))
+
+  function addChange() {
+    if (!changes) return
+    const id = changes.length ? Math.max(...changes.map((c) => c.id)) + 1 : 0
+    const w = 2
+    const h = 2
+    const x = hover?.x ?? Math.max(0, Math.floor(width / 2) - 1)
+    const y = hover?.y ?? Math.max(0, Math.floor(height / 2) - 1)
+    const fresh: MapChange = { id, x: Math.min(x, width - w), y: Math.min(y, height - h), w, h, rows: tilesUnder(x, y, w, h) }
+    saveChanges([...changes, fresh])
+    layer = changes.length
+    showChanges = true
+  }
+
+  function editChange(field: 'id' | 'x' | 'y' | 'w' | 'h', value: number) {
+    if (layer === null || !changes || !change) return
+    const c = { ...change, rows: change.rows.map((r) => [...r]) }
+    c[field] = value
+    if (field === 'w' || field === 'h') {
+      // Keep the tiles already set; new cells start as the map under them.
+      const under = tilesUnder(c.x, c.y, c.w, c.h)
+      c.rows = under.map((row, j) => row.map((m, i) => change.rows[j]?.[i] ?? m))
     }
+    const i = layer
+    saveChanges(changes.map((k, n) => (n === i ? c : k)))
+  }
+
+  function removeChange() {
+    if (layer === null || !changes) return
+    const i = layer
+    layer = null
+    saveChanges(changes.filter((_, n) => n !== i))
+  }
+
+  function paletteCell(e: MouseEvent): Cell {
+    const r = paletteCanvas!.getBoundingClientRect()
+    const rowsCount = Math.ceil(palTiles.length / palColumns)
+    return {
+      x: Math.max(0, Math.min(palColumns - 1, Math.floor((e.clientX - r.left) / palCell))),
+      y: Math.max(0, Math.min(rowsCount - 1, Math.floor((e.clientY - r.top) / palCell))),
+    }
+  }
+
+  /** Mouse released on the palette: the dragged rectangle becomes the block (one tile for a click). */
+  function pickFromPalette() {
+    if (!paletteDrag) return
+    const a = rectOf(paletteDrag.a, paletteDrag.b)
+    const tileAt = (x: number, y: number) => palTiles[y * palColumns + x] ?? palTiles[palTiles.length - 1]
+    stamp = Array.from({ length: a.y1 - a.y0 + 1 }, (_, j) => Array.from({ length: a.x1 - a.x0 + 1 }, (_, i) => tileAt(a.x0 + i, a.y0 + j)))
+    palettePicked = stampW === 1 && stampH === 1 ? null : paletteDrag
+    paletteDrag = null
+    if (tool === 'pick') tool = 'pen'
   }
 
   const changedCells = $derived(
     painted && layout ? painted.rows.reduce((n, row, y) => n + row.filter((m, x) => m !== layout!.rows[y]?.[x]).length, 0) : 0,
   )
+  const changesEdited = $derived(!!(info && list.records[0]?.changes?.[info.id]))
 </script>
 
 <svelte:window onmouseup={onUp} />
@@ -328,7 +542,7 @@
 <div class="editor">
   <RecordList records={maps} {selected} onselect={(i) => load(i)} secondary={(m) => m.name === m.id} secondaryLabel={t('maps.otherMaps')} problemIds={new Set(problems.filter((p) => p.kind === 'maps').map((p) => p.id))}>
     {#snippet suffix(m: MapInfo)}
-      {#if list.records[0]?.layouts?.[m.id]}<span class="edited" title={t('maps.edited')}> ✎</span>{/if}
+      {#if list.records[0]?.layouts?.[m.id] || list.records[0]?.changes?.[m.id]}<span class="edited" title={t('maps.edited')}>✎</span>{/if}
       <span class="muted id">{m.width}×{m.height}</span>
     {/snippet}
   </RecordList>
@@ -336,23 +550,42 @@
   {#if info}
     <div class="detail">
       <section class="panel">
-        <h2>{info.name} <span class="muted id">{info.id} · {info.width}×{info.height}</span></h2>
+        <h2>{info.name} <span class="muted id">{info.id}</span></h2>
         <p class="muted small">
           {t('maps.usedBy')}
           {#each info.chapters as c, k (c)}{#if k}, {/if}<Mention kind="chapters" id={String(c)}>{chapterTitle(c)}</Mention>{/each}
           {#if info.chapters.length > 1}<span class="warn"> — {t('maps.shared', { n: info.chapters.length })}</span>{/if}
         </p>
         <p class="muted small">{t('maps.hint')}</p>
-        {#if painted}
+        {#if layout}
+          <div class="size">
+            <NumberField label={t('maps.width')} value={width} min={MIN_WIDTH} max={MAX_SIDE} compact onchange={(v) => resize(v, height)} />
+            <NumberField label={t('maps.height')} value={height} min={MIN_HEIGHT} max={MAX_SIDE} compact onchange={(v) => resize(width, v)} />
+            <span class="muted small">{t('maps.sizeHint')}</span>
+          </div>
+          {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
+        {/if}
+        {#if painted || changesEdited}
           <p class="small">
-            <span class="edited">✎</span> {t('maps.changed', { n: changedCells })}
+            <span class="edited">✎</span>
+            {#if painted}{t('maps.changed', { n: changedCells })}{/if}
+            {#if changesEdited}{t('maps.changesEdited')}{/if}
             <button class="link" onclick={reset}>{t('maps.reset')}</button>
           </p>
         {/if}
-        {#each mapProblems as pr, i (i)}<p class="bad small">{t(`problem.${pr.code}`, pr.params)}</p>{/each}
+        {#each mapProblems.filter((p) => p !== sizeProblem) as pr, i (i)}<p class="bad small">{problemText(pr)}</p>{/each}
+        {#if chapterProblems.length}
+          <div class="chapter-problems">
+            {#each chapterProblems as pr, i (i)}
+              <p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">
+                <Mention kind="chapters" id={String(pr.params.chapter)}>{chapterTitle(Number(pr.params.chapter))}</Mention> — {problemText(pr)}
+              </p>
+            {/each}
+          </div>
+        {/if}
       </section>
 
-      <div class="layout">
+      <div class="layout" class:wide={paletteMode === 'sheet'}>
         <section class="panel map-panel">
           <div class="toolbar">
             <div class="tools" role="radiogroup" aria-label={t('maps.tool')}>
@@ -364,6 +597,7 @@
             </div>
             <label class="check"><input type="checkbox" bind:checked={showGrid} /> {t('maps.grid')}</label>
             <label class="check"><input type="checkbox" bind:checked={showTerrain} /> {t('maps.terrains')}</label>
+            {#if changes}<label class="check" title={t('maps.changesHint')}><input type="checkbox" bind:checked={showChanges} /> {t('maps.changes')}</label>{/if}
             <label class="check">
               {t('maps.zoom')}
               <select bind:value={zoom}>
@@ -371,6 +605,39 @@
               </select>
             </label>
           </div>
+
+          {#if layout}
+            <div class="layers">
+              <label class="check">
+                {t('maps.layer')}
+                <select value={layer ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; layer = v === '' ? null : Number(v) }}>
+                  <option value="">{t('maps.layer.map')}</option>
+                  {#each changes ?? [] as c, i (i)}
+                    <option value={i}>{t('maps.change', { id: c.id })} — {c.x}, {c.y} ({c.w}×{c.h})</option>
+                  {/each}
+                </select>
+              </label>
+              {#if changes}
+                <button onclick={addChange} title={t('maps.addChangeHint')}>＋ {t('maps.addChange')}</button>
+              {:else}
+                <span class="muted small">{t('maps.noChangeLayer')}</span>
+              {/if}
+            </div>
+            {#if change}
+              <div class="change-panel">
+                <p class="muted small">{t('maps.changeEditHint')}</p>
+                <div class="row">
+                  <NumberField label={t('maps.changeId')} value={change.id} min={0} max={MAX_CHANGE_ID} compact onchange={(v) => editChange('id', v)} />
+                  <NumberField label="X" value={change.x} min={0} max={width - 1} compact onchange={(v) => editChange('x', v)} />
+                  <NumberField label="Y" value={change.y} min={0} max={height - 1} compact onchange={(v) => editChange('y', v)} />
+                  <NumberField label={t('maps.width')} value={change.w} min={1} max={width} compact onchange={(v) => editChange('w', v)} />
+                  <NumberField label={t('maps.height')} value={change.h} min={1} max={height} compact onchange={(v) => editChange('h', v)} />
+                  <button class="danger" onclick={removeChange}>{t('maps.removeChange')}</button>
+                </div>
+              </div>
+            {/if}
+          {/if}
+
           {#if layout && sheet}
             <div class="map-scroll">
               <canvas
@@ -386,7 +653,10 @@
             </div>
             <p class="muted small status">
               {#if hover}
-                {hover.x}, {hover.y} · {terrainName(layout.terrains[rows[hover.y][hover.x]])} <span class="tiny">#{rows[hover.y][hover.x]}</span>
+                {hover.x}, {hover.y} · {terrainName(layout.terrains[shownTile(hover.x, hover.y)])} <span class="tiny">#{shownTile(hover.x, hover.y)}</span>
+                {#each (changes ?? []).filter((c) => hover && hover.x >= c.x && hover.y >= c.y && hover.x < c.x + c.w && hover.y < c.y + c.h) as c (c.id)}
+                  · <span class="change-tag">{t('maps.change', { id: c.id })}</span>
+                {/each}
               {:else}
                 {t('maps.mouseHint')}
               {/if}
@@ -406,15 +676,26 @@
         </section>
 
         <section class="panel palette-panel">
-          <h3>{t('maps.palette')}</h3>
+          <div class="palette-head">
+            <h3>{t('maps.palette')}</h3>
+            <div class="modes" role="radiogroup" aria-label={t('maps.palette')}>
+              <button role="radio" aria-checked={paletteMode === 'unique'} class:active={paletteMode === 'unique'} onclick={() => { paletteMode = 'unique'; palettePicked = null }}>{t('maps.palette.unique')}</button>
+              <button role="radio" aria-checked={paletteMode === 'sheet'} class:active={paletteMode === 'sheet'} onclick={() => { paletteMode = 'sheet'; palettePicked = null }}>{t('maps.palette.sheet')}</button>
+            </div>
+          </div>
           {#if layout && sheet}
             <div class="brush">
               <canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m: brush, sheet, layout }}></canvas>
               <div>
-                <div>{terrainName(layout.terrains[brush])}</div>
-                <div class="muted tiny">
-                  {t('maps.tileNumber', { n: brush })}{#if layout.terrainNames[layout.terrains[brush]]} · {t('maps.gameName', { name: layout.terrainNames[layout.terrains[brush]] })}{/if}
-                </div>
+                {#if stampW > 1 || stampH > 1}
+                  <div>{t('maps.block', { w: stampW, h: stampH })}</div>
+                  <button class="link" onclick={() => setBrush(brush)}>{t('maps.oneTile')}</button>
+                {:else}
+                  <div>{terrainName(layout.terrains[brush])}</div>
+                  <div class="muted tiny">
+                    {t('maps.tileNumber', { n: brush })}{#if layout.terrainNames[layout.terrains[brush]]} · {t('maps.gameName', { name: layout.terrainNames[layout.terrains[brush]] })}{/if}
+                  </div>
+                {/if}
               </div>
             </div>
             <label>
@@ -427,12 +708,13 @@
             <div class="palette-scroll">
               <canvas
                 bind:this={paletteCanvas}
-                width={PALETTE_COLUMNS * PALETTE_CELL}
-                height={Math.max(1, Math.ceil(paletteTiles.length / PALETTE_COLUMNS)) * PALETTE_CELL}
-                onclick={pickFromPalette}
+                width={palColumns * palCell}
+                height={Math.max(1, Math.ceil(palTiles.length / palColumns)) * palCell}
+                onmousedown={(e) => { e.preventDefault(); const c = paletteCell(e); paletteDrag = { a: c, b: c } }}
+                onmousemove={(e) => { if (paletteDrag && e.buttons & 1) paletteDrag = { a: paletteDrag.a, b: paletteCell(e) } }}
               ></canvas>
             </div>
-            <p class="muted tiny">{t('maps.paletteHint')}</p>
+            <p class="muted tiny">{paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')}</p>
           {/if}
         </section>
       </div>
@@ -448,15 +730,30 @@
   .tiny { font-size: 0.72rem; }
   .warn { color: var(--warn); }
   .bad { color: var(--bad); }
+  .danger { color: var(--bad); }
   .edited { color: var(--accent); margin-left: 0.25rem; }
   .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; margin-left: 0.4rem; }
+  .size { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+  .size .small { padding-bottom: 0.35rem; }
+  .chapter-problems { margin-top: 0.4rem; }
+  .chapter-problems p { margin: 0.15rem 0; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 1rem; align-items: start; }
+  .layout.wide { grid-template-columns: minmax(0, 1fr) 550px; }
+  .palette-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+  .modes { display: flex; gap: 0.2rem; }
+  .modes button { font-size: 0.78rem; padding: 0.15rem 0.5rem; }
+  .modes button.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
   .map-panel { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; padding: 0.5rem; }
-  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+  .toolbar, .layers { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
   .tools { display: flex; gap: 0.25rem; }
   .tools button { font-size: 0.85rem; padding: 0.25rem 0.55rem; }
   .tools button.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--text); }
+  .layers button { font-size: 0.85rem; padding: 0.2rem 0.55rem; }
+  .change-panel { border-left: 3px solid #f1c40f; padding-left: 0.6rem; }
+  .change-panel p { margin: 0 0 0.3rem; }
+  .change-panel .row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
+  .change-tag { color: #b7950b; }
   .map-scroll { overflow: auto; max-height: calc(100vh - 300px); }
   .map-scroll canvas { display: block; cursor: crosshair; image-rendering: pixelated; }
   .map-scroll canvas.picking { cursor: copy; }
@@ -469,7 +766,7 @@
   .palette-panel h3 { margin: 0; }
   .brush { display: flex; align-items: center; gap: 0.6rem; }
   .brush canvas { border: 1px solid var(--border); image-rendering: pixelated; }
-  .palette-scroll { overflow-y: auto; max-height: calc(100vh - 420px); border: 1px solid var(--border); border-radius: 6px; width: fit-content; }
+  .palette-scroll { overflow: auto; max-width: 100%; max-height: calc(100vh - 420px); border: 1px solid var(--border); border-radius: 6px; width: fit-content; }
   .palette-scroll canvas { display: block; cursor: pointer; image-rendering: pixelated; }
   @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
+from .decomp import maps as decomp_maps
+from .decomp import units
 from .decomp.gamedata import (
     ABILITIES_REV,
     AFFINITIES_REV,
@@ -26,6 +28,9 @@ UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/G
 AI_ACTION_MAX, AI_MOVE_MAX, AI_RECOVERY_MAX = 0x14, 0x12, 4  # last entries of the AI tables (src/cp_data.c)
 OBJECTIVE_TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "special")  # decomp/objectives.py TYPES + read-only "special"
 METATILE_COUNT = 1024  # metatiles of a tileset (decomp/maps.py, TileConfig)
+MAP_MIN_WIDTH, MAP_MIN_HEIGHT = 15, 10  # one screen (DISPLAY_WIDTH / 16, DISPLAY_HEIGHT / 16)
+MAP_BUFFER_BYTES = 0x800  # gBmMapBuffer (src/bmmap.c)
+MAP_POOL_BYTES = 0x7B8  # MAP_POOL_SIZE (src/bmmap.c)
 OBJECTIVE_LINE_MAX = 22  # longest line of the original status texts ("Defeat Fomortiis, the" = 21)
 
 
@@ -154,19 +159,146 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     if chapters is not None:
         _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items})
     if maps is not None:
-        _validate_maps(problems, maps)
+        _validate_maps(problems, maps, decomp.decomp_dir)
+        if chapters is not None:
+            _validate_chapter_maps(problems, decomp, chapters, maps, characters,
+                                   classes if classes is not None else decomp.export_classes())
     return problems
 
 
-def _validate_maps(problems, maps_data: dict):
+def map_size_problem(width: int, height: int) -> dict | None:
+    """Why the engine cannot hold a map of this size (None if it can). See src/bmmap.c:
+    gBmMapBuffer holds 2 + 2 * width * height bytes (0x800), each BmMap pool (y + 4) row pointers
+    and rows of x + 2 cells (MAP_POOL_SIZE = 0x7B8); the screen shows 15 x 10 cells."""
+    if width < MAP_MIN_WIDTH or height < MAP_MIN_HEIGHT:
+        return {"code": "mapTooSmall", "params": {"width": MAP_MIN_WIDTH, "height": MAP_MIN_HEIGHT}}
+    if 2 + 2 * width * height > MAP_BUFFER_BYTES or (height + 4) * 4 + (height + 4) * (width + 2) > MAP_POOL_BYTES:
+        return {"code": "mapTooBig", "params": {"cells": (MAP_BUFFER_BYTES - 2) // 2}}
+    return None
+
+
+def _validate_maps(problems, maps_data: dict, decomp_dir=None):
+    sizes = {}
     for layout_id, layout in maps_data.get("layouts", {}).items():
         rows = layout.get("rows")
-        if not rows or not isinstance(rows, list) or any(not isinstance(r, list) or len(r) != len(rows[0]) for r in rows)                 or not rows[0]:
+        if not rows or not isinstance(rows, list) or any(not isinstance(r, list) or len(r) != len(rows[0]) for r in rows) \
+                or not rows[0]:
             problems.append(Problem("error", "maps", layout_id, "rows", "badLayout", {}, f"{layout_id}: rows of different lengths"))
             continue
+        sizes[layout_id] = (len(rows[0]), len(rows))
         if any(not isinstance(c, int) or not 0 <= c < METATILE_COUNT for row in rows for c in row):
             problems.append(Problem("error", "maps", layout_id, "rows", "badTile", {"max": METATILE_COUNT - 1},
                                     f"{layout_id}: tile numbers go from 0 to {METATILE_COUNT - 1}"))
+        size = map_size_problem(*sizes[layout_id])
+        if size:
+            problems.append(Problem("error", "maps", layout_id, "size", size["code"], size["params"], f"{layout_id}: map size"))
+    edited_changes = dict(maps_data.get("changes", {}))
+    known_layouts = {}
+    if decomp_dir is not None:
+        try:
+            known_layouts = decomp_maps.layouts(decomp_dir)
+        except FileNotFoundError:
+            pass  # decomp without chapters (test fixtures)
+    # A resized map must still hold its original changes.
+    for layout_id in sizes:
+        if layout_id not in edited_changes and known_layouts.get(layout_id, {}).get("changes"):
+            edited_changes[layout_id] = decomp_maps.read_changes(decomp_dir, known_layouts[layout_id]["changes"])
+    for layout_id, changes in edited_changes.items():
+        if layout_id not in sizes and layout_id in known_layouts:
+            width, height, _cells = decomp_maps.read_layout(known_layouts[layout_id]["assets"].layout)
+            sizes[layout_id] = (width, height)
+        width, height = sizes.get(layout_id, (64, 64))
+        seen = set()
+        for c in changes:
+            cid = c.get("id")
+            if not isinstance(cid, int) or not 0 <= cid <= decomp_maps.MAX_CHANGE_ID or cid in seen:
+                problems.append(Problem("error", "maps", layout_id, "changes", "badChangeId", {"id": str(cid), "max": decomp_maps.MAX_CHANGE_ID},
+                                        f"{layout_id}: change ids must be different numbers"))
+            seen.add(cid)
+            rows = c.get("rows") or []
+            w, h = c.get("w", 0), c.get("h", 0)
+            if not isinstance(w, int) or not isinstance(h, int) or w < 1 or h < 1 or len(rows) != h or any(len(r) != w for r in rows):
+                problems.append(Problem("error", "maps", layout_id, "changes", "badLayout", {}, f"{layout_id}: change {cid} malformed"))
+            elif c["x"] < 0 or c["y"] < 0 or c["x"] + w > width or c["y"] + h > height:
+                problems.append(Problem("error", "maps", layout_id, "changes", "changeOutOfMap", {"id": str(cid)},
+                                        f"{layout_id}: change {cid} goes past the edge of the map"))
+
+
+def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, characters: list[dict], classes: list[dict]):
+    """Units and seize tiles of the chapters whose map, units or objective were edited: inside the map,
+    and on a terrain their class can stand on. Only what the project changed is reported: the original
+    game has units outside their map (groups used elsewhere) and units under roofs that a map change
+    removes."""
+    painted = maps_data.get("layouts", {})
+    edited_groups = chapters.get("unitGroups", {})
+    objectives_by_chapter = chapters.get("objectives", {})
+    if not painted and not edited_groups and not objectives_by_chapter:
+        return
+    decomp_dir = decomp.decomp_dir
+    try:
+        layouts = decomp_maps.layouts(decomp_dir)
+        groups_by_chapter = units.all_chapter_unit_groups(decomp_dir)
+    except (FileNotFoundError, decomp_maps.MapError):
+        return  # decomp without chapters (test fixtures)
+    original_groups = units.read_unit_groups(decomp_dir)
+    costs = decomp_maps.movement_costs(decomp_dir)
+    movement = {c["id"]: c.get("movement") for c in classes}
+    char_class = {c["id"]: c["class"] for c in characters}
+    for layout_id, layout in layouts.items():
+        assets = layout["assets"]
+        for index in layout["chapters"]:
+            groups = [g for g in groups_by_chapter.get(index, []) if g["origin"] != "cutscene"]
+            if layout_id not in painted and not any(g["name"] in edited_groups for g in groups) \
+                    and str(index) not in objectives_by_chapter:
+                continue
+            original_map = decomp_maps.read_layout(assets.layout)
+            if layout_id in painted and painted[layout_id].get("rows"):
+                rows = painted[layout_id]["rows"]
+                width, height, cells = len(rows[0]), len(rows), [c for row in rows for c in row]
+            else:
+                width, height, cells = original_map
+            _metatiles, terrain = decomp_maps.read_config(assets.config)
+
+            def terrain_at(layout_map, x, y):
+                w, h, c = layout_map
+                if not (0 <= x < w and 0 <= y < h):
+                    return None
+                m = c[y * w + x]
+                return terrain[m] if m < len(terrain) else 0
+
+            for g in groups:
+                original_units = original_groups[g["name"]].units if g["name"] in original_groups else []
+                unit_list = edited_groups.get(g["name"])
+                if unit_list is None:
+                    unit_list = original_units
+                # Units as in the original game (same character, class and tile): their problems are the game's own.
+                unchanged = {(o.get("character"), o.get("class"), o.get("endX"), o.get("endY")) for o in original_units}
+                for n, u in enumerate(unit_list):
+                    rid = f"{g['name']}#{n}"
+                    x, y = u.get("endX"), u.get("endY")
+                    if not isinstance(x, int) or not isinstance(y, int):
+                        continue
+                    where = {"x": x, "y": y, "map": layout_id, "chapter": index}
+                    t = terrain_at((width, height, cells), x, y)
+                    if (u.get("character"), u.get("class"), x, y) in unchanged and t == terrain_at(original_map, x, y):
+                        continue
+                    if t is None:
+                        problems.append(Problem("error", "chapters", rid, "position", "unitOutOfMap", where,
+                                                f"{rid}: unit outside the map"))
+                        continue
+                    character = str(u.get("character", ""))
+                    cls = char_class.get(character) if character.startswith("CHARACTER_") else u.get("class")
+                    table = costs.get(movement.get(cls) or "")
+                    if table and t < len(table) and table[t] < 0:
+                        problems.append(Problem("warning", "chapters", rid, "position", "impassableTile", {**where, "terrain": t},
+                                                f"{rid}: its class cannot stand on this terrain"))
+            o = objectives_by_chapter.get(str(index))
+            if o and o.get("type") == "seize":
+                for tile in o.get("seize", []):
+                    if not (0 <= tile.get("x", -1) < width and 0 <= tile.get("y", -1) < height):
+                        problems.append(Problem("error", "chapters", f"objective#{index}", "seize", "seizeOutOfMap",
+                                                {"map": layout_id, "chapter": index}, f"chapter {index}: tile to seize outside the map"))
+
 
 
 def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=frozenset()):
