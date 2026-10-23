@@ -90,6 +90,11 @@ def parse_ai(raw: str, macros: dict[str, list[int]]) -> list[int]:
     return (values + [0, 0, 0, 0])[:4]
 
 
+def is_named_character(char_index: str) -> bool:
+    """Characters with a CHARACTER_ constant have a sheet; generic units use raw numbers (0x80...)."""
+    return char_index.startswith("CHARACTER_")
+
+
 def render_ai(ai: list[int]) -> str:
     return "{" + ", ".join(hex(v) for v in ai) + "}"
 
@@ -269,9 +274,16 @@ def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name:
 def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves: list, is_new: bool,
                        macros: dict[str, list[int]]) -> None:
     """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
-    if fields.get("charIndex", "0") != unit["character"]:
+    character_changed = fields.get("charIndex", "0") != unit["character"]
+    if character_changed:
         fields["charIndex"] = unit["character"]
-    if fields.get("classIndex", "0") != unit["class"]:
+    if is_named_character(unit["character"]):
+        # A named character's class comes from its character sheet (the only source of
+        # truth; class changes there are carried to unit definitions by gamedata). Class 0
+        # makes the game use the character's class (UnitInitFromDefinition, src/bmunit.c).
+        if character_changed:
+            fields["classIndex"] = "0"
+    elif fields.get("classIndex", "0") != unit["class"]:
         fields["classIndex"] = unit["class"]
     if _int(fields.get("level")) != int(unit["level"]):
         fields["level"] = str(int(unit["level"]))

@@ -8,6 +8,8 @@
     selected,
     onselect,
     filter = () => true,
+    secondary,
+    secondaryLabel = '',
     problemIds,
     icon,
     suffix,
@@ -17,6 +19,10 @@
     selected: number
     onselect: (index: number) => void
     filter?: (r: T) => boolean
+    /** Records that are rarely needed: listed after the others, in a folded section. */
+    secondary?: (r: T) => boolean
+    /** Title of the folded section; {n} = number of records in it. */
+    secondaryLabel?: string
     problemIds: Set<string>
     icon?: Snippet<[T]>
     suffix?: Snippet<[T]>
@@ -24,6 +30,7 @@
   } = $props()
 
   let query = $state('')
+  let showSecondary = $state(false)
 
   const visible = $derived(
     records
@@ -34,15 +41,21 @@
         return !q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
       }),
   )
+  const main = $derived(secondary ? visible.filter(({ r }) => !secondary(r)) : visible)
+  const rest = $derived(secondary ? visible.filter(({ r }) => secondary(r)) : [])
+  // A search shows its results wherever they are.
+  const restOpen = $derived(showSecondary || (query.trim() !== '' && rest.length > 0))
 
-  let listEl = $state<HTMLUListElement>()
+  let listEl = $state<HTMLDivElement>()
 
   // When the selection changes (e.g. opened from a link elsewhere), make sure it is
-  // visible: clear a search that hides it, then scroll it into view.
+  // visible: clear a search that hides it, open the folded section if it is there,
+  // then scroll it into view.
   $effect(() => {
     const index = selected // the only dependency: typing a search must not trigger this
     untrack(() => {
       if (!visible.some((v) => v.i === index) && query) query = ''
+      if (secondary && records[index] && secondary(records[index])) showSecondary = true
     })
     tick().then(() => listEl?.querySelector('button.selected')?.scrollIntoView({ block: 'nearest' }))
   })
@@ -55,25 +68,41 @@
   })
 </script>
 
+{#snippet row(r: T, i: number)}
+  <li>
+    <button class:selected={i === selected} onclick={() => onselect(i)}>
+      {#if icon}{@render icon(r)}{/if}
+      <span class="name">{r.name || r.id}{#if suffix} {@render suffix(r)}{/if}</span>
+      {#if problemIds.has(r.id)}<span class="dot" aria-label="!">!</span>{/if}
+    </button>
+  </li>
+{/snippet}
+
 <div class="list panel">
   <input type="search" bind:value={query} placeholder={t('ws.search')} aria-label={t('ws.search')} />
   {#if extraFilter}{@render extraFilter()}{/if}
-  <ul bind:this={listEl}>
-    {#each visible as { r, i } (r.id)}
-      <li>
-        <button class:selected={i === selected} onclick={() => onselect(i)}>
-          {#if icon}{@render icon(r)}{/if}
-          <span class="name">{r.name || r.id}{#if suffix} {@render suffix(r)}{/if}</span>
-          {#if problemIds.has(r.id)}<span class="dot" aria-label="!">!</span>{/if}
-        </button>
-      </li>
-    {/each}
-  </ul>
+  <div class="scroll" bind:this={listEl}>
+    <ul>
+      {#each main as { r, i } (r.id)}{@render row(r, i)}{/each}
+    </ul>
+    {#if rest.length}
+      <button class="section" aria-expanded={restOpen} onclick={() => (showSecondary = !restOpen)}>
+        <span class="chevron" class:open={restOpen}>▸</span>
+        {secondaryLabel.replace('{n}', String(rest.length))}
+      </button>
+      {#if restOpen}
+        <ul class="secondary">
+          {#each rest as { r, i } (r.id)}{@render row(r, i)}{/each}
+        </ul>
+      {/if}
+    {/if}
+  </div>
 </div>
 
 <style>
   .list { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
-  ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; max-height: calc(100vh - 260px); }
+  .scroll { overflow-y: auto; max-height: calc(100vh - 260px); }
+  ul { list-style: none; margin: 0; padding: 0; }
   li button {
     display: flex; align-items: center; gap: 0.5rem; width: 100%;
     border: none; background: none; padding: 0.3rem 0.4rem; text-align: left; border-radius: 6px;
@@ -82,5 +111,13 @@
   li button.selected { background: var(--accent-soft); }
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dot { color: var(--bad); font-weight: 700; }
-  @media (max-width: 800px) { ul { max-height: 240px; } }
+  .section {
+    display: flex; align-items: center; gap: 0.4rem; width: 100%; margin-top: 0.4rem;
+    border: none; border-top: 1px solid var(--border); border-radius: 0; background: none;
+    padding: 0.5rem 0.4rem 0.3rem; color: var(--muted); font-size: 0.82rem; text-align: left;
+  }
+  .chevron { display: inline-block; transition: transform 0.15s; }
+  .chevron.open { transform: rotate(90deg); }
+  .secondary li button { opacity: 0.85; }
+  @media (max-width: 800px) { .scroll { max-height: 240px; } }
 </style>

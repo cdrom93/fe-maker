@@ -39,7 +39,7 @@ Docs are written in French (README in French and English); code and comments in 
 
 - The decomp checkout must use LF line endings (`core.autocrlf=false`, `core.eol=lf`), or the Linux build breaks.
 - Text compression packs 2 bytes per symbol: odd-length names need `[.]` padding (`name_message`).
-- Unit definitions set each unit's class in every chapter: a character class change must retarget unit defs.
+- Unit definitions set each unit's class in every chapter: a character class change must retarget unit defs. The character sheet is the only source of a named character's class: chapter edits never write `classIndex` for `CHARACTER_` units (class 0 = the character's class when a unit switches to a named character); only generic units (raw ids 0x80...) get a class per chapter.
 - Weapon ranks a class cannot animate crash the battle animation (validation `noBattleAnimation`).
 - Weapon locks: generic CA/IA_LOCK 1,2,4,5,6,7 are allocated automatically from items' `reservedFor`; LOCK_3 means monster weapon.
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.

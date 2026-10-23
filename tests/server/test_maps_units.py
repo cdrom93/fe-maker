@@ -153,3 +153,18 @@ def test_cutscene_groups(decomp_dir):
         {"name": "UnitDef_TestCutsceneActors", "origin": "cutscene", "turn": None},
         {"name": "UnitDef_TestEnemies", "origin": "opening", "turn": None},
     ]
+
+
+def test_named_character_class_comes_from_the_character_sheet(tmp_path, decomp_dir):
+    import copy
+
+    rel, sources = _udefs(decomp_dir)
+    group = copy.deepcopy(units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units)
+    group[0]["class"] = "CLASS_TESTKNIGHT"  # ignored: CHARACTER_TESTHERO's class is set on its sheet
+    assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]
+    group[0]["character"] = "0x80"  # a generic unit keeps a class chosen in the chapter
+    group[0]["class"] = "CLASS_TESTKNIGHT"
+    group[1]["character"] = "CHARACTER_TESTHERO"  # becomes a named character: the game uses its class
+    out = _reread(tmp_path, units.apply_unit_groups(sources, {"UnitDef_TestChapter": group}))["UnitDef_TestChapter"].units
+    assert (out[0]["character"], out[0]["class"]) == ("0x80", "CLASS_TESTKNIGHT")
+    assert (out[1]["character"], out[1]["class"]) == ("CHARACTER_TESTHERO", "0")

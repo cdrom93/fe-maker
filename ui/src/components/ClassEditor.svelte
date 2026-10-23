@@ -25,17 +25,16 @@
   const GENDER_SIGN = { male: '♂', female: '♀' } as const
 
   let selected = $state(0)
-  let hideUnused = $state(true)
 
   followFocus('classes', useNavigator(), () => classes.map((k) => k.id), (i) => {
-    if (!classes[i].usedInGame) hideUnused = false
     selected = i
   })
 
   const cl = $derived(classes[selected])
   const mine = $derived(problems.filter((p) => p.kind === 'classes' && p.id === cl?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'classes' && p.severity === 'error').map((p) => p.id)))
-  const promoChoices = $derived(classes.filter((k) => !hideUnused || k.usedInGame || cl?.promotions.includes(k.id)))
+  const usedClasses = $derived(classes.filter((k) => k.usedInGame))
+  const unusedClasses = $derived(classes.filter((k) => !k.usedInGame))
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field)
@@ -68,14 +67,11 @@
 </script>
 
 <div class="editor">
-  <RecordList records={classes} {selected} onselect={(i) => (selected = i)} filter={(k) => !hideUnused || k.usedInGame} {problemIds}>
+  <RecordList records={classes} {selected} onselect={(i) => (selected = i)} secondary={(k) => !k.usedInGame} secondaryLabel={t('list.unusedClasses')} {problemIds}>
     {#snippet icon(k: ClassView)}
       <span class="sprite"><img src={mapSpriteUrl(k.id, 'player', true)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
     {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
-    {#snippet extraFilter()}
-      <label class="check"><input type="checkbox" bind:checked={hideUnused} /> {t('field.hideUnusedClasses')}</label>
-    {/snippet}
   </RecordList>
 
   {#if cl}
@@ -171,7 +167,10 @@
               <span class="with-sign">
                 <select value={cl.promotions[slot] ?? ''} onchange={(e) => setPromotion(slot, (e.target as HTMLSelectElement).value)}>
                   <option value="">{t('field.none')}</option>
-                  {#each promoChoices as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{label(k)}</option>{/each}
+                  {#each usedClasses as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{label(k)}</option>{/each}
+                  <optgroup label={t('list.unusedClassesGroup')}>
+                    {#each unusedClasses as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{label(k)}</option>{/each}
+                  </optgroup>
                 </select>
                 <GenderSign gender={classes.find((k) => k.id === cl.promotions[slot])?.gender} />
                 {#if cl.promotions[slot]}<Mention kind="classes" id={cl.promotions[slot]}><span class="open">↗</span></Mention>{/if}

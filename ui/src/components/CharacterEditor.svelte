@@ -24,17 +24,16 @@
   const LUCK_CAP = 30 // fixed by the engine, not per class
 
   let selected = $state(0)
-  let namedOnly = $state(true)
-  let hideUnusedClasses = $state(true)
 
   followFocus('characters', useNavigator(), () => list.records.map((c) => c.id), (i) => {
-    if (!list.records[i].id.startsWith('CHARACTER_')) namedOnly = false
     selected = i
   })
 
   const GENDER_SIGN = { male: '♂', female: '♀' } as const
   // The current class always stays in the list, even when unused classes are hidden.
-  const classChoices = $derived(classes.filter((k) => !hideUnusedClasses || k.usedInGame || k.id === ch?.class))
+  // Classes never used in the game come last, in their own group of the list.
+  const usedClasses = $derived(classes.filter((k) => k.usedInGame))
+  const unusedClasses = $derived(classes.filter((k) => !k.usedInGame))
 
   function classLabel(k: ClassView): string {
     const sign = k.gender ? ` ${GENDER_SIGN[k.gender]}` : ''
@@ -69,14 +68,12 @@
     records={list.records}
     {selected}
     onselect={(i) => (selected = i)}
-    filter={(c) => !namedOnly || c.id.startsWith('CHARACTER_')}
+    secondary={(c) => !c.id.startsWith('CHARACTER_')}
+    secondaryLabel={t('list.genericCharacters')}
     {problemIds}
   >
     {#snippet icon(c: Character)}
       <img class="pixel mini" src={portraitUrl(c.portraitId)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
-    {/snippet}
-    {#snippet extraFilter()}
-      <label class="check"><input type="checkbox" bind:checked={namedOnly} /> {t('ws.namedOnly')}</label>
     {/snippet}
   </RecordList>
 
@@ -93,15 +90,17 @@
             {t('field.class')}
             <span class="with-sign">
               <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
-                {#each classChoices as k (k.id)}
+                {#each usedClasses as k (k.id)}
                   <option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>
                 {/each}
+                <optgroup label={t('list.unusedClassesGroup')}>
+                  {#each unusedClasses as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>{/each}
+                </optgroup>
               </select>
               <GenderSign gender={cls?.gender} />
               <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
-          <label class="check"><input type="checkbox" bind:checked={hideUnusedClasses} /> {t('field.hideUnusedClasses')}</label>
           <p class="muted small">{t('field.classHint')}</p>
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">

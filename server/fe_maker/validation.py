@@ -205,7 +205,8 @@ def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
             if char.startswith("CHARACTER_") and char not in character_ids:
                 problems.append(Problem("error", "chapters", rid, "character", "unknownCharacter", {},
                                         f"{rid}: unknown character"))
-            if unit.get("class") not in class_ids:
+            # A named character's class comes from its sheet (see units._apply_unit_fields).
+            if not char.startswith("CHARACTER_") and unit.get("class") not in class_ids:
                 problems.append(Problem("error", "chapters", rid, "class", "unknownClass", {}, f"{rid}: unknown class"))
             _range(problems, "chapters", rid, "level", unit.get("level"), 0, 31)  # 5-bit field
             _range(problems, "chapters", rid, "endX", unit.get("endX"), 0, 63)  # 6-bit fields

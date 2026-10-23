@@ -7,11 +7,30 @@
   import Setup from './components/Setup.svelte'
   import Home from './components/Home.svelte'
   import Workspace from './components/Workspace.svelte'
-  import TicketDialog from './components/TicketDialog.svelte'
+  import TicketPanel from './components/TicketPanel.svelte'
 
   let status = $state<Status | null>(null)
   let loadError = $state('')
-  let showTickets = $state(false)
+  // The ticket column stays open across reloads (per-browser convenience).
+  let showTickets = $state(readShowTickets())
+  let headerHeight = $state(49)
+
+  function readShowTickets(): boolean {
+    try {
+      return localStorage.getItem('fe-maker.tickets-open') === '1'
+    } catch {
+      return false
+    }
+  }
+
+  function toggleTickets(open = !showTickets) {
+    showTickets = open
+    try {
+      localStorage.setItem('fe-maker.tickets-open', open ? '1' : '0')
+    } catch {
+      // storage unavailable: the column just won't be remembered
+    }
+  }
   let openTickets = $state(0)
 
   async function refresh() {
@@ -34,13 +53,13 @@
   })
 </script>
 
-<header>
+<header bind:clientHeight={headerHeight}>
   <div class="brand">
     <strong>FE Maker</strong>
     <span class="muted">{t('app.tagline')}</span>
   </div>
   <div class="tools">
-    <button class="ticket" title={t('ticket.buttonTitle')} onclick={() => (showTickets = true)}>
+    <button class="ticket" title={t('ticket.buttonTitle')} aria-pressed={showTickets} class:active={showTickets} onclick={() => toggleTickets()}>
       🎫 {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
     </button>
   <div class="lang" role="group" aria-label={t('app.language')}>
@@ -54,10 +73,12 @@
 </header>
 
 {#if showTickets}
-  <TicketDialog onClose={() => (showTickets = false)} onChanged={(n) => (openTickets = n)} />
+  <div style="--header-height: {headerHeight}px; display: contents">
+  <TicketPanel onClose={() => toggleTickets(false)} onChanged={(n) => (openTickets = n)} />
+  </div>
 {/if}
 
-<main>
+<main class:with-side={showTickets} style="--header-height: {headerHeight}px">
   {#if loadError}
     <p class="panel">{loadError}</p>
   {:else if !status}
@@ -89,6 +110,10 @@
   .lang button { padding: 0.3em 0.4em; display: grid; place-items: center; }
   .lang button.active { background: var(--accent-soft); border-color: var(--accent); }
   main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
+  /* The ticket column takes the right side: the app stays usable next to it. */
+  main.with-side { margin-right: 380px; }
+  @media (max-width: 1000px) { main.with-side { margin-right: 0; } }
+  .ticket.active { background: var(--accent-soft); border-color: var(--accent); }
   @media (max-width: 600px) {
     .brand .muted { display: none; }
     main { padding: 1rem; }

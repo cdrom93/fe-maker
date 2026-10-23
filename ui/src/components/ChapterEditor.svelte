@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { aiPreset } from '../lib/ai'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
@@ -96,13 +96,23 @@
     return edits[name] ?? data?.groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
+  // Selecting a unit (on the map) shows its group's list if a list is open. Only a new
+  // selection triggers this: opening another group must not bring the old one back.
   $effect(() => {
-    if (picked && openGroup && openGroup !== picked.group) openGroup = picked.group
+    const group = picked?.group
+    untrack(() => {
+      if (group && openGroup && openGroup !== group) openGroup = group
+    })
   })
+
+  function toggleGroup(name: string) {
+    openGroup = openGroup === name ? null : name
+    if (openGroup && picked && picked.group !== openGroup) picked = null
+  }
 
   // Tell feedback tickets which unit is open.
   $effect(() => {
-    appContext.detail = unit && picked ? `${picked.group} #${picked.index} · ${unitName(unit)} · ${classById.get(unit.class)?.name ?? unit.class}` : ''
+    appContext.detail = unit && picked ? `${picked.group} #${picked.index} · ${unitName(unit)} · ${classById.get(effectiveClass(unit))?.name ?? effectiveClass(unit)}` : ''
     return () => (appContext.detail = '')
   })
 
@@ -215,6 +225,12 @@
     })
   }
 
+  /** Named characters have a sheet: their class comes from it (the only source of truth). */
+  const isNamed = (u: MapUnit) => u.character.startsWith('CHARACTER_') && charById.has(u.character)
+  function effectiveClass(u: MapUnit): string {
+    return isNamed(u) ? charById.get(u.character)!.class : u.class
+  }
+
   function unitName(u: MapUnit): string {
     return charById.get(u.character)?.name || t('chapter.generic')
   }
@@ -233,7 +249,7 @@
 </script>
 
 <div class="editor">
-  <RecordList records={chapters} {selected} onselect={(i) => load(i)} problemIds={new Set()}>
+  <RecordList records={chapters} {selected} onselect={(i) => load(i)} secondary={(c) => !c.title} secondaryLabel={t('list.otherChapters')} problemIds={new Set()}>
     {#snippet suffix(c: ChapterInfo & { code: string })}<span class="muted id">{c.code}</span>{/snippet}
   </RecordList>
 
@@ -246,7 +262,7 @@
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
                 <input type="checkbox" title={t('chapter.showGroup')} aria-label={t('chapter.showGroup')} checked={!hidden[g.name]} onchange={(e) => (hidden[g.name] = !(e.target as HTMLInputElement).checked)} />
-                <button class="group-name" title={t('chapter.openGroup')} onclick={() => (openGroup = openGroup === g.name ? null : g.name)}>
+                <button class="group-name" title={t('chapter.openGroup')} onclick={() => toggleGroup(g.name)}>
                   {originLabel(g.origin, g.turn)} · {unitsOf(g.name).length}
                   {#if edits[g.name]}<span class="edited">✎</span>{/if}
                   <span class="muted tiny">{g.name.replace('UnitDef_Event_', '')}</span>
@@ -277,9 +293,9 @@
                 <tbody>
                   {#each unitsOf(og) as u, i (i)}
                     <tr class:picked={picked?.group === og && picked.index === i} onclick={() => (picked = { group: og, index: i })}>
-                      <td class="sprite"><img src={mapSpriteUrl(u.class, u.side, true)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></td>
+                      <td class="sprite"><img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></td>
                       <td><button class="link" onclick={() => (picked = { group: og, index: i })}>{unitName(u)}</button></td>
-                      <td>{classById.get(u.class)?.name ?? u.class}<GenderSign gender={classById.get(u.class)?.gender} /></td>
+                      <td>{classById.get(effectiveClass(u))?.name ?? effectiveClass(u)}<GenderSign gender={classById.get(effectiveClass(u))?.gender} /></td>
                       <td>{u.level}</td>
                       <td>{u.endX}, {u.endY}</td>
                       <td class="muted">{t(`ai.preset.${aiPreset(u.ai)}`)}</td>
@@ -336,13 +352,13 @@
                       class:dimmed={openGroup !== null && openGroup !== g.name}
                       class:locked={u.fixedPath}
                       style="left: {u.endX * CELL}px; top: {u.endY * CELL}px"
-                      title="{unitName(u)} · {classById.get(u.class)?.name ?? u.class} {t('chapter.levelShort')}{u.level}"
+                      title="{unitName(u)} · {classById.get(effectiveClass(u))?.name ?? effectiveClass(u)} {t('chapter.levelShort')}{u.level}"
                       draggable={!u.fixedPath}
                       ondragstart={() => (dragging = { group: g.name, index: i })}
                       ondragend={() => (dragging = null)}
                       onclick={() => (picked = { group: g.name, index: i })}
                     >
-                      <img src={mapSpriteUrl(u.class, u.side)} alt="" draggable="false" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+                      <img src={mapSpriteUrl(effectiveClass(u), u.side)} alt="" draggable="false" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
                     </button>
                   {/each}
                 {/if}
@@ -353,7 +369,7 @@
 
         <section class="panel unit-panel">
           {#if unit && picked}
-            {@const cls = classById.get(unit.class)}
+            {@const cls = classById.get(effectiveClass(unit))}
             {@const p = picked}
             <h3>{t(`chapter.side.${unit.side}`)}</h3>
             {#if pickedOrigin === 'cutscene'}
@@ -380,17 +396,32 @@
                 {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
               </select>
             </label>
+            {#if isNamed(unit)}
+              <div class="from-sheet">
+                <span class="muted small">{t('field.class')}</span>
+                <span>
+                  {#if cls}<Mention kind="classes" id={cls.id}>{cls.name || cls.id}</Mention><GenderSign gender={cls.gender} />{:else}{effectiveClass(unit)}{/if}
+                </span>
+                <span class="muted tiny">{t('chapter.classFromSheet')} <Mention kind="characters" id={unit.character}>{unitName(unit)}</Mention></span>
+              </div>
+            {:else}
             <label>
               <span>{t('field.class')} {#if cls}<Mention kind="classes" id={unit.class}><span class="open">↗</span></Mention>{/if}</span>
               <span class="with-sign">
                 <select value={unit.class} onchange={(e) => editUnit(p.group, p.index, (u) => (u.class = (e.target as HTMLSelectElement).value))}>
-                  {#each classes.filter((k) => k.usedInGame || k.id === unit.class) as k (k.id)}
+                  {#each classes.filter((k) => k.usedInGame) as k (k.id)}
                     <option value={k.id} class={k.gender ?? ''}>{k.name || k.id}{k.gender === 'male' ? ' ♂' : k.gender === 'female' ? ' ♀' : ''}</option>
                   {/each}
+                  <optgroup label={t('list.unusedClassesGroup')}>
+                    {#each classes.filter((k) => !k.usedInGame) as k (k.id)}
+                      <option value={k.id} class={k.gender ?? ''}>{k.name || k.id}{k.gender === 'male' ? ' ♂' : k.gender === 'female' ? ' ♀' : ''}</option>
+                    {/each}
+                  </optgroup>
                 </select>
                 <GenderSign gender={cls?.gender} />
               </span>
             </label>
+            {/if}
             <div class="row">
               <NumberField label={t('chapter.level')} value={unit.level} min={0} max={31} onchange={(v) => editUnit(p.group, p.index, (u) => (u.level = v))} />
               <span class="muted small">{unit.autolevel ? t('chapter.autolevelHint') : ''}</span>
@@ -450,6 +481,7 @@
   .group-units .sprite img { image-rendering: pixelated; max-height: 32px; vertical-align: bottom; }
   .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; }
   .unit.dimmed { opacity: 0.35; }
+  .from-sheet { display: flex; flex-direction: column; gap: 0.15rem; }
   .map.picking { cursor: crosshair; }
   .map.picking .unit { pointer-events: none; }
   .seize-marker {
