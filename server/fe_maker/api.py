@@ -255,7 +255,11 @@ def chapter_units(index: int):
     def group_units(name: str) -> list[dict]:
         if name in edited:
             # Groups edited before units could be added or removed have no "slot": units were in order.
-            return [u if "slot" in u else {"slot": i, **u} for i, u in enumerate(edited[name])]
+            macros = units.ai_macros(DECOMP_DIR)
+            return [{**({"slot": i} if "slot" not in u else {}), **u,
+                     # Projects saved before the AI was editable store it as the original C text.
+                     "ai": units.parse_ai(u["ai"], macros) if isinstance(u.get("ai"), str) else u.get("ai", [0, 0, 0, 0])}
+                    for i, u in enumerate(edited[name])]
         return groups[name].units if name in groups else []
 
     return {

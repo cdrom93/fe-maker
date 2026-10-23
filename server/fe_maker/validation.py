@@ -23,6 +23,7 @@ from .decomp.gamedata import (
 NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.GENERIC_LOCKS)
 UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/Green sizes (include/bmunit.h)
+AI_ACTION_MAX, AI_MOVE_MAX, AI_RECOVERY_MAX = 0x14, 0x12, 4  # last entries of the AI tables (src/cp_data.c)
 
 
 @dataclass
@@ -180,6 +181,11 @@ def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
             _range(problems, "chapters", rid, "level", unit.get("level"), 0, 31)  # 5-bit field
             _range(problems, "chapters", rid, "endX", unit.get("endX"), 0, 63)  # 6-bit fields
             _range(problems, "chapters", rid, "endY", unit.get("endY"), 0, 63)
+            ai = unit.get("ai")
+            if isinstance(ai, list):
+                # Indexes into gAi1ScriptTable, gAi2ScriptTable and gAI3HealingThresholdTable (src/cp_data.c).
+                if len(ai) != 4 or ai[0] > AI_ACTION_MAX or ai[1] > AI_MOVE_MAX or ai[2] & 0x7 > AI_RECOVERY_MAX or ai[3] > 255:
+                    problems.append(Problem("error", "chapters", rid, "ai", "badAi", {}, f"{rid}: AI value outside the engine tables"))
             item_list = unit.get("items", [])
             if len(item_list) > 4:
                 problems.append(Problem("error", "chapters", rid, "items", "tooManyItems", {"max": 4}, f"{rid}: at most 4 items"))

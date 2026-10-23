@@ -121,3 +121,26 @@ def test_unchanged_units_with_slots_are_byte_identical(decomp_dir):
     rel, sources = _udefs(decomp_dir)
     group = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
     assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]
+
+
+def test_parse_ai_expands_macros():
+    macros = {"AttackInRangeAI": [0x00, 0x03], "NeverMoveAI": [0x03, 0x03, 0x04, 0x20]}
+    assert units.parse_ai("{AttackInRangeAI, 0x9}", macros) == [0x00, 0x03, 0x09, 0x00]
+    assert units.parse_ai("{NeverMoveAI}", macros) == [0x03, 0x03, 0x04, 0x20]
+    assert units.parse_ai("{0x6, 0x3, 0x0, 0x0}", macros) == [0x06, 0x03, 0x00, 0x00]
+    assert units.parse_ai("", macros) == [0, 0, 0, 0]
+
+
+def test_edit_unit_ai(tmp_path, decomp_dir):
+    import copy
+
+    group = copy.deepcopy(units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units)
+    assert group[0]["ai"] == [0, 0, 0, 0]
+    group[0]["ai"] = [0x00, 0x03, 0x09, 0x20]
+    rel, sources = _udefs(decomp_dir)
+    out = units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})
+    assert ".ai = {0x0, 0x3, 0x9, 0x20}," in out[rel]
+    assert _reread(tmp_path, out)["UnitDef_TestChapter"].units[0]["ai"] == [0x00, 0x03, 0x09, 0x20]
+    # Projects saved before the AI was editable keep the original text.
+    group[0]["ai"] = "{0x0, 0x0}"
+    assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]

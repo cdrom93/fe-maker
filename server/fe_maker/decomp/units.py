@@ -17,6 +17,7 @@ from pathlib import Path
 from .cparse import _blank_comments, _match_brace, _split_top_level, parse_fields
 
 UNIT_SOURCES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
+AI_HELPERS = "include/EA_Standard_Library/AI_Helpers.h"
 EVENT_SOURCES = ["src/events/*.h", "src/events_script.c", "src/events_info.c"]
 
 ALLEGIANCE = {"FACTION_ID_BLUE": "player", "FACTION_ID_GREEN": "ally", "FACTION_ID_RED": "enemy",
@@ -61,7 +62,41 @@ def _int(value: str | None, default: int = 0) -> int:
 
 
 @lru_cache(maxsize=4)
+def ai_macros(decomp_dir: Path) -> dict[str, list[int]]:
+    """AI macros of the EA standard library (DefaultAI = 0x00,0x00...), used in unit definitions."""
+    path = decomp_dir / AI_HELPERS
+    if not path.is_file():
+        return {}
+    macros = {}
+    for name, value in re.findall(r"#define\s+(\w+)\s+((?:0x[0-9A-Fa-f]+|\d+)(?:\s*,\s*(?:0x[0-9A-Fa-f]+|\d+))*)",
+                                  path.read_text(encoding="utf-8")):
+        macros[name] = [int(v, 0) for v in value.split(",")]
+    return macros
+
+
+def parse_ai(raw: str, macros: dict[str, list[int]]) -> list[int]:
+    """The 4 AI bytes of a unit: action, movement, target/recovery settings, flags (0x20: guard its tile)."""
+    values: list[int] = []
+    for token in (t.strip() for t in raw.strip().strip("{}").split(",")):
+        if not token:
+            continue
+        if token in macros:
+            values += macros[token]
+        else:
+            try:
+                values.append(int(token.rstrip("uU"), 0))
+            except ValueError:
+                raise UnitEditError(f"Unknown AI value: {token}") from None
+    return (values + [0, 0, 0, 0])[:4]
+
+
+def render_ai(ai: list[int]) -> str:
+    return "{" + ", ".join(hex(v) for v in ai) + "}"
+
+
+@lru_cache(maxsize=4)
 def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
+    macros = ai_macros(decomp_dir)
     sources = _sources(decomp_dir, UNIT_SOURCES)
     redas: dict[str, list[tuple[int, int]]] = {}
     for source in sources.values():
@@ -103,7 +138,7 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
                     "endX": path[-1][0] if path else x,
                     "endY": path[-1][1] if path else y,
                     "items": items,
-                    "ai": f.get("ai", ""),
+                    "ai": parse_ai(f.get("ai", ""), macros),
                     # Entry path stored as a raw address (not decompiled): the unit cannot be moved yet.
                     "fixedPath": bool(path_name) and not re.fullmatch(r"\w+", path_name),
                 })
@@ -151,7 +186,8 @@ def _render_unit(fields: dict[str, str], indent: str) -> str:
     return "\n".join(lines)
 
 
-def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]]) -> dict[str, str]:
+def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
+                      macros: dict[str, list[int]] | None = None) -> dict[str, str]:
     """Write edited unit groups into the decomp sources (decomp-relative path -> text).
 
     Each unit's "slot" is its position in the original array. A new unit has "slot": None
@@ -188,7 +224,7 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]]) -> 
                 s, e = spans[slot]
                 fields = parse_fields(clean[s + 1: e - 1])
                 original = dict(fields)
-            _apply_unit_fields(fields, unit, name, reda_moves, is_new=slot is None)
+            _apply_unit_fields(fields, unit, name, reda_moves, is_new=slot is None, macros=macros or {})
             rendered.append(None if fields == original else _render_unit(fields, INDENT_MARK))
 
         if slots == list(range(len(spans))):
@@ -230,7 +266,8 @@ def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name:
     return fields
 
 
-def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves: list, is_new: bool) -> None:
+def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves: list, is_new: bool,
+                       macros: dict[str, list[int]]) -> None:
     """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
     if fields.get("charIndex", "0") != unit["character"]:
         fields["charIndex"] = unit["character"]
@@ -246,6 +283,12 @@ def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves
     old_items = [i.strip() for i in fields.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
     if items != old_items:
         fields["items"] = "{ " + " ".join(f"{i}," for i in items) + " }" if items else "{ }"
+    # Projects saved before the AI was editable store it as the original C text.
+    ai = unit.get("ai")
+    if isinstance(ai, list) and parse_ai(fields.get("ai", ""), macros) != [int(v) for v in ai]:
+        if len(ai) != 4 or not all(0 <= int(v) <= 255 for v in ai):
+            raise UnitEditError(f"{name}: invalid AI {ai}")
+        fields["ai"] = render_ai([int(v) for v in ai])
     position = (int(unit["endX"]), int(unit["endY"]))
     path = fields.get("redas", "").lstrip("&").strip()
     if path and not re.fullmatch(r"\w+", path):

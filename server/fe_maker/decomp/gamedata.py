@@ -321,7 +321,7 @@ class DecompData:
     def apply_chapters(self, chapters: dict) -> None:
         edits = chapters.get("unitGroups", {})
         if edits:
-            self.unit_defs = units.apply_unit_groups(self.unit_defs, edits)
+            self.unit_defs = units.apply_unit_groups(self.unit_defs, edits, units.ai_macros(self.decomp_dir))
 
     def apply_combat(self, combat_data: dict) -> None:
         if self.triangle is not None and "triangle" in combat_data:

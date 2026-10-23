@@ -4,6 +4,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, Problem } from '../lib/types'
+  import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
@@ -111,7 +112,7 @@
     const unit: MapUnit = base
       ? { ...(structuredClone($state.snapshot(base)) as MapUnit), slot: null, copyOf: base.slot ?? base.copyOf ?? null, fixedPath: false }
       : {
-          slot: null, copyOf: null, level: 1, autolevel: false, items: [], ai: '',
+          slot: null, copyOf: null, level: 1, autolevel: false, items: [], ai: [0, 0, 0, 0],
           side: origin === 'players' ? 'player' : 'enemy',
           character: origin === 'players' ? (characters[0]?.id ?? GENERIC) : GENERIC,
           class: classes.find((k) => k.usedInGame)?.id ?? classes[0]?.id ?? '',
@@ -278,6 +279,7 @@
                 </select>
               </div>
             {/each}
+            <AiPanel ai={unit.ai} side={unit.side} onchange={(ai) => editUnit(p.group, p.index, (u) => (u.ai = ai))} />
             {#each unitProblems as pr, i (i)}<p class="bad small">{t(`problem.${pr.code}`, pr.params)}</p>{/each}
           {:else}
             <p class="muted">{t('chapter.pickUnit')}</p>

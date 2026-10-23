@@ -69,3 +69,17 @@ def test_chapter_unit_problems(decomp_dir):
     assert ("UnitDef_TestChapter#1", "position", "sameTile") in codes
     assert ("UnitDef_TestChapter#2", "character", "noCharacter") in codes
     assert ("UnitDef_TestChapter#", "side", "tooManyUnits") in codes
+
+
+def test_ai_outside_engine_tables(decomp_dir):
+    from fe_maker.decomp import units
+
+    d = DecompData(decomp_dir)
+    group = [dict(u) for u in units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units]
+    group[0]["ai"] = [0x15, 0x0, 0x0, 0x0]
+    group[1]["ai"] = [0x0, 0x3, 0x5, 0x0]  # recovery setting 5: past the 5-entry threshold table
+    group[2]["ai"] = [0x14, 0x12, 0xfc, 0x20]
+    codes = _codes(validate(d.export_characters(), d.export_items(), d, chapters={"unitGroups": {"UnitDef_TestChapter": group}}))
+    assert ("UnitDef_TestChapter#0", "ai", "badAi") in codes
+    assert ("UnitDef_TestChapter#1", "ai", "badAi") in codes
+    assert ("UnitDef_TestChapter#2", "ai", "badAi") not in codes

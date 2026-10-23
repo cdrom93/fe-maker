@@ -107,7 +107,8 @@ export interface MapUnit {
   endX: number
   endY: number
   items: string[]
-  ai: string
+  /** action, movement, target/recovery settings, flags (0x20: guards its tile) */
+  ai: number[] | string
   /** entry path not decompiled yet: the unit cannot be moved */
   fixedPath?: boolean
 }
