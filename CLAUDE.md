@@ -22,6 +22,7 @@ Docs are written in French (README in French and English); code and comments in 
 - Everything mentioned in the UI is clickable and opens its sheet (spec principle 8): use `Mention` and the navigator (`ui/src/lib/navigation.svelte.ts`).
 - Class gender is shown after the class name: ♂ blue, ♀ pink (`GenderSign`).
 - FEBuilderGBA (GPL-3.0) may be used freely as a reference or source; credit it in `CREDITS.md`.
+- Before writing a game feature from scratch (new engine behavior, ASM hack, event command, map/tile tool...), look at what FEBuilderGBA's patches already provide (its `config/patch2/FE8U/` folder and the FEBuilderGBA patch list) and reuse or adapt one when it fits; credit it in `CREDITS.md`.
 - An unmodified project must rebuild the original ROM byte for byte: only write what changed (`changed_files()`, cparse re-renders only edited entries).
 - Patches are `.ups`. BUGFIX build option exists but is off by default (3 decomp BUGFIX blocks don't compile).
 
