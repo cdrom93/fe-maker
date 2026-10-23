@@ -33,6 +33,7 @@ Docs are written in French (README in French and English); code and comments in 
 - `docker/`: build image (Ubuntu 24.04, agbcc pinned). The decomp is mounted read-only, the working copy lives in a Docker volume, the overlay is applied with `rsync -rlp --checksum`.
 - Tests: `tests/server` (no ROM, fictional fixtures in `tests/server/fixtures/decomp`); `tests/local` (needs the ROM and Docker, never in public CI).
 - `tools/mgba-drive.ps1` (Windows, dev only): drives mGBA with key presses and screenshots for in-game checks.
+- Feedback tickets: `server/fe_maker/tickets.py` (stored in the user's config dir, `tickets/tickets.json` + `images/`, never in the repo), `TicketDialog.svelte` (header button), `ui/src/lib/appContext.svelte.ts` (tab / record / detail attached to a ticket; `RecordList` and `ChapterEditor` fill it). List open tickets with `python -m fe_maker.tickets`.
 
 ## Pitfalls already met
 

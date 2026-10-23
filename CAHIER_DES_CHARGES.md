@@ -206,6 +206,7 @@ Trois pistes à évaluer le moment venu :
 - **Tests** : tests automatiques sur la conversion projet → décomp (sans ROM, sur des données fictives). Les tests nécessitant la ROM sont lancés localement uniquement, jamais dans la CI publique.
 - **CI GitHub** : lint + tests sans ROM.
 - **Documentation** : guide utilisateur en français et en anglais ; guide contributeur.
+- **Retours de test dans l'appli** (ajouté le 23/10/2026, sur le modèle d'un carnet d'idées) : bouton « Ticket » dans l'en-tête, toujours visible. Type (bug, idée, question), priorité, texte, captures d'écran collées avec Ctrl+V, contexte joint automatiquement (projet, onglet, fiche, unité, version du code). Liste : modifier, traité, abandonner, rouvrir, supprimer. Stockage local, hors du dépôt (dossier de réglages de FE Maker, `tickets/`) ; `python -m fe_maker.tickets` liste les tickets ouverts pour le développement.
 - **Langue du code** : code et commentaires en anglais (contributeurs internationaux) ; interface traduite.
 
 ---

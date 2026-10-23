@@ -6,9 +6,12 @@
   import Setup from './components/Setup.svelte'
   import Home from './components/Home.svelte'
   import Workspace from './components/Workspace.svelte'
+  import TicketDialog from './components/TicketDialog.svelte'
 
   let status = $state<Status | null>(null)
   let loadError = $state('')
+  let showTickets = $state(false)
+  let openTickets = $state(0)
 
   async function refresh() {
     try {
@@ -24,7 +27,10 @@
     status = await api.updateSettings({ language: lang })
   }
 
-  onMount(refresh)
+  onMount(() => {
+    refresh()
+    api.tickets().then((all) => (openTickets = all.filter((x) => x.status === 'open').length)).catch(() => {})
+  })
 </script>
 
 <header>
@@ -32,11 +38,20 @@
     <strong>FE Maker</strong>
     <span class="muted">{t('app.tagline')}</span>
   </div>
+  <div class="tools">
+    <button class="ticket" title={t('ticket.buttonTitle')} onclick={() => (showTickets = true)}>
+      🎫 {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
+    </button>
   <div class="lang" role="group" aria-label={t('app.language')}>
     <button class:active={i18n.lang === 'fr'} onclick={() => setLanguage('fr')}>FR</button>
     <button class:active={i18n.lang === 'en'} onclick={() => setLanguage('en')}>EN</button>
   </div>
+  </div>
 </header>
+
+{#if showTickets}
+  <TicketDialog onClose={() => (showTickets = false)} onChanged={(n) => (openTickets = n)} />
+{/if}
 
 <main>
   {#if loadError}
@@ -63,6 +78,9 @@
   }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand strong { font-size: 1.15rem; }
+  .tools { display: flex; gap: 0.75rem; align-items: center; }
+  .ticket { padding: 0.25em 0.7em; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; }
+  .count { min-width: 1.4em; padding: 0 0.3em; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 0.72rem; text-align: center; }
   .lang button { padding: 0.25em 0.6em; font-size: 0.8rem; }
   .lang button.active { background: var(--accent-soft); border-color: var(--accent); }
   main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }

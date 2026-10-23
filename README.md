@@ -46,6 +46,7 @@ L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lance
 
 - Tests sans ROM / Tests without ROM: `python -m pytest tests/server` (après / after `pip install -e "server[dev]"`)
 - Tests avec ROM, en local uniquement / ROM tests, local only: `FE_MAKER_ROM=path/to/fe8.gba python -m pytest tests/local -s`
+- Tickets de test saisis dans l'appli (bouton « Ticket ») / Test tickets written in the app ("Ticket" button): `python -m fe_maker.tickets [--all]`
 - Interface en mode dev / UI dev mode: `cd ui && npm run dev` (le serveur Python doit tourner / the Python server must be running)
 - Compiler la décomp seule / Build the decomp alone: `python docker/build.py --rom path/to/fe8.gba [--overlay DIR] [--bugfix]`
 

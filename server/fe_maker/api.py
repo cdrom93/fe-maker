@@ -20,6 +20,7 @@ from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES,
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import DATA_FILES, Project, ProjectError, slugify
 from .rom import InvalidRomError
+from .tickets import TicketError, TicketStore
 
 app = FastAPI(title="FE Maker")
 
@@ -372,6 +373,62 @@ def download_patch():
     if not patch or not Path(patch).is_file():
         raise HTTPException(404)
     return FileResponse(patch, filename=Path(patch).name, media_type="application/octet-stream")
+
+
+# ---------- feedback tickets ----------
+
+tickets = TicketStore()
+
+
+class TicketIn(BaseModel):
+    body: str
+    kind: str = "bug"
+    priority: str = "normal"
+    context: dict = {}
+    images: list[str] = []  # data URLs
+
+
+@app.get("/api/tickets")
+def list_tickets():
+    return tickets.list()
+
+
+@app.post("/api/tickets")
+def create_ticket(body: TicketIn):
+    context = dict(body.context)
+    if state.project:
+        context.setdefault("project", state.project.meta.get("name", ""))
+    try:
+        return tickets.create(body.body, body.kind, body.priority, context, body.images)
+    except TicketError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.patch("/api/tickets/{ticket_id}")
+def update_ticket(ticket_id: str, changes: dict):
+    try:
+        return tickets.update(ticket_id, changes)
+    except KeyError:
+        raise HTTPException(404)
+    except TicketError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/tickets/{ticket_id}")
+def delete_ticket(ticket_id: str):
+    try:
+        tickets.delete(ticket_id)
+    except KeyError:
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+@app.get("/api/tickets/images/{name}")
+def ticket_image(name: str):
+    path = tickets.image_path(name)
+    if path is None:
+        raise HTTPException(404)
+    return FileResponse(path)
 
 
 # ---------- interface ----------

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
@@ -50,6 +51,12 @@
     return edits[name] ?? data?.groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
+  // Tell feedback tickets which unit is open.
+  $effect(() => {
+    appContext.detail = unit && picked ? `${picked.group} #${picked.index} · ${unitName(unit)} · ${classById.get(unit.class)?.name ?? unit.class}` : ''
+    return () => (appContext.detail = '')
+  })
+
   const unitProblems = $derived(
     picked ? problems.filter((p) => p.kind === 'chapters' && p.id === `${picked!.group}#${picked!.index}`) : [],
   )

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
+  import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
@@ -25,6 +26,12 @@
   let showKeys = $state(false)
   let start = $state('map')
   let focus = $state<Focus | null>(null)
+
+  $effect(() => {
+    appContext.tab = tab
+    appContext.detail = ''
+  })
+  onDestroy(resetAppContext)
 
   provideNavigator({
     open(kind: NavKind, id: string | null = null) {

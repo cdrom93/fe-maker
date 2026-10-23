@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name: string }">
   import { type Snippet, tick, untrack } from 'svelte'
+  import { appContext } from '../lib/appContext.svelte'
   import { t } from '../lib/i18n.svelte'
 
   let {
@@ -44,6 +45,13 @@
       if (!visible.some((v) => v.i === index) && query) query = ''
     })
     tick().then(() => listEl?.querySelector('button.selected')?.scrollIntoView({ block: 'nearest' }))
+  })
+
+  // Tell feedback tickets which record is open.
+  $effect(() => {
+    const r = records[selected]
+    appContext.record = r ? (r.name && r.name !== r.id ? `${r.name} (${r.id})` : r.id) : ''
+    return () => (appContext.record = '')
   })
 </script>
 

@@ -64,7 +64,7 @@ button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.45; cursor: default; }
 button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
 
-input, select {
+input, select, textarea {
   font: inherit;
   color: var(--text);
   background: var(--panel);
@@ -73,7 +73,7 @@ input, select {
   padding: 0.35em 0.5em;
   min-width: 0;
 }
-input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input.invalid { border-color: var(--bad); background: var(--bad-soft); }
 
 label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.85rem; color: var(--muted); }

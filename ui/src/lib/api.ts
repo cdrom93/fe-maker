@@ -1,4 +1,4 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, Problem, ProjectInfo, Reference, Status } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, Problem, ProjectInfo, Reference, Status, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters'
 
@@ -51,8 +51,14 @@ export const api = {
   setTestOptions: (o: { start?: string }) => request<{ start: string }>('PUT', '/api/project/test-options', o),
   startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
+  tickets: () => request<Ticket[]>('GET', '/api/tickets'),
+  createTicket: (ticket: TicketIn) => request<Ticket>('POST', '/api/tickets', ticket),
+  updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
+    request<Ticket>('PATCH', `/api/tickets/${id}`, changes),
+  deleteTicket: (id: string) => request<{ ok: boolean }>('DELETE', `/api/tickets/${id}`),
 }
 
+export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
 export const chapterMapUrl = (index: number) => `/api/chapters/${index}/map.png`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`

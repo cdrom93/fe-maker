@@ -183,3 +183,29 @@ export interface BuildStatus {
   patch: string | null
   launch: boolean
 }
+
+export type TicketKind = 'bug' | 'idea' | 'question'
+export type TicketPriority = 'high' | 'normal' | 'low'
+
+/** Test feedback written from the app (server/fe_maker/tickets.py). */
+export interface Ticket {
+  id: string
+  number: number
+  kind: TicketKind
+  priority: TicketPriority
+  status: 'open' | 'done' | 'cancelled'
+  body: string
+  context: Record<string, string>
+  images: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TicketIn {
+  body: string
+  kind: TicketKind
+  priority: TicketPriority
+  context: Record<string, string>
+  /** screenshots as data URLs */
+  images: string[]
+}
