@@ -308,6 +308,16 @@ TALK_FIRST_FLAG = 40   # temporary flags for new conversations (quotes use 50+, 
 RECRUIT_MUSIC = 0x30   # the song of the game's recruitment conversations (MUSS(0x30))
 
 
+FACTIONS = {"player": "FACTION_BLUE", "enemy": "FACTION_RED", "ally": "FACTION_GREEN"}
+
+
+def scene_script(name: str, message: int) -> str:
+    """Event script showing a message (a scene at the start of a turn)."""
+    lines = ["TEXTSTART", f"TEXTSHOW(0x{message:X})", "TEXTEND", "REMA", "NoFade", "ENDA"]
+    body = "".join(f"    {line}\n" for line in lines)
+    return f"CONST_DATA EventListScr {name}[] = {{\n{body}}};\n\n"
+
+
 def talk_script(name: str, message: int, recruit: str | None) -> str:
     """Event script of a conversation started with "Talk", as the game writes them
     (EventScr_Ch2_Talk_RossGarcia): the message, then `recruit` joins the player's army."""

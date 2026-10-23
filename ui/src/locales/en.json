@@ -764,5 +764,13 @@
   "dlg.recruit": "{b} joins the army",
   "dlg.recruits": "recruits",
   "dlg.both": "Both ways",
-  "problem.emptyLine": "empty line"
+  "problem.emptyLine": "empty line",
+  "dlg.addTurn": "Turn scene",
+  "dlg.addTurnHint": "A dialogue at the start of a turn (player, enemy or allies), only once.",
+  "dlg.turn": "Turn",
+  "dlg.phase": "Phase",
+  "dlg.phase.player": "player",
+  "dlg.phase.enemy": "enemy",
+  "dlg.phase.ally": "allies",
+  "dlg.trigger.allyTurn": "Turn {n} (allies)"
 }

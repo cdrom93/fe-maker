@@ -544,6 +544,10 @@ class DecompData:
         talks = [q for q in data.get("quotes", []) if q.get("kind") == "talk" and q.get("a") and q.get("b")]
         for n, talk in enumerate(talks):
             self._add_talk(n, talk)
+        turns = [q for q in data.get("quotes", []) if q.get("kind") == "turn"]
+        for n, scene in enumerate(turns):
+            self._add_turn_scene(n, scene)
+        new_quotes = [q for q in new_quotes if q.get("kind") != "turn"]
         if not new_quotes:
             return
         self._load_chapter_events()
@@ -561,30 +565,22 @@ class DecompData:
             else:
                 self.defeat_talks = quotes.add_death_quote(self.defeat_talks, self._chapter_constants, chapter, q["a"], msg)
 
-    def _add_talk(self, n: int, talk: dict) -> None:
-        """A new conversation: "Talk" from a to b (and b to a with "both") shows its message; with
-        "recruit", b joins the player's army."""
+    def _event_list(self, index: int, field: str) -> tuple[str, int, int]:
+        """(file, body start, body end) of one of a chapter's event lists (turnBasedEvents...)."""
         self._load_chapter_events()
-        index = int(talk.get("chapter", 0))
-        chapter = self.chapter_settings["chapters"][index]
-        symbol = self._chapter_event_symbol(chapter)
+        symbol = self._chapter_event_symbol(self.chapter_settings["chapters"][index])
         try:
             group = objectives.event_group(self.event_sources, symbol or "")
         except objectives.ObjectiveError as e:
-            raise GameDataError(f"Chapter {index} has no events: no conversation can be added") from e
-        found = objectives._list(self.event_sources, group.get("characterBasedEvents", ""))
+            raise GameDataError(f"Chapter {index} has no events") from e
+        found = objectives._list(self.event_sources, group.get(field, ""))
         if found is None:
-            raise GameDataError(f"Chapter {index} has no conversation list")
+            raise GameDataError(f"Chapter {index} has no {field} list")
+        return found
+
+    def _add_to_list(self, found: tuple[str, int, int], script: str, lines: list[str]) -> None:
+        """A script (written just before the list) and entries (at the end of the list)."""
         rel, start, end = found
-        prefix = rel.rsplit("-", 1)[0] + "-"
-        used = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
-        flag = next(f for f in range(dialogues.TALK_FIRST_FLAG, 100) if f not in used)
-        message = self.texts.add(dialogues.render(talk.get("steps") or []))
-        name = f"EventScr_FEM_Talk_{index}_{n}"
-        script = dialogues.talk_script(name, message, talk["b"] if talk.get("recruit") else None)
-        lines = [f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['a']}, {talk['b']})"]
-        if talk.get("both"):
-            lines.append(f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['b']}, {talk['a']})")
         source = self.event_sources[rel]
         body = source[start:end]
         m = objectives._END_RE.search(body)
@@ -593,6 +589,36 @@ class DecompData:
         body = body[: m.start()] + block + body[m.start():] if m else body + block
         declaration = source.rfind("\n", 0, start) + 1
         self.event_sources[rel] = source[:declaration] + script + source[declaration:start] + body + source[end:]
+
+    def _free_flag(self, rel: str, first: int) -> int:
+        prefix = rel.rsplit("-", 1)[0] + "-"
+        used = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
+        return next(f for f in range(first, 100) if f not in used)
+
+    def _add_turn_scene(self, n: int, scene: dict) -> None:
+        """A message at the start of turn N of a side (once)."""
+        index = int(scene.get("chapter", 0))
+        found = self._event_list(index, "turnBasedEvents")
+        turn = max(1, int(scene.get("turn", 1)))
+        faction = dialogues.FACTIONS.get(scene.get("phase", "player"), "FACTION_BLUE")
+        flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
+        message = self.texts.add(dialogues.render(scene.get("steps") or []))
+        name = f"EventScr_FEM_Turn_{index}_{n}"
+        self._add_to_list(found, dialogues.scene_script(name, message),
+                          [f"TURN(EVFLAG_TMP({flag}), {name}, {turn}, 0, {faction})"])
+
+    def _add_talk(self, n: int, talk: dict) -> None:
+        """A new conversation: "Talk" from a to b (and b to a with "both") shows its message; with
+        "recruit", b joins the player's army."""
+        index = int(talk.get("chapter", 0))
+        found = self._event_list(index, "characterBasedEvents")
+        flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
+        message = self.texts.add(dialogues.render(talk.get("steps") or []))
+        name = f"EventScr_FEM_Talk_{index}_{n}"
+        lines = [f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['a']}, {talk['b']})"]
+        if talk.get("both"):
+            lines.append(f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['b']}, {talk['a']})")
+        self._add_to_list(found, dialogues.talk_script(name, message, talk["b"] if talk.get("recruit") else None), lines)
 
     def _quote_flags(self) -> set[tuple[int, int]]:
         """(chapter, flag) of temporary flags already used by battle quotes and chapter events."""

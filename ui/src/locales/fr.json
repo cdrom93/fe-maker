@@ -764,5 +764,13 @@
   "dlg.recruit": "{b} rejoint l'armée",
   "dlg.recruits": "recrute",
   "dlg.both": "Dans les deux sens",
-  "problem.emptyLine": "réplique vide"
+  "problem.emptyLine": "réplique vide",
+  "dlg.addTurn": "Scène de tour",
+  "dlg.addTurnHint": "Un dialogue au début d'un tour (du joueur, de l'ennemi ou des alliés), une seule fois.",
+  "dlg.turn": "Tour",
+  "dlg.phase": "Phase",
+  "dlg.phase.player": "du joueur",
+  "dlg.phase.enemy": "de l'ennemi",
+  "dlg.phase.ally": "des alliés",
+  "dlg.trigger.allyTurn": "Tour {n} (alliés)"
 }

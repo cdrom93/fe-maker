@@ -314,7 +314,10 @@ export interface DialoguesData {
 
 export interface NewQuote {
   /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
-  kind: 'battle' | 'death' | 'talk'
+  kind: 'battle' | 'death' | 'talk' | 'turn'
+  /** turn scene: the turn and the side whose phase starts it */
+  turn?: number
+  phase?: 'player' | 'enemy' | 'ally'
   /** chapter index; 255 = every chapter */
   chapter: number
   a: string

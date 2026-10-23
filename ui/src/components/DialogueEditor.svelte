@@ -7,6 +7,7 @@
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import type { Character, ChapterInfo, DialogueFace, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
+  import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
   let { list, characters, problems }: { list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[] } = $props()
@@ -169,7 +170,13 @@
     const boss = scenes.find((s) => s.trigger.kind === 'battle')?.trigger.a
     const named = characters.filter((c) => c.id.startsWith('CHARACTER_'))
     let quote: NewQuote
-    if (kind === 'talk') {
+    if (kind === 'turn') {
+      const a = named[0]?.id ?? ''
+      quote = {
+        kind, chapter: chapterNumber, a, turn: 1, phase: 'player',
+        steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],
+      }
+    } else if (kind === 'talk') {
       const [a, b] = [named[0]?.id ?? '', named[1]?.id ?? '']
       quote = {
         kind, chapter: chapterNumber, a, b, recruit: false, both: false,
@@ -196,6 +203,7 @@
   function quoteLabel(q: NewQuote): string {
     if (q.kind === 'battle') return t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') })
     if (q.kind === 'death') return t('dlg.trigger.death', { a: charName(q.a) })
+    if (q.kind === 'turn') return t(q.phase === 'enemy' ? 'dlg.trigger.enemyTurn' : q.phase === 'ally' ? 'dlg.trigger.allyTurn' : 'dlg.trigger.turn', { n: q.turn ?? 1 })
     return t('dlg.trigger.talk', { a: charName(q.a), b: charName(q.b ?? '') }) + (q.recruit ? ` · ${t('dlg.recruits')}` : '')
   }
 
@@ -296,7 +304,10 @@
       <div class="add">
         <button onclick={() => addQuote('battle')} title={t('dlg.addBattleHint')}>＋ {t('dlg.addBattle')}</button>
         <button onclick={() => addQuote('death')} title={t('dlg.addDeathHint')}>＋ {t('dlg.addDeath')}</button>
-        {#if chapterNumber !== ANY_CHAPTER}<button onclick={() => addQuote('talk')} title={t('dlg.addTalkHint')}>＋ {t('dlg.addTalk')}</button>{/if}
+        {#if chapterNumber !== ANY_CHAPTER}
+          <button onclick={() => addQuote('talk')} title={t('dlg.addTalkHint')}>＋ {t('dlg.addTalk')}</button>
+          <button onclick={() => addQuote('turn')} title={t('dlg.addTurnHint')}>＋ {t('dlg.addTurn')}</button>
+        {/if}
       </div>
       {#each visibleScenes as scene (scene.script)}
         <div class="scene">
@@ -325,7 +336,7 @@
       <section class="panel message-editor">
         <div class="head">
           {#if quoteIndex >= 0}
-            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
+            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
@@ -335,6 +346,15 @@
         {#if quoteIndex >= 0 && newQuotes[quoteIndex]}
           {@const q = newQuotes[quoteIndex]}
           <div class="quote-who">
+            {#if q.kind === 'turn'}
+              <NumberField label={t('dlg.turn')} value={q.turn ?? 1} min={1} max={99} compact onchange={(v) => editQuote({ turn: v })} />
+              <label>
+                <span>{t('dlg.phase')}</span>
+                <select value={q.phase ?? 'player'} onchange={(e) => editQuote({ phase: (e.target as HTMLSelectElement).value as NewQuote['phase'] })}>
+                  {#each ['player', 'enemy', 'ally'] as ph (ph)}<option value={ph}>{t(`dlg.phase.${ph}`)}</option>{/each}
+                </select>
+              </label>
+            {:else}
             <label>
               <span>{q.kind === 'death' ? t('dlg.quoteDying') : t('dlg.quoteWho')}</span>
               <select value={q.a} onchange={(e) => editQuote({ a: (e.target as HTMLSelectElement).value })}>
@@ -361,6 +381,7 @@
               </label>
             {/if}
             <Mention kind="characters" id={q.a}>{charName(q.a)}</Mention>
+            {/if}
           </div>
         {/if}
 

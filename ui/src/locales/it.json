@@ -764,5 +764,13 @@
   "dlg.recruit": "{b} si unisce all'esercito",
   "dlg.recruits": "recluta",
   "dlg.both": "In entrambi i sensi",
-  "problem.emptyLine": "battuta vuota"
+  "problem.emptyLine": "battuta vuota",
+  "dlg.addTurn": "Scena di turno",
+  "dlg.addTurnHint": "Un dialogo all'inizio di un turno (del giocatore, del nemico o degli alleati), una volta sola.",
+  "dlg.turn": "Turno",
+  "dlg.phase": "Fase",
+  "dlg.phase.player": "del giocatore",
+  "dlg.phase.enemy": "del nemico",
+  "dlg.phase.ally": "degli alleati",
+  "dlg.trigger.allyTurn": "Turno {n} (alleati)"
 }

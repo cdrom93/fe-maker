@@ -85,3 +85,8 @@ def test_talk_script():
     assert "MUSS(0x30)" in recruit and "TEXTSHOW(0xD4C)" in recruit and "CUSA(CHARACTER_GARCIA)" in recruit
     plain = dl.talk_script("EventScr_Test", 0xD4C, None)
     assert "CUSA" not in plain and "MUSS" not in plain and plain.rstrip().endswith("};")
+
+
+def test_scene_script():
+    script = dl.scene_script("EventScr_Test", 0xD4C)
+    assert "TEXTSHOW(0xD4C)" in script and script.startswith("CONST_DATA EventListScr EventScr_Test[] = {")
