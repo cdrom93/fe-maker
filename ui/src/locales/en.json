@@ -743,5 +743,19 @@
   "problem.unknownFace": "unknown portrait ({face})",
   "problem.unknownPosition": "unknown position",
   "problem.badDialogue": "malformed dialogue",
-  "chapter.editDialogues": "Edit the dialogues"
+  "chapter.editDialogues": "Edit the dialogues",
+  "dlg.allChapters": "Every chapter",
+  "dlg.trigger.battle": "Battle: {a} against {b}",
+  "dlg.trigger.death": "Last words: {a}",
+  "dlg.anyone": "anyone",
+  "dlg.newQuotes": "New quotes",
+  "dlg.addBattle": "Battle quote",
+  "dlg.addBattleHint": "A character speaks when a fight starts (once per chapter), against someone or anyone.",
+  "dlg.addDeath": "Last words",
+  "dlg.addDeathHint": "What a character says when defeated (in this chapter, or in all of them with “Every chapter”).",
+  "dlg.removeQuote": "Delete this quote",
+  "dlg.quoteWho": "Who speaks",
+  "dlg.quoteDying": "Defeated character",
+  "dlg.quoteAgainst": "Against",
+  "problem.quoteWithoutCharacter": "quote without character"
 }

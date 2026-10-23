@@ -128,6 +128,7 @@
     if (kind === 'combat') return t('ws.combat')
     if (kind === 'chapters') return id.replace('UnitDef_Event_', '')
     if (kind === 'maps') return id
+    if (kind === 'dialogues' && id.startsWith('new')) return t('dlg.newQuotes')
     if (kind === 'dialogues') return t('dlg.message', { id: `0x${Number(id.split('#')[0]).toString(16).toUpperCase()}` })
     const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
     return record?.name || id || t(`ws.${kind}`)

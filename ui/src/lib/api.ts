@@ -51,6 +51,7 @@ export const api = {
   chapterDialogues: (index: number) =>
     request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
   dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),
+  commonDialogues: () => request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', '/api/dialogues/common'),
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),

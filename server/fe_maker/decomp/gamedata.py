@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, mapobjects, maps, objectives, tileedit, units
+from . import combat, dialogues, mapobjects, maps, objectives, quotes, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -527,8 +527,10 @@ class DecompData:
 
     @staticmethod
     def export_dialogues() -> dict:
-        """Project dialogues: edited messages only, as steps (see dialogues.py), by message id."""
-        return {"messages": {}}
+        """Project dialogues: edited messages only, as steps (see dialogues.py), by message id; and
+        new battle and death quotes: {"kind": "battle" | "death", "chapter": index (255: any),
+        "a": character, "b": opponent ("" = anyone), "steps": [...]} (see quotes.py)."""
+        return {"messages": {}, "quotes": []}
 
     def apply_dialogues(self, data: dict) -> None:
         for key, steps in data.get("messages", {}).items():
@@ -538,6 +540,67 @@ class DecompData:
             body = dialogues.render(steps)
             if not dialogues.same_message(self.texts.raw(index), body):
                 self.texts.set_raw(index, body)
+        new_quotes = [q for q in data.get("quotes", []) if q.get("a")]
+        if not new_quotes:
+            return
+        self._load_chapter_events()
+        if not self.defeat_talks:
+            raise GameDataError(f"{quotes.FILE} not found")
+        used = self._quote_flags()
+        for q in new_quotes:
+            msg = self.texts.add(dialogues.render(q.get("steps") or []))
+            chapter = int(q.get("chapter", quotes.ANY_CHAPTER))
+            if q.get("kind") == "battle":
+                flag = next(n for n in range(quotes.FIRST_FLAG, 70) if (chapter, n) not in used)
+                used.add((chapter, flag))
+                self.defeat_talks = quotes.add_battle_quote(self.defeat_talks, self._chapter_constants, chapter,
+                                                            q["a"], q.get("b", ""), msg, flag)
+            else:
+                self.defeat_talks = quotes.add_death_quote(self.defeat_talks, self._chapter_constants, chapter, q["a"], msg)
+
+    def _quote_flags(self) -> set[tuple[int, int]]:
+        """(chapter, flag) of temporary flags already used by battle quotes and chapter events."""
+        used = set()
+        for q in quotes.read_quotes(self.defeat_talks, self._chapter_constants)["battle"]:
+            try:
+                used.add((q["chapter"], int(q["flag"], 0)))
+            except ValueError:
+                pass
+        for i, chapter in enumerate(self.chapter_settings["chapters"]):
+            symbol = self._chapter_event_symbol(chapter)
+            rel = self._event_group_file(symbol)
+            if rel:
+                prefix = rel.rsplit("-", 1)[0] + "-"
+                flags = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
+                used.update((i, n) for n in flags)
+        return used
+
+    def _event_group_file(self, symbol: str | None) -> str | None:
+        """File defining a chapter event group (its scripts are in the files with the same prefix)."""
+        if not symbol:
+            return None
+        return next((r for r, s in self.event_sources.items() if re.search(rf"ChapterEventGroup\s+{symbol}\b", s)), None)
+
+    def quote_scenes(self, chapter: int) -> list[dict]:
+        """Battle and death quotes of a chapter (quotes.ANY_CHAPTER: of every chapter) as dialogue scenes."""
+        self._load_chapter_events()
+        if not self.defeat_talks:
+            return []
+        found = quotes.read_quotes(self.defeat_talks, self._chapter_constants)
+        scenes, seen = [], set()
+        for q in found["battle"]:
+            if q["chapter"] == chapter and q["msg"] and q["msg"] not in seen:
+                seen.add(q["msg"])
+                # The game writes a boss quote twice ({0, boss} and {boss, 0}): show the boss first.
+                a, b = (q["b"], q["a"]) if not q["a"] else (q["a"], q["b"])
+                scenes.append({"script": f"battle:{q['msg']}", "messages": [q["msg"]], "file": quotes.FILE,
+                               "trigger": {"kind": "battle", "a": a, "b": b}})
+        for q in found["death"]:
+            if q["chapter"] == chapter and q["msg"] and q["msg"] not in seen:
+                seen.add(q["msg"])
+                scenes.append({"script": f"death:{q['msg']}", "messages": [q["msg"]], "file": quotes.FILE,
+                               "trigger": {"kind": "death", "a": q["a"]}})
+        return scenes
 
     def chapter_dialogues(self, index: int) -> list[dict]:
         """Event scripts of a chapter that show messages, with what starts them and their messages."""
@@ -549,7 +612,7 @@ class DecompData:
             group = objectives.event_group(self.event_sources, symbol)
         except objectives.ObjectiveError:
             return []
-        rel = next((r for r, s in self.event_sources.items() if re.search(rf"ChapterEventGroup\s+{symbol}\b", s)), None)
+        rel = self._event_group_file(symbol)
         if rel is None:
             return []
         prefix = rel.rsplit("-", 1)[0] + "-"
@@ -578,6 +641,7 @@ class DecompData:
 
         for scene in scenes:
             scene["trigger"] = trigger(scene["script"])
+        scenes += self.quote_scenes(index)
         order = {k: i for i, k in enumerate(dialogues.SCENE_ORDER)}
         scenes.sort(key=lambda s: (order.get(s["trigger"]["kind"], 99),
                                    int(s["trigger"].get("turn", "0"), 0) if str(s["trigger"].get("turn", "0")).isdigit() else 0))

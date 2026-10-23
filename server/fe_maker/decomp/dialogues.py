@@ -299,4 +299,4 @@ def scene_triggers(group: dict[str, str], lists: dict[str, str], scripts: set[st
     return out
 
 
-SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "ending", "tutorial")
+SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")

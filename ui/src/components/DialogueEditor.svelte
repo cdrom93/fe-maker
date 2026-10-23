@@ -5,7 +5,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import type { Character, ChapterInfo, DialogueFace, DialogueScene, DialoguesData, DialogueStep, Problem } from '../lib/types'
+  import type { Character, ChapterInfo, DialogueFace, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import RecordList from './RecordList.svelte'
 
@@ -18,6 +18,8 @@
     { pos: 'Right', x: 21 }, { pos: 'MidRight', x: 24 }, { pos: 'FarRight', x: 27 }, { pos: 'FarFarRight', x: 38 },
   ]
   const SCREEN_W = 240
+  const ANY_CHAPTER = 255
+  const NEW = 'new:' // id prefix of a new quote in the editor
   const SCALE = 2
   // Codes put in a line with one click (they change the face of the speaker).
   const EXPRESSIONS = [
@@ -39,12 +41,21 @@
   let showTutorials = $state(false)
 
   const edited = $derived(list.records[0]?.messages ?? {})
+  const newQuotes = $derived<NewQuote[]>(list.records[0]?.quotes ?? [])
   const portraitOf = $derived(new Map(faces.map((f) => [f.id, f.portrait])))
-  const steps = $derived<DialogueStep[]>(messageId ? (edited[messageId] ?? originals[messageId] ?? []) : [])
+  const quoteIndex = $derived(messageId?.startsWith(NEW) ? Number(messageId.slice(NEW.length)) : -1)
+  const steps = $derived<DialogueStep[]>(
+    quoteIndex >= 0 ? (newQuotes[quoteIndex]?.steps ?? []) : messageId ? (edited[messageId] ?? originals[messageId] ?? []) : [],
+  )
   const chapter = $derived(chapters[selected])
+  const chapterNumber = $derived(chapter ? (chapter.index < 0 ? ANY_CHAPTER : chapter.index) : -1)
+  // New quotes of this chapter, with their place in the project list.
+  const chapterQuotes = $derived(newQuotes.map((q, i) => ({ q, i })).filter(({ q }) => q.chapter === chapterNumber))
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
   const visibleScenes = $derived(scenes.filter((s) => showTutorials || s.trigger.kind !== 'tutorial'))
-  const messageProblems = $derived(messageId ? problems.filter((p) => p.kind === 'dialogues' && p.id.split('#')[0] === messageId) : [])
+  // Problems of the message (new quotes are "new<n>" on the server).
+  const problemKey = $derived(messageId?.startsWith(NEW) ? `new${messageId.slice(NEW.length)}` : messageId)
+  const messageProblems = $derived(problemKey ? problems.filter((p) => p.kind === 'dialogues' && p.id.split('#')[0] === problemKey) : [])
 
   const nav = useNavigator()
   followFocus('dialogues', nav, () => chapters.map((c) => c.id), (i) => load(i))
@@ -57,7 +68,10 @@
   onMount(async () => {
     const [list_, faceList] = await Promise.all([api.chapters(), api.dialogueFaces()])
     faces = faceList
-    chapters = list_.map((c) => ({ ...c, id: String(c.index), name: c.title || c.id }))
+    chapters = [
+      { index: -1, id: 'all', title: '', map: null, events: null, name: t('dlg.allChapters') },
+      ...list_.map((c) => ({ ...c, id: String(c.index), name: c.title || c.id })),
+    ]
     const asked = nav.focus?.kind === 'dialogues' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1
     if (chapters.length) await load(Math.max(0, asked))
   })
@@ -66,7 +80,7 @@
     selected = index
     messageId = null
     stepIndex = 0
-    const data = await api.chapterDialogues(chapters[index].index)
+    const data = chapters[index].index < 0 ? await api.commonDialogues() : await api.chapterDialogues(chapters[index].index)
     if (selected !== index) return
     scenes = data.scenes
     originals = data.messages
@@ -88,6 +102,8 @@
       case 'turn': return t(tr.faction === 'FACTION_RED' ? 'dlg.trigger.enemyTurn' : 'dlg.trigger.turn', { n: tr.turn ?? '?' })
       case 'talk': return t('dlg.trigger.talk', { a: charName(tr.a ?? ''), b: charName(tr.b ?? '') })
       case 'village': case 'house': return t(`dlg.trigger.${tr.kind}`, { x: tr.x ?? '?', y: tr.y ?? '?' })
+      case 'battle': return t('dlg.trigger.battle', { a: charName(tr.a ?? ''), b: tr.b ? charName(tr.b) : t('dlg.anyone') })
+      case 'death': return t('dlg.trigger.death', { a: charName(tr.a ?? '') })
       default: return t(`dlg.trigger.${tr.kind}`)
     }
   }
@@ -96,6 +112,13 @@
 
   function save(next: DialogueStep[]) {
     if (!messageId) return
+    if (quoteIndex >= 0) {
+      const i = quoteIndex
+      list.update(0, (d) => {
+        if (d.quotes?.[i]) d.quotes[i].steps = JSON.parse(JSON.stringify(next))
+      })
+      return
+    }
     const id = messageId
     const same = JSON.stringify(next) === JSON.stringify(originals[id])
     list.update(0, (d) => {
@@ -136,6 +159,46 @@
     else step = { kind: 'say', pos: lastPos, text: '', wait: true }
     save([...steps.slice(0, at), step, ...steps.slice(at)])
     stepIndex = at
+  }
+
+  /** Portrait code of a character (its portrait id in the texts' list). */
+  const faceOf = (pid: string) => faces.find((f) => f.portrait === characters.find((c) => c.id === pid)?.portraitId)?.id ?? faces[0]?.id ?? 'FID_Eirika'
+
+  function addQuote(kind: 'battle' | 'death') {
+    // The chapter's boss (who already has a battle quote), else the first character.
+    const boss = scenes.find((s) => s.trigger.kind === 'battle')?.trigger.a
+    const a = boss || characters.find((c) => c.id.startsWith('CHARACTER_'))?.id || ''
+    const quote: NewQuote = {
+      kind, chapter: chapterNumber, a, b: '',
+      steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],
+    }
+    const at = newQuotes.length
+    list.update(0, (d) => {
+      d.quotes ??= []
+      d.quotes.push(quote)
+    })
+    pick(`${NEW}${at}`)
+  }
+
+  function editQuote(patch: Partial<NewQuote>) {
+    const i = quoteIndex
+    if (i < 0) return
+    list.update(0, (d) => {
+      const q = d.quotes?.[i]
+      if (!q) return
+      // A new speaker also changes the first portrait when it was the previous speaker's.
+      if (patch.a && q.steps[0]?.kind === 'face' && q.steps[0].face === faceOf(q.a)) q.steps[0].face = faceOf(patch.a)
+      Object.assign(q, patch)
+    })
+  }
+
+  function removeQuote() {
+    const i = quoteIndex
+    if (i < 0) return
+    messageId = null
+    list.update(0, (d) => {
+      d.quotes?.splice(i, 1)
+    })
   }
 
   function resetMessage() {
@@ -196,6 +259,21 @@
       <p class="muted small">{t('dlg.hint')}</p>
       {#if chapter}<p class="small"><Mention kind="chapters" id={chapter.id}>{t('dlg.openChapter')}</Mention></p>{/if}
       {#if !visibleScenes.length}<p class="muted">{t('dlg.none')}</p>{/if}
+      {#if chapterQuotes.length}
+        <div class="scene">
+          <div class="scene-title"><span class="kind new">{t('dlg.newQuotes')}</span></div>
+          {#each chapterQuotes as { q, i } (i)}
+            <button class="message" class:active={messageId === `${NEW}${i}`} onclick={() => pick(`${NEW}${i}`)}>
+              {#if portraitOf.has(faceOf(q.a))}<span class="faces-mini"><img src={portraitUrl(portraitOf.get(faceOf(q.a))!, true)} alt="" /></span>{/if}
+              <span class="first">{q.kind === 'battle' ? t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') }) : t('dlg.trigger.death', { a: charName(q.a) })}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <div class="add">
+        <button onclick={() => addQuote('battle')} title={t('dlg.addBattleHint')}>＋ {t('dlg.addBattle')}</button>
+        <button onclick={() => addQuote('death')} title={t('dlg.addDeathHint')}>＋ {t('dlg.addDeath')}</button>
+      </div>
       {#each visibleScenes as scene (scene.script)}
         <div class="scene">
           <div class="scene-title">
@@ -222,9 +300,35 @@
     {#if messageId}
       <section class="panel message-editor">
         <div class="head">
-          <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
-          {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
+          {#if quoteIndex >= 0}
+            <h3>{newQuotes[quoteIndex]?.kind === 'battle' ? t('dlg.addBattle') : t('dlg.addDeath')}</h3>
+            <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
+          {:else}
+            <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
+            {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
+          {/if}
         </div>
+        {#if quoteIndex >= 0 && newQuotes[quoteIndex]}
+          {@const q = newQuotes[quoteIndex]}
+          <div class="quote-who">
+            <label>
+              <span>{q.kind === 'battle' ? t('dlg.quoteWho') : t('dlg.quoteDying')}</span>
+              <select value={q.a} onchange={(e) => editQuote({ a: (e.target as HTMLSelectElement).value })}>
+                {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+              </select>
+            </label>
+            {#if q.kind === 'battle'}
+              <label>
+                <span>{t('dlg.quoteAgainst')}</span>
+                <select value={q.b ?? ''} onchange={(e) => editQuote({ b: (e.target as HTMLSelectElement).value })}>
+                  <option value="">{t('dlg.anyone')}</option>
+                  {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+                </select>
+              </label>
+            {/if}
+            <Mention kind="characters" id={q.a}>{charName(q.a)}</Mention>
+          </div>
+        {/if}
 
         <div class="stage" style="width: {SCREEN_W * SCALE}px; height: {160 * SCALE}px">
           {#each SLOTS as slot (slot.pos)}
@@ -357,5 +461,8 @@
   .actions { display: flex; gap: 0.15rem; flex-shrink: 0; }
   .actions button { padding: 0 0.35rem; font-size: 0.8rem; }
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .scenes .add button { font-size: 0.78rem; padding: 0.15rem 0.45rem; }
+  .kind.new { color: var(--good); }
+  .quote-who { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
   @media (max-width: 1100px) { .detail { grid-template-columns: 1fr; } }
 </style>

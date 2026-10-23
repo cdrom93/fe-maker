@@ -172,8 +172,15 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
 
 
 def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
-    """Edited messages: steps the writer knows, existing portraits, text the game font can show."""
-    for key, steps in data.get("messages", {}).items():
+    """Edited messages and new quotes ("new<n>"): steps the writer knows, existing portraits, text the
+    game font can show."""
+    edited = list(data.get("messages", {}).items())
+    for n, quote in enumerate(data.get("quotes", [])):
+        edited.append((f"new{n}", quote.get("steps", [])))
+        if not quote.get("a"):
+            problems.append(Problem("error", "dialogues", f"new{n}", "a", "quoteWithoutCharacter", {},
+                                    "new quote without character"))
+    for key, steps in edited:
         for n, step in enumerate(steps if isinstance(steps, list) else []):
             kind = step.get("kind")
             rid = f"{key}#{n}"

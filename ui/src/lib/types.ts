@@ -308,6 +308,17 @@ export interface DialogueFace {
 export interface DialoguesData {
   /** edited messages by id (decimal), as steps */
   messages: Record<string, DialogueStep[]>
+  /** new battle quotes (a fights b; b "" = anyone) and death quotes (a's last words) */
+  quotes?: NewQuote[]
+}
+
+export interface NewQuote {
+  kind: 'battle' | 'death'
+  /** chapter index; 255 = every chapter */
+  chapter: number
+  a: string
+  b?: string
+  steps: DialogueStep[]
 }
 
 export interface Problem {

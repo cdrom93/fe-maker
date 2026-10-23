@@ -743,5 +743,19 @@
   "problem.unknownFace": "retrato desconocido ({face})",
   "problem.unknownPosition": "posición desconocida",
   "problem.badDialogue": "diálogo mal formado",
-  "chapter.editDialogues": "Editar los diálogos"
+  "chapter.editDialogues": "Editar los diálogos",
+  "dlg.allChapters": "Todos los capítulos",
+  "dlg.trigger.battle": "Combate: {a} contra {b}",
+  "dlg.trigger.death": "Últimas palabras: {a}",
+  "dlg.anyone": "cualquiera",
+  "dlg.newQuotes": "Frases nuevas",
+  "dlg.addBattle": "Frase de combate",
+  "dlg.addBattleHint": "Un personaje habla al empezar un combate (una vez por capítulo), contra alguien o contra cualquiera.",
+  "dlg.addDeath": "Últimas palabras",
+  "dlg.addDeathHint": "Lo que dice un personaje vencido (en este capítulo, o en todos con «Todos los capítulos»).",
+  "dlg.removeQuote": "Borrar esta frase",
+  "dlg.quoteWho": "Quién habla",
+  "dlg.quoteDying": "Personaje vencido",
+  "dlg.quoteAgainst": "Contra",
+  "problem.quoteWithoutCharacter": "frase sin personaje"
 }

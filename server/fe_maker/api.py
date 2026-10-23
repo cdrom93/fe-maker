@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, mapobjects, maps, tileedit, units
+from .decomp import dialogues, mapobjects, maps, quotes, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
@@ -387,6 +387,15 @@ def chapter_dialogues(index: int):
     for i in sorted(ids):
         if i in decomp.texts.messages:
             messages[str(i)] = dialogues.parse(decomp.texts.raw(i))
+    return {"scenes": scenes, "messages": messages}
+
+
+@app.get("/api/dialogues/common")
+def common_dialogues():
+    """Quotes of every chapter (the playable characters' last words...), like a chapter's dialogues."""
+    decomp = state.get_decomp()
+    scenes = decomp.quote_scenes(quotes.ANY_CHAPTER)
+    messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
     return {"scenes": scenes, "messages": messages}
 
 

@@ -56,3 +56,25 @@ def test_script_messages_and_triggers():
 
 def test_faces():
     assert dl.read_faces("[FID_Active] = 0xFF, 0xFF\n[FID_Eirika] = 0x02, 0x01\n") == {"FID_Eirika": 2}
+
+
+def test_new_quotes():
+    from fe_maker.decomp import quotes
+
+    constants = {"CHAPTER_L_2": 2}
+    source = ("CONST_DATA struct BattleTalkExtEnt gBattleTalkList[] = {\n    {\n        .pidA = CHARACTER_BONE,\n"
+              "        .chapter = CHAPTER_L_2,\n        .flag = EVFLAG_BATTLE_QUOTES,\n        .msg = 0x0960,\n    },\n"
+              "    {\n        .pidA = 0xffff,\n        .chapter = 0x00,\n        .msg = 0x0000,\n    },\n};\n\n"
+              "CONST_DATA struct DefeatTalkEnt gDefeatTalkList[] = {\n    {\n        .pid = CHARACTER_BONE,\n"
+              "        .route = CHAPTER_MODE_ANY,\n        .chapter = CHAPTER_L_2,\n        .flag = EVFLAG_DEFEAT_BOSS,\n"
+              "        .msg = 0x0000,\n    },\n    {\n        .pid = 0xFFFF,\n    },\n};\n")
+    found = quotes.read_quotes(source, constants)
+    assert found["battle"] == [{"a": "CHARACTER_BONE", "b": "", "chapter": 2, "flag": "EVFLAG_BATTLE_QUOTES", "msg": 0x960}]
+    source = quotes.add_battle_quote(source, constants, 2, "CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C, 50)
+    source = quotes.add_death_quote(source, constants, 2, "CHARACTER_BONE", 0xD4D)   # the boss entry gets words
+    source = quotes.add_death_quote(source, constants, 255, "CHARACTER_ROSS", 0xD4E)
+    found = quotes.read_quotes(source, constants)
+    assert [(q["a"], q["b"], q["msg"]) for q in found["battle"]][1:] == [
+        ("CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C), ("CHARACTER_BONE", "CHARACTER_ROSS", 0xD4C)]
+    assert [(q["a"], q["chapter"], q["msg"], q["flag"]) for q in found["death"]] == [
+        ("CHARACTER_BONE", 2, 0xD4D, "EVFLAG_DEFEAT_BOSS"), ("CHARACTER_ROSS", 255, 0xD4E, "0")]

@@ -160,7 +160,11 @@ def test_edited_dialogue_build(tmp_path):
     del steps[says[-1]]
     steps.insert(0, {"kind": "face", "pos": "FarLeft", "face": "FID_Franz"})
     steps.insert(1, {"kind": "say", "pos": "FarLeft", "text": "Franz is here too.", "wait": True})
-    project.save("dialogues", {"messages": {str(message): steps}})
+    say = [{"kind": "face", "pos": "MidLeft", "face": "FID_ONeill"},
+           {"kind": "say", "pos": "MidLeft", "text": "New quote!", "wait": True}]
+    new_quotes = [{"kind": "battle", "chapter": 0, "a": "CHARACTER_ONEILL", "b": "CHARACTER_SETH", "steps": say},
+                  {"kind": "death", "chapter": 255, "a": "CHARACTER_FRANZ", "steps": say}]
+    project.save("dialogues", {"messages": {str(message): steps}, "quotes": new_quotes})
     assert [p for p in project.validate() if p.severity == "error"] == []
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
