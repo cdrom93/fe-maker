@@ -623,7 +623,7 @@
   "maps.preview": "Anteprima «dopo»",
   "maps.previewHint": "Mostra la mappa con ogni oggetto già usato: scrigni aperti, villaggi chiusi, porte aperte, muri distrutti",
   "maps.objects": "Oggetti della mappa ({n})",
-  "maps.objectsHint": "Dipingi un villaggio, una casa, uno scrigno, una porta, un muro incrinato o un tronco secco: FE Maker crea da solo il suo stato «dopo» (cambio di mappa) e il suo evento. Poi scegli cosa contiene con lo strumento Oggetti.",
+  "maps.objectsHint": "Dipingi un villaggio, una casa, un'armeria, un negozio, uno scrigno, una porta, un muro incrinato o un tronco secco: FE Maker crea da solo il suo stato «dopo» (cambio di mappa) e il suo evento. Poi scegli cosa contiene con lo strumento Oggetti.",
   "maps.objectsEdited": "Oggetti impostati.",
   "maps.kind.village": "Villaggio",
   "maps.kind.house": "Casa",
@@ -673,5 +673,15 @@
   "maps.transformHint": "Ruota o capovolge la casella (o il blocco) scelta. Le nuove caselle vengono aggiunte al set di caselle, negli spazi liberi: anche le mappe che lo usano le vedono nella tavolozza.",
   "maps.transformError.noFreeTile": "Non c'è più spazio per nuovi disegni di caselle in questo set.",
   "maps.transformError.noFreeMetatile": "Nessuno spazio libero in questo set di caselle.",
-  "maps.addedTile": "aggiunta dal progetto"
+  "maps.addedTile": "aggiunta dal progetto",
+  "maps.kind.armory": "Armeria",
+  "maps.kind.vendor": "Negozio",
+  "maps.kindHint.armory": "Un'unità sopra può comprare e vendere armi.",
+  "maps.kindHint.vendor": "Un'unità sopra può comprare e vendere oggetti.",
+  "maps.obj.wares": "In vendita",
+  "maps.obj.addWare": "+ aggiungi un oggetto",
+  "maps.obj.removeWare": "(togli)",
+  "maps.obj.secret": "Negozio segreto (tessera)",
+  "maps.obj.secretHint": "Può entrare solo un'unità che porta una tessera.",
+  "maps.obj.shopCount": "{n} oggetto/i in vendita"
 }

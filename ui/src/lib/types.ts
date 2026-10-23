@@ -208,7 +208,7 @@ export interface TilesetEdits {
   tiles: Record<string, number[]>
 }
 
-export type MapObjectKind = 'village' | 'house' | 'chest' | 'door' | 'wall' | 'snag'
+export type MapObjectKind = 'village' | 'house' | 'armory' | 'vendor' | 'chest' | 'door' | 'wall' | 'snag'
 
 /** What a chest holds, what a village gives and says (server: mapobjects.py). */
 export interface MapObjectSettings {
@@ -216,6 +216,10 @@ export interface MapObjectSettings {
   gold?: number
   face?: string
   text?: string
+  /** what a shop sells */
+  items?: string[]
+  /** shop only open to a unit with a member card */
+  secret?: boolean
   /** no event and no automatic change: the object is only decoration */
   off?: boolean
 }
@@ -235,7 +239,7 @@ export interface MapObject {
   /** new object whose used state is unknown for this tileset */
   noAfter: boolean
   /** its location event in the original game */
-  event: { macro: string; item?: string; gold?: number; script?: string } | null
+  event: { macro: string; item?: string; gold?: number; script?: string; shop?: string; items?: string[] } | null
 }
 
 export interface MapObjects {

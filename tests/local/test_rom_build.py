@@ -107,15 +107,16 @@ def test_painted_objects_build(tmp_path):
     _metatiles, terrain = maps.read_config(layout["assets"].config)
     rule = mapobjects.rules(project.decomp_dir)[layout["assets"].config.name]
     tile = {t: next(m for m in rule["tiles"] if terrain[m] == t) for t in (0x21, 0x03, 0x1E)}
-    tile[0x05] = next(m for m in range(len(terrain)) if terrain[m] == 0x05)
-    for t, (x, y) in ((0x21, (1, 1)), (0x03, (3, 2)), (0x05, (5, 2)), (0x1E, (7, 1))):
+    for t in (0x05, 0x06):
+        tile[t] = next(m for m in range(len(terrain)) if terrain[m] == t)
+    for t, (x, y) in ((0x21, (1, 1)), (0x03, (3, 2)), (0x05, (5, 2)), (0x1E, (7, 1)), (0x06, (9, 2))):
         rows[y][x] = tile[t]
     objects = {"3,2": {"item": "ITEM_ELIXIR", "face": "FID_VillagerGirlYoung", "text": "Take this elixir, please."},
-               "1,1": {"gold": 3000}}
+               "1,1": {"gold": 3000}, "9,2": {"items": ["ITEM_SWORD_SILVER", "ITEM_LANCE_SILVER"], "secret": True}}
     project.save("maps", {"layouts": {"Ch5Map": {"rows": rows}}, "objects": {"Ch5Map": objects}})
     assert [p for p in project.validate() if p.severity == "error"] == []
     found = mapobjects.map_objects(project.decomp_dir, "Ch5Map", rows, maps.read_changes(project.decomp_dir, layout["changes"]))
-    assert all(o["auto"] for o in found if o["new"] and o["kind"] != "house")
+    assert all(o["auto"] for o in found if o["new"] and o["kind"] in mapobjects.CHANGE_KINDS)
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original

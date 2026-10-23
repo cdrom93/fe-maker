@@ -39,8 +39,10 @@
     { id: 'select', icon: '👆' },
   ]
   // Objects the engine recognizes by their terrain (server: mapobjects.py).
-  const OBJECT_ICONS: Record<MapObjectKind, string> = { village: '🏘️', house: '🏠', chest: '🎁', door: '🚪', wall: '🧱', snag: '🪵' }
-  const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'chest', 'door']
+  const OBJECT_ICONS: Record<MapObjectKind, string> = { village: '🏘️', house: '🏠', armory: '⚔️', vendor: '🧪', chest: '🎁', door: '🚪', wall: '🧱', snag: '🪵' }
+  const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'armory', 'vendor', 'chest', 'door']
+  const SHOP_KINDS: MapObjectKind[] = ['armory', 'vendor']
+  const MAX_SHOP_ITEMS = 20
   const CHANGE_KINDS: MapObjectKind[] = ['village', 'chest', 'door', 'wall', 'snag']
   const GOLD = '__gold'
   // Mirrors and turns of the brush (server: tileedit.py).
@@ -633,6 +635,7 @@
     if (own) return own
     if (o.event?.gold) return { gold: o.event.gold }
     if (o.event?.item) return { item: o.event.item }
+    if (o.event?.items) return { items: o.event.items, secret: o.event.macro === 'SecretShop' }
     return objectsInfo?.defaults[o.kind] ?? {}
   }
 
@@ -640,7 +643,7 @@
     if (!info) return
     const id = info.id
     const key = keyOf(o)
-    const base = objectSettings[key] ?? { ...(objectsInfo?.defaults[o.kind] ?? {}), ...(o.event?.gold || o.event?.item ? settingsOf(o) : {}) }
+    const base = objectSettings[key] ?? { ...(objectsInfo?.defaults[o.kind] ?? {}), ...(o.event?.gold || o.event?.item || o.event?.items ? settingsOf(o) : {}) }
     list.update(0, (d) => {
       d.objects ??= {}
       d.objects[id] ??= {}
@@ -679,7 +682,15 @@
   function giftText(st: MapObjectSettings): string {
     if (st.gold) return t('maps.obj.goldAmountShort', { n: st.gold })
     if (st.item) return itemById.get(st.item)?.name ?? st.item
+    if (st.items) return t('maps.obj.shopCount', { n: st.items.length })
     return ''
+  }
+
+  function setShopItem(o: MapObject, current: string[], index: number, item: string) {
+    const next = [...current]
+    if (item) next[index] = item
+    else next.splice(index, 1)
+    setObject(o, { items: next.slice(0, MAX_SHOP_ITEMS) })
   }
 
   /** New size: rows and columns are added or removed on the right and at the bottom; new cells get the selected tile. */
@@ -1003,6 +1014,27 @@
                 <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt="" /> {itemById.get(st.item)!.name}</Mention>
               {/if}
             </div>
+          {:else if SHOP_KINDS.includes(o.kind)}
+            {@const wares = st.items ?? []}
+            <span class="small">{t('maps.obj.wares')}</span>
+            <div class="wares">
+              {#each [...wares, ''] as id, i (i)}
+                {#if i < MAX_SHOP_ITEMS}
+                  {@const it = itemById.get(id)}
+                  <div class="ware">
+                    {#if it}<Mention kind="items" {id}><img class="pixel" src={itemIconUrl(it.iconId)} alt="" /></Mention>{:else}<span class="blank-icon"></span>{/if}
+                    <select value={id} onchange={(e) => setShopItem(o, wares, i, (e.target as HTMLSelectElement).value)}>
+                      <option value="">{i < wares.length ? t('maps.obj.removeWare') : t('maps.obj.addWare')}</option>
+                      {#each items as item (item.id)}<option value={item.id}>{item.name}</option>{/each}
+                    </select>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+            <label class="check" title={t('maps.obj.secretHint')}>
+              <input type="checkbox" checked={!!st.secret} onchange={(e) => setObject(o, { secret: (e.target as HTMLInputElement).checked, items: wares })} />
+              {t('maps.obj.secret')}
+            </label>
           {:else if o.kind === 'village' || o.kind === 'house'}
             {#if o.event?.script && !own}
               <p class="small">
@@ -1104,6 +1136,10 @@
   .object-panel .row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
   .object-panel textarea { width: 100%; max-width: 32rem; font: inherit; }
   .object-panel .reset { align-self: flex-start; margin-left: 0; }
+  .wares { display: flex; flex-direction: column; gap: 0.2rem; }
+  .ware { display: flex; align-items: center; gap: 0.4rem; }
+  .ware select { max-width: 16rem; }
+  .blank-icon { width: 16px; height: 16px; display: inline-block; }
   .faces { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .faces button { padding: 0.1rem; border-radius: 6px; line-height: 0; }
   .faces button.active { border-color: var(--accent); background: var(--accent-soft); }

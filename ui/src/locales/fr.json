@@ -623,7 +623,7 @@
   "maps.preview": "Aperçu « après »",
   "maps.previewHint": "Montre la carte une fois chaque objet utilisé : coffres ouverts, villages fermés, portes ouvertes, murs détruits",
   "maps.objects": "Objets de la carte ({n})",
-  "maps.objectsHint": "Posez un village, une maison, un coffre, une porte, un mur fissuré ou du bois mort : FE Maker crée tout seul son état « après » (changement de carte) et son événement. Choisissez ensuite ce qu'il contient avec l'outil Objets.",
+  "maps.objectsHint": "Posez un village, une maison, une armurerie, un magasin, un coffre, une porte, un mur fissuré ou du bois mort : FE Maker crée tout seul son état « après » (changement de carte) et son événement. Choisissez ensuite ce qu'il contient avec l'outil Objets.",
   "maps.objectsEdited": "Objets réglés.",
   "maps.kind.village": "Village",
   "maps.kind.house": "Maison",
@@ -673,5 +673,15 @@
   "maps.transformHint": "Tourne ou retourne la tuile (ou le bloc) choisie. Les nouvelles tuiles sont ajoutées au jeu de tuiles, dans ses emplacements libres : les cartes qui l'utilisent les voient aussi dans leur palette.",
   "maps.transformError.noFreeTile": "Plus de place pour de nouveaux dessins de tuiles dans ce jeu de tuiles.",
   "maps.transformError.noFreeMetatile": "Plus d'emplacement libre dans ce jeu de tuiles.",
-  "maps.addedTile": "ajoutée par le projet"
+  "maps.addedTile": "ajoutée par le projet",
+  "maps.kind.armory": "Armurerie",
+  "maps.kind.vendor": "Magasin",
+  "maps.kindHint.armory": "Une unité dessus peut acheter et vendre des armes.",
+  "maps.kindHint.vendor": "Une unité dessus peut acheter et vendre des objets.",
+  "maps.obj.wares": "En vente",
+  "maps.obj.addWare": "+ ajouter un objet",
+  "maps.obj.removeWare": "(retirer)",
+  "maps.obj.secret": "Magasin secret (carte de membre)",
+  "maps.obj.secretHint": "Seule une unité qui porte une carte de membre peut y entrer.",
+  "maps.obj.shopCount": "{n} objet(s) en vente"
 }

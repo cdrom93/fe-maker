@@ -317,7 +317,7 @@ def map_objects(layout_id: str, body: MapObjectsIn):
     events = state.get_decomp().map_object_events(layout_id)
     for obj in objects:
         found = next((events[tuple(c)] for c in obj["cells"]
-                      if tuple(c) in events and events[tuple(c)]["kind"] == obj["kind"]), None)
+                      if tuple(c) in events and mapobjects.event_matches(events[tuple(c)]["kind"], obj["kind"])), None)
         obj["event"] = {k: v for k, v in found.items() if k != "span"} if found else None
     return {"objects": objects, "hasChangeLayer": bool(layout["changes"]), "defaults": mapobjects.DEFAULTS,
             "faces": [{"id": fid, "portrait": portrait} for fid, portrait in mapobjects.FACES.items()]}

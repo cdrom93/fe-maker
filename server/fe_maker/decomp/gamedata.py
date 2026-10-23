@@ -408,8 +408,17 @@ class DecompData:
             found = self._location_list(index)
             if found:
                 rel, start, end = found
-                return {(e["x"], e["y"]): e for e in mapobjects.read_location_events(self.event_sources[rel][start:end])}
+                events = mapobjects.read_location_events(self.event_sources[rel][start:end])
+                shops = self._shop_lists()
+                for e in events:
+                    if e.get("shop") in shops:
+                        e["items"] = shops[e["shop"]]
+                return {(e["x"], e["y"]): e for e in events}
         return {}
+
+    def _shop_lists(self) -> dict[str, list[str]]:
+        path = self.decomp_dir / mapobjects.SHOP_LIST_FILE
+        return mapobjects.read_shop_lists(self._read(mapobjects.SHOP_LIST_FILE)) if path.is_file() else {}
 
     def _location_list(self, chapter_index: int) -> tuple[str, int, int] | None:
         symbol = self._chapter_event_symbol(self.chapter_settings["chapters"][chapter_index])
@@ -460,7 +469,8 @@ class DecompData:
             scripts = ""
             for e in events:
                 # The painting erased the object: its event would point at nothing.
-                if kind_at(original, e["x"], e["y"]) == e["kind"] and kind_at(rows, e["x"], e["y"]) != e["kind"]:
+                before, after = kind_at(original, e["x"], e["y"]), kind_at(rows, e["x"], e["y"])
+                if mapobjects.event_matches(e["kind"], before) and not mapobjects.event_matches(e["kind"], after):
                     remove.add(e["span"])
 
             def flag() -> str:
@@ -473,7 +483,7 @@ class DecompData:
                 if kind not in mapobjects.EVENT_KINDS:
                     continue
                 cells = {tuple(c) for c in obj["cells"]}
-                mine = [e for e in events if (e["x"], e["y"]) in cells and e["kind"] == kind]
+                mine = [e for e in events if (e["x"], e["y"]) in cells and mapobjects.event_matches(e["kind"], kind)]
                 own = settings.get(f"{obj['x']},{obj['y']}")
                 if own is None and (mine or not obj["new"]):
                     continue  # original behavior (an original object without event is decoration)
@@ -485,6 +495,11 @@ class DecompData:
                 if kind == "chest":
                     lines.append(f"ChestMoney({int(s['gold'])}, {x}, {y})" if s.get("gold")
                                  else f"Chest({s.get('item') or 'ITEM_VULNERARY'}, {x}, {y})")
+                elif kind in mapobjects.SHOP_KINDS:
+                    name = f"ShopList_FEM_{layout_id}_{x}_{y}"
+                    scripts += mapobjects.shop_list(name, s.get("items") or mapobjects.DEFAULTS[kind]["items"])
+                    macro = "SecretShop" if s.get("secret") else kind.capitalize()
+                    lines.append(f"{macro}({name}, {x}, {y})")
                 elif kind == "door":
                     door_flag = flag()
                     lines += [f"Door({cx}, {cy}, {door_flag})" for cx, cy in obj["cells"]]

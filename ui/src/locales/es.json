@@ -623,7 +623,7 @@
   "maps.preview": "Vista «después»",
   "maps.previewHint": "Muestra el mapa con cada objeto ya usado: cofres abiertos, aldeas cerradas, puertas abiertas, muros rotos",
   "maps.objects": "Objetos del mapa ({n})",
-  "maps.objectsHint": "Pinta una aldea, casa, cofre, puerta, muro agrietado o tronco seco: FE Maker crea solo su estado «después» (cambio de mapa) y su evento. Luego elige su contenido con la herramienta Objetos.",
+  "maps.objectsHint": "Pinta una aldea, casa, armería, tienda, cofre, puerta, muro agrietado o tronco seco: FE Maker crea solo su estado «después» (cambio de mapa) y su evento. Luego elige su contenido con la herramienta Objetos.",
   "maps.objectsEdited": "Objetos ajustados.",
   "maps.kind.village": "Aldea",
   "maps.kind.house": "Casa",
@@ -673,5 +673,15 @@
   "maps.transformHint": "Gira o voltea la casilla (o el bloque) elegida. Las nuevas casillas se añaden al juego de casillas, en sus huecos libres: los mapas que lo usan también las ven en su paleta.",
   "maps.transformError.noFreeTile": "No queda sitio para nuevos dibujos de casillas en este juego de casillas.",
   "maps.transformError.noFreeMetatile": "No queda ningún hueco libre en este juego de casillas.",
-  "maps.addedTile": "añadida por el proyecto"
+  "maps.addedTile": "añadida por el proyecto",
+  "maps.kind.armory": "Armería",
+  "maps.kind.vendor": "Tienda",
+  "maps.kindHint.armory": "Una unidad encima puede comprar y vender armas.",
+  "maps.kindHint.vendor": "Una unidad encima puede comprar y vender objetos.",
+  "maps.obj.wares": "En venta",
+  "maps.obj.addWare": "+ añadir un objeto",
+  "maps.obj.removeWare": "(quitar)",
+  "maps.obj.secret": "Tienda secreta (tarjeta de socio)",
+  "maps.obj.secretHint": "Solo puede entrar una unidad que lleve una tarjeta de socio.",
+  "maps.obj.shopCount": "{n} objeto(s) en venta"
 }

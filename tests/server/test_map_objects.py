@@ -75,7 +75,8 @@ def test_read_location_events():
 """
     events = mo.read_location_events(body)
     assert [(e["kind"], e["x"], e["y"]) for e in events] == [
-        ("village", 4, 2), ("house", 13, 6), ("chest", 6, 3), ("chest", 10, 3), ("door", 12, 17), ("door", 1, 2)]
+        ("village", 4, 2), ("house", 13, 6), ("chest", 6, 3), ("chest", 10, 3), ("door", 12, 17), ("door", 1, 2),
+        ("armory", 5, 7)]
     assert events[0]["script"] == "EventScr_Ch2_Village1"
     assert events[2]["item"] == "ITEM_LANCE_IRON" and events[3]["gold"] == 3000
     s, e = events[2]["span"]
@@ -106,3 +107,13 @@ def test_new_messages_are_appended():
     index = texts.add("New[X]")
     assert index == 2 and texts.raw(2) == "New[X]"
     assert texts.render().endswith("## MSG_001\nHi[X]\n\n## MSG_002\nNew[X]\n\n")
+
+
+def test_shops():
+    body = "    Armory(ShopList_Event_Ch2Armory, 5, 7)\n    SecretShop(ShopList_Secret, 4, 4)\n    END_MAIN\n"
+    armory, secret = mo.read_location_events(body)
+    assert (armory["kind"], armory["shop"], armory["x"]) == ("armory", "ShopList_Event_Ch2Armory", 5)
+    assert secret["kind"] == "secret" and mo.event_matches("secret", "vendor") and not mo.event_matches("armory", "vendor")
+    source = "// 0x1\nCONST_DATA u16 ShopList_A[] = {\n    ITEM_SWORD_IRON,\n    ITEM_LANCE_IRON,\n\n    ITEM_NONE,\n};\n"
+    assert mo.read_shop_lists(source) == {"ShopList_A": ["ITEM_SWORD_IRON", "ITEM_LANCE_IRON"]}
+    assert mo.read_shop_lists(mo.shop_list("ShopList_A", ["ITEM_SWORD_IRON"])) == {"ShopList_A": ["ITEM_SWORD_IRON"]}

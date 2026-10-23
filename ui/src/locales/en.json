@@ -623,7 +623,7 @@
   "maps.preview": "“After” preview",
   "maps.previewHint": "Shows the map once every object was used: open chests, closed villages, open doors, broken walls",
   "maps.objects": "Map objects ({n})",
-  "maps.objectsHint": "Paint a village, house, chest, door, cracked wall or snag: FE Maker makes its “after” state (map change) and its event by itself. Then pick what it holds with the Objects tool.",
+  "maps.objectsHint": "Paint a village, house, armory, vendor, chest, door, cracked wall or snag: FE Maker makes its “after” state (map change) and its event by itself. Then pick what it holds with the Objects tool.",
   "maps.objectsEdited": "Objects set.",
   "maps.kind.village": "Village",
   "maps.kind.house": "House",
@@ -673,5 +673,15 @@
   "maps.transformHint": "Turns or flips the selected tile (or block). New tiles are added to the tileset, in its free slots: the maps using it see them in their palette too.",
   "maps.transformError.noFreeTile": "No room left for new tile pictures in this tileset.",
   "maps.transformError.noFreeMetatile": "No free slot left in this tileset.",
-  "maps.addedTile": "added by the project"
+  "maps.addedTile": "added by the project",
+  "maps.kind.armory": "Armory",
+  "maps.kind.vendor": "Vendor",
+  "maps.kindHint.armory": "A unit on it can buy and sell weapons.",
+  "maps.kindHint.vendor": "A unit on it can buy and sell items.",
+  "maps.obj.wares": "For sale",
+  "maps.obj.addWare": "+ add an item",
+  "maps.obj.removeWare": "(remove)",
+  "maps.obj.secret": "Secret shop (member card)",
+  "maps.obj.secretHint": "Only a unit carrying a member card can go in.",
+  "maps.obj.shopCount": "{n} item(s) for sale"
 }

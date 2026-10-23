@@ -28,9 +28,12 @@ from pathlib import Path
 from . import maps
 
 # Terrain id -> object kind (include/constants/terrains.h).
-KINDS = {0x03: "village", 0x05: "house", 0x1E: "door", 0x21: "chest", 0x1B: "wall", 0x33: "snag"}
+KINDS = {0x03: "village", 0x05: "house", 0x06: "armory", 0x07: "vendor", 0x1E: "door", 0x21: "chest",
+         0x1B: "wall", 0x33: "snag"}
 CHANGE_KINDS = ("village", "door", "chest", "wall", "snag")   # change their tiles when used
-EVENT_KINDS = ("village", "house", "door", "chest")          # need a location event
+EVENT_KINDS = ("village", "house", "armory", "vendor", "door", "chest")   # need a location event
+SHOP_KINDS = ("armory", "vendor")
+MAX_SHOP_ITEMS = 20
 
 DEFAULTS = {
     "chest": {"item": "ITEM_VULNERARY"},
@@ -38,6 +41,8 @@ DEFAULTS = {
                 "text": "Thank you for coming to our village.\nPlease, take this with you."},
     "house": {"face": "FID_VillagerWoman", "text": "Be careful out there.\nThe roads are not safe anymore."},
     "door": {},
+    "armory": {"items": ["ITEM_SWORD_IRON", "ITEM_LANCE_IRON", "ITEM_AXE_IRON", "ITEM_BOW_IRON"]},
+    "vendor": {"items": ["ITEM_VULNERARY", "ITEM_ANIMA_FIRE", "ITEM_LIGHT_LIGHTNING", "ITEM_STAFF_HEAL"]},
 }
 # Villager portraits for generated dialogues: text code -> portrait id (texts/textdefs.txt).
 FACES = {"FID_VillagerOldMan": 0x59, "FID_VillagerOldWoman": 0x5F, "FID_VillagerMan1": 0x58, "FID_VillagerMan2": 0x5A,
@@ -286,7 +291,8 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
 # ---------- location events ----------
 
 _EVENT_RE = re.compile(
-    r"^[ \t]*(Chest|ChestMoney|Door_|Door|Village|House)\s*\(([^()\n]*(?:\([^()\n]*\)[^()\n]*)*)\)[ \t]*\r?\n", re.M)
+    r"^[ \t]*(Chest|ChestMoney|Door_|Door|Village|House|Armory|Vendor|SecretShop)"
+    r"\s*\(([^()\n]*(?:\([^()\n]*\)[^()\n]*)*)\)[ \t]*\r?\n", re.M)
 
 
 def _args(text: str) -> list[str]:
@@ -327,11 +333,35 @@ def read_location_events(body: str) -> list[dict]:
             event.update(kind="door", x=_int(args[0]), y=_int(args[1]))
         elif macro in ("Village", "House") and len(args) == 4:
             event.update(kind=macro.lower(), x=_int(args[2]), y=_int(args[3]), script=args[1])
+        elif macro in ("Armory", "Vendor", "SecretShop") and len(args) == 3:
+            event.update(kind="secret" if macro == "SecretShop" else macro.lower(), x=_int(args[1]), y=_int(args[2]),
+                         shop=args[0])
         else:
             continue
         if event["x"] is not None and event["y"] is not None:
             out.append(event)
     return out
+
+
+def event_matches(event_kind: str, object_kind: str | None) -> bool:
+    """A secret shop (member card) can stand on an armory or a vendor."""
+    return event_kind == object_kind or (event_kind == "secret" and object_kind in SHOP_KINDS)
+
+
+SHOP_LIST_FILE = "src/events_shoplist.c"
+
+
+def read_shop_lists(source: str) -> dict[str, list[str]]:
+    """Shop item lists of the game (src/events_shoplist.c): name -> items."""
+    out = {}
+    for name, body in re.findall(r"u16\s+(\w+)\s*\[\s*\]\s*=\s*\{(.*?)\};", source, re.S):
+        out[name] = [w for w in re.findall(r"\b(ITEM_\w+|0x[0-9A-Fa-f]+|\d+)\b", body) if w not in ("ITEM_NONE", "0")]
+    return out
+
+
+def shop_list(name: str, items: list[str]) -> str:
+    body = "".join(f"    {item},\n" for item in items[:MAX_SHOP_ITEMS])
+    return f"CONST_DATA u16 {name}[] = {{\n{body}    ITEM_NONE,\n}};\n\n"
 
 
 def dialogue_message(face: str, text: str) -> str:
