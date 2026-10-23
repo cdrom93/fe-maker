@@ -1,4 +1,4 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, Objective, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps'
 
@@ -49,8 +49,12 @@ export const api = {
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   maps: () => request<MapInfo[]>('GET', '/api/maps'),
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
-  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings> }) =>
+  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
+  mapTileset: (id: string, edits: TilesetEdits) =>
+    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits }),
+  transformTiles: (id: string, body: { rows: number[][]; op: string; edits: TilesetEdits | null; painted: MapsData['layouts'] }) =>
+    request<{ rows: number[][]; edits: TilesetEdits; tileset: string }>('POST', `/api/maps/${id}/transform`, body),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),

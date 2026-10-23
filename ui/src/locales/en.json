@@ -663,5 +663,15 @@
   "maps.obj.pick": "Click an object in the list (or on the map with the Objects tool) to set it.",
   "problem.noUsedState": "{object} at {x}, {y}: no known “after” state for this tileset, it will not change its look",
   "problem.noChangeLayer": "{object} at {x}, {y}: the map has no change layer, it will not change its look",
-  "problem.tooManyChanges": "{object} at {x}, {y}: no free change number left (128 at most)"
+  "problem.tooManyChanges": "{object} at {x}, {y}: no free change number left (128 at most)",
+  "maps.transform": "Turn:",
+  "maps.transform.h": "Mirror left-right",
+  "maps.transform.v": "Mirror top-bottom",
+  "maps.transform.180": "Half turn",
+  "maps.transform.ccw": "Quarter turn left",
+  "maps.transform.cw": "Quarter turn right",
+  "maps.transformHint": "Turns or flips the selected tile (or block). New tiles are added to the tileset, in its free slots: the maps using it see them in their palette too.",
+  "maps.transformError.noFreeTile": "No room left for new tile pictures in this tileset.",
+  "maps.transformError.noFreeMetatile": "No free slot left in this tileset.",
+  "maps.addedTile": "added by the project"
 }

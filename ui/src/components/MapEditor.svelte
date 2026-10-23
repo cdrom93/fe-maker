@@ -18,11 +18,11 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
-  import { api, itemIconUrl, mapTilesetUrl, portraitUrl } from '../lib/api'
+  import { api, ApiError, itemIconUrl, mapTilesetUrl, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem } from '../lib/types'
+  import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
@@ -43,6 +43,14 @@
   const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'chest', 'door']
   const CHANGE_KINDS: MapObjectKind[] = ['village', 'chest', 'door', 'wall', 'snag']
   const GOLD = '__gold'
+  // Mirrors and turns of the brush (server: tileedit.py).
+  const TRANSFORMS = [
+    { op: 'h', icon: '↔' },
+    { op: 'v', icon: '↕' },
+    { op: '180', icon: '⟲⟲' },
+    { op: 'ccw', icon: '⟲' },
+    { op: 'cw', icon: '⟳' },
+  ]
   const MAX_GOLD = 65535
   const PALETTE_COLUMNS = 8
   const PALETTE_CELL = 32
@@ -58,6 +66,10 @@
   let selected = $state(0)
   let layout = $state<MapLayout | null>(null)
   let sheet = $state<HTMLImageElement | null>(null)
+  // The map's tileset as in the game; `layout` and `sheet` add the project's mirrored and turned tiles.
+  let baseLayout = $state<MapLayout | null>(null)
+  let baseSheet = $state<HTMLImageElement | null>(null)
+  let transformError = $state('')
   let tool = $state<Tool>('pen')
   /** What the tools paint: one tile, or a block taken from the palette or the map (right-drag). */
   let stamp = $state<number[][]>([[0]])
@@ -109,6 +121,7 @@
   const sizeProblem = $derived(mapProblems.find((p) => p.field === 'size'))
   const chapterTitle = (i: number) => chapters[i]?.title || chapters[i]?.id || String(i)
 
+  const tilesetEdits = $derived<TilesetEdits | undefined>(baseLayout ? list.records[0]?.tilesets?.[baseLayout.tileset] : undefined)
   const objectSettings = $derived<Record<string, MapObjectSettings>>((info && list.records[0]?.objects?.[info.id]) ?? {})
   const objects = $derived(objectsInfo?.objects ?? [])
   const keyOf = (o: { x: number; y: number }) => `${o.x},${o.y}`
@@ -156,12 +169,58 @@
   const nav = useNavigator()
   followFocus('maps', nav, () => maps.map((m) => m.id), (i) => load(i))
 
+  // Tiles added to the tileset (mirrors, turns): sheet and terrains drawn again by the server.
+  let tilesetRequest = 0
+  $effect(() => {
+    const base = baseLayout
+    const edits = tilesetEdits ? JSON.parse(JSON.stringify(tilesetEdits)) : null
+    if (!info || !base) return
+    const id = info.id
+    const n = ++tilesetRequest
+    if (!edits) {
+      layout = base
+      sheet = baseSheet
+      return
+    }
+    api.mapTileset(id, edits).then(async (r) => {
+      const img = await loadImage(r.sheet)
+      if (n !== tilesetRequest || maps[selected]?.id !== id) return
+      layout = { ...base, terrains: r.terrains, duplicates: r.duplicates }
+      sheet = img
+    }).catch(() => {})
+  })
+
+  /** Mirror or turn the brush; the new tiles are added to the tileset (undo removes them). */
+  async function transform(op: string) {
+    if (!info || !baseLayout) return
+    const id = info.id
+    const tileset = baseLayout.tileset
+    transformError = ''
+    try {
+      const r = await api.transformTiles(id, {
+        rows: $state.snapshot(stamp) as number[][], op, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
+        painted: JSON.parse(JSON.stringify(list.records[0]?.layouts ?? {})),
+      })
+      if (maps[selected]?.id !== id) return
+      if (JSON.stringify(r.edits) !== JSON.stringify(tilesetEdits ?? { metatiles: {}, tiles: {} })) {
+        list.update(0, (d) => {
+          d.tilesets ??= {}
+          d.tilesets[tileset] = r.edits
+        })
+      }
+      stamp = r.rows
+      palettePicked = null
+    } catch (e) {
+      transformError = e instanceof ApiError ? t(`maps.transformError.${e.detail}`) : String(e)
+    }
+  }
+
   // Objects of the map and what the build does for them, asked again after each edit.
   let objectsRequest = 0
   $effect(() => {
     if (!info || !layout) return
     const id = info.id
-    const body = JSON.parse(JSON.stringify({ rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings }))
+    const body = JSON.parse(JSON.stringify({ rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings, tileset: tilesetEdits ?? null }))
     const timer = setTimeout(async () => {
       const n = ++objectsRequest
       try {
@@ -201,11 +260,16 @@
     terrainFilter = null
     objectsInfo = null
     selectedObject = null
+    transformError = ''
     const id = maps[index].id
     const [data, img] = await Promise.all([api.map(id), loadImage(mapTilesetUrl(id))])
     if (maps[selected]?.id !== id) return
-    layout = data
-    sheet = img
+    baseSheet = img
+    baseLayout = data
+    if (!list.records[0]?.tilesets?.[data.tileset]) {
+      layout = data
+      sheet = img
+    }
     // Start with the map's most common tile (usually its ground).
     const count = new Map<number, number>()
     for (const row of data.rows) for (const c of row) count.set(c, (count.get(c) ?? 0) + 1)
@@ -851,11 +915,18 @@
                 {:else}
                   <div>{terrainName(layout.terrains[brush])}</div>
                   <div class="muted tiny">
-                    {t('maps.tileNumber', { n: brush })}{#if layout.terrainNames[layout.terrains[brush]]} · {t('maps.gameName', { name: layout.terrainNames[layout.terrains[brush]] })}{/if}
+                    {t('maps.tileNumber', { n: brush })}{#if tilesetEdits?.metatiles[String(brush)]} · {t('maps.addedTile')}{/if}{#if layout.terrainNames[layout.terrains[brush]]} · {t('maps.gameName', { name: layout.terrainNames[layout.terrains[brush]] })}{/if}
                   </div>
                 {/if}
               </div>
             </div>
+            <div class="transforms">
+              <span class="small">{t('maps.transform')}</span>
+              {#each TRANSFORMS as tr (tr.op)}
+                <button title={t(`maps.transform.${tr.op}`)} aria-label={t(`maps.transform.${tr.op}`)} onclick={() => transform(tr.op)}>{tr.icon}</button>
+              {/each}
+            </div>
+            {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny">{t('maps.transformHint')}</p>{/if}
             <label>
               <span>{t('maps.terrainFilter')}</span>
               <select value={terrainFilter ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; terrainFilter = v === '' ? null : Number(v) }}>
@@ -1038,6 +1109,9 @@
   .faces button.active { border-color: var(--accent); background: var(--accent-soft); }
   .faces img { width: 48px; height: 40px; image-rendering: pixelated; }
   .pixel { image-rendering: pixelated; vertical-align: middle; }
+  .transforms { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+  .transforms button { min-width: 2rem; padding: 0.15rem 0.4rem; font-size: 0.95rem; }
+  .palette-panel p { margin: 0; }
   .palette-panel { display: flex; flex-direction: column; gap: 0.5rem; }
   .palette-panel h3 { margin: 0; }
   .brush { display: flex; align-items: center; gap: 0.6rem; }

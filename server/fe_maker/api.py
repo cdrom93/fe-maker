@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import tempfile
 import threading
 from pathlib import Path
 
@@ -13,7 +15,7 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import mapobjects, maps, units
+from .decomp import mapobjects, maps, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
@@ -239,10 +241,15 @@ def chapter_map(index: int, fog: bool = False):
     """The chapter's map as painted in the project (the original one if never painted)."""
     try:
         assets = maps.chapter_map_assets(DECOMP_DIR, _chapter(index))
-        painted = state.project.load("maps").get("layouts", {}).get(assets.layout.stem) if state.project else None
+        project_maps = state.project.load("maps") if state.project else {}
+        painted = project_maps.get("layouts", {}).get(assets.layout.stem)
         layout = (len(painted["rows"][0]), len(painted["rows"]), [c for row in painted["rows"] for c in row]) if painted else None
-        png, _w, _h = maps.render_map(assets, scale=1, fog=fog, layout=layout)
-    except maps.MapError as e:
+        edits = project_maps.get("tilesets", {}).get(assets.config.stem)
+        with tempfile.TemporaryDirectory() as folder:
+            if edits:
+                assets = tileedit.Tileset(DECOMP_DIR, assets.layout.stem, edits).edited_assets(Path(folder))
+            png, _w, _h = maps.render_map(assets, scale=1, fog=fog, layout=layout)
+    except (maps.MapError, tileedit.TileEditError) as e:
         raise HTTPException(404, str(e))
     return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
 
@@ -291,6 +298,7 @@ class MapObjectsIn(BaseModel):
     rows: list[list[int]]
     changes: list[dict] | None = None   # None: the original change set
     objects: dict = {}
+    tileset: dict | None = None         # metatiles added to the tileset (tileedit.py)
 
 
 @app.post("/api/maps/{layout_id}/objects")
@@ -302,7 +310,8 @@ def map_objects(layout_id: str, body: MapObjectsIn):
     if changes is None:
         changes = maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else []
     try:
-        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects)
+        terrain = bytes(tileedit.Tileset(DECOMP_DIR, layout_id, body.tileset).terrain) if body.tileset else None
+        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects, terrain)
     except (IndexError, ValueError) as e:
         raise HTTPException(400, str(e)) from e
     events = state.get_decomp().map_object_events(layout_id)
@@ -312,6 +321,48 @@ def map_objects(layout_id: str, body: MapObjectsIn):
         obj["event"] = {k: v for k, v in found.items() if k != "span"} if found else None
     return {"objects": objects, "hasChangeLayer": bool(layout["changes"]), "defaults": mapobjects.DEFAULTS,
             "faces": [{"id": fid, "portrait": portrait} for fid, portrait in mapobjects.FACES.items()]}
+
+
+class TilesetIn(BaseModel):
+    edits: dict | None = None
+
+
+@app.post("/api/maps/{layout_id}/tileset")
+def edited_tileset(layout_id: str, body: TilesetIn):
+    """The tileset sheet with the project's added metatiles (not saved yet: the editor sends them)."""
+    _layout(layout_id)
+    try:
+        tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits)
+        with tempfile.TemporaryDirectory() as folder:
+            assets = tileset.edited_assets(Path(folder))
+            png = maps.render_tileset(assets)
+            duplicates = maps.duplicate_metatiles(assets)
+    except tileedit.TileEditError as e:
+        raise HTTPException(409, str(e)) from e
+    # Added metatiles are never hidden, even when they look like another one.
+    for slot in (body.edits or {}).get("metatiles", {}):
+        duplicates[int(slot)] = False
+    return {"sheet": "data:image/png;base64," + base64.b64encode(png).decode(), "terrains": list(tileset.terrain),
+            "duplicates": duplicates}
+
+
+class TransformIn(BaseModel):
+    rows: list[list[int]]
+    op: str
+    edits: dict | None = None
+    painted: dict = {}   # project painted layouts: their tiles are not free slots
+
+
+@app.post("/api/maps/{layout_id}/transform")
+def transform_tiles(layout_id: str, body: TransformIn):
+    """A block of tiles mirrored or turned: new metatiles (and 8x8 tiles) added to the tileset when needed."""
+    _layout(layout_id)
+    try:
+        tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits, body.painted)
+        rows = tileset.transform_block(body.rows, body.op)
+    except tileedit.TileEditError as e:
+        raise HTTPException(409, str(e)) from e
+    return {"rows": rows, "edits": tileset.edits, "tileset": tileset.name}
 
 
 @app.get("/api/maps/{layout_id}/tileset.png")

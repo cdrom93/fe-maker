@@ -119,3 +119,27 @@ def test_painted_objects_build(tmp_path):
 
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original
+
+
+def test_turned_tiles_build(tmp_path):
+    """A village block turned a quarter turn (new 8x8 tiles) and mirrored, painted on a map: the tile
+    config and the tileset image are rewritten and the decomp still builds."""
+    from fe_maker.decomp import maps, tileedit
+
+    project = Project.create(tmp_path / "turned", "Turned")
+    layout = maps.layouts(project.decomp_dir)["Ch2Map"]
+    width, height, cells = maps.read_layout(layout["assets"].layout)
+    rows = [cells[y * width: (y + 1) * width] for y in range(height)]
+    tileset = tileedit.Tileset(project.decomp_dir, "Ch2Map", None)
+    block = [row[3:6] for row in rows[0:3]]
+    turned = tileset.transform_block(block, "cw")
+    mirrored = tileset.transform_block(block, "h")
+    assert tileset.edits["tiles"] and tileset.edits["metatiles"]
+    for j in range(3):
+        rows[6 + j][12:15] = turned[j]
+        rows[10 + j][12:15] = mirrored[j]
+    project.save("maps", {"layouts": {"Ch2Map": {"rows": rows}}, "tilesets": {tileset.name: tileset.edits}})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

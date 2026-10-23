@@ -197,6 +197,15 @@ export interface MapsData {
   changes?: Record<string, MapChange[]>
   /** object settings by layout id, then by "x,y" of the object's first cell */
   objects?: Record<string, Record<string, MapObjectSettings>>
+  /** mirrored and turned tiles added to tilesets, by tile config name (server: tileedit.py) */
+  tilesets?: Record<string, TilesetEdits>
+}
+
+export interface TilesetEdits {
+  /** slot -> its 4 tile entries and terrain */
+  metatiles: Record<string, { tiles: number[]; terrain: number }>
+  /** 8x8 tile index -> 64 color indices */
+  tiles: Record<string, number[]>
 }
 
 export type MapObjectKind = 'village' | 'house' | 'chest' | 'door' | 'wall' | 'snag'

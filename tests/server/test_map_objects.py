@@ -94,11 +94,11 @@ def test_dialogue_message_pads_text_runs():
 
 def test_village_script():
     script = mo.village_script("EventScr_Test", 0xD4C, "ITEM_ELIXIR", None)
-    assert "Text_BG(BG_NORMAL_VILLAGE, 0xD4C)" in script and "SVAL(EVT_SLOT_3, ITEM_ELIXIR)" in script
+    assert "Text_BG(0x2, 0xD4C)" in script and "SVAL(EVT_SLOT_3, ITEM_ELIXIR)" in script
     money = mo.village_script("EventScr_Test", 0xD4C, None, 500)
     assert "GIVEITEMTOMAIN(CHAR_EVT_PLAYER_LEADER)" in money
     house = mo.village_script("EventScr_Test", 0xD4C, None, None, house=True)
-    assert "BG_HOUSE" in house and "GIVE" not in house
+    assert "Text_BG(0x0, 0xD4C)" in house and "GIVE" not in house
 
 
 def test_new_messages_are_appended():

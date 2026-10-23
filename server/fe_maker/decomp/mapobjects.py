@@ -44,6 +44,7 @@ FACES = {"FID_VillagerOldMan": 0x59, "FID_VillagerOldWoman": 0x5F, "FID_Villager
          "FID_VillagerMan3": 0x5B, "FID_VillagerMan4": 0x5C, "FID_VillagerYoungMan": 0x5D, "FID_VillagerYoungBoy": 0x5E,
          "FID_VillagerWoman": 0x60, "FID_VillagerGirlBrownHair": 0x61, "FID_VillagerGirlBlackHair": 0x62,
          "FID_VillagerGirlYoung": 0x63}
+BG_HOUSE, BG_NORMAL_VILLAGE = 0x00, 0x02  # include/constants/backgrounds.h
 FIRST_FLAG = 70     # temporary event flags (1-100 are cleared each chapter); the game uses up to 28
 LAST_FLAG = 100
 LINE_WIDTH = 38     # characters per line of a generated dialogue
@@ -248,15 +249,17 @@ def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
 
 
 def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes: list[dict] | None,
-                settings: dict | None = None) -> list[dict]:
+                settings: dict | None = None, terrain: bytes | None = None) -> list[dict]:
     """Objects of a layout with what the build will do for them.
 
     Each object: kind, x, y, cells, "new" (not on the original map), "change" (id of the change
     used, None if none), "auto" (the change FE Maker adds, for new objects without one),
-    "noAfter" (new object whose used state is unknown for this tileset)."""
+    "noAfter" (new object whose used state is unknown for this tileset). `terrain` replaces the
+    tileset's terrains when the project added metatiles (tileedit.py)."""
     layout = maps.layouts(decomp_dir)[layout_id]
     assets = layout["assets"]
-    _metatiles, terrain = maps.read_config(assets.config)
+    if terrain is None:
+        _metatiles, terrain = maps.read_config(assets.config)
     width, height, cells = maps.read_layout(assets.layout)
     rule = rules(decomp_dir).get(assets.config.name)
     settings = settings or {}
@@ -346,7 +349,9 @@ def dialogue_message(face: str, text: str) -> str:
 
 
 def village_script(name: str, message: int, item: str | None, gold: int | None, house: bool = False) -> str:
-    lines = ["MUSI", f"Text_BG({'BG_HOUSE' if house else 'BG_NORMAL_VILLAGE'}, 0x{message:X})", "MUNO",
+    # Backgrounds by number (include/constants/backgrounds.h is not included by every eventinfo file).
+    background = BG_HOUSE if house else BG_NORMAL_VILLAGE
+    lines = ["MUSI", f"Text_BG(0x{background:X}, 0x{message:X})", "MUNO",
              "CALL(EventScr_RemoveBGIfNeeded)"]
     if gold:
         lines += [f"SVAL(EVT_SLOT_3, {int(gold)})", "GIVEITEMTOMAIN(CHAR_EVT_PLAYER_LEADER)"]

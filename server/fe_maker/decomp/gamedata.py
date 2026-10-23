@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, mapobjects, maps, objectives, units
+from . import combat, mapobjects, maps, objectives, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -351,9 +351,18 @@ class DecompData:
         painted = maps_data.get("layouts", {})
         changes = maps_data.get("changes", {})
         settings = maps_data.get("objects", {})
-        if not painted and not changes and not settings:
+        tilesets = maps_data.get("tilesets", {})
+        if not painted and not changes and not settings and not tilesets:
             return
         known = maps.layouts(self.decomp_dir)
+        # Mirrored and turned tiles added to tilesets: their terrains count for the objects below.
+        terrains: dict[str, bytes] = {}
+        for config_name, edits in tilesets.items():
+            layout_id = tileedit.layout_for(self.decomp_dir, config_name)
+            if layout_id and edits:
+                tileset = tileedit.Tileset(self.decomp_dir, layout_id, edits)
+                self.map_files.update(tileset.files())
+                terrains[config_name] = bytes(tileset.terrain)
         map_change_source = original_source = None  # read when a change set is written
         for layout_id in sorted(set(painted) | set(changes) | set(settings)):
             if layout_id not in known:
@@ -363,7 +372,8 @@ class DecompData:
             change_list = changes.get(layout_id)
             explicit = change_list if change_list is not None else (
                 maps.read_changes(self.decomp_dir, json_rel) if json_rel else [])
-            objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id))
+            terrain = terrains.get(known[layout_id]["assets"].config.stem)
+            objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id), terrain)
             autos = [o["auto"] for o in objects if o["auto"]]
             if json_rel and (change_list is not None or autos):
                 if map_change_source is None:
@@ -371,7 +381,7 @@ class DecompData:
                 files, map_change_source = maps.write_changes(
                     self.decomp_dir, json_rel, list(explicit) + autos, map_change_source)
                 self.map_files.update(files)
-            self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}))
+            self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}), terrain)
         if map_change_source != original_source:
             self.map_files[maps.MAP_CHANGE_FILE] = map_change_source
         for layout_id, layout in painted.items():
@@ -412,14 +422,16 @@ class DecompData:
         name = group.get("locationBasedEvents", "")
         return objectives._list(self.event_sources, name) if re.fullmatch(r"\w+", name) else None
 
-    def _apply_map_events(self, layout_id: str, rows: list[list[int]], objects: list[dict], settings: dict) -> None:
+    def _apply_map_events(self, layout_id: str, rows: list[list[int]], objects: list[dict], settings: dict,
+                          edited_terrain: bytes | None = None) -> None:
         """Location events of the chapters using a layout: events added for new villages, houses,
         chests and doors (or set in the project), removed where the painting erased the object."""
         layout = maps.layouts(self.decomp_dir)[layout_id]
-        _metatiles, terrain = maps.read_config(layout["assets"].config)
+        _metatiles, original_terrain = maps.read_config(layout["assets"].config)
         original = self._original_rows(layout_id)
 
         def kind_at(grid, x, y):
+            terrain = original_terrain if grid is original else (edited_terrain or original_terrain)
             if 0 <= y < len(grid) and 0 <= x < len(grid[0]) and grid[y][x] < len(terrain):
                 return mapobjects.KINDS.get(terrain[grid[y][x]])
             return None

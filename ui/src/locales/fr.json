@@ -663,5 +663,15 @@
   "maps.obj.pick": "Cliquez sur un objet de la liste (ou sur la carte avec l'outil Objets) pour le régler.",
   "problem.noUsedState": "{object} en {x}, {y} : état « après » inconnu pour ce jeu de tuiles, il ne changera pas d'aspect",
   "problem.noChangeLayer": "{object} en {x}, {y} : la carte n'a pas de couche de changements, il ne changera pas d'aspect",
-  "problem.tooManyChanges": "{object} en {x}, {y} : plus de numéro de changement libre (128 au plus)"
+  "problem.tooManyChanges": "{object} en {x}, {y} : plus de numéro de changement libre (128 au plus)",
+  "maps.transform": "Tourner :",
+  "maps.transform.h": "Miroir gauche-droite",
+  "maps.transform.v": "Miroir haut-bas",
+  "maps.transform.180": "Demi-tour",
+  "maps.transform.ccw": "Quart de tour à gauche",
+  "maps.transform.cw": "Quart de tour à droite",
+  "maps.transformHint": "Tourne ou retourne la tuile (ou le bloc) choisie. Les nouvelles tuiles sont ajoutées au jeu de tuiles, dans ses emplacements libres : les cartes qui l'utilisent les voient aussi dans leur palette.",
+  "maps.transformError.noFreeTile": "Plus de place pour de nouveaux dessins de tuiles dans ce jeu de tuiles.",
+  "maps.transformError.noFreeMetatile": "Plus d'emplacement libre dans ce jeu de tuiles.",
+  "maps.addedTile": "ajoutée par le projet"
 }

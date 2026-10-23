@@ -663,5 +663,15 @@
   "maps.obj.pick": "Haz clic en un objeto de la lista (o en el mapa con la herramienta Objetos) para ajustarlo.",
   "problem.noUsedState": "{object} en {x}, {y}: estado «después» desconocido para este juego de casillas, no cambiará de aspecto",
   "problem.noChangeLayer": "{object} en {x}, {y}: el mapa no tiene capa de cambios, no cambiará de aspecto",
-  "problem.tooManyChanges": "{object} en {x}, {y}: no queda ningún número de cambio libre (128 como máximo)"
+  "problem.tooManyChanges": "{object} en {x}, {y}: no queda ningún número de cambio libre (128 como máximo)",
+  "maps.transform": "Girar:",
+  "maps.transform.h": "Espejo izquierda-derecha",
+  "maps.transform.v": "Espejo arriba-abajo",
+  "maps.transform.180": "Media vuelta",
+  "maps.transform.ccw": "Cuarto de vuelta a la izquierda",
+  "maps.transform.cw": "Cuarto de vuelta a la derecha",
+  "maps.transformHint": "Gira o voltea la casilla (o el bloque) elegida. Las nuevas casillas se añaden al juego de casillas, en sus huecos libres: los mapas que lo usan también las ven en su paleta.",
+  "maps.transformError.noFreeTile": "No queda sitio para nuevos dibujos de casillas en este juego de casillas.",
+  "maps.transformError.noFreeMetatile": "No queda ningún hueco libre en este juego de casillas.",
+  "maps.addedTile": "añadida por el proyecto"
 }

@@ -663,5 +663,15 @@
   "maps.obj.pick": "Clicca su un oggetto della lista (o sulla mappa con lo strumento Oggetti) per impostarlo.",
   "problem.noUsedState": "{object} in {x}, {y}: stato «dopo» sconosciuto per questo set di caselle, non cambierà aspetto",
   "problem.noChangeLayer": "{object} in {x}, {y}: la mappa non ha un livello di cambi, non cambierà aspetto",
-  "problem.tooManyChanges": "{object} in {x}, {y}: nessun numero di cambio libero (128 al massimo)"
+  "problem.tooManyChanges": "{object} in {x}, {y}: nessun numero di cambio libero (128 al massimo)",
+  "maps.transform": "Ruota:",
+  "maps.transform.h": "Specchio sinistra-destra",
+  "maps.transform.v": "Specchio alto-basso",
+  "maps.transform.180": "Mezzo giro",
+  "maps.transform.ccw": "Quarto di giro a sinistra",
+  "maps.transform.cw": "Quarto di giro a destra",
+  "maps.transformHint": "Ruota o capovolge la casella (o il blocco) scelta. Le nuove caselle vengono aggiunte al set di caselle, negli spazi liberi: anche le mappe che lo usano le vedono nella tavolozza.",
+  "maps.transformError.noFreeTile": "Non c'è più spazio per nuovi disegni di caselle in questo set.",
+  "maps.transformError.noFreeMetatile": "Nessuno spazio libero in questo set di caselle.",
+  "maps.addedTile": "aggiunta dal progetto"
 }
