@@ -43,7 +43,8 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
     assert not (overlay / "src" / "gamecontrol.c").exists()
 
     project.set_test_options({"start": "normal"})
-    assert json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))["testOptions"] == {"start": "normal", "simplePrologue": True}
+    meta = json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))
+    assert meta["testOptions"] == {"start": "normal", "simplePrologue": True}
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert not (overlay / "src" / "gamecontrol.c").exists()
 

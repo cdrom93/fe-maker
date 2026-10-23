@@ -183,7 +183,8 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
         rows = layout.get("rows")
         if not rows or not isinstance(rows, list) or any(not isinstance(r, list) or len(r) != len(rows[0]) for r in rows) \
                 or not rows[0]:
-            problems.append(Problem("error", "maps", layout_id, "rows", "badLayout", {}, f"{layout_id}: rows of different lengths"))
+            problems.append(Problem("error", "maps", layout_id, "rows", "badLayout", {},
+                                    f"{layout_id}: rows of different lengths"))
             continue
         sizes[layout_id] = (len(rows[0]), len(rows))
         if any(not isinstance(c, int) or not 0 <= c < METATILE_COUNT for row in rows for c in row):
@@ -212,13 +213,16 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
         for c in changes:
             cid = c.get("id")
             if not isinstance(cid, int) or not 0 <= cid <= decomp_maps.MAX_CHANGE_ID or cid in seen:
-                problems.append(Problem("error", "maps", layout_id, "changes", "badChangeId", {"id": str(cid), "max": decomp_maps.MAX_CHANGE_ID},
+                problems.append(Problem("error", "maps", layout_id, "changes", "badChangeId",
+                                        {"id": str(cid), "max": decomp_maps.MAX_CHANGE_ID},
                                         f"{layout_id}: change ids must be different numbers"))
             seen.add(cid)
             rows = c.get("rows") or []
             w, h = c.get("w", 0), c.get("h", 0)
-            if not isinstance(w, int) or not isinstance(h, int) or w < 1 or h < 1 or len(rows) != h or any(len(r) != w for r in rows):
-                problems.append(Problem("error", "maps", layout_id, "changes", "badLayout", {}, f"{layout_id}: change {cid} malformed"))
+            sized = isinstance(w, int) and isinstance(h, int) and w >= 1 and h >= 1
+            if not sized or len(rows) != h or any(len(r) != w for r in rows):
+                problems.append(Problem("error", "maps", layout_id, "changes", "badLayout", {},
+                                        f"{layout_id}: change {cid} malformed"))
             elif c["x"] < 0 or c["y"] < 0 or c["x"] + w > width or c["y"] + h > height:
                 problems.append(Problem("error", "maps", layout_id, "changes", "changeOutOfMap", {"id": str(cid)},
                                         f"{layout_id}: change {cid} goes past the edge of the map"))
@@ -297,7 +301,8 @@ def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, ch
                 for tile in o.get("seize", []):
                     if not (0 <= tile.get("x", -1) < width and 0 <= tile.get("y", -1) < height):
                         problems.append(Problem("error", "chapters", f"objective#{index}", "seize", "seizeOutOfMap",
-                                                {"map": layout_id, "chapter": index}, f"chapter {index}: tile to seize outside the map"))
+                                                {"map": layout_id, "chapter": index},
+                                                f"chapter {index}: tile to seize outside the map"))
 
 
 
@@ -363,7 +368,8 @@ def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
             if isinstance(ai, list):
                 # Indexes into gAi1ScriptTable, gAi2ScriptTable and gAI3HealingThresholdTable (src/cp_data.c).
                 if len(ai) != 4 or ai[0] > AI_ACTION_MAX or ai[1] > AI_MOVE_MAX or ai[2] & 0x7 > AI_RECOVERY_MAX or ai[3] > 255:
-                    problems.append(Problem("error", "chapters", rid, "ai", "badAi", {}, f"{rid}: AI value outside the engine tables"))
+                    problems.append(Problem("error", "chapters", rid, "ai", "badAi", {},
+                                            f"{rid}: AI value outside the engine tables"))
             item_list = unit.get("items", [])
             if len(item_list) > 4:
                 problems.append(Problem("error", "chapters", rid, "items", "tooManyItems", {"max": 4}, f"{rid}: at most 4 items"))

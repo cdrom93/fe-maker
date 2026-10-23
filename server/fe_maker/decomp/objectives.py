@@ -180,7 +180,8 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
     rewrite(group.get("locationBasedEvents", ""), _SEIZE_RE,
             [f"Seize({int(t['x'])}, {int(t['y'])})" for t in new.get("seize", [])] if kind == "seize" else [])
     rewrite(misc_name, _DEFEAT_RE,
-            [f"{'DefeatAll' if kind == 'defeat_all' else 'DefeatBoss'}({ending})"] if kind in ("defeat_all", "defeat_boss") else [],
+            [f"{'DefeatAll' if kind == 'defeat_all' else 'DefeatBoss'}({ending})"]
+            if kind in ("defeat_all", "defeat_boss") else [],
             at_start=True)
     rewrite(group.get("turnBasedEvents", ""), _WIN_TURN_RE,
             [f"TURN(EVFLAG_WIN, {ending}, {turns + 1}, 0, FACTION_BLUE)"] if kind == "defense" else [])

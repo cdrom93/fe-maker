@@ -68,7 +68,8 @@ def test_change_objective_type_and_back():
     o = objectives.read_objective(goal, out, "TestEvents", Texts())
     assert o["type"] == "defense" and o["turns"] == 8 and o["editable"]
 
-    out = objectives.apply_objective(goal, out, "TestEvents", o, {"type": "seize", "seize": [{"x": 4, "y": 2}], "seizeLabel": "throne"})
+    seize = {"type": "seize", "seize": [{"x": 4, "y": 2}], "seizeLabel": "throne"}
+    out = objectives.apply_objective(goal, out, "TestEvents", o, seize)
     assert out["ev.h"] == EVENTS
     assert goal == _goal()
 

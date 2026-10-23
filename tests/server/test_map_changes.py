@@ -32,7 +32,8 @@ def test_read_changes(tmp_path):
     d = _decomp(tmp_path)
     rel = maps.change_set_json(d, "TestChanges")
     assert rel == "src/data/map/change/TestChanges.json"
-    assert maps.read_changes(d, rel) == [{"id": 0, "x": 1, "y": 2, "w": 2, "h": 1, "tiles": "TestChanges_change_0", "rows": [[7, 8]]}]
+    assert maps.read_changes(d, rel) == [
+        {"id": 0, "x": 1, "y": 2, "w": 2, "h": 1, "tiles": "TestChanges_change_0", "rows": [[7, 8]]}]
 
 
 def test_unchanged_changes_write_nothing(tmp_path):
@@ -70,8 +71,10 @@ def test_impassable_terrain_is_reported_only_when_new(tmp_path, decomp_dir, monk
     (tmp_path / "Map.mar").write_bytes(bytes(15 * 10 * 2))
     (tmp_path / "Map.json").write_text(json.dumps({"id": "Map", "width": 15, "height": 10}), encoding="utf-8")
     assets = maps.MapAssets([], tmp_path / "x.pal", tmp_path / "Config.bin", tmp_path / "Map.mar")
-    monkeypatch.setattr(maps, "layouts", lambda _d: {"Map": {"mar": "Map.mar", "chapters": [0], "assets": assets, "changes": None}})
-    monkeypatch.setattr(units, "all_chapter_unit_groups", lambda _d: {0: [{"name": "UnitDef_TestChapter", "origin": "players", "turn": None}]})
+    layout = {"mar": "Map.mar", "chapters": [0], "assets": assets, "changes": None}
+    monkeypatch.setattr(maps, "layouts", lambda _d: {"Map": layout})
+    groups = {0: [{"name": "UnitDef_TestChapter", "origin": "players", "turn": None}]}
+    monkeypatch.setattr(units, "all_chapter_unit_groups", lambda _d: groups)
     monkeypatch.setattr(maps, "movement_costs", lambda _d: {"Foot": [-1, 1] + [-1] * 63})
     d = DecompData(decomp_dir)
     classes = [{"id": c["id"], "movement": "Foot"} for c in d.export_classes()]
@@ -91,5 +94,6 @@ def test_impassable_terrain_is_reported_only_when_new(tmp_path, decomp_dir, monk
     moved = [dict(u) for u in units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units]
     moved[1]["endX"] = 20
     problems = []
-    _validate_chapter_maps(problems, d, {"unitGroups": {"UnitDef_TestChapter": moved}}, {"layouts": {}}, d.export_characters(), classes)
+    _validate_chapter_maps(problems, d, {"unitGroups": {"UnitDef_TestChapter": moved}}, {"layouts": {}},
+                           d.export_characters(), classes)
     assert [(p.id, p.code) for p in problems] == [("UnitDef_TestChapter#1", "unitOutOfMap")]

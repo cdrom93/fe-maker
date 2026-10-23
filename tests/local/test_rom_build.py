@@ -71,7 +71,8 @@ def test_modified_project_and_patch(tmp_path):
     # Remove the second enemy and add a copy of the third one.
     group = [group[0], group[2], dict(group[2], slot=None, copyOf=2, endX=12, endY=9)]
     objectives = {
-        "0": {"type": "seize", "seize": [{"x": 4, "y": 3}], "seizeLabel": "throne", "turns": 0, "statusText": "Seize the old fort"},
+        "0": {"type": "seize", "seize": [{"x": 4, "y": 3}], "seizeLabel": "throne", "turns": 0,
+              "statusText": "Seize the old fort"},
         "2": {"type": "defense", "seize": [], "seizeLabel": "throne", "turns": 8, "statusText": "Survive 8 turns"},
     }
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": group}, "objectives": objectives})

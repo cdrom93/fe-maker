@@ -289,7 +289,8 @@ MAX_CHANGE_ID = 127  # MapChange.id is an s8; 0xFF ends the list
 
 def change_set_json(decomp_dir: Path, symbol: str) -> str | None:
     """Decomp-relative JSON file of a map change set (data/data_map_change.s includes its .inc)."""
-    m = re.search(rf"^{re.escape(symbol)}:[^\n]*\n\s*\.include\s+\"([^\"]+)\.inc\"", _read(decomp_dir, MAP_CHANGE_FILE), re.MULTILINE)
+    pattern = rf"^{re.escape(symbol)}:[^\n]*\n\s*\.include\s+\"([^\"]+)\.inc\""
+    m = re.search(pattern, _read(decomp_dir, MAP_CHANGE_FILE), re.MULTILINE)
     return f"{m.group(1)}.json" if m else None
 
 
@@ -314,7 +315,8 @@ def encode_change_tiles(rows: list[list[int]]) -> bytes:
     return b"".join(struct.pack("<H", c << 2) for row in rows for c in row)
 
 
-def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict], map_change_source: str) -> tuple[dict[str, str | bytes], str]:
+def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict],
+                  map_change_source: str) -> tuple[dict[str, str | bytes], str]:
     """Files for an edited change set, and the new data/data_map_change.s (new tile blocks appended).
 
     Changes keep their tile block when they had one; new changes get a new block named after the set.

@@ -388,7 +388,8 @@ class DecompData:
         self._chapter_constants = {}
         if (self.decomp_dir / objectives.CHAPTERS_HEADER).is_file():
             self._chapter_constants = objectives.chapter_constants(self._read(objectives.CHAPTERS_HEADER))
-        self.defeat_talks = self._read(objectives.DEFEAT_TALK_FILE) if (self.decomp_dir / objectives.DEFEAT_TALK_FILE).is_file() else ""
+        talks = self.decomp_dir / objectives.DEFEAT_TALK_FILE
+        self.defeat_talks = self._read(objectives.DEFEAT_TALK_FILE) if talks.is_file() else ""
         self._original_defeat_talks = self.defeat_talks
 
     def _chapter_event_symbol(self, chapter: dict) -> str | None:
@@ -401,11 +402,13 @@ class DecompData:
         self._load_chapter_events()
         chapters = self.chapter_settings["chapters"]
         chapter = chapters[index]
-        objective = objectives.read_objective(chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), self.texts)
+        objective = objectives.read_objective(
+            chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), self.texts)
         status_id = chapter["goal"].get("statusObjectiveTextId", 0)
         # Several chapters may share a status text or an event group: editing one changes the others.
         objective["hasStatusText"] = bool(status_id)
-        objective["statusShared"] = max(0, sum(1 for c in chapters if status_id and c["goal"].get("statusObjectiveTextId") == status_id) - 1)
+        sharing = sum(1 for c in chapters if status_id and c["goal"].get("statusObjectiveTextId") == status_id)
+        objective["statusShared"] = max(0, sharing - 1)
         symbol = self._chapter_event_symbol(chapter)
         objective["eventsShared"] = max(0, sum(1 for c in chapters if symbol and self._chapter_event_symbol(c) == symbol) - 1)
         bosses = objectives.read_bosses(self.defeat_talks, self._chapter_constants).get(index, [])
