@@ -75,3 +75,49 @@ def test_unit_groups_and_chapter_events(decomp_dir):
         {"name": "UnitDef_TestEnemies", "origin": "opening", "turn": None},
         {"name": "UnitDef_TestReinforcements", "origin": "turn", "turn": 3},
     ]
+
+
+def _udefs(decomp_dir):
+    rel = "src/events_udefs.c"
+    return rel, {rel: (decomp_dir / rel).read_text(encoding="utf-8")}
+
+
+def _reread(tmp_path, sources):
+    for rel, text in sources.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text, encoding="utf-8")
+    units.read_unit_groups.cache_clear()
+    return units.read_unit_groups(tmp_path)
+
+
+def test_add_remove_and_reorder_units(tmp_path, decomp_dir):
+    import copy
+
+    original = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+    assert [u["slot"] for u in original] == [0, 1, 2]
+    rel, sources = _udefs(decomp_dir)
+    edited = copy.deepcopy([original[2], original[0]])  # remove the rival, reorder
+    new = copy.deepcopy(original[1]) | {"slot": None, "copyOf": 1, "endX": 4, "endY": 2}
+    edited.append(new)
+    out = units.apply_unit_groups(sources, {"UnitDef_TestChapter": edited})
+    groups = _reread(tmp_path, out)
+    result = groups["UnitDef_TestChapter"].units
+    assert [(u["character"], u["class"], u["level"]) for u in result] == [
+        ("CHARACTER_TESTHERO", "CLASS_TESTKNIGHT", 10),
+        ("CHARACTER_TESTHERO", "CLASS_TESTLORD", 1),
+        ("CHARACTER_TESTRIVAL", "CLASS_TESTLORD", 3),
+    ]
+    assert (result[2]["endX"], result[2]["endY"]) == (4, 2)
+    assert "{ 0 }" in out[rel]
+
+
+def test_remove_all_units_keeps_the_terminator(tmp_path, decomp_dir):
+    _, sources = _udefs(decomp_dir)
+    out = units.apply_unit_groups(sources, {"UnitDef_TestChapter": []})
+    assert _reread(tmp_path, out)["UnitDef_TestChapter"].units == []
+
+
+def test_unchanged_units_with_slots_are_byte_identical(decomp_dir):
+    rel, sources = _udefs(decomp_dir)
+    group = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+    assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]

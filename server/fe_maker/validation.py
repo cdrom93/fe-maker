@@ -22,6 +22,7 @@ from .decomp.gamedata import (
 
 NAME_MAX_LENGTH = 12  # longer names overflow the in-game name boxes
 MAX_RESERVATION_GROUPS = 6  # generic weapon locks of the engine (see gamedata.GENERIC_LOCKS)
+UNITS_PER_SIDE = {"player": 62, "enemy": 50, "ally": 20}  # gUnitArrayBlue/Red/Green sizes (include/bmunit.h)
 
 
 @dataclass
@@ -153,9 +154,23 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
 
 def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
     for group, unit_list in chapters.get("unitGroups", {}).items():
+        for side, limit in UNITS_PER_SIDE.items():
+            count = sum(1 for u in unit_list if u.get("side") == side)
+            if count > limit:
+                problems.append(Problem("error", "chapters", f"{group}#", "side", "tooManyUnits", {"max": limit, "side": side},
+                                        f"{group}: at most {limit} {side} units"))
+        seen: dict[tuple, int] = {}
         for n, unit in enumerate(unit_list):
             rid = f"{group}#{n}"
+            tile = (unit.get("endX"), unit.get("endY"))
+            if tile in seen:
+                problems.append(Problem("warning", "chapters", rid, "position", "sameTile", {"x": tile[0], "y": tile[1]},
+                                        f"{rid}: another unit of the group starts on the same tile"))
+            seen.setdefault(tile, n)
             char = unit.get("character", "")
+            if char in ("", "0", "0x0", "0x00"):
+                # Character 0 is the end-of-group marker: the unit and the ones after it would vanish.
+                problems.append(Problem("error", "chapters", rid, "character", "noCharacter", {}, f"{rid}: no character"))
             # Generic units use raw ids (0x80...) rather than CHARACTER_ names.
             if char.startswith("CHARACTER_") and char not in character_ids:
                 problems.append(Problem("error", "chapters", rid, "character", "unknownCharacter", {},

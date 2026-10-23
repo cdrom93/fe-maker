@@ -93,6 +93,10 @@ export interface ChapterInfo {
 }
 
 export interface MapUnit {
+  /** position in the original group; null for a unit added in the project */
+  slot: number | null
+  /** for an added unit: slot of the original unit it copies (AI and other hidden fields) */
+  copyOf?: number | null
   character: string
   class: string
   level: number

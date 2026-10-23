@@ -68,6 +68,8 @@ def test_modified_project_and_patch(tmp_path):
 
     group = copy.deepcopy(units.read_unit_groups(project.decomp_dir)["UnitDef_Event_PrologueEnemy"].units)
     group[0]["endX"], group[0]["level"], group[0]["items"] = 11, 9, ["ITEM_AXE_STEEL", "ITEM_VULNERARY"]
+    # Remove the second enemy and add a copy of the third one.
+    group = [group[0], group[2], dict(group[2], slot=None, copyOf=2, endX=12, endY=9)]
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": group}})
     assert [p for p in project.validate() if p.severity == "error"] == []
 

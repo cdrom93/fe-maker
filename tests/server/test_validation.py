@@ -55,3 +55,17 @@ def test_unused_class_is_a_warning(decomp_dir):
     chars[0]["weaponRanks"] = {}
     problems = [p for p in validate(chars, d.export_items(), d) if p.code == "unusedClass"]
     assert problems and problems[0].severity == "warning"
+
+
+def test_chapter_unit_problems(decomp_dir):
+    from fe_maker.decomp import units
+
+    d = DecompData(decomp_dir)
+    group = [dict(u) for u in units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units]
+    group[1]["endX"], group[1]["endY"] = group[0]["endX"], group[0]["endY"]
+    group[2]["character"] = "0"
+    group += [dict(group[0], slot=None, copyOf=0, side="ally", endX=n, endY=9) for n in range(21)]
+    codes = _codes(validate(d.export_characters(), d.export_items(), d, chapters={"unitGroups": {"UnitDef_TestChapter": group}}))
+    assert ("UnitDef_TestChapter#1", "position", "sameTile") in codes
+    assert ("UnitDef_TestChapter#2", "character", "noCharacter") in codes
+    assert ("UnitDef_TestChapter#", "side", "tooManyUnits") in codes

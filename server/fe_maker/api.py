@@ -254,7 +254,8 @@ def chapter_units(index: int):
 
     def group_units(name: str) -> list[dict]:
         if name in edited:
-            return edited[name]
+            # Groups edited before units could be added or removed have no "slot": units were in order.
+            return [u if "slot" in u else {"slot": i, **u} for i, u in enumerate(edited[name])]
         return groups[name].units if name in groups else []
 
     return {

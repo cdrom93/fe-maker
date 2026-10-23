@@ -76,9 +76,11 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
     for rel, source in sources.items():
         for name, body in _arrays(source, "UnitDefinition"):
             group = UnitGroup(name, rel)
+            slot = -1
             for entry in _entries(body):
                 if not entry.strip() or re.fullmatch(r"\s*0\s*", entry):
                     continue  # terminator { 0 }
+                slot += 1
                 try:
                     f = parse_fields(entry)
                 except Exception:
@@ -88,6 +90,8 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
                 path = redas.get(path_name, [])
                 items = [i.strip() for i in f.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
                 group.units.append({
+                    # Position in the original array: identifies the unit once units are added or removed.
+                    "slot": slot,
                     "character": f.get("charIndex", "0"),
                     "class": f.get("classIndex", "0"),
                     "level": _int(f.get("level")),
@@ -150,8 +154,12 @@ def _render_unit(fields: dict[str, str], indent: str) -> str:
 def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]]) -> dict[str, str]:
     """Write edited unit groups into the decomp sources (decomp-relative path -> text).
 
-    Only the edited fields of the edited units are re-rendered. A unit that enters
-    the map along a path keeps its path; its battle position is the path's end point.
+    Each unit's "slot" is its position in the original array. A new unit has "slot": None
+    and "copyOf": the slot of the unit it was copied from; it inherits that unit's other
+    fields (such as its AI) but not its movement path. When the units keep their order
+    and none is added or removed, only the edited fields of the edited units are
+    re-rendered, so unedited units stay byte-identical. A unit that enters the map
+    along a path keeps its path; its battle position is the path's end point.
     """
     sources = dict(sources)
     for name, new_units in edits.items():
@@ -162,49 +170,110 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]]) -> 
         clean = _blank_comments(source)
         start, end = _array_body_span(clean, "UnitDefinition", name)
         spans = _entry_spans(clean, start, end)
-        if len(spans) != len(new_units):
-            raise UnitEditError(f"{name}: adding or removing units is not supported yet")
+        # Projects saved before units could be added or removed have no "slot": units were in order.
+        slots = [u["slot"] if "slot" in u else i for i, u in enumerate(new_units)]
+        kept = [s for s in slots if s is not None]
+        if any(not 0 <= s < len(spans) for s in kept):
+            raise UnitEditError(f"{name}: unknown unit")
+        if len(set(kept)) != len(kept):
+            raise UnitEditError(f"{name}: a unit appears twice")
+
         reda_moves: list[tuple[str, int, int]] = []
-        out, last = [], 0
-        for (s, e), unit in zip(spans, new_units):
-            fields = parse_fields(clean[s + 1: e - 1])
-            original = dict(fields)
-            # Only touch a field whose meaning changes, so unedited units stay byte-identical.
-            if fields.get("charIndex", "0") != unit["character"]:
-                fields["charIndex"] = unit["character"]
-            if fields.get("classIndex", "0") != unit["class"]:
-                fields["classIndex"] = unit["class"]
-            if _int(fields.get("level")) != int(unit["level"]):
-                fields["level"] = str(int(unit["level"]))
-            if "side" in unit and ALLEGIANCE.get(fields.get("allegiance", "0"), "player") != unit["side"]:
-                fields["allegiance"] = SIDE_TO_C[unit["side"]]
-            items = [i for i in unit.get("items", []) if i]
-            if len(items) > 4:
-                raise UnitEditError(f"{name}: at most 4 items per unit")
-            old_items = [i.strip() for i in fields.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
-            if items != old_items:
-                fields["items"] = "{ " + " ".join(f"{i}," for i in items) + " }" if items else "{ }"
-            path = fields.get("redas", "").lstrip("&").strip()
-            if path and not re.fullmatch(r"\w+", path):
-                # Path given as a raw address (not decompiled yet): it cannot be edited.
-                if (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != (int(unit["endX"]), int(unit["endY"])):
-                    raise UnitEditError(f"{name}: this unit follows a movement path that cannot be edited yet")
-            elif path:
-                reda_moves.append((path, int(unit["endX"]), int(unit["endY"])))
-            elif (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != (int(unit["endX"]), int(unit["endY"])):
-                fields["xPosition"], fields["yPosition"] = str(int(unit["endX"])), str(int(unit["endY"]))
-            if fields != original:
-                line_start = clean.rfind("\n", 0, s) + 1
-                indent = clean[line_start:s] if clean[line_start:s].strip() == "" else "    "
-                out.append(source[last:s])
-                out.append(_render_unit(fields, indent))
-                last = e
-        out.append(source[last:])
-        sources[rel] = "".join(out)
+        rendered: list[str | None] = []  # None: the original text is kept
+        for slot, unit in zip(slots, new_units):
+            if slot is None:
+                fields = _new_unit_fields(clean, spans, unit, name)
+                original = {}
+            else:
+                s, e = spans[slot]
+                fields = parse_fields(clean[s + 1: e - 1])
+                original = dict(fields)
+            _apply_unit_fields(fields, unit, name, reda_moves, is_new=slot is None)
+            rendered.append(None if fields == original else _render_unit(fields, INDENT_MARK))
+
+        if slots == list(range(len(spans))):
+            # Same units in the same order: replace only the edited entries.
+            out, last = [], 0
+            for (s, e), text in zip(spans, rendered):
+                if text is not None:
+                    out.append(source[last:s])
+                    out.append(text.replace(INDENT_MARK, _indent_at(clean, s)))
+                    last = e
+            out.append(source[last:])
+            sources[rel] = "".join(out)
+        else:
+            sources[rel] = _rewrite_array(source, clean, start, end, spans, slots, rendered)
         for path, x, y in reda_moves:
             sources = _move_path_end(sources, path, x, y)
     return sources
 
+
+INDENT_MARK = "\x00indent\x00"
+
+
+def _indent_at(clean: str, pos: int) -> str:
+    line_start = clean.rfind("\n", 0, pos) + 1
+    return clean[line_start:pos] if clean[line_start:pos].strip() == "" else "    "
+
+
+def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name: str) -> dict[str, str]:
+    """Fields of a new unit: those of the unit it was copied from, without its movement path."""
+    template = unit.get("copyOf")
+    if template is None:
+        return {"charIndex": "0", "classIndex": "0", "allegiance": "FACTION_ID_BLUE", "level": "1"}
+    if not 0 <= template < len(spans):
+        raise UnitEditError(f"{name}: unknown unit {template}")
+    s, e = spans[template]
+    fields = parse_fields(clean[s + 1: e - 1])
+    fields.pop("redaCount", None)
+    fields.pop("redas", None)
+    return fields
+
+
+def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves: list, is_new: bool) -> None:
+    """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
+    if fields.get("charIndex", "0") != unit["character"]:
+        fields["charIndex"] = unit["character"]
+    if fields.get("classIndex", "0") != unit["class"]:
+        fields["classIndex"] = unit["class"]
+    if _int(fields.get("level")) != int(unit["level"]):
+        fields["level"] = str(int(unit["level"]))
+    if "side" in unit and ALLEGIANCE.get(fields.get("allegiance", "0"), "player") != unit["side"]:
+        fields["allegiance"] = SIDE_TO_C[unit["side"]]
+    items = [i for i in unit.get("items", []) if i]
+    if len(items) > 4:
+        raise UnitEditError(f"{name}: at most 4 items per unit")
+    old_items = [i.strip() for i in fields.get("items", "{}").strip("{} ").split(",") if i.strip() not in ("", "0")]
+    if items != old_items:
+        fields["items"] = "{ " + " ".join(f"{i}," for i in items) + " }" if items else "{ }"
+    position = (int(unit["endX"]), int(unit["endY"]))
+    path = fields.get("redas", "").lstrip("&").strip()
+    if path and not re.fullmatch(r"\w+", path):
+        # Path given as a raw address (not decompiled yet): it cannot be edited.
+        if (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != position:
+            raise UnitEditError(f"{name}: this unit follows a movement path that cannot be edited yet")
+    elif path:
+        reda_moves.append((path, *position))
+    elif is_new or (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != position:
+        fields["xPosition"], fields["yPosition"] = str(position[0]), str(position[1])
+
+
+def _rewrite_array(source: str, clean: str, start: int, end: int, spans: list[tuple[int, int]],
+                   slots: list[int | None], rendered: list[str | None]) -> str:
+    """Rewrite the entries of a unit array whose units were added, removed or reordered."""
+    terminator = re.compile(r"\{\s*0?\s*\}").search(clean, spans[-1][1] if spans else start, end)
+    if terminator is None:
+        raise UnitEditError("Unit group without its { 0 } terminator")
+    indent = _indent_at(clean, spans[0][0] if spans else terminator.start())
+    entries = []
+    for slot, text in zip(slots, rendered):
+        if text is None:
+            s, e = spans[slot]
+            entries.append(source[s:e])
+        else:
+            entries.append(text.replace(INDENT_MARK, indent))
+    body = "".join(f"\n{indent}{entry}," for entry in entries)
+    return source[:start] + body + "\n" + indent + source[terminator.start():]
 
 
 def _move_path_end(sources: dict[str, str], path: str, x: int, y: int) -> dict[str, str]:

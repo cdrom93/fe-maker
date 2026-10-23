@@ -95,6 +95,7 @@ Les plus gros blocs, sur 1,1 Mo au total :
 21. **Triangle des armes** : `sWeaponTriangleRules` (`src/bmbattle.c`), une table `{attaquant, défenseur, précision, dégâts}`. Le défenseur reçoit l'opposé.
 22. **Types de déplacement** : 16 familles `TerrainTable_MovCost_<Famille><Normal|Rain|Snow>` (`src/data_terrains.c`). `DemonKing` n'a qu'une table, sans déclinaison météo. Bonus de terrain : `Common` ou `Fly`.
 23. **La décomp évolue** (commits récents, fichiers renommés). On fige le sous-module sur un commit précis et on refait cet audit avant chaque mise à jour.
+24. **Groupes d'unités** (constaté le 23/10/2026) : un groupe `UnitDefinition` se termine par `{ 0 }` ; le jeu s'arrête à la première unité dont `charIndex` vaut 0, d'où l'erreur « aucun personnage ». Les tableaux d'unités du moteur limitent un camp à 62 unités joueur, 50 ennemies et 20 alliées (`gUnitArrayBlue/Red/Green`, `include/bmunit.h`). Les personnages génériques ont des numéros bruts (`0x80`, `0x82`…) sans constante `CHARACTER_`. Supprimer une unité peut casser un événement du chapitre qui fait référence à son personnage (non vérifié par FE Maker).
 
 ## 6. Cadre légal : constats
 
