@@ -6,12 +6,15 @@
     fromClass,
     onchange,
     convoy,
+    seize,
   }: {
     abilities: string[]
     fromClass: string[]
     onchange: (abilities: string[]) => void
     /** character sheets: "Opens the convoy", shown next to the convoy carrier */
     convoy?: { on: boolean; onchange: (on: boolean) => void }
+    /** character sheets: "Can seize", shown next to the lord */
+    seize?: { on: boolean; onchange: (on: boolean) => void }
   } = $props()
 
   // Common abilities, grouped by meaning. Weapon locks are not here: weapons are
@@ -56,6 +59,15 @@
         <h4>{t(`ability.group.${group}`)}</h4>
         {#each keys as key (key)}
           {@render ability(key)}
+          {#if key === 'lord' && seize}
+            <label class="ability">
+              <input type="checkbox" checked={seize.on} onchange={(e) => seize.onchange((e.target as HTMLInputElement).checked)} />
+              <span>
+                <span class="name">🚩 {t('field.canSeize')}</span>
+                <span class="muted desc">{t('field.canSeizeHint')}</span>
+              </span>
+            </label>
+          {/if}
           {#if key === 'supply' && convoy}
             <label class="ability">
               <input type="checkbox" checked={convoy.on} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />

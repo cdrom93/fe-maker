@@ -193,3 +193,49 @@ def test_enemy_destroys_a_painted_village(tmp_path):
         game.screenshot().save(tmp_path / "ruins.png")
         print("screenshot:", tmp_path / "ruins.png", "enemies", game.units("Red"))
         assert ok
+
+
+def _end_turn(game):
+    taken = {(u["x"], u["y"]) for army in ("Blue", "Red", "Green") for u in game.units(army)}
+    game.move_cursor(*next((x, y) for y in range(10) for x in range(15) if (x, y) not in taken))
+    game.press("A")
+    game.press("UP")
+    game.press("A")
+
+
+def test_other_character_seizes(tmp_path):
+    """Ticket 37: Seth seizes when the project lets him (in the game, only the route's lord can)."""
+    project = Project.create(tmp_path / "seize", "Seize")
+    chars = project.load("characters")
+    next(c for c in chars if c["id"] == "CHARACTER_SETH")["canSeize"] = True
+    project.save("characters", chars)
+    project.save("chapters", {"unitGroups": {}, "objectives": {"0": {"type": "seize", "seize": [{"x": 6, "y": 5}],
+                                                                     "seizeLabel": "throne", "statusText": "Seize"}}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(210)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        game.move_cursor(seth["x"], seth["y"])
+        game.press("A")
+        game.move_cursor(6, 5)
+        game.press("A", wait=60)
+        game.press("A", wait=60)      # Seize, the first entry
+        assert game.wait_until(lambda: game.chapter() == 1, seconds=120, step=30, tap="A")
+
+
+def test_world_map_ending_in_test_builds(tmp_path):
+    """Ticket 38: chapter 1 ends through the world map (MoveToChapter); a test build goes on to Castle
+    Frelia (56), not back to the prologue."""
+    project = Project.create(tmp_path / "wm", "WM")
+    survive = {"type": "defense", "turns": 1, "seize": [], "statusText": "Survive"}
+    project.save("chapters", {"unitGroups": {}, "objectives": {"0": survive, "1": survive}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        for chapter in (0, 1):
+            assert game.wait_until(lambda: game.chapter() == chapter and game.turn() == 1 and game.phase() == "player"
+                                   and game.units(), seconds=300, step=30, tap="A")
+            game.run(300)
+            _end_turn(game)
+        assert game.wait_until(lambda: game.chapter() not in (0, 1), seconds=300, step=30, tap="A")
+        assert game.chapter() == 0x38

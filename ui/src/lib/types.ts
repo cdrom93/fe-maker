@@ -13,6 +13,8 @@ export interface Character {
   abilities: string[]
   /** opens the convoy, with the units next to them (missing in older projects: Eirika and Ephraim) */
   convoyAccess?: boolean
+  /** can seize (missing in older projects: Eirika and Ephraim, by route; server: seize.py) */
+  canSeize?: boolean
 }
 
 export interface Item {

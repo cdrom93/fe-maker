@@ -17,6 +17,13 @@ GAME_CONTROL_FILE = "src/gamecontrol.c"
 PROLOGUE_SCRIPT_FILE = "src/events/prologue-eventscript.h"
 PROLOGUE_UNITS_FILE = "src/events/prologue-eventudefs.h"
 PROLOGUE_GROUPS = ("UnitDef_Event_PrologueAlly", "UnitDef_Event_PrologueEnemy")
+EVENT_MACROS_FILE = "include/EAstdlib.h"
+# With MNCH (and MoveToChapter), the game goes to the chapter of the world map node where the lord
+# stands (SaveMenu_SetLcdChapterIdx, src/savemenu.c), set by the story's world map scenes. A test
+# build started on the map skips them: the next chapter would be the prologue again (ticket 38).
+# There, MNCH goes straight to the chapter it names, like MNC2.
+_MNCH_DEFINE = "#define MNCH EvtChangeChapterWM\n"
+_MNCH_DIRECT = "/* FE Maker test build: no world map, straight to the next chapter */\n#define MNCH EvtChangeChapterBM\n"
 
 # Simplified prologue for test builds: no cutscene, the units are simply on the map.
 _SIMPLE_PROLOGUE_SCENE = """
@@ -108,6 +115,11 @@ def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) ->
         if source is None:
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
         files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else start_on_map(source)
+    if start == "map":
+        macros = files.get(EVENT_MACROS_FILE) or (decomp_dir / EVENT_MACROS_FILE).read_text(encoding="utf-8")
+        if _MNCH_DEFINE not in macros:
+            raise TweakError(f"{EVENT_MACROS_FILE}: MNCH not found")
+        files[EVENT_MACROS_FILE] = macros.replace(_MNCH_DEFINE, _MNCH_DIRECT, 1)
     if options.get("simplePrologue"):
         def current(rel: str) -> str:
             return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")

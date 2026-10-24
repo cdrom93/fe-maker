@@ -28,7 +28,7 @@
   const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
   const LUCK_CAP = 30 // fixed by the engine, not per class
-  /** who opens the convoy in the game (server: convoy.DEFAULT_OPENERS) */
+  /** who opens the convoy, and who can seize, in the game (server: convoy.DEFAULT_OPENERS, seize.DEFAULT_SEIZERS) */
   const CONVOY_OPENERS = ['CHARACTER_EIRIKA', 'CHARACTER_EPHRAIM']
 
   let selected = $state(0)
@@ -190,6 +190,7 @@
         fromClass={cls?.abilities ?? []}
         onchange={(abilities) => edit((c) => (c.abilities = abilities))}
         convoy={{ on: ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.convoyAccess = on)) }}
+        seize={{ on: ch.canSeize ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.canSeize = on)) }}
       />
 
       {#if mine.length}

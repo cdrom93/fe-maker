@@ -22,6 +22,7 @@ from . import (
     objectives,
     portraits,
     quotes,
+    seize,
     story,
     supports,
     tileedit,
@@ -197,6 +198,12 @@ class DecompData:
         self.asset_files: dict[str, bytes | str] = {}
         # Who opens the convoy and the chapters without it, when the project changes them (convoy.py)
         self.convoy_openers: list[str] | None = None
+        # Characters given another portrait (original id -> new id) and every character's portrait:
+        # their dialogues follow the new portrait (ticket 36, _follow_portraits)
+        self.portrait_moves: dict[int, int] = {}
+        self.character_portraits: dict[str, int] = {}
+        # Who can seize, when the project changes it (seize.py)
+        self.seizers: list[str] | None = None
         self.no_convoy: list[int] | None = None
         # Ids of the portraits the project adds (their text codes go to textdefs.txt)
         self.new_faces: list[int] = []
@@ -1218,6 +1225,8 @@ class DecompData:
                 "abilities": _abilities(f.get("attributes", "0")),
                 # opens the convoy, with the units next to them (ticket 29, see convoy.py)
                 "convoyAccess": f["number"] in convoy.DEFAULT_OPENERS,
+                # can seize (the route's lord in the game, ticket 37, see seize.py)
+                "canSeize": f["number"] in seize.DEFAULT_SEIZERS,
             })
         return result
 
@@ -1255,6 +1264,9 @@ class DecompData:
         openers = [ch["id"] for ch in characters if ch.get("convoyAccess", ch["id"] in convoy.DEFAULT_OPENERS)]
         if set(openers) != {k for k in entries if k in convoy.DEFAULT_OPENERS}:
             self.convoy_openers = openers
+        seizers = [ch["id"] for ch in characters if ch.get("canSeize", ch["id"] in seize.DEFAULT_SEIZERS)]
+        if set(seizers) != {k for k in entries if k in seize.DEFAULT_SEIZERS}:
+            self.seizers = seizers
         for ch in characters:
             entry = entries.get(ch["id"])
             if entry is None:
@@ -1268,6 +1280,10 @@ class DecompData:
                 self._retarget_unit_class(ch["id"], original_class, ch["class"])
                 f["defaultClass"] = ch["class"]
             _set_int(f, "baseLevel", ch["level"])
+            old_portrait = _int_field(entry.original_fields, "portraitId")
+            if ch["portraitId"] != old_portrait and old_portrait:
+                self.portrait_moves[old_portrait] = ch["portraitId"]
+            self.character_portraits[ch["id"]] = ch["portraitId"]
             _set_int(f, "portraitId", ch["portraitId"])
             # Fields added after a project was created may be missing: leave them as they are.
             if "affinity" in ch:
@@ -1455,9 +1471,45 @@ class DecompData:
                     f["attributes"] = " | ".join(tokens) if tokens else "0"
         self._apply_reservations(items)
 
+    def _follow_portraits(self) -> None:
+        """A character given another portrait keeps it in the dialogues: the messages showing their
+        original portrait ([LoadFace][FID_Gilliam]) show the new one, unless another character
+        still has the original portrait (ticket 36)."""
+        if not self.portrait_moves:
+            return
+        defs = self.decomp_dir / dialogues.TEXT_DEFS_FILE
+        faces = dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
+        replace: dict[str, str] = {}
+        for old, new in self.portrait_moves.items():
+            if old in self.character_portraits.values():
+                continue
+            if portraits.is_new(self.decomp_dir, new):
+                target = portraits.face_code(new)
+            else:
+                target = next((fid for fid, pid in faces.items() if pid == new), None)
+            if target is None:
+                continue
+            for fid, pid in faces.items():
+                if pid == old:
+                    replace[f"[LoadFace][{fid}]"] = f"[LoadFace][{target}]"
+        self.portrait_moves = {}
+        if not replace:
+            return
+        pattern = re.compile("|".join(re.escape(k) for k in replace))
+        for index in [*self.texts.messages, *self.texts.added]:
+            body = self.texts.raw(index)
+            new_body = pattern.sub(lambda m: replace[m.group(0)], body)
+            if new_body == body:
+                continue
+            if index in self.texts.added:
+                self.texts.added[index] = new_body
+            else:
+                self.texts.set_raw(index, new_body)
+
     def changed_files(self) -> dict[str, str | bytes]:
         """Decomp-relative path -> new content (text, or bytes for binary files), for files that
         differ from the decomp."""
+        self._follow_portraits()
         out: dict[str, str | bytes] = {**self.map_files, **self.asset_files}
         for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
@@ -1486,6 +1538,8 @@ class DecompData:
                 out[rel] = source
         if self.convoy_openers is not None:
             out[convoy.MENU_FILE] = convoy.with_openers(self._read(convoy.MENU_FILE), self.convoy_openers)
+        if self.seizers is not None:
+            out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
         if self.no_convoy is not None:
             out[convoy.CONTAINER_FILE] = convoy.with_chapters(self._read(convoy.CONTAINER_FILE), self.no_convoy)
         if self.promotions is not None and self.promotions != self._original_promotions:

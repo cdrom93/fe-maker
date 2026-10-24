@@ -1065,5 +1065,8 @@
   "ev.newMessage": "nouveau dialogue",
   "ev.newMessageHint": "Nouveau dialogue pour cette commande (à écrire dans l'éditeur de dialogues)",
   "dlg.sceneMessage": "Dialogue de scène",
-  "dlg.addSceneMessage": "Dialogue d'une scène"
+  "dlg.addSceneMessage": "Dialogue d'une scène",
+  "field.canSeize": "Peut s'emparer des cases",
+  "field.canSeizeHint": "Commande « S'emparer » sur la case à prendre. Dans le jeu, seuls Eirika et Éphraïm (chef de la route) le peuvent : la capacité Seigneur ne suffit pas",
+  "flow.worldMapWarning": "Par la carte du monde, le jeu va au chapitre du lieu où la carte du monde de l'histoire d'origine amène le seigneur, pas forcément à celui choisi ici. Pour un nouvel enchaînement, choisissez « directement ». (Les tests qui démarrent sur la carte y vont toujours directement.)"
 }

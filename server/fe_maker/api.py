@@ -660,7 +660,17 @@ def dialogue_font_sheet():
 def dialogue_faces():
     """Portraits a dialogue can show: text code (FID_...) and portrait id."""
     defs = DECOMP_DIR / dialogues.TEXT_DEFS_FILE
-    faces = [{"id": fid, "portrait": pid} for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
+    # A character given another portrait shows it in their dialogues (DecompData._follow_portraits)
+    moves: dict[int, int] = {}
+    if state.project:
+        original = {c["id"]: c["portraitId"] for c in state.get_decomp().export_characters()}
+        now = {c["id"]: c.get("portraitId") for c in state.project.load("characters")}
+        for cid, pid in now.items():
+            if cid in original and pid != original[cid] and original[cid]:
+                moves[original[cid]] = pid
+        moves = {old: new for old, new in moves.items() if old not in now.values()}
+    faces = [{"id": fid, "portrait": moves.get(pid, pid)}
+             for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
     return faces + [{"id": portraits.face_code(pid), "portrait": pid, "name": e.get("name") or portraits.new_name(pid)}
                     for pid, e in sorted(_added_portraits().items())]
 

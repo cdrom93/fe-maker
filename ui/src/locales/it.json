@@ -1065,5 +1065,8 @@
   "ev.newMessage": "nuovo dialogo",
   "ev.newMessageHint": "Nuovo dialogo per questo comando (da scrivere nell'editor dei dialoghi)",
   "dlg.sceneMessage": "Dialogo di scena",
-  "dlg.addSceneMessage": "Dialogo di una scena"
+  "dlg.addSceneMessage": "Dialogo di una scena",
+  "field.canSeize": "Può conquistare le caselle",
+  "field.canSeizeHint": "Comando «Conquista» sulla casella da prendere. Nel gioco solo Eirika ed Ephraim (capo del percorso) possono: l'abilità Signore non basta",
+  "flow.worldMapWarning": "Attraverso la mappa del mondo, il gioco va al capitolo del luogo dove la mappa del mondo della storia originale porta il signore, non per forza a quello scelto qui. Per una nuova concatenazione, scegliete «direttamente». (I test che partono sulla mappa ci vanno sempre direttamente.)"
 }

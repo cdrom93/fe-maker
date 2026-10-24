@@ -38,9 +38,12 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
 
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert "FEMaker_QuickStartOnMap" in (overlay / "src" / "gamecontrol.c").read_text(encoding="utf-8")
+    # No world map in this mode: MNCH goes straight to its chapter (ticket 38)
+    assert "#define MNCH EvtChangeChapterBM" in (overlay / "include" / "EAstdlib.h").read_text(encoding="utf-8")
 
     overlay = project.generate_overlay(decomp_dir, for_test=False)
     assert not (overlay / "src" / "gamecontrol.c").exists()
+    assert not (overlay / "include" / "EAstdlib.h").exists()
 
     project.set_test_options({"start": "normal"})
     meta = json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))

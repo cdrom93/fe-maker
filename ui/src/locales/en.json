@@ -1065,5 +1065,8 @@
   "ev.newMessage": "new dialogue",
   "ev.newMessageHint": "New dialogue for this command (to write in the dialogue editor)",
   "dlg.sceneMessage": "Scene dialogue",
-  "dlg.addSceneMessage": "Dialogue of a scene"
+  "dlg.addSceneMessage": "Dialogue of a scene",
+  "field.canSeize": "Can seize",
+  "field.canSeizeHint": "\"Seize\" command on the tile to take. In the game only Eirika and Ephraim (the route's leader) can: the Lord ability is not enough",
+  "flow.worldMapWarning": "Through the world map, the game goes to the chapter of the place the original story's world map takes the lord to, not necessarily the one chosen here. For a new flow, choose \"directly\". (Tests started on the map always go there directly.)"
 }

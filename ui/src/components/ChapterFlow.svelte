@@ -235,6 +235,7 @@
               <button class="link-button" onclick={() => (selected = l.to)} title={t('flow.goTo')}>→ {title(l.to)}</button>
             {/if}
           </div>
+          {#if l.kind === 'worldMap'}<p class="tiny warn">{t('flow.worldMapWarning')}</p>{/if}
         </div>
       {/each}
       {#if error}<p class="bad small">{error}</p>{/if}
@@ -255,6 +256,7 @@
   .small { font-size: 0.8rem; }
   .tiny { font-size: 0.72rem; }
   .bad { color: var(--bad); }
+  .warn { color: var(--warn); margin: 0.3rem 0 0; }
   h2, h3, h4 { margin: 0 0 0.4rem; }
   h4 { margin-top: 0.8rem; font-size: 0.85rem; }
   p { margin: 0 0 0.4rem; }

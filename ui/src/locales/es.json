@@ -1065,5 +1065,8 @@
   "ev.newMessage": "diálogo nuevo",
   "ev.newMessageHint": "Diálogo nuevo para este comando (por escribir en el editor de diálogos)",
   "dlg.sceneMessage": "Diálogo de escena",
-  "dlg.addSceneMessage": "Diálogo de una escena"
+  "dlg.addSceneMessage": "Diálogo de una escena",
+  "field.canSeize": "Puede conquistar casillas",
+  "field.canSeizeHint": "Comando «Conquistar» en la casilla que tomar. En el juego solo Eirika y Ephraim (líder de la ruta) pueden: la capacidad Señor no basta",
+  "flow.worldMapWarning": "Por el mapa del mundo, el juego va al capítulo del lugar adonde el mapa del mundo de la historia original lleva al señor, no necesariamente al elegido aquí. Para un nuevo encadenamiento, elija «directamente». (Las pruebas que empiezan en el mapa siempre van directamente.)"
 }

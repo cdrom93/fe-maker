@@ -63,3 +63,11 @@ def test_only_changes_are_written(decomp_dir):
     chars[0]["convoyAccess"] = True
     d.apply_characters(chars)
     assert d.convoy_openers == [chars[0]["id"]]
+
+
+def test_who_can_seize():
+    from fe_maker.decomp import seize
+    source = "x\ns8 CanUnitSeize(struct Unit* unit) {\n    int leaderId;\n    return 0;\n}\n"
+    out = seize.with_seizers(source, ["CHARACTER_EIRIKA", "CHARACTER_SETH"])
+    assert "== CHARACTER_SETH)\n        return 1;" in out and "== CHARACTER_EPHRAIM)\n        return 0;" in out
+    assert "CHARACTER_EIRIKA" not in out
