@@ -19,6 +19,7 @@ and palette (bits 12-15).
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import json
 import re
@@ -262,6 +263,33 @@ def layouts(decomp_dir: Path) -> dict[str, dict]:
             "changes": change_set_json(decomp_dir, change_set) if change_set else None})
         entry["chapters"].append(i)
     return result
+
+
+def palette_choices(decomp_dir: Path, assets: MapAssets) -> list[dict]:
+    """Palettes the game uses with these tileset images (ticket 16: seasons, night, ruins...):
+    [{"id": asset symbol, "chapters": [indices using it]}], in the asset table's order."""
+    table, files = asset_table(decomp_dir), asset_files(decomp_dir)
+    found: dict[str, list[int]] = {}
+    for i, chapter in enumerate(chapter_settings(decomp_dir)):
+        try:
+            other = chapter_map_assets(decomp_dir, chapter)
+        except MapError:
+            continue
+        if other.tileset == assets.tileset:
+            found.setdefault(table[chapter["map"]["paletteId"]], []).append(i)
+    order = {symbol: n for n, symbol in enumerate(table)}
+    return [{"id": s, "chapters": found[s]} for s in sorted(found, key=lambda s: order[s]) if s in files]
+
+
+def palette_symbol(decomp_dir: Path, path: Path) -> str | None:
+    return next((s for s, p in asset_files(decomp_dir).items() if p == path), None)
+
+
+def with_palette(decomp_dir: Path, assets: MapAssets, symbol: str | None) -> MapAssets:
+    """The assets with another palette of the tileset (the original one for None or an unknown one)."""
+    if not symbol or symbol not in {p["id"] for p in palette_choices(decomp_dir, assets)}:
+        return assets
+    return dataclasses.replace(assets, palette=asset_files(decomp_dir)[symbol])
 
 
 def terrain_grid(assets: MapAssets) -> list[list[int]]:

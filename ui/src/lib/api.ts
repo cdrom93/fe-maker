@@ -56,8 +56,8 @@ export const api = {
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
-  mapTileset: (id: string, edits: TilesetEdits) =>
-    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits }),
+  mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null) =>
+    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette }),
   transformTiles: (id: string, body: { rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts'] }) =>
     request<{ rows: number[][]; edits: TilesetEdits; tileset: string; similar: number[][] | null }>('POST', `/api/maps/${id}/transform`, body),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),

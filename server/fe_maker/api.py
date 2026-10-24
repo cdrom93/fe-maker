@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import tempfile
 import threading
 from pathlib import Path
@@ -245,9 +246,11 @@ def chapter_map(index: int, fog: bool = False):
         painted = project_maps.get("layouts", {}).get(assets.layout.stem)
         layout = (len(painted["rows"][0]), len(painted["rows"]), [c for row in painted["rows"] for c in row]) if painted else None
         edits = project_maps.get("tilesets", {}).get(assets.config.stem)
+        assets = maps.with_palette(DECOMP_DIR, assets, project_maps.get("palettes", {}).get(assets.layout.stem))
         with tempfile.TemporaryDirectory() as folder:
             if edits:
-                assets = tileedit.Tileset(DECOMP_DIR, assets.layout.stem, edits).edited_assets(Path(folder))
+                edited = tileedit.Tileset(DECOMP_DIR, assets.layout.stem, edits).edited_assets(Path(folder))
+                assets = dataclasses.replace(edited, palette=assets.palette)   # the chapter's palette
             png, _w, _h = maps.render_map(assets, scale=1, fog=fog, layout=layout)
     except (maps.MapError, tileedit.TileEditError) as e:
         raise HTTPException(404, str(e))
@@ -289,9 +292,18 @@ def get_map(layout_id: str):
         "duplicates": maps.duplicate_metatiles(assets),
         "terrainNames": [texts.get_name(t) if t in texts.messages else "" for t in maps.terrain_text_ids(DECOMP_DIR)],
         "columns": maps.TILESET_COLUMNS,
+        # Palettes of the tileset in the game, and the map's own (ticket 16)
+        "palette": maps.palette_symbol(DECOMP_DIR, assets.palette),
+        "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],
         # Original map changes (doors, villages...); None when the map has no change layer
         "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,
     }
+
+
+def _palette_colors(symbol: str) -> list[str]:
+    """The 16 colors of a map palette's first line (#rrggbb), as swatches."""
+    colors = maps.read_jasc_palette(maps.asset_files(DECOMP_DIR)[symbol])[:16]
+    return [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors]
 
 
 class MapObjectsIn(BaseModel):
@@ -325,16 +337,17 @@ def map_objects(layout_id: str, body: MapObjectsIn):
 
 class TilesetIn(BaseModel):
     edits: dict | None = None
+    palette: str | None = None   # another palette of the tileset
 
 
 @app.post("/api/maps/{layout_id}/tileset")
 def edited_tileset(layout_id: str, body: TilesetIn):
     """The tileset sheet with the project's added metatiles (not saved yet: the editor sends them)."""
-    _layout(layout_id)
+    palette = maps.with_palette(DECOMP_DIR, _layout(layout_id)["assets"], body.palette).palette
     try:
         tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits)
         with tempfile.TemporaryDirectory() as folder:
-            assets = tileset.edited_assets(Path(folder))
+            assets = dataclasses.replace(tileset.edited_assets(Path(folder)), palette=palette)
             png = maps.render_tileset(assets)
             duplicates = maps.duplicate_metatiles(assets)
     except tileedit.TileEditError as e:
@@ -376,8 +389,8 @@ def transform_tiles(layout_id: str, body: TransformIn):
 
 
 @app.get("/api/maps/{layout_id}/tileset.png")
-def map_tileset(layout_id: str):
-    png = maps.render_tileset(_layout(layout_id)["assets"])
+def map_tileset(layout_id: str, palette: str | None = None):
+    png = maps.render_tileset(maps.with_palette(DECOMP_DIR, _layout(layout_id)["assets"], palette))
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 

@@ -358,9 +358,20 @@ class DecompData:
         changes = maps_data.get("changes", {})
         settings = maps_data.get("objects", {})
         tilesets = maps_data.get("tilesets", {})
-        if not painted and not changes and not settings and not tilesets:
+        palettes = maps_data.get("palettes", {})
+        if not painted and not changes and not settings and not tilesets and not palettes:
             return
         known = maps.layouts(self.decomp_dir)
+        # Another palette of the tileset, for every chapter on the layout (ticket 16).
+        for layout_id, symbol in palettes.items():
+            if layout_id not in known or not symbol:
+                continue
+            if symbol not in {p["id"] for p in maps.palette_choices(self.decomp_dir, known[layout_id]["assets"])}:
+                raise GameDataError(f"{layout_id}: palette {symbol} does not go with its tileset")
+            self._load_chapter_events()
+            index = maps.asset_table(self.decomp_dir).index(symbol)
+            for chapter in known[layout_id]["chapters"]:
+                self.chapter_settings["chapters"][chapter]["map"]["paletteId"] = index
         # Mirrored and turned tiles added to tilesets: their terrains count for the objects below.
         terrains: dict[str, bytes] = {}
         for config_name, edits in tilesets.items():

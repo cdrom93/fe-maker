@@ -246,6 +246,11 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
             known_layouts = decomp_maps.layouts(decomp_dir)
         except FileNotFoundError:
             pass  # decomp without chapters (test fixtures)
+    for layout_id, symbol in maps_data.get("palettes", {}).items():
+        if layout_id in known_layouts and symbol not in {
+                p["id"] for p in decomp_maps.palette_choices(decomp_dir, known_layouts[layout_id]["assets"])}:
+            problems.append(Problem("error", "maps", layout_id, "palette", "paletteNotForTileset", {},
+                                    f"{layout_id}: palette {symbol} does not go with its tileset"))
     # A resized map must still hold its original changes.
     for layout_id in sizes:
         if layout_id not in edited_changes and known_layouts.get(layout_id, {}).get("changes"):

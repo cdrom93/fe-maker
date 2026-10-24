@@ -181,6 +181,9 @@ export interface MapLayout {
   columns: number
   /** original map changes; null when the map has no change layer */
   changes: MapChange[] | null
+  /** the map's palette in the game, and the tileset's palettes in the game (ticket 16) */
+  palette: string | null
+  palettes: { id: string; chapters: number[]; colors: string[] }[]
 }
 
 /** A map change: tiles put over a rectangle of the map during the game (door, village, wall...). */
@@ -206,6 +209,8 @@ export interface MapsData {
   objects?: Record<string, Record<string, MapObjectSettings>>
   /** mirrored and turned tiles added to tilesets, by tile config name (server: tileedit.py) */
   tilesets?: Record<string, TilesetEdits>
+  /** another palette of the tileset, by layout id (an asset name of the game, server: maps.palette_choices) */
+  palettes?: Record<string, string>
 }
 
 export interface TilesetEdits {

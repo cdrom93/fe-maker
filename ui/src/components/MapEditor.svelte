@@ -128,6 +128,8 @@
   const chapterTitle = (i: number) => chapters[i]?.title || chapters[i]?.id || String(i)
 
   const tilesetEdits = $derived<TilesetEdits | undefined>(baseLayout ? list.records[0]?.tilesets?.[baseLayout.tileset] : undefined)
+  /** The palette chosen in the project for this map (ticket 16), else the game's. */
+  const chosenPalette = $derived<string | null>((info && list.records[0]?.palettes?.[info.id]) || null)
   const objectSettings = $derived<Record<string, MapObjectSettings>>((info && list.records[0]?.objects?.[info.id]) ?? {})
   const objects = $derived(objectsInfo?.objects ?? [])
   const keyOf = (o: { x: number; y: number }) => `${o.x},${o.y}`
@@ -180,15 +182,16 @@
   $effect(() => {
     const base = baseLayout
     const edits = tilesetEdits ? JSON.parse(JSON.stringify(tilesetEdits)) : null
+    const palette = chosenPalette
     if (!info || !base) return
     const id = info.id
     const n = ++tilesetRequest
-    if (!edits) {
+    if (!edits && !palette) {
       layout = base
       sheet = baseSheet
       return
     }
-    api.mapTileset(id, edits).then(async (r) => {
+    api.mapTileset(id, edits, palette).then(async (r) => {
       const img = await loadImage(r.sheet)
       if (n !== tilesetRequest || maps[selected]?.id !== id) return
       layout = { ...base, terrains: r.terrains, duplicates: r.duplicates }
@@ -293,7 +296,7 @@
     if (maps[selected]?.id !== id) return
     baseSheet = img
     baseLayout = data
-    if (!list.records[0]?.tilesets?.[data.tileset]) {
+    if (!list.records[0]?.tilesets?.[data.tileset] && !list.records[0]?.palettes?.[id]) {
       layout = data
       sheet = img
     }
@@ -644,6 +647,19 @@
       if (d.layouts) delete d.layouts[id]
       if (d.changes) delete d.changes[id]
       if (d.objects) delete d.objects[id]
+      if (d.palettes) delete d.palettes[id]
+    })
+  }
+
+  /** Another palette of the tileset for this map (every chapter on it). */
+  function setPalette(palette: string) {
+    if (!info || !baseLayout) return
+    const id = info.id
+    const original = baseLayout.palette
+    list.update(0, (d) => {
+      d.palettes ??= {}
+      if (palette === original) delete d.palettes[id]
+      else d.palettes[id] = palette
     })
   }
 
@@ -786,6 +802,7 @@
   )
   const changesEdited = $derived(!!(info && list.records[0]?.changes?.[info.id]))
   const objectsEdited = $derived(!!(info && list.records[0]?.objects?.[info.id]))
+  const paletteEdited = $derived(!!chosenPalette)
 </script>
 
 <svelte:window onmouseup={onUp} />
@@ -815,13 +832,27 @@
             <span class="muted small">{t('maps.sizeHint')}</span>
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
+          {#if layout.palettes.length > 1}
+            <div class="palettes" role="radiogroup" aria-label={t('maps.palette')}>
+              <span class="small">{t('maps.palette')}</span>
+              {#each layout.palettes as pal (pal.id)}
+                {@const names = pal.chapters.map(chapterTitle)}
+                <button role="radio" aria-checked={(chosenPalette ?? layout.palette) === pal.id} class="palette-choice"
+                        class:active={(chosenPalette ?? layout.palette) === pal.id} title={`${pal.id} — ${names.join(', ')}`} onclick={() => setPalette(pal.id)}>
+                  <span class="swatches">{#each pal.colors.slice(1) as c, k (k)}<span style="background: {c}"></span>{/each}</span>
+                  <span class="tiny">{names.slice(0, 2).join(', ')}{names.length > 2 ? ` +${names.length - 2}` : ''}{pal.id === layout.palette ? ` · ${t('maps.paletteOriginal')}` : ''}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         {/if}
-        {#if painted || changesEdited || objectsEdited}
+        {#if painted || changesEdited || objectsEdited || paletteEdited}
           <p class="small">
             <span class="edited">✎</span>
             {#if painted}{t('maps.changed', { n: changedCells })}{/if}
             {#if changesEdited}{t('maps.changesEdited')}{/if}
             {#if objectsEdited}{t('maps.objectsEdited')}{/if}
+            {#if paletteEdited}{t('maps.paletteEdited')}{/if}
             <button class="link" onclick={reset}>{t('maps.reset')}</button>
           </p>
         {/if}
@@ -1195,4 +1226,9 @@
   .similar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.4rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); }
   .similar-tiles { display: flex; gap: 2px; }
   .similar-tiles canvas { image-rendering: pixelated; }
+  .palettes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
+  .palette-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem 0.4rem; }
+  .palette-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+  .swatches { display: flex; }
+  .swatches span { width: 8px; height: 12px; }
 </style>

@@ -2,6 +2,7 @@ import io
 import json
 import struct
 
+import pytest
 from PIL import Image
 
 from fe_maker.decomp import maps, units
@@ -219,3 +220,55 @@ def test_render_new_group():
     assert ".classIndex = CLASS_FIGHTER," in text and ".allegiance = FACTION_ID_RED," in text
     assert ".xPosition = 5," in text and ".yPosition = 6," in text and ".autolevel = 1," in text
     assert text.rstrip().endswith("{ 0 },\n};")
+
+
+def _decomp_with_two_palettes(tmp_path, decomp_dir):
+    """The fixture decomp plus two fictional chapters on the same tileset, with two palettes."""
+    import shutil
+
+    decomp = tmp_path / "decomp"
+    shutil.copytree(decomp_dir, decomp)
+    folder = decomp / "graphics" / "map"
+    folder.mkdir(parents=True)
+    _make_map(folder)
+    shutil.copy(folder / "MapPalette1.pal", folder / "MapPalette2.pal")
+    shutil.copy(folder / "Map.mar", folder / "Map2.mar")
+    symbols = ["ObjectType1", "MapPalette1", "MapPalette2", "TileConfiguration1", "Map", "Map2"]
+    (decomp / "data" / "data_8B363C.s").write_text(
+        "gChapterDataAssetTable:\n\t.word 0\n" + "".join(f"\t.word {s}\n" for s in symbols), encoding="utf-8")
+    (decomp / "data" / "const_data_chapter_maps.s").write_text(
+        "".join(f'{s}:\n\t.incbin "graphics/map/{s}.bin.lz"\n' for s in symbols), encoding="utf-8")
+    (decomp / "src" / "data").mkdir(parents=True, exist_ok=True)
+    chapters = [{"internalName": f"C{i}", "map": {"obj1Id": 1, "obj2Id": 0, "paletteId": 2 + i, "tileConfigId": 4,
+                                                  "mainLayerId": 5 + i, "changeLayerId": 0}} for i in range(2)]
+    (decomp / maps.CHAPTER_SETTINGS_FILE).write_text(json.dumps({"chapters": chapters}, indent=2), encoding="utf-8")
+    return decomp
+
+
+def test_another_palette_of_the_tileset(tmp_path, decomp_dir):
+    """Ticket 16: a map takes another palette its tileset has in the game."""
+    from fe_maker.decomp.gamedata import DecompData, GameDataError
+
+    decomp = _decomp_with_two_palettes(tmp_path, decomp_dir)
+    assets = maps.layouts(decomp)["Map"]["assets"]
+    assert [p["id"] for p in maps.palette_choices(decomp, assets)] == ["MapPalette1", "MapPalette2"]
+    assert maps.palette_symbol(decomp, assets.palette) == "MapPalette1"
+    assert maps.with_palette(decomp, assets, "MapPalette2").palette.name == "MapPalette2.pal"
+    assert maps.with_palette(decomp, assets, "Unknown") == assets
+    d = DecompData(decomp)
+    d.apply_maps({"palettes": {"Map": "MapPalette2"}})
+    settings = json.loads(d.changed_files()[maps.CHAPTER_SETTINGS_FILE])
+    assert [c["map"]["paletteId"] for c in settings["chapters"]] == [3, 3]
+    with pytest.raises(GameDataError):
+        DecompData(decomp).apply_maps({"palettes": {"Map": "TileConfiguration1"}})
+
+
+def test_palette_problem(tmp_path, decomp_dir):
+    from fe_maker.validation import _validate_maps
+
+    decomp = _decomp_with_two_palettes(tmp_path, decomp_dir)
+    problems = []
+    _validate_maps(problems, {"palettes": {"Map": "MapPalette2"}}, decomp)
+    assert not problems
+    _validate_maps(problems, {"palettes": {"Map": "Map2"}}, decomp)
+    assert [p.code for p in problems] == ["paletteNotForTileset"]
