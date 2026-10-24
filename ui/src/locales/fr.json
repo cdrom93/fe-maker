@@ -1056,5 +1056,14 @@
   "dlg.exprEyesNow": "{what} : c'est l'état actuel des yeux",
   "dlg.exprEyesSet": "{what} à partir du curseur, jusqu'au prochain changement des yeux",
   "dlg.exprWink": "Clin d'œil (un instant, à l'endroit du curseur)",
-  "maps.obj.ruin": "ruines si un ennemi le pille (changement {id})"
+  "maps.obj.ruin": "ruines si un ennemi le pille (changement {id})",
+  "problem.unknownName": "« {name} » n'existe pas dans le jeu (groupe d'unités, personnage, musique ou décor)",
+  "ev.simple": "Remplacer par une scène simple",
+  "ev.simpleHint": "L'armée revient sur la carte (au premier chapitre : ses unités arrivent), puis les ennemis du chapitre, puis une conversation à écrire",
+  "ev.simpleEndingHint": "Une conversation à écrire, puis le chapitre suivant (gardé de la scène actuelle, modifiable dans l'onglet Enchaînements)",
+  "ev.simpleConfirm": "Remplacer toute la scène par une scène simple ? (annulable)",
+  "ev.newMessage": "nouveau dialogue",
+  "ev.newMessageHint": "Nouveau dialogue pour cette commande (à écrire dans l'éditeur de dialogues)",
+  "dlg.sceneMessage": "Dialogue de scène",
+  "dlg.addSceneMessage": "Dialogue d'une scène"
 }

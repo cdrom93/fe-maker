@@ -1056,5 +1056,14 @@
   "dlg.exprEyesNow": "{what}: así están los ojos ahora",
   "dlg.exprEyesSet": "{what} a partir del cursor, hasta el próximo cambio de los ojos",
   "dlg.exprWink": "Guiño (un instante, donde está el cursor)",
-  "maps.obj.ruin": "ruinas si un enemigo lo saquea (cambio {id})"
+  "maps.obj.ruin": "ruinas si un enemigo lo saquea (cambio {id})",
+  "problem.unknownName": "«{name}» no existe en el juego (grupo de unidades, personaje, música o fondo)",
+  "ev.simple": "Sustituir por una escena simple",
+  "ev.simpleHint": "El ejército vuelve al mapa (primer capítulo: llegan sus unidades), luego los enemigos del capítulo y una conversación por escribir",
+  "ev.simpleEndingHint": "Una conversación por escribir y luego el capítulo siguiente (se conserva de la escena actual, editable en la pestaña Encadenamientos)",
+  "ev.simpleConfirm": "¿Sustituir toda la escena por una simple? (se puede deshacer)",
+  "ev.newMessage": "diálogo nuevo",
+  "ev.newMessageHint": "Diálogo nuevo para este comando (por escribir en el editor de diálogos)",
+  "dlg.sceneMessage": "Diálogo de escena",
+  "dlg.addSceneMessage": "Diálogo de una escena"
 }

@@ -1056,5 +1056,14 @@
   "dlg.exprEyesNow": "{what}: the eyes are like this now",
   "dlg.exprEyesSet": "{what} from the cursor on, until the eyes change again",
   "dlg.exprWink": "Wink (for a moment, where the cursor is)",
-  "maps.obj.ruin": "ruins if an enemy pillages it (change {id})"
+  "maps.obj.ruin": "ruins if an enemy pillages it (change {id})",
+  "problem.unknownName": "\"{name}\" does not exist in the game (unit group, character, song or background)",
+  "ev.simple": "Replace with a simple scene",
+  "ev.simpleHint": "The army comes back on the map (first chapter: its units arrive), then the chapter's enemies, then a conversation to write",
+  "ev.simpleEndingHint": "A conversation to write, then the next chapter (kept from the current scene, editable in the Story flow tab)",
+  "ev.simpleConfirm": "Replace the whole scene with a simple one? (can be undone)",
+  "ev.newMessage": "new dialogue",
+  "ev.newMessageHint": "New dialogue for this command (to write in the dialogue editor)",
+  "dlg.sceneMessage": "Scene dialogue",
+  "dlg.addSceneMessage": "Dialogue of a scene"
 }

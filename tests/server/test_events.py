@@ -64,3 +64,24 @@ def test_script_problems(decomp_dir):
     assert ("script:EventScr_Nowhere", "unknownScript") in codes
     assert ("script:EventScr_TestOpening#0", "unknownMessage") in codes
     assert ("script:EventScr_TestOpening#1", "badArguments") in codes
+
+
+def test_new_scene_message_and_unknown_names(decomp_dir):
+    d = DecompData(decomp_dir)
+    say = [{"kind": "say", "pos": None, "text": "A new line."}]
+    quotes = [{"kind": "scene", "key": "s1", "chapter": 0, "a": "", "steps": say}]
+    scripts = {"EventScr_TestOpening": [{"op": "Text", "args": ["new:s1"]}, {"op": "LOAD1", "args": ["1", "UnitDef_Nope"]},
+                                        {"op": "Text", "args": ["new:gone"]}, {"op": "ENDA"}]}
+    codes = {(p.id, p.code) for p in validate(d.export_characters(), d.export_items(), d,
+                                               dialogues={"messages": {}, "quotes": quotes, "scripts": scripts})}
+    assert ("script:EventScr_TestOpening#0", "unknownMessage") not in codes
+    assert ("script:EventScr_TestOpening#1", "unknownName") in codes
+    assert ("script:EventScr_TestOpening#2", "unknownMessage") in codes
+    assert not any(c == "quoteWithoutCharacter" for _id, c in codes)
+    # At build time, "new:s1" becomes the id of the new message
+    scripts["EventScr_TestOpening"] = scripts["EventScr_TestOpening"][:1] + [{"op": "ENDA"}]
+    d.apply_dialogues({"messages": {}, "quotes": quotes, "scripts": scripts})
+    import re
+    files = "".join(s for s in d.changed_files().values() if isinstance(s, str))
+    new_id = int(re.search(r"Text\((0x[0-9A-F]+)\)", files).group(1), 16)
+    assert "A new line." in files and new_id not in DecompData(decomp_dir).texts.messages

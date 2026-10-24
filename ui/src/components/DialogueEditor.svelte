@@ -205,7 +205,15 @@
   }
 
   /** First line of a message (the project's version if edited), for lists. */
-  function firstLineOf(id: string): string {
+  /** A message of a script made by the project is "new:<key>": its place in the new quotes. */
+  function resolveMessage(id: string): string {
+    if (!id.startsWith(NEW) || /^\d+$/.test(id.slice(NEW.length))) return id
+    const key = id.slice(NEW.length)
+    return `${NEW}${newQuotes.findIndex((q) => q.key === key)}`
+  }
+
+  function firstLineOf(raw: string): string {
+    const id = resolveMessage(raw)
     const q = id.startsWith(NEW) ? newQuotes[Number(id.slice(NEW.length))]?.steps : (edited[id] ?? originals[id])
     return q?.find((s) => s.kind === 'say')?.text?.replace(/\[[^\]]*\]/g, '').split('\n')[0] ?? ''
   }
@@ -252,6 +260,7 @@
     if (q.kind === 'battle') return t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') })
     if (q.kind === 'death') return t('dlg.trigger.death', { a: charName(q.a) })
     if (q.kind === 'support') return t('dlg.supportTalk', { rank: 'CBA'[(q.rank ?? 1) - 1], a: charName(q.a), b: charName(q.b ?? '') })
+    if (q.kind === 'scene') return `${t('dlg.sceneMessage')} · ${firstLineOf(`${NEW}${newQuotes.indexOf(q)}`) || '…'}`
     if (q.kind === 'turn') return t(q.phase === 'enemy' ? 'dlg.trigger.enemyTurn' : q.phase === 'ally' ? 'dlg.trigger.allyTurn' : 'dlg.trigger.turn', { n: q.turn ?? 1 })
     return t('dlg.trigger.talk', { a: charName(q.a), b: charName(q.b ?? '') }) + (q.recruit ? ` · ${t('dlg.recruits')}` : '')
   }
@@ -515,7 +524,8 @@
 
     {#if scriptName}
       <section class="panel">
-        <ScriptEditor name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(id)} />
+        <ScriptEditor name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(resolveMessage(id))}
+                      sceneKind={scenes.find((s) => s.script === scriptName)?.trigger.kind ?? ''} />
       </section>
     {:else if messageId}
       <section class="panel message-editor">
@@ -523,7 +533,7 @@
           {#if quoteIndex >= 0 && newQuotes[quoteIndex]?.kind === 'support'}
             <h3>{quoteLabel(newQuotes[quoteIndex])}</h3>
           {:else if quoteIndex >= 0}
-            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
+            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk', scene: 'SceneMessage' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
@@ -534,7 +544,7 @@
             <button role="radio" aria-checked={view === 'steps'} class:active={view === 'steps'} onclick={() => setView('steps')} title={t('dlg.view.stepsHint')}>☰ {t('dlg.view.steps')}</button>
           </div>
         </div>
-        {#if quoteIndex >= 0 && newQuotes[quoteIndex] && newQuotes[quoteIndex].kind !== 'support'}
+        {#if quoteIndex >= 0 && newQuotes[quoteIndex] && !['support', 'scene'].includes(newQuotes[quoteIndex].kind)}
           {@const q = newQuotes[quoteIndex]}
           <div class="quote-who">
             {#if q.kind === 'turn'}

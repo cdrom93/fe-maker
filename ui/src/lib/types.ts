@@ -395,7 +395,9 @@ export interface SupportPair {
 
 export interface NewQuote {
   /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
-  kind: 'battle' | 'death' | 'talk' | 'turn' | 'support'
+  kind: 'battle' | 'death' | 'talk' | 'turn' | 'support' | 'scene'
+  /** message of an event script ("scene"): scripts refer to it as "new:<key>" */
+  key?: string
   /** support conversation: 1 = C, 2 = B, 3 = A */
   rank?: number
   /** turn scene: the turn and the side whose phase starts it */

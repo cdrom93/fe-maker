@@ -1056,5 +1056,14 @@
   "dlg.exprEyesNow": "{what}: gli occhi sono così ora",
   "dlg.exprEyesSet": "{what} dal cursore in poi, fino al prossimo cambiamento degli occhi",
   "dlg.exprWink": "Occhiolino (un istante, dove si trova il cursore)",
-  "maps.obj.ruin": "rovine se un nemico lo saccheggia (cambio {id})"
+  "maps.obj.ruin": "rovine se un nemico lo saccheggia (cambio {id})",
+  "problem.unknownName": "«{name}» non esiste nel gioco (gruppo di unità, personaggio, musica o sfondo)",
+  "ev.simple": "Sostituire con una scena semplice",
+  "ev.simpleHint": "L'esercito torna sulla mappa (primo capitolo: arrivano le sue unità), poi i nemici del capitolo, poi una conversazione da scrivere",
+  "ev.simpleEndingHint": "Una conversazione da scrivere, poi il capitolo seguente (preso dalla scena attuale, modificabile nella scheda Concatenazioni)",
+  "ev.simpleConfirm": "Sostituire tutta la scena con una semplice? (annullabile)",
+  "ev.newMessage": "nuovo dialogo",
+  "ev.newMessageHint": "Nuovo dialogo per questo comando (da scrivere nell'editor dei dialoghi)",
+  "dlg.sceneMessage": "Dialogo di scena",
+  "dlg.addSceneMessage": "Dialogo di una scena"
 }

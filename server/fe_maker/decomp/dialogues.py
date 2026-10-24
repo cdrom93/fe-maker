@@ -25,6 +25,10 @@ import re
 from .fonts import char_byte
 from .texts import text_size
 
+# A message made for an event script (data/dialogues.json "quotes" of kind "scene", by their "key"):
+# a script argument "new:<key>" becomes the new message's id at build time.
+SCENE_MESSAGE = "new:"
+
 POSITIONS = ("FarFarLeft", "FarLeft", "MidLeft", "Left", "Right", "MidRight", "FarRight", "FarFarRight")
 _TOKEN_RE = re.compile(r"\[([^\]]*)\]")
 # Codes that are printable characters (>= 0x20 in texts/textdefs.txt): they count in a text run.

@@ -16,6 +16,7 @@
     problems,
     firstLine,
     onopenmessage,
+    sceneKind = '',
   }: {
     name: string
     /** chapter index (unit groups of the chapter are offered), -1 if none */
@@ -25,9 +26,15 @@
     problems: Problem[]
     /** first line of a message (to show it in its block) */
     firstLine: (id: string) => string
-    /** open a message of the script in the dialogue editor */
+    /** open a message of the script in the dialogue editor (a number, or "new:<key>") */
     onopenmessage: (id: string) => void
+    /** what starts the script (beginning, ending...): the opening and ending scenes can be replaced by a simple one */
+    sceneKind?: string
   } = $props()
+
+  const NEW_MESSAGE = 'new:'   // a message made for a script (server: dialogues.SCENE_MESSAGE)
+  // Commands that send the player to another chapter (server: decomp/story.py)
+  const CHANGE_OPS = ['MNCH', 'MNC2', 'MNC3', 'MNC4', 'MNTS', 'MoveToChapter']
 
   const ICONS: Record<string, string> = {
     MUSC: '🎵', MUSS: '🎵', MURE: '🎵', MUSI: '🔉', MUNO: '🔊', MUSCMID: '🎵', MUSCSLOW: '🎵',
@@ -44,6 +51,7 @@
   let file = $state('')
   let error = $state('')
   let groups = $state<string[]>([])
+  let groupOrigins = $state<{ name: string; origin: string }[]>([])
   let selected = $state<number | null>(null)
   let adding = $state('')
 
@@ -74,7 +82,13 @@
   $effect(() => {
     const c = chapter
     groups = []
-    if (c >= 0) api.chapterUnits(c).then((u) => (groups = u.groups.map((g) => g.name))).catch(() => {})
+    groupOrigins = []
+    if (c >= 0) {
+      api.chapterUnits(c).then((u) => {
+        groups = u.groups.map((g) => g.name)
+        groupOrigins = u.groups.map((g) => ({ name: g.name, origin: g.origin }))
+      }).catch(() => {})
+    }
   })
 
   function save(next: EventCommand[]) {
@@ -127,6 +141,43 @@
     adding = ''
   }
 
+  /** A new message of the project for a script (an empty conversation to write), and the commands
+   *  using it, saved together (one undo step). */
+  function withNewMessage(build: (ref: string) => EventCommand[]) {
+    const key = `s${Date.now().toString(36)}`
+    const next = build(`${NEW_MESSAGE}${key}`)
+    list.update(0, (d) => {
+      d.quotes ??= []
+      d.quotes.push({ kind: 'scene', key, chapter, a: '', steps: [] })
+      d.scripts ??= {}
+      d.scripts[name] = JSON.parse(JSON.stringify(next))
+    })
+  }
+
+  function newMessageAt(i: number, k: number) {
+    withNewMessage((ref) => commands.map((c, n) => (n === i ? { ...c, args: (c.args ?? []).map((a, j) => (j === k ? ref : a)) } : c)))
+  }
+
+  /** The opening or ending scene replaced by a simple one: the army back on the map (first chapter:
+   *  its units), the enemies of the opening, one conversation; the ending keeps where it leads. */
+  function simpleScene() {
+    if (!confirm(t('ev.simpleConfirm'))) return
+    withNewMessage((ref) => {
+      if (sceneKind === 'ending') {
+        const change = commands.filter((c) => CHANGE_OPS.includes(c.op))
+        return [{ op: 'Text', args: [ref] }, ...(change.length ? change : [{ op: 'MNC2', args: ['0x1'] }]), { op: 'ENDA' }]
+      }
+      const out: EventCommand[] = []
+      const players = groupOrigins.find((g) => g.origin === 'players')
+      // LOAD2 brings the army's units to the chapter's places; the first chapter has none yet.
+      if (players) out.push({ op: chapter === 0 ? 'LOAD1' : 'LOAD2', args: ['1', players.name] }, { op: 'ENUN' })
+      for (const g of groupOrigins.filter((g) => g.origin === 'opening')) out.push({ op: 'LOAD1', args: ['1', g.name] }, { op: 'ENUN' })
+      out.push({ op: 'Text', args: [ref] }, { op: 'NoFade' }, { op: 'ENDA' })
+      return out
+    })
+    selected = null
+  }
+
   function resetScript() {
     list.update(0, (d) => {
       if (d.scripts) delete d.scripts[name]
@@ -135,6 +186,8 @@
 
   const label = (op: string) => (t(`ev.op.${op}`) === `ev.op.${op}` ? op : t(`ev.op.${op}`))
   const isMessage = (v: string) => /^(0x[0-9a-f]+|\d+)$/i.test(v.trim())
+  /** The message a value opens: a game message by number, or a message of the project */
+  const messageRef = (v: string) => (v.startsWith(NEW_MESSAGE) ? v : isMessage(v) ? String(Number(v)) : '')
 </script>
 
 <div class="script">
@@ -142,6 +195,12 @@
     <h3>⚙ {t('ev.title', { name })}</h3>
     {#if edited}<button class="link" onclick={resetScript}>{t('ev.reset')}</button>{/if}
   </div>
+  {#if sceneKind === 'beginning' || sceneKind === 'ending'}
+    <p class="simple">
+      <button onclick={simpleScene}>✨ {t('ev.simple')}</button>
+      <span class="tiny muted">{t(sceneKind === 'ending' ? 'ev.simpleEndingHint' : 'ev.simpleHint')}</span>
+    </p>
+  {/if}
   <p class="muted small">{t('ev.hint')} <span class="tiny">{file}</span></p>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#each scriptProblems.filter((p) => p.id === `script:${name}`) as pr, k (k)}<p class="bad small">{problemText(pr)}</p>{/each}
@@ -182,11 +241,17 @@
                       {#if v}<Mention kind="characters" id={v}><span class="open">↗</span></Mention>{/if}
                     </span>
                   {:else if a.kind === 'message'}
+                    {@const ref = messageRef(v)}
                     <span class="inline">
-                      <input class="short" value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
-                      {#if isMessage(v)}<button class="link" onclick={() => onopenmessage(String(Number(v)))} title={t('ev.openMessage')}>💬</button>{/if}
+                      {#if v.startsWith(NEW_MESSAGE)}
+                        <span class="tag">{t('ev.newMessage')}</span>
+                      {:else}
+                        <input class="short" value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                      {/if}
+                      {#if ref}<button class="link" onclick={() => onopenmessage(ref)} title={t('ev.openMessage')}>💬</button>{/if}
+                      <button class="link" onclick={() => newMessageAt(i, k)} title={t('ev.newMessageHint')}>＋</button>
                     </span>
-                    {#if isMessage(v) && firstLine(String(Number(v)))}<span class="tiny muted quote">« {firstLine(String(Number(v)))} »</span>{/if}
+                    {#if ref && firstLine(ref)}<span class="tiny muted quote">« {firstLine(ref)} »</span>{/if}
                   {:else if a.kind === 'group'}
                     <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else}
@@ -253,5 +318,6 @@
   .actions button { padding: 0 0.35rem; font-size: 0.8rem; }
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .open { font-size: 0.8rem; }
+  .simple { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .quote { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

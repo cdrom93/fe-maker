@@ -647,7 +647,10 @@ class DecompData:
             body = self._message(steps, index in in_battle)
             if not dialogues.same_message(self.texts.raw(index), body):
                 self.texts.set_raw(index, body)
-        new_quotes = [q for q in data.get("quotes", []) if q.get("a") and q.get("kind") != "talk"]
+        new_quotes = [q for q in data.get("quotes", []) if q.get("a") and q.get("kind") not in ("talk", "scene")]
+        # Messages made for event scripts: their ids replace "new:<key>" in the scripts
+        scene_ids = {q["key"]: self.texts.add(self._message(q.get("steps") or []))
+                     for q in data.get("quotes", []) if q.get("kind") == "scene" and q.get("key")}
         talks = [q for q in data.get("quotes", []) if q.get("kind") == "talk" and q.get("a") and q.get("b")]
         for n, talk in enumerate(talks):
             self._add_talk(n, talk)
@@ -655,7 +658,7 @@ class DecompData:
         for n, scene in enumerate(turns):
             self._add_turn_scene(n, scene)
         if data.get("scripts"):
-            self._apply_scripts(data["scripts"])
+            self._apply_scripts(data["scripts"], scene_ids)
         conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
         if data.get("supports") is not None:
             self._apply_supports(data["supports"], conversations)
@@ -782,9 +785,19 @@ class DecompData:
         rel, start, end = found
         return events.parse_script(self.event_sources[rel][start:end])
 
-    def _apply_scripts(self, scripts: dict[str, list[dict]]) -> None:
-        """Scripts edited in the visual editor replace the original ones (only when they differ)."""
+    def _apply_scripts(self, scripts: dict[str, list[dict]], scene_ids: dict[str, int] | None = None) -> None:
+        """Scripts edited in the visual editor replace the original ones (only when they differ).
+        `scene_ids`: ids of the messages made for scripts, by key (arguments "new:<key>")."""
+        def message(value):
+            if isinstance(value, str) and value.startswith(dialogues.SCENE_MESSAGE):
+                key = value[len(dialogues.SCENE_MESSAGE):]
+                if key not in (scene_ids or {}):
+                    raise GameDataError(f"Unknown new message {key}")
+                return f"0x{scene_ids[key]:X}"
+            return value
+
         for name, commands in sorted(scripts.items()):
+            commands = [{**c, "args": [message(a) for a in c["args"]]} if c.get("args") else c for c in commands]
             found = self.find_script(name)
             if found is None:
                 raise GameDataError(f"Unknown event script {name}")

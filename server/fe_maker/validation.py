@@ -6,6 +6,7 @@ translated text, `message` is the English fallback.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 
 from .decomp import dialogues as decomp_dialogues
@@ -196,7 +197,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         faces.update({decomp_portraits.face_code(pid): pid for pid in added_portraits})
         _validate_dialogues(problems, dialogues, faces)
         if dialogues.get("scripts"):
-            _validate_scripts(problems, dialogues["scripts"], decomp)
+            _validate_scripts(problems, dialogues["scripts"], decomp, characters,
+                              set((chapters or {}).get("newGroups", {})),
+                              {q.get("key") for q in dialogues.get("quotes", []) if q.get("kind") == "scene"})
         if dialogues.get("supports") is not None:
             original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
             _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
@@ -209,6 +212,8 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
     edited = list(data.get("messages", {}).items())
     for n, quote in enumerate(data.get("quotes", [])):
         edited.append((f"new{n}", quote.get("steps", [])))
+        if quote.get("kind") == "scene":
+            continue   # a new message of an event script: no character needed
         if not quote.get("a") or (quote.get("kind") in ("talk", "support") and not quote.get("b")):
             problems.append(Problem("error", "dialogues", f"new{n}", "a", "quoteWithoutCharacter", {},
                                     "new quote without character"))
@@ -265,9 +270,28 @@ def _validate_portraits(problems, data: dict, decomp: DecompData, assets_dir):
                                         f"{rid}: {part} outside the face"))
 
 
-def _validate_scripts(problems, scripts: dict, decomp: DecompData):
+def _script_constants(decomp: DecompData) -> dict[str, set[str]]:
+    """Names a script argument may take, by kind (unit groups, songs, backgrounds)."""
+    def constants(rel: str, prefix: str) -> set[str]:
+        path = decomp.decomp_dir / rel
+        return set(decomp_events.read_constants(path.read_text(encoding="utf-8"), prefix)) if path.is_file() else set()
+    try:
+        groups = set(units.read_unit_groups(decomp.decomp_dir))
+    except FileNotFoundError:
+        groups = set()
+    return {"group": groups, "song": constants("include/constants/songs.h", "SONG_"),
+            "background": constants("include/constants/backgrounds.h", "BG_")}
+
+
+def _validate_scripts(problems, scripts: dict, decomp: DecompData, characters: list[dict] | None = None,
+                      new_groups: set[str] | None = None, scene_messages: set[str] | None = None):
     """Event scripts edited in the visual editor ("script:<name>#<n>"): known script, well-formed
-    commands, existing messages."""
+    commands, existing messages, and unit groups, characters, songs and backgrounds the game has
+    (else the build stops with a compiler error)."""
+    known = _script_constants(decomp)
+    known["group"] |= new_groups or set()
+    if characters:
+        known["character"] = {c["id"] for c in characters if c["id"].startswith("CHARACTER_")}
     for name, commands in scripts.items():
         if decomp.find_script(name) is None:
             problems.append(Problem("error", "dialogues", f"script:{name}", "commands", "unknownScript", {},
@@ -283,12 +307,19 @@ def _validate_scripts(problems, scripts: dict, decomp: DecompData):
             for (arg, kind), value in zip(spec, c.get("args") or []):
                 if kind == "message":
                     try:
-                        found = int(str(value), 0) in decomp.texts.messages
+                        if str(value).startswith(decomp_dialogues.SCENE_MESSAGE):
+                            found = str(value)[len(decomp_dialogues.SCENE_MESSAGE):] in (scene_messages or set())
+                        else:
+                            found = int(str(value), 0) in decomp.texts.messages
                     except ValueError:
                         found = True   # a constant: the compiler checks it
                     if not found:
                         problems.append(Problem("error", "dialogues", rid, arg, "unknownMessage", {"id": str(value)},
                                                 f"{rid}: unknown message {value}"))
+                elif known.get(kind) and not re.fullmatch(r"-?(0x[0-9a-fA-F]+|\d+)", str(value).strip()) \
+                        and str(value).strip() not in known[kind]:
+                    problems.append(Problem("error", "dialogues", rid, arg, "unknownName", {"name": str(value)},
+                                            f"{rid}: unknown {kind} {value}"))
 
 
 def _validate_supports(problems, data: dict, character_ids: set[str], original: set[tuple[str, str]]):
