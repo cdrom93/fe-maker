@@ -115,11 +115,14 @@ class Game:
         self.run(4, keys)
         self.run(wait)
 
-    def wait_until(self, condition: Callable[[], bool], seconds: float = 60, step: int = 10) -> bool:
-        """Run until condition() holds (checked every `step` frames). False if it never did."""
+    def wait_until(self, condition: Callable[[], bool], seconds: float = 60, step: int = 10, tap: str = "") -> bool:
+        """Run until condition() holds (checked every `step` frames). False if it never did.
+        `tap` presses a key at each step, to get through texts (A) or skip scenes (START)."""
         for _ in range(int(seconds * FPS / step)):
             if condition():
                 return True
+            if tap:
+                self.run(2, [tap])
             self.run(step)
         return condition()
 
@@ -158,6 +161,29 @@ class Game:
     def phase(self) -> str:
         return {0x00: "player", 0x40: "npc", 0x80: "enemy"}.get(self.read("gPlaySt", 0x0F), "other")
 
+    def gold(self) -> int:
+        return self.read("gPlaySt", 0x08, width=32)
+
+    def cursor(self) -> tuple[int, int]:
+        """Map cursor (gBmSt.playerCursor)."""
+        return self.read("gBmSt", 0x14, width=16, signed=True), self.read("gBmSt", 0x16, width=16, signed=True)
+
+    def move_cursor(self, x: int, y: int) -> None:
+        """Move the map cursor one cell at a time with the D-pad."""
+        for _ in range(100):
+            cx, cy = self.cursor()
+            if (cx, cy) == (x, y):
+                return
+            key = "RIGHT" if cx < x else "LEFT" if cx > x else "DOWN" if cy < y else "UP"
+            self.run(2, [key])
+            self.run(10)
+        raise PlaytestError(f"Cursor stuck at {self.cursor()} on the way to {(x, y)}")
+
+    def terrain(self, x: int, y: int) -> int:
+        """Terrain of a map cell (gBmMapTerrain is a table of row pointers)."""
+        rows = self.read("gBmMapTerrain", width=32)
+        return self.read(self.read(rows, 4 * y, width=32), x)
+
     def units(self, army: str = "Blue") -> list[dict[str, int]]:
         """Units present in an army (gUnitArrayBlue / Red / Green): character number and main stats."""
         base = self.address(f"gUnitArray{army}")
@@ -175,5 +201,6 @@ class Game:
                 "y": self.read(unit, 0x11, signed=True),
                 "maxHP": self.read(unit, 0x12, signed=True),
                 "hp": self.read(unit, 0x13, signed=True),
+                "items": [i for i in (self.read(unit, 0x1E + 2 * n, width=16) & 0xFF for n in range(5)) if i],
             })
         return found

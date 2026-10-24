@@ -3,6 +3,9 @@
 - Each character with supports points to a SupportData (gCharacterData .pSupportData): up to 7
   partners, with the points they start with (supportExpBase) and the points they gain each turn
   they start next to each other (supportExpGrowth). Levels: C at 81 points, B at 161, A at 241;
+  the points stop one short of a level (80, 160, 240) until the pair has its conversation, which
+  adds the last point (CanUnitSupportNow, bmreliance.c): a pair that starts at 81 or more is
+  already at C and never sees the C conversation;
   a character reaches 5 levels at most in all (include/bmreliance.h).
 - The game lists each pair on both sides with the same numbers (83 pairs, checked).
 - gSupportTalkList gives each pair its 3 conversations (C, B, A), whatever the order of the pair.
@@ -122,9 +125,16 @@ def add_talks(source: str, talks: list[tuple[str, str, list[int]]]) -> str:
     return source[:m.start(1)] + lines + source[m.start(1):]
 
 
+def skipped_levels(base: int) -> list[int]:
+    """Levels (1-3) a pair already has at the start: their conversations are never seen."""
+    return [level for level, points in enumerate(LEVEL_POINTS, 1) if base >= points]
+
+
 def turns_to(level: int, base: int, growth: int) -> int | None:
-    """Turns spent side by side to reach a level from the start (None: never)."""
-    need = LEVEL_POINTS[level - 1] - base
+    """Turns spent side by side before a level's conversation can be seen (None: never). Each
+    earlier conversation seen adds one point."""
+    talks = sum(1 for k in range(1, level) if base < LEVEL_POINTS[k - 1])
+    need = LEVEL_POINTS[level - 1] - 1 - base - talks
     if need <= 0:
         return 0
     return -(-need // growth) if growth > 0 else None

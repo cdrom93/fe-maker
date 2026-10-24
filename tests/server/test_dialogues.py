@@ -73,9 +73,12 @@ def test_new_quotes():
     source = quotes.add_battle_quote(source, constants, 2, "CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C, 50)
     source = quotes.add_death_quote(source, constants, 2, "CHARACTER_BONE", 0xD4D)   # the boss entry gets words
     source = quotes.add_death_quote(source, constants, 255, "CHARACTER_ROSS", 0xD4E)
+    # The game takes the first entry that matches: the Ross-Bone quote goes before Bone's quote against anyone.
+    source = quotes.add_battle_quote(source, constants, 255, "CHARACTER_BONE", "", 0xD4F, 51)   # less specific: after
     found = quotes.read_quotes(source, constants)
-    assert [(q["a"], q["b"], q["msg"]) for q in found["battle"]][1:] == [
-        ("CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C), ("CHARACTER_BONE", "CHARACTER_ROSS", 0xD4C)]
+    assert [(q["a"], q["b"], q["msg"]) for q in found["battle"]] == [
+        ("CHARACTER_ROSS", "CHARACTER_BONE", 0xD4C), ("CHARACTER_BONE", "CHARACTER_ROSS", 0xD4C),
+        ("CHARACTER_BONE", "", 0x960), ("CHARACTER_BONE", "", 0xD4F), ("", "CHARACTER_BONE", 0xD4F)]
     assert [(q["a"], q["chapter"], q["msg"], q["flag"]) for q in found["death"]] == [
         ("CHARACTER_BONE", 2, 0xD4D, "EVFLAG_DEFEAT_BOSS"), ("CHARACTER_ROSS", 255, 0xD4E, "0")]
     # Ross must survive chapter 2: a chapter entry before his every-chapter one, with his words.

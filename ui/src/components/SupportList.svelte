@@ -62,11 +62,15 @@
     pairs.map((p, i) => ({ p, i })).filter(({ p }) => !filter.trim() || fold(`${charName(p.a)} ${charName(p.b)}`).includes(fold(filter.trim()))),
   )
 
-  /** Turns side by side to reach C, B, A from the start (the game adds the points each turn). */
+  /** Turns side by side before the C, B, A conversations can be seen (the points stop one short of
+   *  each level until its conversation, which adds the last point; a level passed at the start is
+   *  skipped: "–"). Same rule as supports.turns_to on the server. */
   function turns(p: SupportPair): string {
     return levelPoints
-      .map((need, r) => {
-        const missing = need - p.base
+      .map((points, r) => {
+        if (p.base >= points) return `${RANKS[r]} –`
+        const talks = levelPoints.slice(0, r).filter((k) => p.base < k).length
+        const missing = points - 1 - p.base - talks
         const n = missing <= 0 ? 0 : p.growth > 0 ? Math.ceil(missing / p.growth) : null
         return `${RANKS[r]} ${n === null ? '∞' : n}`
       })

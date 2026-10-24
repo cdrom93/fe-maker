@@ -7,8 +7,10 @@
 - gDefeatTalkList: a character's last words in a chapter (0xFF: any chapter, used for the playable
   characters); the entry of a boss also sets EVFLAG_DEFEAT_BOSS (see objectives.py).
 
-New quotes (project data/dialogues.json "quotes") get a new message and new entries, added before
-the end of the lists.
+New quotes (project data/dialogues.json "quotes") get a new message and new entries. The game uses the
+first entry that matches a fight or a death, so a new entry goes before the game's entries it would
+otherwise lose to: for a battle quote, the first entry about one of its characters that is not more
+specific (a pair beats "anyone", a chapter beats every chapter); else at the end of the list.
 """
 
 from __future__ import annotations
@@ -71,14 +73,16 @@ def _chapter_name(index: int, constants: dict[str, int]) -> str:
     return next((name for name, value in constants.items() if value == index), f"0x{index:02X}")
 
 
-def _insert(source: str, array: tuple[str, str], key: str, fields_list: list[dict[str, str]], first: bool = False) -> str:
-    """Entries added before the terminator of an array, or before its first entry with `first` (the
-    game uses the first entry that matches: a chapter's entry must come before an every-chapter one)."""
+def _insert(source: str, array: tuple[str, str], key: str, fields_list: list[dict[str, str]], first: bool = False,
+            before: int | None = None) -> str:
+    """Entries added before the terminator of an array, before its first entry with `first` (the
+    game uses the first entry that matches: a chapter's entry must come before an every-chapter one),
+    or before the entry starting at offset `before`."""
     clean = _blank_comments(source)
     start, end = _array_body_span(clean, *array)
     spans = _entry_spans(clean, start, end)
-    term = spans[0][0] if first and spans else None
-    for s, e in ([] if first else spans):
+    term = before if before is not None else spans[0][0] if first and spans else None
+    for s, e in ([] if first or before is not None else spans):
         if parse_fields(clean[s + 1: e - 1]).get(key, "").strip().lower() in ("0xffff", "-1"):
             term = s
     if term is None:
@@ -88,12 +92,32 @@ def _insert(source: str, array: tuple[str, str], key: str, fields_list: list[dic
     return source[:term] + block + source[term:]
 
 
+def _battle_rank(a: str, b: str, chapter: int | None) -> int:
+    return (2 if a and b else 0) + (1 if chapter != ANY_CHAPTER else 0)
+
+
+def _battle_position(source: str, constants: dict[str, int], chapter: int, a: str, b: str) -> int | None:
+    """Offset of the first game entry that would be found before a new quote for the same fight."""
+    rank = _battle_rank(a, b, chapter)
+    for (s, _e), f in _entries(source, BATTLE, "pidA"):
+        pids = {p.strip() for p in (f.get("pidA", "0"), f.get("pidB", "0"))} - {"0", LEADER}
+        other = _int(f.get("chapter", "0"), constants)
+        if not pids & ({a, b} - {""}):
+            continue
+        if other not in (chapter, ANY_CHAPTER) and chapter != ANY_CHAPTER:
+            continue
+        both = len(pids) == 2
+        if _battle_rank("x" if pids else "", "x" if both else "", other) <= rank:
+            return s
+    return None
+
+
 def add_battle_quote(source: str, constants: dict[str, int], chapter: int, a: str, b: str, msg: int, flag: int) -> str:
     """A quote shown once when `a` fights `b` (b "" = anyone), whoever starts the fight."""
     common = {"chapter": _chapter_name(chapter, constants), "flag": f"0x{flag:04X}", "msg": f"0x{msg:04X}"}
     first = {"pidA": a, "pidB": b or LEADER, **common}
     second = {"pidA": b or LEADER, "pidB": a, **common}
-    return _insert(source, BATTLE, "pidA", [first, second])
+    return _insert(source, BATTLE, "pidA", [first, second], before=_battle_position(source, constants, chapter, a, b))
 
 
 def set_death_flag(source: str, constants: dict[str, int], chapter: int, a: str, flag: str) -> str:

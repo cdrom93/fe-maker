@@ -56,8 +56,9 @@ def test_partners_keep_their_order():
 
 
 def test_turns_to_levels():
-    assert sp.turns_to(1, 30, 4) == 13      # 51 points to C at 4 a turn
-    assert sp.turns_to(3, 30, 4) == 53
+    assert sp.turns_to(1, 30, 4) == 13      # 50 points to the C conversation at 4 a turn
+    assert sp.turns_to(3, 30, 4) == 52      # 240 - 30, minus one point from each conversation seen
+    assert sp.turns_to(1, 80, 0) == 0 and sp.skipped_levels(80) == [] and sp.skipped_levels(161) == [1, 2]
     assert sp.turns_to(1, 90, 0) == 0
     assert sp.turns_to(2, 90, 0) is None
 
@@ -93,6 +94,7 @@ def test_support_problems(decomp_dir):
     data = {"messages": {}, "quotes": [], "supports": pairs}
     codes = {(p.id, p.code) for p in validate(chars, d.export_items(), d, dialogues=data)}
     rid = "support:CHARACTER_TESTHERO:CHARACTER_TESTRIVAL"
-    assert (rid, "outOfRange") in codes and (rid, "supportNoTalk") in codes
+    assert (rid, "outOfRange") in codes and (rid, "supportNoTalk") in codes and (rid, "supportSkipsTalk") in codes
+    assert ("support:CHARACTER_TESTRIVAL:CHARACTER_TESTHERO", "supportSkipsTalk") not in codes
     assert ("support:CHARACTER_TESTRIVAL:CHARACTER_TESTHERO", "supportDuplicate") in codes
     assert ("support:CHARACTER_TESTHERO:CHARACTER_NOBODY", "unknownCharacter") in codes

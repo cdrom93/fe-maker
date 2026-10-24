@@ -315,6 +315,12 @@ def _validate_supports(problems, data: dict, character_ids: set[str], original: 
         numbers = isinstance(p.get("base"), int) and isinstance(p.get("growth"), int)
         if numbers and decomp_supports.turns_to(1, p["base"], p["growth"]) is None:
             problems.append(Problem("warning", "dialogues", rid, "growth", "supportNever", {}, f"{rid}: never reaches C"))
+        skipped = decomp_supports.skipped_levels(p["base"]) if numbers else []
+        if skipped:
+            ranks = ", ".join("CBA"[r - 1] for r in skipped)
+            problems.append(Problem("warning", "dialogues", rid, "base", "supportSkipsTalk",
+                                    {"ranks": ranks, "max": decomp_supports.LEVEL_POINTS[0] - 1},
+                                    f"{rid}: starts past level {ranks}, its conversation is never seen"))
         if key not in original:
             missing = [r for r in (1, 2, 3) if (key, r) not in talks]
             if missing:
