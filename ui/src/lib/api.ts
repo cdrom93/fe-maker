@@ -1,5 +1,5 @@
 import { portraitVersion } from './portraits.svelte'
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits'
 
@@ -76,6 +76,7 @@ export const api = {
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
   removePortrait: (id: number) => request<{ problems: Problem[] }>('DELETE', `/api/portraits/${id}`),
   eventsReference: () => request<EventsReference>('GET', '/api/events/reference'),
+  chapterLinks: () => request<ChapterLinks>('GET', '/api/chapters/links'),
   eventScript: (name: string) => request<{ name: string; file: string; commands: EventCommand[] }>('GET', `/api/events/scripts/${name}`),
   supportDialogues: () =>
     request<{ pairs: SupportPair[]; scenes: DialogueScene[]; messages: Record<string, DialogueStep[]>; levelPoints: number[]; maxPartners: number }>(
@@ -87,6 +88,11 @@ export const api = {
     request<{ rows: number[][]; changes: MapChange[]; missingTerrains: number[] }>('POST', `/api/maps/${id}/convert`, body),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
+  /** Tiled (ticket 25): write the map in the project's tiled/ folder and open Tiled; read it back; read any .tmx */
+  exportTiled: (id: string, body: { rows: number[][]; changes: MapChange[] | null; edits: TilesetEdits | null; palette: string | null; base: string | null }) =>
+    request<{ path: string; launched: boolean; modified: number }>('POST', `/api/maps/${id}/tiled`, body),
+  importTiled: (id: string) => request<TiledMap & { modified: number }>('GET', `/api/maps/${id}/tiled`),
+  readTmx: (id: string, text: string) => request<TiledMap>('POST', `/api/maps/${id}/tiled/read`, { text }),
   mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null, base: string | null) =>
     request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base }),
   transformTiles: (id: string, body: {

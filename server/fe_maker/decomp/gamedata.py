@@ -11,7 +11,22 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, convoy, dialogues, events, fonts, mapobjects, maps, objectives, portraits, quotes, supports, tileedit, units
+from . import (
+    combat,
+    convoy,
+    dialogues,
+    events,
+    fonts,
+    mapobjects,
+    maps,
+    objectives,
+    portraits,
+    quotes,
+    story,
+    supports,
+    tileedit,
+    units,
+)
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -884,6 +899,41 @@ class DecompData:
                 scenes.append({"script": f"death:{q['msg']}", "messages": [q["msg"]], "file": quotes.FILE,
                                "trigger": {"kind": "death", "a": q["a"]}})
         return scenes
+
+    def chapter_event_files(self, index: int) -> list[str]:
+        """Event files of a chapter: the one with its event group and those with the same prefix."""
+        self._load_chapter_events()
+        rel = self._event_group_file(self._chapter_event_symbol(self.chapter_settings["chapters"][index]))
+        if rel is None:
+            return []
+        prefix = rel.rsplit("-", 1)[0] + "-"
+        return sorted(r for r in self.event_sources if r.startswith(prefix))
+
+    def chapter_links(self, edited: dict[str, list[dict]] | None = None) -> list[list[dict]]:
+        """For each chapter, the commands of its scripts that start another chapter (story.links), with the
+        script's name and whether it is the chapter's ending scene; `edited`: the project's edited scripts,
+        read instead of the game's."""
+        self._load_chapter_events()
+        out = []
+        for index, chapter in enumerate(self.chapter_settings["chapters"]):
+            try:
+                group = objectives.event_group(self.event_sources, self._chapter_event_symbol(chapter) or "")
+                ending = group.get("endingSceneEvents")
+            except objectives.ObjectiveError:
+                ending = None
+            found = []
+            for rel in self.chapter_event_files(index):
+                source = self._original_event_sources.get(rel, self.event_sources[rel])
+                for name, (start, end) in events.find_scripts(source).items():
+                    commands = (edited or {}).get(name)
+                    if commands is None:
+                        body = source[start:end]
+                        if not any(op in body for op in story.CHANGE_OPS):
+                            continue
+                        commands = events.parse_script(body)
+                    found += [{"script": name, "ending": name == ending, **link} for link in story.links(commands)]
+            out.append(found)
+        return out
 
     def chapter_dialogues(self, index: int) -> list[dict]:
         """Event scripts of a chapter that show messages, with what starts them and their messages."""

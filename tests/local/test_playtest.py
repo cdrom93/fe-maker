@@ -76,6 +76,36 @@ def _objects_project(tmp_path):
     return project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
 
 
+def test_changed_next_chapter_in_game(tmp_path):
+    """Ticket 31: the prologue (survive one turn) ends on chapter 2 instead of chapter 1."""
+    from fe_maker.decomp import story
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "flow", "Flow")
+    decomp = DecompData(project.decomp_dir)
+    link = next(link for link in decomp.chapter_links()[0] if link["ending"])
+    commands = decomp.script_commands(link["script"])
+    assert story.links(commands)[0]["to"] == 1
+    commands[link["at"]] = {"op": link["op"], "args": ["0x2"]}
+    project.save("dialogues", {"messages": {}, "scripts": {link["script"]: commands}})
+    project.save("chapters", {"unitGroups": {}, "objectives": {"0": {"type": "defense", "turns": 1, "seize": [],
+                                                                       "statusText": "Survive"}}})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        # End the turn from the map menu (A on an empty tile, End is the last entry).
+        game.move_cursor(1, 1)
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        ok = game.wait_until(lambda: game.chapter() == 2, seconds=240, step=30, tap="A")
+        game.screenshot().save(tmp_path / "after.png")
+        print("screenshot:", tmp_path / "after.png", "chapter", game.chapter(), "turn", game.turn())
+        assert ok
+
+
 def _on_map(game):
     assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.phase() == "player" and game.units())
     game.run(90)

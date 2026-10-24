@@ -23,7 +23,7 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { addedTileUsage, keepUsed, withoutMetatiles } from '../lib/tileEdits'
-  import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
+  import type { ChapterInfo, Item, MapChange, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
   import Mention from './Mention.svelte'
   import ItemPicker from './ItemPicker.svelte'
   import NumberField from './NumberField.svelte'
@@ -786,6 +786,79 @@
     }
   }
 
+  // ---------- Tiled (ticket 25) ----------
+
+  let tiledInfo = $state<{ id: string; path: string; launched: boolean } | null>(null)
+  let tiledError = $state('')
+  let tmxInput = $state<HTMLInputElement>()
+
+  /** Write the map for Tiled (the project's tiled/ folder) and open it there. */
+  async function openInTiled() {
+    if (!info) return
+    const id = info.id
+    tiledError = ''
+    try {
+      const r = await api.exportTiled(id, {
+        rows: $state.snapshot(savedRows) as number[][], changes: $state.snapshot(list.records[0]?.changes?.[id] ?? null) as MapChange[] | null,
+        edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null, palette: chosenPalette, base: chosenBase,
+      })
+      tiledInfo = { id, path: r.path, launched: r.launched }
+    } catch (e) {
+      tiledError = e instanceof ApiError ? t(`maps.tiledError.${e.detail}`) : String(e)
+    }
+  }
+
+  /** The map and its changes as saved in Tiled (or in a chosen .tmx), as one undo step. */
+  function applyTiled(id: string, m: TiledMap) {
+    const height = m.rows.length
+    const width = m.rows[0]?.length ?? 0
+    if (width < MIN_WIDTH || height < MIN_HEIGHT || width > MAX_SIDE || height > MAX_SIDE) {
+      tiledError = t('maps.tiledError.size', { w: width, h: height })
+      return
+    }
+    const tileCount = layout?.terrains.length ?? 0
+    if (m.rows.flat().some((c) => c >= tileCount) || m.changes.some((c) => c.rows.flat().some((x) => x >= tileCount))) {
+      tiledError = t('maps.tiledError.tileOutOfRange')
+      return
+    }
+    const fresh = m.changes.map(({ name: _name, ...c }) => c)
+    list.update(0, (d) => {
+      d.layouts ??= {}
+      d.layouts[id] = { rows: m.rows }
+      // a map without change layer in the game keeps none (the build has nowhere to put them)
+      if (changes) {
+        d.changes ??= {}
+        d.changes[id] = fresh
+      }
+    })
+    tiledError = !changes && fresh.length ? t('maps.tiledNoChangeLayer') : ''
+  }
+
+  async function reloadFromTiled() {
+    if (!info) return
+    const id = info.id
+    tiledError = ''
+    try {
+      const m = await api.importTiled(id)
+      if (maps[selected]?.id === id) applyTiled(id, m)
+    } catch (e) {
+      tiledError = e instanceof ApiError ? t(`maps.tiledError.${e.detail}`) : String(e)
+    }
+  }
+
+  async function importTmx(file: File | undefined) {
+    if (!info || !file) return
+    const id = info.id
+    tiledError = ''
+    try {
+      const m = await api.readTmx(id, await file.text())
+      if (maps[selected]?.id === id && confirm(t('maps.tmxConfirm', { name: file.name, w: m.rows[0]?.length ?? 0, h: m.rows.length }))) applyTiled(id, m)
+    } catch (e) {
+      tiledError = e instanceof ApiError ? t(`maps.tiledError.${e.detail}`) : String(e)
+    }
+    if (tmxInput) tmxInput.value = ''
+  }
+
   /** Another palette of the tileset for this map (every chapter on it). */
   function setPalette(palette: string) {
     if (!info || !baseLayout) return
@@ -1034,6 +1107,19 @@
               {/each}
             </div>
           {/if}
+        {/if}
+        {#if layout}
+          <div class="tiled">
+            <span class="small">{t('maps.tiled')}</span>
+            <button onclick={openInTiled} title={t('maps.tiledOpenHint')}>↗ {t('maps.tiledOpen')}</button>
+            <button onclick={reloadFromTiled} title={t('maps.tiledReloadHint')}>↙ {t('maps.tiledReload')}</button>
+            <button onclick={() => tmxInput?.click()} title={t('maps.tmxImportHint')}>📂 {t('maps.tmxImport')}</button>
+            <input type="file" accept=".tmx" hidden bind:this={tmxInput} onchange={(e) => importTmx((e.target as HTMLInputElement).files?.[0])} />
+          </div>
+          {#if tiledInfo?.id === info.id}
+            <p class="muted tiny">{t(tiledInfo.launched ? 'maps.tiledOpened' : 'maps.tiledNotInstalled', { path: tiledInfo.path })}</p>
+          {/if}
+          {#if tiledError}<p class="bad small">{tiledError}</p>{/if}
         {/if}
         {#if painted || changesEdited || objectsEdited || paletteEdited || chosenBase}
           <p class="small">
@@ -1471,6 +1557,8 @@
   .added canvas { display: block; image-rendering: pixelated; }
   .added .tile-pick { padding: 0; line-height: 0; border: 1px solid var(--border); }
   .added .remove { font-size: 0.7rem; padding: 0 0.3rem; line-height: 1.3; }
+  .tiled { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
+  .tiled button { font-size: 0.8rem; padding: 0.15rem 0.5rem; }
   .palettes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
   .palette-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem 0.4rem; }
   .palette-choice.active { border-color: var(--accent); background: var(--accent-soft); }

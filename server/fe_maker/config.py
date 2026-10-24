@@ -37,6 +37,24 @@ def default_projects_dir() -> Path:
     return Path.home() / "FE Maker Projects"
 
 
+TILED_CANDIDATES = [
+    r"C:\Program Files\Tiled	iled.exe",
+    r"C:\Program Files (x86)\Tiled	iled.exe",
+    "/Applications/Tiled.app/Contents/MacOS/Tiled",
+    "/usr/bin/tiled",
+]
+
+
+def find_tiled() -> str | None:
+    """The Tiled map editor, if installed (ticket 25)."""
+    found = shutil.which("tiled")
+    if found:
+        return found
+    local = os.environ.get("LOCALAPPDATA")
+    candidates = TILED_CANDIDATES + ([str(Path(local) / "Programs" / "Tiled" / "tiled.exe")] if local else [])
+    return next((c for c in candidates if Path(c).exists()), None)
+
+
 def find_mgba() -> str | None:
     for name in ("mgba-qt", "mGBA", "mgba"):
         found = shutil.which(name)

@@ -1,7 +1,7 @@
 import { getContext, setContext, untrack } from 'svelte'
 
 /** Editor tabs that can show a record. */
-export type NavKind = 'characters' | 'classes' | 'items' | 'combat' | 'chapters' | 'maps' | 'dialogues'
+export type NavKind = 'characters' | 'classes' | 'items' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'flow'
 
 /** A request to show a record; `n` changes on every request so the same target can be reopened. */
 export interface Focus {

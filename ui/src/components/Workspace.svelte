@@ -8,6 +8,7 @@
   import type { ChaptersData, DialoguesData, MapsData, Character, ClassData, ClassView, Combat, Item, Problem, ProjectInfo, Reference } from '../lib/types'
   import BuildPanel from './BuildPanel.svelte'
   import ChapterEditor from './ChapterEditor.svelte'
+  import ChapterFlow from './ChapterFlow.svelte'
   import CharacterEditor from './CharacterEditor.svelte'
   import ClassEditor from './ClassEditor.svelte'
   import DialogueEditor from './DialogueEditor.svelte'
@@ -20,7 +21,7 @@
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
   type Tab = NavKind
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'maps', 'dialogues']
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'flow', 'maps', 'dialogues']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -93,7 +94,8 @@
   const errors = $derived(problems.filter((p) => p.severity === 'error'))
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
   const saving = $derived(allLists.some((l) => l.saving))
-  const active = $derived(lists[tab])
+  // the story flow edits the dialogues' scripts: its undo is theirs
+  const active = $derived(lists[tab === 'flow' ? 'dialogues' : tab])
 
   onMount(async () => {
     const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts] = await Promise.all([
@@ -226,6 +228,8 @@
     <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
+  {:else if tab === 'flow'}
+    <ChapterFlow list={lists.dialogues} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else}

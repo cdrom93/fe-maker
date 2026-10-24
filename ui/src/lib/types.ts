@@ -511,3 +511,30 @@ export interface PortraitInfo {
   /** a portrait the project adds, after the game's ones */
   added: boolean
 }
+
+/** A command of a chapter's script that starts another chapter (server: decomp/story.py, ticket 31). */
+export interface ChapterLink {
+  script: string
+  /** the script is the chapter's ending scene */
+  ending: boolean
+  /** index of the command in the script */
+  at: number
+  op: string
+  kind: 'worldMap' | 'direct' | 'noSave' | 'ending' | 'title'
+  /** chapter index, null for the game's ending or the title screen */
+  to: number | null
+}
+
+export interface ChapterLinks {
+  /** by chapter index */
+  links: ChapterLink[][]
+  kinds: Record<string, ChapterLink['kind']>
+  toChapter: string[]
+}
+
+/** A map read from a .tmx (server: decomp/tiled.py, ticket 25). */
+export interface TiledMap {
+  rows: number[][]
+  changes: (MapChange & { name: string })[]
+  properties: Record<string, string>
+}

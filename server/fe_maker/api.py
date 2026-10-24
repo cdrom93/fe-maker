@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import dataclasses
 import os
+import subprocess
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -12,12 +14,13 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from PIL import Image
 from pydantic import BaseModel
 
 from . import emulator, ferepo
 from .builder import BuildError
-from .config import Settings, default_projects_dir
-from .decomp import convoy, dialogues, events, fonts, mapobjects, maps, portraits, quotes, supports, tileedit, units
+from .config import Settings, default_projects_dir, find_tiled
+from .decomp import convoy, dialogues, events, fonts, mapobjects, maps, portraits, quotes, story, supports, tiled, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
@@ -259,6 +262,14 @@ def list_chapters():
     return result
 
 
+@app.get("/api/chapters/links")
+def chapter_links():
+    """For each chapter (by index), the event commands that start another chapter (story.py), the
+    project's edited scripts included: the graph of how chapters follow each other (ticket 31)."""
+    edited = state.project.load("dialogues").get("scripts", {}) if state.project else {}
+    return {"links": state.get_decomp().chapter_links(edited), "kinds": story.CHANGE_OPS, "toChapter": list(story.TO_CHAPTER)}
+
+
 @app.get("/api/chapters/{index}/map.png")
 def chapter_map(index: int, fog: bool = False):
     """The chapter's map as painted in the project (the original one if never painted)."""
@@ -442,6 +453,84 @@ def map_tileset(layout_id: str, palette: str | None = None, base: str | None = N
     _layout(layout_id)
     png = maps.render_tileset(maps.layout_assets(DECOMP_DIR, layout_id, base, palette))
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+class TiledExportIn(BaseModel):
+    rows: list[list[int]]
+    changes: list[dict] | None = None   # None: the original change set
+    edits: dict | None = None           # tiles the project added to the tileset
+    palette: str | None = None
+    base: str | None = None
+
+
+def _tiled_file(layout_id: str) -> Path:
+    if not state.project:
+        raise HTTPException(409, "noProject")
+    return state.project.root / "tiled" / f"{layout_id}.tmx"
+
+
+@app.post("/api/maps/{layout_id}/tiled")
+def export_tiled(layout_id: str, body: TiledExportIn):
+    """The map as painted, written for Tiled in the project's tiled/ folder (ticket 25), and Tiled opened
+    on it when installed. The editor reads it back with GET."""
+    layout = _layout(layout_id)
+    target = _tiled_file(layout_id)
+    assets = maps.layout_assets(DECOMP_DIR, layout_id, body.base, body.palette)
+    changes = body.changes
+    if changes is None:
+        changes = maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else []
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            if body.edits:
+                palette = assets.palette
+                assets = dataclasses.replace(
+                    tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.edits).edited_assets(Path(folder)),
+                    palette=palette)
+            png = maps.render_tileset(assets)
+    except tileedit.TileEditError as e:
+        raise HTTPException(409, str(e)) from e
+    target.parent.mkdir(parents=True, exist_ok=True)
+    sheet = target.with_name(f"{layout_id}-tiles.png")
+    sheet.write_bytes(png)
+    with Image.open(sheet) as img:
+        size = img.size
+    target.write_text(tiled.write_tmx(body.rows, changes, sheet.name, size, maps.TILESET_COLUMNS,
+                                      {"TileConfig": assets.config.stem}), encoding="utf-8")
+    program = find_tiled()
+    if program:
+        # detached, like mGBA: closing FE Maker leaves Tiled open
+        detach = ({"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+                  if sys.platform == "win32" else {"start_new_session": True})
+        subprocess.Popen([program, str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         stdin=subprocess.DEVNULL, **detach)
+    return {"path": str(target), "launched": bool(program), "modified": target.stat().st_mtime}
+
+
+@app.get("/api/maps/{layout_id}/tiled")
+def import_tiled(layout_id: str):
+    """The map and changes of the project's tiled/<layout>.tmx, as saved in Tiled."""
+    _layout(layout_id)
+    target = _tiled_file(layout_id)
+    if not target.is_file():
+        raise HTTPException(404, "noTiledFile")
+    try:
+        return {**tiled.read_tmx(target.read_text(encoding="utf-8")), "modified": target.stat().st_mtime}
+    except tiled.TiledError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+class TmxIn(BaseModel):
+    text: str
+
+
+@app.post("/api/maps/{layout_id}/tiled/read")
+def read_tiled(layout_id: str, body: TmxIn):
+    """A .tmx chosen by the user (made in Tiled, or from FE-Repo): its map and changes."""
+    _layout(layout_id)
+    try:
+        return tiled.read_tmx(body.text)
+    except tiled.TiledError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 class ConvertIn(BaseModel):
