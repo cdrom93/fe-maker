@@ -1,7 +1,7 @@
 <script lang="ts">
   import { itemIconUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import Mention from './Mention.svelte'
@@ -32,7 +32,7 @@
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field || x.field.startsWith(field + '.'))
-    return p ? t(`problem.${p.code}`, p.params) : ''
+    return p ? problemText(p) : ''
   }
 
   function edit(change: (i: Item) => void) {
@@ -139,7 +139,7 @@
 
       {#if mine.length}
         <section class="panel issues">
-          {#each mine as p, i (i)}<p class={p.severity}>{p.field}: {t(`problem.${p.code}`, p.params)}</p>{/each}
+          {#each mine as p, i (i)}<p class={p.severity}>{p.field}: {problemText(p)}</p>{/each}
         </section>
       {/if}
     </div>

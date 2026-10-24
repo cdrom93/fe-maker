@@ -65,6 +65,8 @@ Docs are written in French (README in French and English); code and comments in 
 - The game takes the first matching entry of its quote tables (`GetBattleQuoteEntry`, `GetDefeatTalkEntry`): a new entry must go before the game's entries it would lose to (`quotes._battle_position`). Supports: the "Support" command appears only when the points sit exactly at 80 / 160 / 240; a pair starting at 81+ skips its C conversation (`supports.skipped_levels`).
 - Test builds' simplified prologue skips the scene that gives Eirika the Rapier: she has no weapon unless the project gives her one (story-tied, left as is; told the user 24/10/2026).
 - In playtests, wait for animations before reading the screen (`press` waits 20 frames; a move takes ~40), pick menu entries by their position (menus differ with the situation: Attack only when an enemy is in range), and remember Canto (Seth can move again after an action).
+- Show validation problems with `problemText(p)` (`ui/src/lib/i18n.svelte.ts`), not `t('problem.' + code)`: it turns `terrain`, `object` and `wtype` parameters into names.
+- `validation.weapon_problem` mirrors `CanUnitUseWeapon`; unusable weapons are reported only when the project changed something (`_validate_unit_weapons`), on the edited unit or once on the changed sheet.
 - `assets.portrait_names` (and other readers) are `lru_cache`d: copy the list before adding to it (`list(...)`), or every later call sees the additions.
 - Svelte `$derived` lists already hold a record right after `list.update` adds it: take its index before saving ("Add a change" opened nothing because of this).
 - Text byte counts (padding to even runs) use `texts.text_size`: an accented letter is one byte in the game, not its UTF-8 length.

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EditableList } from '../lib/history.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassView, Combat, Item, Problem, Reference } from '../lib/types'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -154,7 +154,7 @@
 
     {#if mine.length}
       <section class="panel issues">
-        {#each mine as p, i (i)}<p class={p.severity}>{p.id} {p.field}: {t(`problem.${p.code}`, p.params)}</p>{/each}
+        {#each mine as p, i (i)}<p class={p.severity}>{p.id} {p.field}: {problemText(p)}</p>{/each}
       </section>
     {/if}
   </div>

@@ -21,6 +21,7 @@ from .decomp.gamedata import (
     GROWTHS,
     PROMO_STATS,
     RANK_VALUES,
+    RANKABLE_TYPES,
     STATS,
     WEAPON_TYPES,
     DecompData,
@@ -180,6 +181,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         _validate_combat(problems, combat, class_ids, weapon_types)
     if chapters is not None:
         _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items})
+        _validate_unit_weapons(problems, decomp, chapters, characters,
+                               classes if classes is not None else decomp.export_classes(), items)
     if maps is not None:
         _validate_maps(problems, maps, decomp.decomp_dir)
         if chapters is not None:
@@ -515,6 +518,95 @@ def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, ch
                                                 {"map": layout_id, "chapter": index},
                                                 f"chapter {index}: tile to seize outside the map"))
 
+
+
+def _rank_value(rank) -> int:
+    if isinstance(rank, str):
+        return RANK_VALUES.get(rank, 0)
+    return rank if isinstance(rank, int) else 0
+
+
+def weapon_problem(item: dict, character: dict | None, cls: dict | None) -> tuple[str, dict] | None:
+    """Why a unit (its character and class) cannot use a weapon or staff it carries, as CanUnitUseWeapon
+    (src/bmitem.c) decides: reserved for other classes or characters (weapon locks), a monster weapon,
+    or a weapon rank too low (the character's rank for the type, else its class's). None: it can."""
+    wtype = item.get("weaponType")
+    if wtype not in RANKABLE_TYPES and not item.get("monsterWeapon"):
+        return None   # not a weapon or a staff
+    char_id = character["id"] if character else ""
+    class_id = cls["id"] if cls else ""
+    abilities = set((character or {}).get("abilities", [])) | set((cls or {}).get("abilities", []))
+    if item.get("monsterWeapon"):
+        return None if "lock3" in abilities else ("weaponReserved", {})
+    res = item.get("reservedFor") or {}
+    if (res.get("classes") or res.get("characters")) and class_id not in res.get("classes", []) \
+            and char_id not in res.get("characters", []):
+        return ("weaponReserved", {})
+    need = _rank_value(item.get("weaponRank"))
+    have = _rank_value((character or {}).get("weaponRanks", {}).get(wtype)) \
+        or _rank_value((cls or {}).get("weaponRanks", {}).get(wtype))
+    if have < need:
+        rank = next((r for r, v in RANK_VALUES.items() if v == need), str(need))
+        return ("weaponRank", {"rank": rank, "wtype": wtype})
+    return None
+
+
+def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[dict], classes: list[dict], items: list[dict]):
+    """Weapons that units of the chapters carry but cannot use. Only what the project changed is
+    reported (a unit edited, or a character, class or item that changed): the original game gives
+    enemies weapons they only drop."""
+    try:
+        original_groups = units.read_unit_groups(decomp.decomp_dir)
+    except FileNotFoundError:
+        return
+    edited = chapters.get("unitGroups", {})
+
+    def unusable(groups, chars, class_list, item_list):
+        by_char = {c["id"]: c for c in chars}
+        by_class = {c["id"]: c for c in class_list}
+        by_item = {i["id"]: i for i in item_list}
+        found = {}
+        for name, unit_list in groups.items():
+            for n, u in enumerate(unit_list):
+                character = by_char.get(str(u.get("character", "")))
+                named = character and str(u.get("character", "")).startswith("CHARACTER_")
+                class_id = character["class"] if named else u.get("class")
+                for item_id in u.get("items", []):
+                    item = by_item.get(item_id)
+                    why = item and weapon_problem(item, character, by_class.get(class_id))
+                    if why:
+                        found[(name, n, item_id)] = (u.get("character"), why)
+        return found
+
+    current = {name: edited.get(name, g.units) for name, g in original_groups.items()}
+    current.update({name: unit_list for name, unit_list in edited.items() if name not in current})
+    original_items = {i["id"]: i for i in decomp.export_items()}
+    before = unusable({name: g.units for name, g in original_groups.items()}, decomp.export_characters(),
+                      decomp.export_classes(), list(original_items.values()))
+    known = {(name, char, item) for (name, _n, item), (char, _why) in before.items()}
+    names = {i["id"]: i.get("name") or i["id"] for i in items}
+    # Units of edited groups get their own warning; the others changed through a character, class or
+    # item sheet: one warning there for all of them (the item when it changed, else the named character).
+    changed_items = {i["id"] for i in items if original_items.get(i["id"]) != i}
+    carried: dict[tuple, int] = {}
+    for (name, n, item_id), (char, (code, params)) in unusable(current, characters, classes, items).items():
+        if (name, char, item_id) in known:
+            continue
+        if name in edited:
+            rid = f"{name}#{n}"
+            problems.append(Problem("warning", "chapters", rid, "items", code, {"item": names.get(item_id, item_id), **params},
+                                    f"{rid}: cannot use {item_id}"))
+            continue
+        if str(char).startswith("CHARACTER_") and item_id not in changed_items:
+            key = ("characters", char, "class")
+        else:
+            key = ("items", item_id, "weaponRank" if code == "weaponRank" else "reservedFor")
+        key = key + (item_id, code, tuple(sorted(params.items())))
+        carried[key] = carried.get(key, 0) + 1
+    for (kind, rid, field_name, item_id, code, params), count in carried.items():
+        problems.append(Problem("warning", kind, rid, field_name, "carried" + code[len("weapon"):],
+                                {"item": names.get(item_id, item_id), "count": count, **dict(params)},
+                                f"{rid}: {count} units carry {item_id} and cannot use it"))
 
 
 def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=frozenset()):

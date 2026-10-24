@@ -1,7 +1,7 @@
 <script lang="ts">
   import { portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
-  import { t } from '../lib/i18n.svelte'
+  import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassStatKey, ClassView, Item, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
@@ -44,7 +44,7 @@
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field)
-    return p ? t(`problem.${p.code}`, p.params) : ''
+    return p ? problemText(p) : ''
   }
 
   function edit(change: (c: Character) => void) {
@@ -89,6 +89,7 @@
               <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
+          {#each mine.filter((p) => p.field === 'class') as p, i (i)}<p class="{p.severity} small">{problemText(p)}</p>{/each}
           <p class="muted small">{t('field.classHint')}</p>
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
@@ -200,7 +201,7 @@
       {#if mine.length}
         <section class="panel issues">
           {#each mine as p, i (i)}
-            <p class={p.severity}>{p.field}: {t(`problem.${p.code}`, p.params)}</p>
+            <p class={p.severity}>{p.field}: {problemText(p)}</p>
           {/each}
         </section>
       {/if}

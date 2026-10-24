@@ -22,10 +22,11 @@ export function t(key: string, params: Record<string, string | number> = {}): st
   return text.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`))
 }
 
-/** Text of a validation problem. A `terrain` parameter is a terrain id, shown by its name. */
+/** Text of a validation problem. `terrain` (a terrain id), `object` and `wtype` parameters are shown by their name. */
 export function problemText(p: { code: string; params: Record<string, string | number> }): string {
   const params = { ...p.params }
   if (typeof params.terrain === 'number') params.terrain = t(`terrain.${params.terrain}`)
   if (typeof params.object === 'string') params.object = t(`maps.kind.${params.object}`)
+  if (typeof params.wtype === 'string') params.wtype = t(`wtype.${params.wtype}`)
   return t(`problem.${p.code}`, params)
 }

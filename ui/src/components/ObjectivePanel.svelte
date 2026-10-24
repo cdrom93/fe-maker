@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../lib/i18n.svelte'
+  import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, Objective, ObjectiveEdit, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
@@ -120,7 +120,7 @@
       </div>
     {:else if objective.type === 'defense'}
       <div class="row">
-        <NumberField label={t('objective.turns')} value={objective.turns} min={1} max={99} problem={problemFor('turns') ? t(`problem.${problemFor('turns')!.code}`, problemFor('turns')!.params) : ''} onchange={(v) => onchange({ turns: v })} />
+        <NumberField label={t('objective.turns')} value={objective.turns} min={1} max={99} problem={problemFor('turns') ? problemText(problemFor('turns')!) : ''} onchange={(v) => onchange({ turns: v })} />
         <label class="inline" title={t('objective.orBossHint')}>
           <input type="checkbox" checked={!!objective.orBoss} onchange={(e) => onchange({ orBoss: (e.target as HTMLInputElement).checked })} />
           {t('objective.orBoss')}
@@ -152,7 +152,7 @@
       <span>{t('objective.statusText')}</span>
       <textarea rows="2" value={objective.statusText} onchange={(e) => onchange({ statusText: (e.target as HTMLTextAreaElement).value })}></textarea>
     </label>
-    {#if problemFor('statusText')}{@const p = problemFor('statusText')!}<p class="{p.severity === 'error' ? 'bad' : 'warn'} small">{t(`problem.${p.code}`, p.params)}</p>{/if}
+    {#if problemFor('statusText')}{@const p = problemFor('statusText')!}<p class="{p.severity === 'error' ? 'bad' : 'warn'} small">{problemText(p)}</p>{/if}
     {#if objective.statusShared}<p class="warn small">{t('objective.statusShared', { n: objective.statusShared })}</p>{/if}
   {/if}
   {#if objective.editable && objective.eventsShared}<p class="warn small">{t('objective.eventsShared', { n: objective.eventsShared })}</p>{/if}

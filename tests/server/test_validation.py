@@ -127,3 +127,33 @@ def test_map_changes_are_checked(decomp_dir):
     _validate_maps(problems, {"layouts": {"M": {"rows": good}}, "changes": {"M": [
         change, dict(change, x=14, w=2, rows=[[3, 3]]), dict(change, id=1, rows=[[3], [3]])]}})
     assert [p.code for p in problems] == ["badChangeId", "changeOutOfMap", "badLayout"]
+
+
+def test_weapon_a_unit_cannot_use():
+    from fe_maker.validation import weapon_problem
+
+    blade = {"weaponType": "sword", "weaponRank": "D", "reservedFor": {"characters": [], "classes": ["CLASS_LORD"]}}
+    lord = {"id": "CLASS_LORD", "weaponRanks": {"sword": "E"}, "abilities": []}
+    hero = {"id": "CHARACTER_HERO", "weaponRanks": {"sword": "D"}, "abilities": []}
+    assert weapon_problem(blade, hero, lord) is None
+    assert weapon_problem(blade, hero, {"id": "CLASS_KNIGHT", "weaponRanks": {"sword": "A"}}) == ("weaponReserved", {})
+    assert weapon_problem(blade, None, lord) == ("weaponRank", {"rank": "D", "wtype": "sword"})   # class rank only
+    assert weapon_problem({"weaponType": "item", "weaponRank": 0}, None, None) is None
+    claw = {"weaponType": "monster", "weaponRank": 0, "monsterWeapon": True}
+    assert weapon_problem(claw, None, {"id": "CLASS_MOGALL", "abilities": ["lock3"]}) is None
+    assert weapon_problem(claw, hero, lord) == ("weaponReserved", {})
+
+
+def test_unusable_weapons_of_units(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars, items = d.export_characters(), d.export_items()
+    groups = {"UnitDef_TestChapter": [
+        {"character": "CHARACTER_TESTHERO", "class": "CLASS_TESTLORD", "items": ["ITEM_TESTBLADE"], "endX": 1, "endY": 1},
+        {"character": "CHARACTER_TESTRIVAL", "class": "CLASS_TESTKNIGHT", "items": ["ITEM_TESTBLADE"], "endX": 2, "endY": 1}]}
+    chapters = {"unitGroups": groups, "objectives": {}}
+    found = {(p.id, p.code) for p in validate(chars, items, d, chapters=chapters)}
+    assert ("UnitDef_TestChapter#1", "weaponReserved") in found and ("UnitDef_TestChapter#0", "weaponReserved") not in found
+    # The class of a named character comes from its sheet: a class change there makes the blade unusable.
+    next(c for c in chars if c["id"] == "CHARACTER_TESTHERO")["class"] = "CLASS_TESTKNIGHT"
+    found = {(p.id, p.code) for p in validate(chars, items, d, chapters=chapters)}
+    assert ("UnitDef_TestChapter#0", "weaponReserved") in found
