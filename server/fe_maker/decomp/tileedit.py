@@ -32,6 +32,7 @@ FLIP_H = 0x400
 FLIP_V = 0x800
 ANIMATED_TILES = range(0x100, 0x180)
 OPS = ("h", "v", "180", "cw", "ccw")
+SIMILAR_MAX_DIFF = 256 * 40 // 100   # pixels of a metatile that may differ from a similar one of the game
 
 
 class TileEditError(Exception):
@@ -85,6 +86,7 @@ class Tileset:
             self.terrain[int(slot)] = m["terrain"]
         self.duplicates = maps.duplicate_metatiles(self.assets)
         self.used = self._used_metatiles(painted or {})
+        self._pictures: dict[tuple[tuple[int, ...], int], int] | None = None
 
     @property
     def name(self) -> str:
@@ -166,8 +168,59 @@ class Tileset:
         self.used.add(slot)
         return slot
 
+    def _picture(self, entries: list[int]) -> tuple[int, ...]:
+        """16 x 16 colors of a metatile (palette * 16 + color; color 0 is the backdrop, whatever the palette)."""
+        quarters = [[p | (e >> 12) << 4 if p else 0 for p in self._entry_pixels(e)] for e in entries]
+        return tuple(quarters[(y // 8) * 2 + x // 8][(y % 8) * 8 + x % 8] for y in range(16) for x in range(16))
+
+    def _shown_pictures(self) -> dict[tuple[tuple[int, ...], int], int]:
+        """(picture, terrain) -> first shown metatile with it (the tileset's own tiles, before any copy)."""
+        if self._pictures is None:
+            self._pictures = {}
+            for n, entries in enumerate(self.metatiles):
+                if not self.duplicates[n] or str(n) in self.edits["metatiles"]:
+                    self._pictures.setdefault((self._picture(entries), self.terrain[n]), n)
+        return self._pictures
+
     def transform_metatile(self, m: int, op: str) -> int:
-        return self._metatile(self._transformed_entries(m, op), self.terrain[m])
+        """The metatile mirrored or turned. A metatile of the tileset already showing that picture with
+        the same terrain is used as it is (the game's tilesets often have their turned bridges, roads...)."""
+        if op not in OPS:
+            raise TileEditError(f"Unknown transform {op}")
+        pic = self._picture(self.metatiles[m])
+        grid = [pic[y * 16:(y + 1) * 16] for y in range(16)]
+        if op == "h":
+            grid = [row[::-1] for row in grid]
+        elif op == "v":
+            grid = grid[::-1]
+        elif op == "180":
+            grid = [row[::-1] for row in grid[::-1]]
+        elif op == "cw":
+            grid = [tuple(grid[15 - x][y] for x in range(16)) for y in range(16)]
+        else:
+            grid = [tuple(grid[x][15 - y] for x in range(16)) for y in range(16)]
+        found = self._shown_pictures().get((tuple(p for row in grid for p in row), self.terrain[m]))
+        if found is not None:
+            return found
+        slot = self._metatile(self._transformed_entries(m, op), self.terrain[m])
+        self._shown_pictures().setdefault((self._picture(self.metatiles[slot]), self.terrain[slot]), slot)
+        return slot
+
+    def similar_original(self, m: int) -> int | None:
+        """The tileset's own metatile closest to an added one, with the same terrain, when they look alike
+        (the game draws its turned bridges and roads again, with the light from the same side: a turned
+        copy differs from them by about a third of its pixels)."""
+        if str(m) not in self.edits["metatiles"]:
+            return None
+        pic = self._picture(self.metatiles[m])
+        best, best_diff = None, SIMILAR_MAX_DIFF + 1
+        for (other, terrain), n in self._shown_pictures().items():
+            if terrain != self.terrain[m] or str(n) in self.edits["metatiles"]:
+                continue
+            diff = sum(a != b for a, b in zip(pic, other))
+            if diff < best_diff:
+                best, best_diff = n, diff
+        return best
 
     def with_terrain(self, rows: list[list[int]], terrain: int) -> list[list[int]]:
         """The same tiles with another terrain (copies in free slots: the other maps keep theirs)."""

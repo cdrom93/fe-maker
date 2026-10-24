@@ -86,3 +86,39 @@ def test_copy_with_another_terrain(tmp_path, monkeypatch):
     assert ts.terrain[1] == 0x0C                       # the original tile keeps its terrain
     assert ts.with_terrain([[1]], 0x15) == [[copy]]    # done once
     assert ts.with_terrain([[1]], 0x0C) == [[1]]       # same terrain: the tile itself
+
+
+def test_existing_turned_metatile_is_reused(tmp_path, monkeypatch):
+    """Ticket 18: the tileset already has the mirrored picture, drawn with another tile."""
+    _tileset(tmp_path, monkeypatch)
+    image = Image.open(tmp_path / "ObjectType1.png")
+    image.putpixel((16 + 7, 0), 255 - 17 * 5)       # tile 2, pixel (7, 0) = color 5
+    image.save(tmp_path / "ObjectType1.png")
+    config = bytearray((tmp_path / "TileConfiguration1.bin").read_bytes())
+    struct.pack_into("<4H", config, 16, 0, 2, 0, 0)  # metatile 2: tile 2 top-right
+    config[0x2000 + 2] = 0x0C
+    (tmp_path / "TileConfiguration1.bin").write_bytes(bytes(config))
+    ts = tileedit.Tileset(tmp_path, "Map", None)
+    assert ts.transform_block([[1]], "h") == [[2]] and ts.edits["metatiles"] == {}
+    # Another terrain is another metatile.
+    ts.terrain[2] = 0x01
+    ts._pictures = None
+    assert ts.transform_block([[1]], "h") != [[2]]
+
+
+def test_similar_tile_of_the_game_is_offered(tmp_path, monkeypatch):
+    """Ticket 18: the game draws its turned tiles again (light from the same side): a near copy is offered."""
+    _tileset(tmp_path, monkeypatch)
+    image = Image.open(tmp_path / "ObjectType1.png")
+    image.putpixel((16 + 7, 0), 255 - 17 * 5)       # tile 2: the mirrored pixel, and one more
+    image.putpixel((16 + 6, 0), 255 - 17 * 6)
+    image.save(tmp_path / "ObjectType1.png")
+    config = bytearray((tmp_path / "TileConfiguration1.bin").read_bytes())
+    struct.pack_into("<4H", config, 16, 0, 2, 0, 0)
+    config[0x2000 + 2] = 0x0C
+    (tmp_path / "TileConfiguration1.bin").write_bytes(bytes(config))
+    ts = tileedit.Tileset(tmp_path, "Map", None)
+    [[h]] = ts.transform_block([[1]], "h")
+    assert h != 2 and str(h) in ts.edits["metatiles"]
+    assert ts.similar_original(h) == 2
+    assert ts.similar_original(1) is None          # only added metatiles get an offer

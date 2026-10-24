@@ -59,7 +59,7 @@ export const api = {
   mapTileset: (id: string, edits: TilesetEdits) =>
     request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits }),
   transformTiles: (id: string, body: { rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts'] }) =>
-    request<{ rows: number[][]; edits: TilesetEdits; tileset: string }>('POST', `/api/maps/${id}/transform`, body),
+    request<{ rows: number[][]; edits: TilesetEdits; tileset: string; similar: number[][] | null }>('POST', `/api/maps/${id}/transform`, body),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),

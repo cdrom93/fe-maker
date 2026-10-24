@@ -73,6 +73,8 @@
   let baseLayout = $state<MapLayout | null>(null)
   let baseSheet = $state<HTMLImageElement | null>(null)
   let transformError = $state('')
+  /** After a mirror or turn: the game's own tiles drawn that way (ticket 18), offered instead of the new ones. */
+  let similarOffer = $state<{ id: string; tileset: string; rows: number[][]; previous: TilesetEdits | null; all: boolean } | null>(null)
   let tool = $state<Tool>('pen')
   /** What the tools paint: one tile, or a block taken from the palette or the map (right-drag). */
   let stamp = $state<number[][]>([[0]])
@@ -199,6 +201,8 @@
     const id = info.id
     const tileset = baseLayout.tileset
     transformError = ''
+    similarOffer = null
+    const previous = tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null
     try {
       const r = await api.transformTiles(id, {
         rows: $state.snapshot(stamp) as number[][], op, terrain, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
@@ -213,9 +217,28 @@
       }
       stamp = r.rows
       palettePicked = null
+      if (r.similar) {
+        const added = new Set(Object.keys(r.edits.metatiles).filter((k) => !(k in (previous?.metatiles ?? {}))))
+        similarOffer = { id, tileset, rows: r.similar, previous, all: !r.similar.flat().some((m) => added.has(String(m))) }
+      }
     } catch (e) {
       transformError = e instanceof ApiError ? t(`maps.transformError.${e.detail}`) : String(e)
     }
+  }
+
+  /** Paint with the game's own tiles instead of the new ones (removed from the tileset when none is left). */
+  function useSimilar() {
+    const offer = similarOffer
+    if (!offer || maps[selected]?.id !== offer.id) return
+    if (offer.all) {
+      list.update(0, (d) => {
+        d.tilesets ??= {}
+        if (offer.previous) d.tilesets[offer.tileset] = offer.previous
+        else delete d.tilesets[offer.tileset]
+      })
+    }
+    stamp = offer.rows
+    similarOffer = null
   }
 
   // Objects of the map and what the build does for them, asked again after each edit.
@@ -945,6 +968,16 @@
                 {#each ALL_TERRAIN_IDS as id (id)}<option value={id}>{terrainName(id)}</option>{/each}
               </select>
             </label>
+            {#if similarOffer && sheet}
+              <div class="similar">
+                <span class="small">{t('maps.similarFound')}</span>
+                <span class="similar-tiles">
+                  {#each similarOffer.rows.flat().slice(0, 8) as m, k (k)}<canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m, sheet, layout }}></canvas>{/each}
+                </span>
+                <button onclick={useSimilar}>{t('maps.useSimilar')}</button>
+                <button class="link" onclick={() => (similarOffer = null)}>{t('maps.keepTurned')}</button>
+              </div>
+            {/if}
             {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny">{t('maps.transformHint')}</p>{/if}
             <label>
               <span>{t('maps.terrainFilter')}</span>
@@ -1164,4 +1197,7 @@
   .palette-scroll canvas { display: block; cursor: pointer; image-rendering: pixelated; }
   @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
+  .similar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.4rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); }
+  .similar-tiles { display: flex; gap: 2px; }
+  .similar-tiles canvas { image-rendering: pixelated; }
 </style>

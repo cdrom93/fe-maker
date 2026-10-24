@@ -360,13 +360,19 @@ def transform_tiles(layout_id: str, body: TransformIn):
     _layout(layout_id)
     try:
         tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits, body.painted)
+        before = set(tileset.edits["metatiles"])
         if body.op == "terrain":
             rows = tileset.with_terrain(body.rows, body.terrain)
+            similar = None
         else:
             rows = tileset.transform_block(body.rows, body.op)
+            # Tiles the game already draws that way (ticket 18): the editor offers them instead.
+            found = {m: tileset.similar_original(m) for row in rows for m in row if str(m) not in before}
+            similar = [[found[m] if found.get(m) is not None else m for m in row] for row in rows] \
+                if any(v is not None for v in found.values()) else None
     except tileedit.TileEditError as e:
         raise HTTPException(409, str(e)) from e
-    return {"rows": rows, "edits": tileset.edits, "tileset": tileset.name}
+    return {"rows": rows, "edits": tileset.edits, "tileset": tileset.name, "similar": similar}
 
 
 @app.get("/api/maps/{layout_id}/tileset.png")
