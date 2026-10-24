@@ -151,6 +151,7 @@ fe-maker/
 - Produire `docs/audit-decomp.md` avec les résultats.
 - Créer l'image Docker de compilation et vérifier qu'elle fonctionne sous Windows (Docker Desktop / WSL2).
 - Vérifier qu'une **modification triviale** (changer une stat de base dans la décomp) compile et apparaît en jeu.
+- Ajouté le 24/10/2026 : **tests en jeu automatiques, sans fenêtre**. mGBA tourne dans une seconde image Docker (`docker/playtest`), piloté par FE Maker (`server/fe_maker/playtest.py`) : touches tenues pendant N images, lecture et écriture de la mémoire par nom de symbole (carte `fireemblem8.map` copiée à la compilation), capture d'écran. Le jeu tourne environ 100 fois plus vite que le temps réel. Preuve : `tests/local/test_playtest.py` compile un projet où Eirika a 20 PV de base et vérifie ses PV sur la carte du prologue. Idée reprise du fork de FEBuilderGBA par laqieer. Remplace à terme le pilotage de la fenêtre de mGBA par touches simulées (`tools/mgba-drive.ps1`). Reste : s'en servir pour vérifier les fonctions pas encore testées en jeu (convoi, villages, portes...).
 
 ### Phase 1 — POC : personnages et objets ✅ (validée en jeu le 18/10/2026)
 **Objectif : valider toute la chaîne de bout en bout sur les données les plus simples.**
@@ -247,6 +248,8 @@ Trois pistes à évaluer le moment venu :
   - une documentation précise de chaque table de données, et des corrections argumentées quand la documentation publiée se trompe ;
   - pour la phase 3 : comprendre et rendre éditable l'**IA des ennemis** de FE8.
 - [gba-recomp](https://github.com/JRickey/gba-recomp) et [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) : recompilation statique de jeux GBA en programmes natifs, piste principale pour la phase 7 (voir plus haut).
+- [Fork de FEBuilderGBA par laqieer](https://github.com/laqieer/FEBuilderGBA) (GPL-3.0, ajouté le 24/10/2026, archivé le 20/10/2026) : version multiplateforme, outils en ligne de commande, prise en charge de la décomp en aperçu, tests en jeu sans fenêtre (idée reprise, voir phase 0).
+- [« Getting Started » de FEUniverse](https://feuniverse.us/t/getting-started/10320) (ajouté le 24/10/2026) : index des tutoriels et de la documentation de FEBuilder.
 - [REA](https://github.com/morluto/rea) (MIT) : outil de rétro-ingénierie piloté par des agents IA (via MCP), qui s'appuie sur Ghidra, IDA ou Hopper. Utile au **développement** de FE Maker, par exemple pour comprendre les 6,7 % de données encore binaires ou un comportement du moteur. Ce n'est pas une dépendance du logiciel. Prudence : ses chiffres de popularité affichés sont inhabituels (plus de 336 000 étoiles pour un dépôt créé en avril 2026), et son propre README met en garde contre les copies non officielles. À n'installer qu'après vérification, depuis sa source officielle.
 
 ---

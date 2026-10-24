@@ -61,6 +61,7 @@ class BuildOutput:
     rom_path: Path
     patch_path: Path | None
     matches_original: bool
+    map_path: Path | None = None  # linker map of this build, for playtests
 
 
 class Project:
@@ -210,12 +211,12 @@ class Project:
         if for_test:
             game_rom = out_dir / "test.gba"
             result.rom_path.replace(game_rom)
-            return BuildOutput(game_rom, None, result.matches_original)
+            return BuildOutput(game_rom, None, result.matches_original, out_dir / "fireemblem8.map")
         game_rom = out_dir / f"{slugify(self.name)}.gba"
         result.rom_path.replace(game_rom)
         patch_path = out_dir / f"{slugify(self.name)}.ups"
         patch_path.write_bytes(ups.create(rom.read_bytes(), game_rom.read_bytes()))
-        return BuildOutput(game_rom, patch_path, result.matches_original)
+        return BuildOutput(game_rom, patch_path, result.matches_original, out_dir / "fireemblem8.map")
 
 
 def _write_json(path: Path, data) -> None:
