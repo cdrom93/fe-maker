@@ -307,7 +307,8 @@ def list_maps():
     for layout_id, layout in maps.layouts(DECOMP_DIR).items():
         width, height, _cells = maps.read_layout(layout["assets"].layout)
         result.append({"id": layout_id, "width": width, "height": height, "chapters": layout["chapters"],
-                       "tileset": maps.with_base(DECOMP_DIR, layout["assets"], _project_bases().get(layout_id)).config.stem})
+                       "tileset": maps.with_base(DECOMP_DIR, layout["assets"], _project_bases().get(layout_id)).config.stem,
+                       "originalTileset": layout["assets"].config.stem})
     return result
 
 

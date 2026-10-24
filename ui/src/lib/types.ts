@@ -171,6 +171,8 @@ export interface MapInfo {
   /** indices of the chapters that use it */
   chapters: number[]
   tileset: string
+  /** its own tile config (`tileset` is the sheet the project chose for it, if any) */
+  originalTileset: string
 }
 
 /** What the map editor needs about a layout and its tileset (GET /api/maps/{id}). */

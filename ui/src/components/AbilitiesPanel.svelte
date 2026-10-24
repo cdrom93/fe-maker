@@ -5,10 +5,13 @@
     abilities,
     fromClass,
     onchange,
+    convoy,
   }: {
     abilities: string[]
     fromClass: string[]
     onchange: (abilities: string[]) => void
+    /** character sheets: "Opens the convoy", shown next to the convoy carrier */
+    convoy?: { on: boolean; onchange: (on: boolean) => void }
   } = $props()
 
   // Common abilities, grouped by meaning. Weapon locks are not here: weapons are
@@ -51,7 +54,18 @@
     {#each GROUPS as [group, keys] (group)}
       <div>
         <h4>{t(`ability.group.${group}`)}</h4>
-        {#each keys as key (key)}{@render ability(key)}{/each}
+        {#each keys as key (key)}
+          {@render ability(key)}
+          {#if key === 'supply' && convoy}
+            <label class="ability">
+              <input type="checkbox" checked={convoy.on} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />
+              <span>
+                <span class="name">📦 {t('field.convoyAccess')}</span>
+                <span class="muted desc">{t('field.convoyAccessHint')}</span>
+              </span>
+            </label>
+          {/if}
+        {/each}
       </div>
     {/each}
   </div>

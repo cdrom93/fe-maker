@@ -109,13 +109,6 @@
             </label>
           </div>
           <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
-          <label class="check small" title={t('field.convoyAccessHint')}>
-            <input type="checkbox" checked={ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id)} onchange={(e) => {
-              const on = (e.target as HTMLInputElement).checked
-              edit((c) => (c.convoyAccess = on))
-            }} />
-            📦 {t('field.convoyAccess')}
-          </label>
           <details class="portrait-details">
             <summary>🖼 {ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
               ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })
@@ -196,6 +189,7 @@
         abilities={ch.abilities ?? []}
         fromClass={cls?.abilities ?? []}
         onchange={(abilities) => edit((c) => (c.abilities = abilities))}
+        convoy={{ on: ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.convoyAccess = on)) }}
       />
 
       {#if mine.length}
@@ -216,7 +210,6 @@
   .portrait { width: 96px; height: 96px; background: var(--panel-2); border-radius: var(--radius); flex-shrink: 0; }
   .mini { width: 32px; height: 32px; flex-shrink: 0; }
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
-  .check { flex-direction: row; align-items: center; gap: 0.4rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; }

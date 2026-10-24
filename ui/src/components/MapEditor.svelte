@@ -22,6 +22,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
+  import { addedTileUsage, keepUsed, withoutMetatiles } from '../lib/tileEdits'
   import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
   import Mention from './Mention.svelte'
   import ItemPicker from './ItemPicker.svelte'
@@ -74,8 +75,11 @@
   let baseLayout = $state<MapLayout | null>(null)
   let baseSheet = $state<HTMLImageElement | null>(null)
   let transformError = $state('')
-  /** After a mirror or turn: the game's own tiles drawn that way (ticket 18), offered instead of the new ones. */
-  let similarOffer = $state<{ id: string; tileset: string; rows: number[][]; previous: TilesetEdits | null; all: boolean } | null>(null)
+  /** Tiles a mirror or turn would add to the tileset (ticket 22): shown on the brush, created only once
+   *  the user says so. `similar`: the game's own tiles drawn that way (ticket 18), offered instead. */
+  let pendingTiles = $state<{ id: string; tileset: string; edits: TilesetEdits; rows: number[][]; similar: number[][] | null; before: number[][] } | null>(null)
+  /** painting was tried while new tiles wait for an answer */
+  let pendingNudge = $state(false)
   let tool = $state<Tool>('pen')
   /** What the tools paint: one tile, or a block taken from the palette or the map (right-drag). */
   let stamp = $state<number[][]>([[0]])
@@ -107,6 +111,9 @@
   // saved as one undo step when the mouse is released.
   let draft = $state<number[][] | null>(null)
   let rectStart = $state<Cell | null>(null)
+  /** Drawing the rectangle of a map change with the mouse (ticket 23): a new one, or the edited one's. */
+  let areaMode = $state<'new' | 'edit' | null>(null)
+  let areaStart = $state<Cell | null>(null)
   let mapCanvas = $state<HTMLCanvasElement>()
   let paletteCanvas = $state<HTMLCanvasElement>()
 
@@ -187,7 +194,8 @@
   let tilesetRequest = 0
   $effect(() => {
     const base = baseLayout
-    const edits = tilesetEdits ? JSON.parse(JSON.stringify(tilesetEdits)) : null
+    const shown = pendingTiles && pendingTiles.id === info?.id ? pendingTiles.edits : tilesetEdits
+    const edits = shown ? JSON.parse(JSON.stringify(shown)) : null
     const palette = chosenPalette
     const tileSheet = chosenBase
     if (!info || !base) return
@@ -206,51 +214,92 @@
     }).catch(() => {})
   })
 
-  /** Mirror or turn the brush, or give it another terrain; new tiles are added to the tileset (undo removes them). */
+  /** Mirror or turn the brush, or give it another terrain. Tiles the tileset does not have yet wait for
+   *  the user's answer (ticket 22); turning them again works on the proposed ones. */
   async function transform(op: string, terrain = 0) {
     if (!info || !baseLayout) return
     const id = info.id
     const tileset = baseLayout.tileset
     transformError = ''
-    similarOffer = null
-    const previous = tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null
+    pendingNudge = false
+    const current = pendingTiles?.id === id ? pendingTiles : null
+    const before = current?.before ?? ($state.snapshot(stamp) as number[][])
     try {
+      const edits = current?.edits ?? tilesetEdits
       const r = await api.transformTiles(id, {
-        rows: $state.snapshot(stamp) as number[][], op, terrain, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
+        rows: $state.snapshot(stamp) as number[][], op, terrain, edits: edits ? (JSON.parse(JSON.stringify(edits)) as TilesetEdits) : null,
         painted: JSON.parse(JSON.stringify(list.records[0]?.layouts ?? {})),
         bases: JSON.parse(JSON.stringify(list.records[0]?.bases ?? {})),
       })
       if (maps[selected]?.id !== id) return
-      if (JSON.stringify(r.edits) !== JSON.stringify(tilesetEdits ?? { metatiles: {}, tiles: {} })) {
-        list.update(0, (d) => {
-          d.tilesets ??= {}
-          d.tilesets[tileset] = r.edits
-        })
-      }
       stamp = r.rows
       palettePicked = null
-      if (r.similar) {
-        const added = new Set(Object.keys(r.edits.metatiles).filter((k) => !(k in (previous?.metatiles ?? {}))))
-        similarOffer = { id, tileset, rows: r.similar, previous, all: !r.similar.flat().some((m) => added.has(String(m))) }
-      }
+      const isNew = (m: number) => String(m) in r.edits.metatiles && !(tilesetEdits && String(m) in tilesetEdits.metatiles)
+      pendingTiles = r.rows.flat().some(isNew)
+        ? { id, tileset, edits: r.edits, rows: r.rows, similar: r.similar ?? current?.similar ?? null, before }
+        : null
     } catch (e) {
       transformError = e instanceof ApiError ? t(`maps.transformError.${e.detail}`) : String(e)
     }
   }
 
-  /** Paint with the game's own tiles instead of the new ones (removed from the tileset when none is left). */
-  function useSimilar() {
-    const offer = similarOffer
-    if (!offer || maps[selected]?.id !== offer.id) return
-    if (offer.all) {
+  /** Add the proposed tiles to the tileset (undo removes them); `rows`: the block painted with them. */
+  function createPending(rows?: number[][]) {
+    const p = pendingTiles
+    if (!p || maps[selected]?.id !== p.id) return
+    const block = rows ?? p.rows
+    const edits = keepUsed(p.edits, tilesetEdits, block)
+    if (JSON.stringify(edits) !== JSON.stringify(tilesetEdits ?? { metatiles: {}, tiles: {} })) {
       list.update(0, (d) => {
         d.tilesets ??= {}
-        if (offer.previous) d.tilesets[offer.tileset] = offer.previous
-        else delete d.tilesets[offer.tileset]
+        d.tilesets[p.tileset] = edits
       })
     }
-    stamp = offer.rows
-    similarOffer = null
+    stamp = block
+    pendingTiles = null
+    pendingNudge = false
+  }
+
+  /** Paint with the game's own tiles instead of the new ones (those still needed are created). */
+  function useSimilar() {
+    const p = pendingTiles
+    if (!p?.similar) return
+    if (p.similar.flat().some((m) => String(m) in p.edits.metatiles && !(tilesetEdits && String(m) in tilesetEdits.metatiles))) {
+      createPending(p.similar)
+    } else {
+      stamp = p.similar
+      pendingTiles = null
+      pendingNudge = false
+    }
+  }
+
+  function cancelPending() {
+    if (!pendingTiles) return
+    stamp = pendingTiles.before
+    pendingTiles = null
+    pendingNudge = false
+  }
+
+  // Tiles the project added to this tileset (ticket 22): where they are used, to remove the others.
+  const addedSlots = $derived(tilesetEdits ? Object.keys(tilesetEdits.metatiles).sort((a, b) => Number(a) - Number(b)) : [])
+  const addedUsage = $derived(
+    tilesetEdits && baseLayout
+      ? addedTileUsage(list.records[0], tilesetEdits, baseLayout.tileset, maps.map((m) => m.id),
+                       (lid) => list.records[0]?.bases?.[lid] || maps.find((m) => m.id === lid)?.originalTileset || '')
+      : new Map<string, { cells: number; maps: string[] }>(),
+  )
+  const mapName = (lid: string) => maps.find((m) => m.id === lid)?.name ?? lid
+
+  function removeAdded(slots: string[]) {
+    if (!tilesetEdits || !baseLayout || !slots.length) return
+    const tileset = baseLayout.tileset
+    const next = withoutMetatiles($state.snapshot(tilesetEdits) as TilesetEdits, slots)
+    list.update(0, (d) => {
+      d.tilesets ??= {}
+      if (Object.keys(next.metatiles).length) d.tilesets[tileset] = next
+      else delete d.tilesets[tileset]
+    })
+    if (stamp.flat().some((m) => slots.includes(String(m)))) setBrush(savedRows[0]?.[0] ?? 0)
   }
 
   // Objects of the map and what the build does for them, asked again after each edit.
@@ -297,10 +346,14 @@
     rectStart = null
     hover = null
     layer = null
+    areaMode = null
+    areaStart = null
     terrainFilter = null
     objectsInfo = null
     selectedObject = null
     transformError = ''
+    pendingTiles = null
+    pendingNudge = false
     baseError = ''
     const id = maps[index].id
     const tileSheet = list.records[0]?.bases?.[id] || null
@@ -441,7 +494,15 @@
     }
     // Preview under the mouse: the block, the rectangle being drawn, or the area being copied.
     let area = hover ? { x0: hover.x, y0: hover.y, x1: hover.x, y1: hover.y } : null
-    if (copyStart && hover) {
+    if (areaMode && hover) {
+      const a = rectOf(areaStart ?? hover, hover)
+      ctx.strokeStyle = '#f1c40f'
+      ctx.lineWidth = 3
+      ctx.setLineDash([6, 4])
+      ctx.strokeRect(a.x0 * cell + 1.5, a.y0 * cell + 1.5, (a.x1 - a.x0 + 1) * cell - 3, (a.y1 - a.y0 + 1) * cell - 3)
+      ctx.setLineDash([])
+      area = null
+    } else if (copyStart && hover) {
       area = rectOf(copyStart, hover)
     } else if (rectStart && hover) {
       area = rectOf(rectStart, hover)
@@ -510,9 +571,11 @@
   const toGrid = (p: Cell): Cell => (change ? { x: p.x - change.x, y: p.y - change.y } : p)
   const copyGrid = () => (change ? change.rows : rows).map((r) => [...r])
 
+  // Another tile taken while new tiles wait for an answer: they are dropped.
   const setBrush = (m: number) => {
     stamp = [[m]]
     palettePicked = null
+    pendingTiles = null
   }
   const mod = (a: number, n: number) => ((a % n) + n) % n
   /** Tile of the block at a map cell, the pattern repeating from `origin`. */
@@ -574,6 +637,10 @@
       copyStart = p
       return
     }
+    if (areaMode && e.button === 0) {
+      areaStart = p
+      return
+    }
     if (tool === 'select') {
       const found = objects.find((o) => o.cells.some(([x, y]) => x === p.x && y === p.y))
       selectedObject = found ? keyOf(found) : null
@@ -584,6 +651,10 @@
       return
     }
     if (e.button !== 0) return
+    if (pendingTiles) {
+      pendingNudge = true
+      return
+    }
     if (tool === 'fill') return floodFill(p)
     draft = copyGrid()
     last = null
@@ -599,10 +670,20 @@
 
   function onUp() {
     if (paletteDrag) return pickFromPalette()
+    if (areaStart) {
+      const a = rectOf(areaStart, hover ?? areaStart)
+      const mode = areaMode
+      areaStart = null
+      areaMode = null
+      if (mode === 'new') newChangeAt(a.x0, a.y0, a.x1 - a.x0 + 1, a.y1 - a.y0 + 1)
+      else setChangeArea(a.x0, a.y0, a.x1 - a.x0 + 1, a.y1 - a.y0 + 1)
+      return
+    }
     if (copyStart) {
       const a = rectOf(copyStart, hover ?? copyStart)
       stamp = Array.from({ length: a.y1 - a.y0 + 1 }, (_, j) => Array.from({ length: a.x1 - a.x0 + 1 }, (_, i) => shownTile(a.x0 + i, a.y0 + j)))
       palettePicked = null
+      pendingTiles = null
       copyStart = null
       if (tool === 'pick' || tool === 'fill') tool = 'pen'
       return
@@ -798,18 +879,32 @@
   const tilesUnder = (x: number, y: number, w: number, h: number) =>
     Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => rows[y + j]?.[x + i] ?? brush))
 
+  /** "Add a change": the user draws its rectangle on the map (ticket 23). */
   function addChange() {
     if (!changes) return
+    areaMode = areaMode === 'new' ? null : 'new'
+    areaStart = null
+  }
+
+  function newChangeAt(x: number, y: number, w: number, h: number) {
+    if (!changes) return
     const id = changes.length ? Math.max(...changes.map((c) => c.id)) + 1 : 0
-    const w = 2
-    const h = 2
-    const x = hover?.x ?? Math.max(0, Math.floor(width / 2) - 1)
-    const y = hover?.y ?? Math.max(0, Math.floor(height / 2) - 1)
-    const fresh: MapChange = { id, x: Math.min(x, width - w), y: Math.min(y, height - h), w, h, rows: tilesUnder(x, y, w, h) }
+    const fresh: MapChange = { id, x, y, w, h, rows: tilesUnder(x, y, w, h) }
     const at = changes.length   // `changes` is derived: it already holds the new change after saving
     saveChanges([...changes, fresh])
     layer = at
     showChanges = true
+  }
+
+  /** The edited change's rectangle drawn again: cells it already had keep their tiles, new ones start as the map. */
+  function setChangeArea(x: number, y: number, w: number, h: number) {
+    if (layer === null || !changes || !change) return
+    const old = change
+    const tileAt = (cx: number, cy: number) =>
+      cx >= old.x && cy >= old.y && cx < old.x + old.w && cy < old.y + old.h ? old.rows[cy - old.y][cx - old.x] : (rows[cy]?.[cx] ?? brush)
+    const c = { ...old, x, y, w, h, rows: Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => tileAt(x + i, y + j))) }
+    const i = layer
+    saveChanges(changes.map((k, n) => (n === i ? c : k)))
   }
 
   function editChange(field: 'id' | 'x' | 'y' | 'w' | 'h', value: number) {
@@ -867,6 +962,7 @@
     stamp = Array.from({ length: a.y1 - a.y0 + 1 }, (_, j) => Array.from({ length: a.x1 - a.x0 + 1 }, (_, i) => tileAt(a.x0 + i, a.y0 + j)))
     palettePicked = stampW === 1 && stampH === 1 ? null : paletteDrag
     paletteDrag = null
+    pendingTiles = null
     if (tool === 'pick') tool = 'pen'
   }
 
@@ -878,7 +974,7 @@
   const paletteEdited = $derived(!!chosenPalette)
 </script>
 
-<svelte:window onmouseup={onUp} />
+<svelte:window onmouseup={onUp} onkeydown={(e) => { if (e.key === 'Escape' && areaMode) { areaMode = null; areaStart = null } }} />
 
 <div class="editor">
   <RecordList records={maps} {selected} onselect={(i) => load(i)} secondary={(m) => m.name === m.id} secondaryLabel={t('maps.otherMaps')} problemIds={new Set(problems.filter((p) => p.kind === 'maps').map((p) => p.id))}>
@@ -997,7 +1093,8 @@
                 </select>
               </label>
               {#if changes}
-                <button onclick={addChange} title={t('maps.addChangeHint')}>＋ {t('maps.addChange')}</button>
+                <button onclick={addChange} class:active={areaMode === 'new'} title={t('maps.addChangeHint')}>＋ {t('maps.addChange')}</button>
+                {#if areaMode}<span class="warn small">{t(areaMode === 'new' ? 'maps.drawNewChange' : 'maps.drawChangeArea')}</span>{/if}
               {:else}
                 <span class="muted small">{t('maps.noChangeLayer')}</span>
               {/if}
@@ -1011,6 +1108,7 @@
                   <NumberField label="Y" value={change.y} min={0} max={height - 1} compact onchange={(v) => editChange('y', v)} />
                   <NumberField label={t('maps.width')} value={change.w} min={1} max={width} compact onchange={(v) => editChange('w', v)} />
                   <NumberField label={t('maps.height')} value={change.h} min={1} max={height} compact onchange={(v) => editChange('h', v)} />
+                  <button class:active={areaMode === 'edit'} onclick={() => { areaMode = areaMode === 'edit' ? null : 'edit'; areaStart = null }} title={t('maps.changeAreaHint')}>▭ {t('maps.changeArea')}</button>
                   <button class="danger" onclick={removeChange}>{t('maps.removeChange')}</button>
                 </div>
               </div>
@@ -1022,6 +1120,7 @@
               <canvas
                 bind:this={mapCanvas}
                 class:picking={tool === 'pick'}
+                class:area={!!areaMode}
                 width={width * cell}
                 height={height * cell}
                 onmousedown={onDown}
@@ -1094,17 +1193,49 @@
                 {#each ALL_TERRAIN_IDS as id (id)}<option value={id}>{terrainName(id)}</option>{/each}
               </select>
             </label>
-            {#if similarOffer && sheet}
-              <div class="similar">
-                <span class="small">{t('maps.similarFound')}</span>
+            {#if pendingTiles && sheet}
+              {@const p = pendingTiles}
+              {@const fresh = new Set(p.rows.flat().filter((m) => !(tilesetEdits && String(m) in tilesetEdits.metatiles) && String(m) in p.edits.metatiles))}
+              <div class="similar" class:nudge={pendingNudge}>
+                <span class="small">{t('maps.pendingTiles', { n: fresh.size })}</span>
                 <span class="similar-tiles">
-                  {#each similarOffer.rows.flat().slice(0, 8) as m, k (k)}<canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m, sheet, layout }}></canvas>{/each}
+                  {#each [...fresh].slice(0, 8) as m (m)}<canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m, sheet, layout }}></canvas>{/each}
                 </span>
-                <button onclick={useSimilar}>{t('maps.useSimilar')}</button>
-                <button class="link" onclick={() => (similarOffer = null)}>{t('maps.keepTurned')}</button>
+                <span class="pending-actions">
+                  <button class="primary" onclick={() => createPending()}>{t('maps.createTiles')}</button>
+                  <button onclick={cancelPending}>{t('maps.cancelTiles')}</button>
+                </span>
+                {#if p.similar}
+                  <span class="small">{t('maps.similarFound')}</span>
+                  <span class="similar-tiles">
+                    {#each p.similar.flat().slice(0, 8) as m, k (k)}<canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m, sheet, layout }}></canvas>{/each}
+                  </span>
+                  <button onclick={useSimilar}>{t('maps.useSimilar')}</button>
+                {/if}
+                {#if pendingNudge}<span class="warn small">{t('maps.pendingNudge')}</span>{/if}
               </div>
             {/if}
             {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny">{t('maps.transformHint')}</p>{/if}
+            {#if addedSlots.length}
+              {@const unused = addedSlots.filter((k) => !addedUsage.has(k))}
+              <details class="added-tiles">
+                <summary class="small">{t('maps.addedTiles', { n: addedSlots.length })}</summary>
+                <div class="added-list">
+                  {#each addedSlots as k (k)}
+                    {@const u = addedUsage.get(k)}
+                    <div class="added" title={u ? t('maps.addedUsed', { n: u.cells, maps: u.maps.map(mapName).join(', ') }) : t('maps.addedUnused')}>
+                      <button class="tile-pick" onclick={() => setBrush(Number(k))} aria-label={t('maps.tileNumber', { n: Number(k) })}>
+                        <canvas width={PALETTE_CELL} height={PALETTE_CELL} use:drawBrush={{ m: Number(k), sheet, layout }}></canvas>
+                      </button>
+                      <span class="tiny" class:muted={!u}>{u ? `×${u.cells}` : '—'}</span>
+                      <button class="remove" disabled={!!u} onclick={() => removeAdded([k])} aria-label={t('maps.removeTile')} title={u ? t('maps.addedUsed', { n: u.cells, maps: u.maps.map(mapName).join(', ') }) : t('maps.removeTile')}>✕</button>
+                    </div>
+                  {/each}
+                </div>
+                <p class="muted tiny">{t('maps.addedTilesHint')}</p>
+                {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
+              </details>
+            {/if}
             <label>
               <span>{t('maps.terrainFilter')}</span>
               <select value={terrainFilter ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; terrainFilter = v === '' ? null : Number(v) }}>
@@ -1290,6 +1421,8 @@
   .map-scroll { overflow: auto; max-height: calc(100vh - 300px); }
   .map-scroll canvas { display: block; cursor: crosshair; image-rendering: pixelated; }
   .map-scroll canvas.picking { cursor: copy; }
+  .map-scroll canvas.area { cursor: cell; }
+  .layers button.active, .change-panel button.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
   .status { margin: 0; min-height: 1.2em; }
   .legend { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; padding: 0.1rem 0.45rem; border-radius: 999px; }
@@ -1330,6 +1463,14 @@
   .similar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.4rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); }
   .similar-tiles { display: flex; gap: 2px; }
   .similar-tiles canvas { image-rendering: pixelated; }
+  .similar.nudge { border-color: var(--warn); }
+  .pending-actions { display: flex; gap: 0.3rem; }
+  .added-tiles summary { cursor: pointer; }
+  .added-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
+  .added { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
+  .added canvas { display: block; image-rendering: pixelated; }
+  .added .tile-pick { padding: 0; line-height: 0; border: 1px solid var(--border); }
+  .added .remove { font-size: 0.7rem; padding: 0 0.3rem; line-height: 1.3; }
   .palettes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
   .palette-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem 0.4rem; }
   .palette-choice.active { border-color: var(--accent); background: var(--accent-soft); }
