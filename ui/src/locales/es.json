@@ -471,6 +471,8 @@
   "objective.label.throne": "«Tomar el trono»",
   "objective.label.gate": "«Tomar la puerta»",
   "objective.turns": "Turnos que aguantar",
+  "objective.orBoss": "o derrotar al jefe",
+  "objective.orBossHint": "El capítulo también se gana si el jefe es derrotado antes del final de los turnos (como «Survive for 11 turns or defeat Aias»).",
   "objective.statusText": "Texto del objetivo (pantalla de estado, 2 líneas)",
   "objective.statusShared": "Este texto se comparte con {n} capítulo(s) más: modificarlo también los cambia.",
   "objective.eventsShared": "Los eventos de este capítulo se comparten con {n} capítulo(s) más: cambiar el objetivo también los cambia.",

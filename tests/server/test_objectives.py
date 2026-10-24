@@ -136,3 +136,22 @@ def test_boss_is_read_from_death_quotes_and_can_change():
     assert objectives.read_bosses(added, CHAPTERS) == {0: ["CHARACTER_TESTRIVAL"], 1: ["CHARACTER_TESTHERO"]}
     assert added.rstrip().endswith("{\n        .pid = -1\n    }\n};")
     assert objectives.set_boss(TALKS, CHAPTERS, 0, "CHARACTER_TESTRIVAL") == TALKS
+
+
+def test_survive_or_defeat_the_boss():
+    """The game's "Survive for 11 turns or defeat Aias": a win turn (TurnEventPlayer) and DefeatBoss."""
+    events = EVENTS.replace("    Seize(4, 2)\n", "").replace(
+        "    TURN(0x0, EventScr_TestTurn1, 1, 0, FACTION_RED)\n",
+        "    TurnEventPlayer(EVFLAG_WIN, EventScr_TestEnding, 12) /* a comment */\n"
+        "    TURN(0x0, EventScr_TestTurn1, 1, 0, FACTION_RED)\n",
+    ).replace("    AFEV(EVFLAG_TMP(7)", "    DefeatBoss(EventScr_TestEnding)\n    AFEV(EVFLAG_TMP(7)")
+    sources, goal = {"ev.h": events}, _goal("defense", 412, 12)
+    current = objectives.read_objective(goal, sources, "TestEvents", Texts())
+    assert current["type"] == "defense" and current["editable"] and current["orBoss"] and current["turns"] == 11
+    out = objectives.apply_objective(goal, sources, "TestEvents", current, {"type": "defense", "turns": 8, "orBoss": False})
+    assert "DefeatBoss" not in out["ev.h"] and "TURN(EVFLAG_WIN, EventScr_TestEnding, 9, 0, FACTION_BLUE)" in out["ev.h"]
+    assert "TurnEventPlayer" not in out["ev.h"]
+    again = objectives.read_objective(goal, out, "TestEvents", Texts())
+    back = objectives.apply_objective(goal, out, "TestEvents", again, {"type": "defense", "turns": 8, "orBoss": True})
+    assert "DefeatBoss(EventScr_TestEnding)" in back["ev.h"]
+    assert objectives.read_objective(goal, back, "TestEvents", Texts())["orBoss"]

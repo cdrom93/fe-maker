@@ -471,6 +471,8 @@
   "objective.label.throne": "«Conquista il trono»",
   "objective.label.gate": "«Conquista la porta»",
   "objective.turns": "Turni da resistere",
+  "objective.orBoss": "o sconfiggere il capo",
+  "objective.orBossHint": "Il capitolo è vinto anche se il capo viene sconfitto prima della fine dei turni (come «Survive for 11 turns or defeat Aias»).",
   "objective.statusText": "Testo dell'obiettivo (schermata di stato, 2 righe)",
   "objective.statusShared": "Questo testo è condiviso con altri {n} capitolo/i: modificarlo cambia anche quelli.",
   "objective.eventsShared": "Gli eventi di questo capitolo sono condivisi con altri {n} capitolo/i: cambiare l'obiettivo cambia anche quelli.",

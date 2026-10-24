@@ -138,6 +138,8 @@ export interface ObjectiveEdit {
   /** reach an area: its corners, and who must reach it ("" = any player unit) */
   area?: { x1: number; y1: number; x2: number; y2: number } | null
   areaWho?: string
+  /** defense: defeating the boss also wins */
+  orBoss?: boolean
   /** the game is lost if this character dies (any objective) */
   protect?: string | null
 }

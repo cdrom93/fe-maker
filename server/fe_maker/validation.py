@@ -450,7 +450,8 @@ def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=fr
         for key in ("areaWho", "protect"):
             if o.get(key) and o[key] not in character_ids:
                 problems.append(Problem("error", "chapters", rid, key, "unknownCharacter", {}, f"{rid}: unknown character"))
-        if kind == "defeat_boss" and o.get("boss") and o["boss"] not in character_ids:
+        by_boss = kind == "defeat_boss" or (kind == "defense" and o.get("orBoss"))
+        if by_boss and o.get("boss") and o["boss"] not in character_ids:
             problems.append(Problem("error", "chapters", rid, "boss", "unknownCharacter", {}, f"{rid}: unknown boss"))
         text = o.get("statusText")
         if text is not None:

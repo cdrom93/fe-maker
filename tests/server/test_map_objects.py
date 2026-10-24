@@ -89,9 +89,10 @@ def test_dialogue_message_pads_text_runs():
     body = mo.dialogue_message("FID_VillagerWoman", "Hello there.\nTake it.")
     assert body == ("[OpenMidLeft][LoadFace][FID_VillagerWoman]\n[OpenMidLeft]Hello there.[LF]\n"
                     "Take it.[A][X]")
+    # Cut to the box with the font's widths: 6 pixels a letter without a font, 208 pixels a line.
     long = mo.dialogue_message("FID_VillagerWoman", "word " * 30)
     lines = [line for line in long.split("\n")[1:]]
-    assert all(len(line.replace("[OpenMidLeft]", "").split("[")[0]) <= mo.LINE_WIDTH for line in lines)
+    assert all(len(line.replace("[OpenMidLeft]", "").split("[")[0]) * 6 <= 208 for line in lines)
     assert long.count("[A]") == 3  # 5 lines, two per box
 
 

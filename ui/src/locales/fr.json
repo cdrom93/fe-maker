@@ -471,6 +471,8 @@
   "objective.label.throne": "« S'emparer du trône »",
   "objective.label.gate": "« S'emparer de la porte »",
   "objective.turns": "Tours à tenir",
+  "objective.orBoss": "ou vaincre le chef",
+  "objective.orBossHint": "Le chapitre est aussi gagné si le chef est vaincu avant la fin des tours (comme « Survive for 11 turns or defeat Aias »).",
   "objective.statusText": "Texte de l'objectif (écran de statut, 2 lignes)",
   "objective.statusShared": "Ce texte est partagé avec {n} autre(s) chapitre(s) : le modifier les change aussi.",
   "objective.eventsShared": "Les événements de ce chapitre sont partagés avec {n} autre(s) chapitre(s) : changer l'objectif les change aussi.",

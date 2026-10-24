@@ -20,12 +20,11 @@ the project can still set what a chest holds or what a village says (data/maps.j
 from __future__ import annotations
 
 import re
-import textwrap
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
-from . import maps
+from . import dialogues, fonts, maps
 
 # Terrain id -> object kind (include/constants/terrains.h).
 KINDS = {0x03: "village", 0x05: "house", 0x06: "armory", 0x07: "vendor", 0x1E: "door", 0x21: "chest",
@@ -52,7 +51,6 @@ FACES = {"FID_VillagerOldMan": 0x59, "FID_VillagerOldWoman": 0x5F, "FID_Villager
 BG_HOUSE, BG_NORMAL_VILLAGE = 0x00, 0x02  # include/constants/backgrounds.h
 FIRST_FLAG = 70     # temporary event flags (1-100 are cleared each chapter); the game uses up to 28
 LAST_FLAG = 100
-LINE_WIDTH = 38     # characters per line of a generated dialogue
 
 
 def detect(rows: list[list[int]], terrain: bytes) -> list[dict]:
@@ -367,18 +365,16 @@ def shop_list(name: str, items: list[str]) -> str:
     return f"CONST_DATA u16 {name}[] = {{\n{body}    ITEM_NONE,\n}};\n\n"
 
 
-def dialogue_message(face: str, text: str) -> str:
-    """Message body of a villager talking: their portrait, then the text, two lines per box.
-    Text runs are padded to an even length (see texts.name_message)."""
+def dialogue_message(face: str, text: str, widths: dict[int, int] | None = None) -> str:
+    """Message body of a villager talking: their portrait, then the text cut to the box's width with
+    the game's font (`widths`, see fonts.py), two lines per box."""
+    widths = widths or dict(fonts._FALLBACK)
     lines = []
     for paragraph in text.strip().split("\n"):
-        lines += textwrap.wrap(paragraph.strip(), LINE_WIDTH) or [""]
-    body = f"[OpenMidLeft][LoadFace][{face}]\n[OpenMidLeft]"
-    for i, line in enumerate(lines):
-        padded = line + ("[.]" if len(line.encode("utf-8")) % 2 else "")
-        last = i == len(lines) - 1
-        body += padded + ("[A]" if last or i % 2 == 1 else "") + ("" if last else "[LF]\n")
-    return body + "[X]"
+        lines += dialogues.wrap_line(paragraph.strip(), widths, dialogues.TALK_WIDTH)
+    boxes = ["\n".join(lines[k:k + dialogues.BOX_LINES]) for k in range(0, len(lines), dialogues.BOX_LINES)]
+    return dialogues.render([{"kind": "face", "pos": "MidLeft", "face": face},
+                             {"kind": "say", "pos": "MidLeft", "text": "\n\n".join(boxes), "wait": True}])
 
 
 def village_script(name: str, message: int, item: str | None, gold: int | None, house: bool = False) -> str:

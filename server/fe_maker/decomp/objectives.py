@@ -10,8 +10,9 @@ Two places must agree:
   (MaybeCallEndEvent, src/eventinfo.c). With defeat_all and defeat_boss, it also wins by
   itself when no enemy is left.
 
-Only chapters written with these standard forms can be edited; the others (escort,
-areas, custom scripts) are shown as they are.
+Only chapters written with these standard forms can be edited; the others (the tower and ruins
+maps, custom scripts) are shown as they are. A defense map can also be won by defeating the boss
+("orBoss": the game's "Survive for 11 turns or defeat Aias", TURN and DefeatBoss together).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from __future__ import annotations
 import re
 
 from .cparse import _blank_comments, _match_brace, parse_fields
+from .texts import text_size
 
 TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "area")
 SEIZE_LABELS = {"throne": 417, "gate": 415}
@@ -26,8 +28,11 @@ WINDOW_TEXT = {"defense": 412, "defeat_boss": 413, "defeat_all": 414}
 
 _SEIZE_RE = re.compile(r"^[ \t]*Seize\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)[ \t]*\r?\n", re.M)
 _DEFEAT_RE = re.compile(r"^[ \t]*(DefeatAll|DefeatBoss)\s*\(\s*(\w+)\s*\)[ \t]*\r?\n", re.M)
+# The turn that wins a defense map: TURN(EVFLAG_WIN, script, turn, 0, FACTION_BLUE), or the same written
+# with the TurnEventPlayer macro (Main_Code_Helpers.h), maybe followed by a comment.
 _WIN_TURN_RE = re.compile(
-    r"^[ \t]*TURN\s*\(\s*EVFLAG_WIN\s*,\s*(\w+)\s*,\s*(\d+)\s*,\s*0\s*,\s*FACTION_BLUE\s*\)[ \t]*\r?\n", re.M)
+    r"^[ \t]*(?:TURN\s*\(\s*EVFLAG_WIN\s*,\s*(\w+)\s*,\s*(\d+)\s*,\s*0\s*,\s*FACTION_BLUE\s*\)"
+    r"|TurnEventPlayer\s*\(\s*EVFLAG_WIN\s*,\s*(\w+)\s*,\s*(\d+)\s*\))[ \t]*(?:/\*[^\n]*?\*/)?[ \t]*\r?\n", re.M)
 _END_RE = re.compile(r"^([ \t]*)END_MAIN\b", re.M)
 # "Reach an area": AREA(EVFLAG_WIN, script, x1, y1, x2, y2) in the misc list; the script cancels the
 # event when the unit that moved there is not a player unit (or not the chosen character).
@@ -58,7 +63,7 @@ def status_message(text: str) -> str:
     game pads with [.], e.g. "Guard Mansel for 13[.][LF]".
     """
     lines = [line.strip() for line in text.strip().split("\n")]
-    padded = [line + ("[.]" if len(line.encode("utf-8")) % 2 else "") for line in lines]
+    padded = [line + ("[.]" if text_size(line) % 2 else "") for line in lines]
     return "[LF]\n".join(padded) + "[X]"
 
 
@@ -112,6 +117,7 @@ def read_objective(goal: dict, sources: dict[str, str], symbol: str | None, text
         "statusText": status,
         "area": None,
         "areaWho": "",
+        "orBoss": False,
         "editable": False,
         "reason": "",
     }
@@ -128,18 +134,20 @@ def read_objective(goal: dict, sources: dict[str, str], symbol: str | None, text
     turn = _body(sources, group.get("turnBasedEvents", ""))
     seize = [{"x": int(x), "y": int(y)} for x, y in _SEIZE_RE.findall(location)]
     defeats = _DEFEAT_RE.findall(misc)
-    win_turns = _WIN_TURN_RE.findall(turn)
+    win_turns = [(a or c, int(b or d)) for a, b, c, d in _WIN_TURN_RE.findall(turn)]
     objective["seize"] = seize
     if win_turns:
-        objective["turns"] = int(win_turns[0][1]) - 1
+        objective["turns"] = win_turns[0][1] - 1
     # Any other way of setting the win flag is a custom objective.
     win_flag_uses = sum(body.count("EVFLAG_WIN") for body in (location, misc, turn))
     standard = {
         "seize": bool(seize) and not defeats and not win_turns and win_flag_uses == 0,
         "defeat_all": [d[0] for d in defeats] == ["DefeatAll"] and not seize and not win_turns and win_flag_uses == 0,
         "defeat_boss": [d[0] for d in defeats] == ["DefeatBoss"] and not seize and not win_turns and win_flag_uses == 0,
-        "defense": len(win_turns) == 1 and not seize and not defeats and win_flag_uses == 1,
+        "defense": len(win_turns) == 1 and not seize and [d[0] for d in defeats] in ([], ["DefeatBoss"])
+        and win_flag_uses == 1,
     }
+    objective["orBoss"] = objective["type"] == "defense" and bool(defeats)
     if not standard.get(objective["type"], False):
         objective["reason"] = "custom"
     else:
@@ -195,9 +203,10 @@ def apply_objective(goal: dict, sources: dict[str, str], symbol: str, current: d
 
     rewrite(group.get("locationBasedEvents", ""), _SEIZE_RE,
             [f"Seize({int(t['x'])}, {int(t['y'])})" for t in new.get("seize", [])] if kind == "seize" else [])
+    by_boss = kind == "defeat_boss" or (kind == "defense" and bool(new.get("orBoss")))
     rewrite(misc_name, _DEFEAT_RE,
             [f"{'DefeatAll' if kind == 'defeat_all' else 'DefeatBoss'}({ending})"]
-            if kind in ("defeat_all", "defeat_boss") else [],
+            if kind == "defeat_all" or by_boss else [],
             at_start=True)
     rewrite(group.get("turnBasedEvents", ""), _WIN_TURN_RE,
             [f"TURN(EVFLAG_WIN, {ending}, {turns + 1}, 0, FACTION_BLUE)"] if kind == "defense" else [])

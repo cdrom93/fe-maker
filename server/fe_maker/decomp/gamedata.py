@@ -527,7 +527,8 @@ class DecompData:
                 else:
                     name = f"EventScr_FEM_{layout_id}_{x}_{y}"
                     message = self.texts.add(mapobjects.dialogue_message(
-                        s.get("face") if s.get("face") in mapobjects.FACES else "FID_VillagerOldMan", s.get("text") or "..."))
+                        s.get("face") if s.get("face") in mapobjects.FACES else "FID_VillagerOldMan", s.get("text") or "...",
+                        fonts.widths(self.decomp_dir)))
                     house = kind == "house"
                     scripts += mapobjects.village_script(name, message, None if house else s.get("item"),
                                                          None if house else s.get("gold"), house)
@@ -886,7 +887,7 @@ class DecompData:
     def apply_objective(self, index: int, new: dict) -> None:
         current = self.read_objective(index)
         chapter = self.chapter_settings["chapters"][index]
-        keys = ("type", "seize", "seizeLabel", "turns", "area", "areaWho")
+        keys = ("type", "seize", "seizeLabel", "turns", "area", "areaWho", "orBoss")
         if any(new.get(k, current[k]) != current[k] for k in keys):
             self.event_sources = objectives.apply_objective(
                 chapter["goal"], self.event_sources, self._chapter_event_symbol(chapter), current,
@@ -902,7 +903,9 @@ class DecompData:
                                                           "EVFLAG_GAMEOVER")
                 self.event_sources = objectives.ensure_game_over(self.event_sources, self._chapter_event_symbol(chapter))
         boss = new.get("boss")
-        if boss and boss != current["boss"] and new.get("type", current["type"]) == "defeat_boss":
+        by_boss = new.get("type", current["type"]) == "defeat_boss" or (
+            new.get("type", current["type"]) == "defense" and new.get("orBoss", current["orBoss"]))
+        if boss and boss != current["boss"] and by_boss:
             self.defeat_talks = objectives.set_boss(self.defeat_talks, self._chapter_constants, index, boss)
         text = new.get("statusText")
         status_id = chapter["goal"].get("statusObjectiveTextId", 0)

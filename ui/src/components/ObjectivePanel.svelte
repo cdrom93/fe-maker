@@ -52,6 +52,30 @@
   const protectChar = $derived(characters.find((c) => c.id === objective.protect))
 </script>
 
+{#snippet bossPicker()}
+    <div class="row">
+      <label class="inline">
+        {t('objective.boss')}
+        <select value={objective.boss ?? ''} disabled={!objective.bossEditable} onchange={(e) => onchange({ boss: (e.target as HTMLSelectElement).value || null })}>
+          <option value="">{t('field.none')}</option>
+          {#if objective.boss && !boss}<option value={objective.boss}>{objective.boss}</option>{/if}
+          <optgroup label={t('objective.inBattle')}>
+            {#each named.filter((c) => battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+          </optgroup>
+          <optgroup label={t('objective.otherCharacters')}>
+            {#each named.filter((c) => !battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
+          </optgroup>
+        </select>
+      </label>
+      {#if boss}<Mention kind="characters" id={boss.id}><span class="open">↗</span></Mention>{/if}
+    </div>
+    {#if !objective.bossEditable}<p class="muted small">{t('objective.bossPerRoute')}</p>{/if}
+    {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
+    {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
+    {#if boss && !boss.abilities.includes('boss')}<p class="muted small">{t('objective.bossAbility')}</p>{/if}
+    {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
+{/snippet}
+
 <section class="objective">
   <div class="head">
     <h3>{t('objective.title')} {#if edited}<span class="edited">✎</span>{/if}</h3>
@@ -81,27 +105,7 @@
         </label>
       </div>
     {:else if objective.type === 'defeat_boss'}
-      <div class="row">
-        <label class="inline">
-          {t('objective.boss')}
-          <select value={objective.boss ?? ''} disabled={!objective.bossEditable} onchange={(e) => onchange({ boss: (e.target as HTMLSelectElement).value || null })}>
-            <option value="">{t('field.none')}</option>
-            {#if objective.boss && !boss}<option value={objective.boss}>{objective.boss}</option>{/if}
-            <optgroup label={t('objective.inBattle')}>
-              {#each named.filter((c) => battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
-            </optgroup>
-            <optgroup label={t('objective.otherCharacters')}>
-              {#each named.filter((c) => !battleCharacters.has(c.id)) as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
-            </optgroup>
-          </select>
-        </label>
-        {#if boss}<Mention kind="characters" id={boss.id}><span class="open">↗</span></Mention>{/if}
-      </div>
-      {#if !objective.bossEditable}<p class="muted small">{t('objective.bossPerRoute')}</p>{/if}
-      {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
-      {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
-      {#if boss && !boss.abilities.includes('boss')}<p class="muted small">{t('objective.bossAbility')}</p>{/if}
-      {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
+      {@render bossPicker()}
     {:else if objective.type === 'area'}
       <div class="row">
         <span>{t('objective.area')} : {#if objective.area}<strong>{objective.area.x1}, {objective.area.y1} → {objective.area.x2}, {objective.area.y2}</strong>{:else}<span class="bad">{t('objective.noTile')}</span>{/if}</span>
@@ -117,7 +121,12 @@
     {:else if objective.type === 'defense'}
       <div class="row">
         <NumberField label={t('objective.turns')} value={objective.turns} min={1} max={99} problem={problemFor('turns') ? t(`problem.${problemFor('turns')!.code}`, problemFor('turns')!.params) : ''} onchange={(v) => onchange({ turns: v })} />
+        <label class="inline" title={t('objective.orBossHint')}>
+          <input type="checkbox" checked={!!objective.orBoss} onchange={(e) => onchange({ orBoss: (e.target as HTMLInputElement).checked })} />
+          {t('objective.orBoss')}
+        </label>
       </div>
+      {#if objective.orBoss}{@render bossPicker()}{/if}
     {/if}
   {:else}
     <p><strong>{t(`objective.type.${objective.type}`)}</strong></p>

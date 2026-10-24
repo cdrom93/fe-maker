@@ -471,6 +471,8 @@
   "objective.label.throne": "\"Seize throne\"",
   "objective.label.gate": "\"Seize gate\"",
   "objective.turns": "Turns to hold",
+  "objective.orBoss": "or defeat the boss",
+  "objective.orBossHint": "The chapter is also won if the boss is defeated before the turns are over (like “Survive for 11 turns or defeat Aias”).",
   "objective.statusText": "Objective text (status screen, 2 lines)",
   "objective.statusShared": "This text is shared with {n} other chapter(s): editing it changes them too.",
   "objective.eventsShared": "This chapter's events are shared with {n} other chapter(s): changing the objective changes them too.",
