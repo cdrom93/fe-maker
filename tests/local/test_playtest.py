@@ -150,3 +150,46 @@ def test_painted_door_chest_village_and_convoy_in_game(tmp_path):
         assert game.wait_until(lambda: 0x6D in next(u for u in game.units() if u["character"] == 1)["items"],
                                seconds=30, step=20, tap="A")
         assert game.wait_until(lambda: game.terrain(11, 5) == 0x04, seconds=10, tap="A")
+
+
+def test_enemy_destroys_a_painted_village(tmp_path):
+    """Ticket 35: an enemy that pillages ruins a village painted by the project."""
+    import copy
+
+    from fe_maker.decomp import mapobjects, maps, units
+
+    project = Project.create(tmp_path / "ruins", "Ruins")
+    decomp = project.decomp_dir
+    layout = maps.layouts(decomp)["PrologueMap"]
+    width, height, cells = maps.read_layout(layout["assets"].layout)
+    rows = [cells[y * width:(y + 1) * width] for y in range(height)]
+    rule = mapobjects.rules(decomp)[layout["assets"].config.name]
+    template = rule["ruins"][0]
+    # The game's village, gate at (11, 5)
+    (gi, gj), before = template["gate"], template["before"]
+    for j, row in enumerate(before):
+        rows[5 - gj + j][11 - gi:11 - gi + len(row)] = list(row)
+    plain = rows[5][9]       # plains in front of the gate, for the looter to reach it
+    rows[6][10:13] = [plain] * 3
+    rows[7][10:13] = [plain] * 3
+    project.save("maps", {"layouts": {"PrologueMap": {"rows": rows}}})
+    group = copy.deepcopy(units.read_unit_groups(decomp)["UnitDef_Event_PrologueEnemy"].units)
+    looter = group[1]
+    looter.update({"x": 12, "y": 7, "endX": 12, "endY": 7, "ai": [6, 5, 2, 0]})
+    # Only the looter, and a chapter to survive: O'Neill dying on Seth's counter would end it first
+    project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": [looter]},
+                              "objectives": {"0": {"type": "defense", "turns": 5, "seize": [], "statusText": "Survive"}}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        assert game.terrain(11, 5) == 0x03
+        taken = {(u["x"], u["y"]) for army in ("Blue", "Red") for u in game.units(army)}
+        game.move_cursor(*next(c for c in ((0, 0), (14, 0), (0, 9), (14, 9), (7, 0)) if c not in taken))
+        game.press("A")
+        game.press("UP")
+        game.press("A")      # End the turn: the enemy phase
+        ok = game.wait_until(lambda: game.terrain(11, 5) == mapobjects.RUINS_TERRAIN, seconds=120, step=30, tap="A")
+        game.screenshot().save(tmp_path / "ruins.png")
+        print("screenshot:", tmp_path / "ruins.png", "enemies", game.units("Red"))
+        assert ok

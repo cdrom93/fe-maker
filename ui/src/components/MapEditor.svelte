@@ -921,7 +921,10 @@
     if (own?.off) return { text: t('maps.obj.off'), cls: 'muted' }
     if (o.noAfter) return { text: t('maps.obj.noAfter'), cls: 'warn' }
     if (o.new) {
-      if (o.auto) return { text: t('maps.obj.auto', { id: o.auto.id }), cls: 'good' }
+      if (o.auto) {
+        const text = t('maps.obj.auto', { id: o.auto.id })
+        return { text: o.ruin ? `${text} · ${t('maps.obj.ruin', { id: o.ruin.id })}` : text, cls: 'good' }
+      }
       if (o.change !== null) return { text: t('maps.obj.usesChange', { id: o.change }), cls: 'good' }
       if (CHANGE_KINDS.includes(o.kind)) return { text: t('maps.obj.noChange'), cls: 'warn' }
       return { text: t('maps.obj.new'), cls: 'good' }

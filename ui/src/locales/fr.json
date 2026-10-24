@@ -1055,5 +1055,6 @@
   "dlg.exprEyes": "Yeux",
   "dlg.exprEyesNow": "{what} : c'est l'état actuel des yeux",
   "dlg.exprEyesSet": "{what} à partir du curseur, jusqu'au prochain changement des yeux",
-  "dlg.exprWink": "Clin d'œil (un instant, à l'endroit du curseur)"
+  "dlg.exprWink": "Clin d'œil (un instant, à l'endroit du curseur)",
+  "maps.obj.ruin": "ruines si un ennemi le pille (changement {id})"
 }

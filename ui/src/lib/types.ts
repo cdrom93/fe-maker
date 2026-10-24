@@ -265,6 +265,8 @@ export interface MapObject {
   change: number | null
   /** the change FE Maker adds by itself */
   auto: MapChange | null
+  /** new village: the ruined village change FE Maker adds (an enemy that pillages destroys it) */
+  ruin?: MapChange | null
   /** new object whose used state is unknown for this tileset */
   noAfter: boolean
   /** its location event in the original game */

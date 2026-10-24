@@ -1055,5 +1055,6 @@
   "dlg.exprEyes": "Occhi",
   "dlg.exprEyesNow": "{what}: gli occhi sono così ora",
   "dlg.exprEyesSet": "{what} dal cursore in poi, fino al prossimo cambiamento degli occhi",
-  "dlg.exprWink": "Occhiolino (un istante, dove si trova il cursore)"
+  "dlg.exprWink": "Occhiolino (un istante, dove si trova il cursore)",
+  "maps.obj.ruin": "rovine se un nemico lo saccheggia (cambio {id})"
 }

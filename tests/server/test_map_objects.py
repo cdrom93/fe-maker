@@ -64,6 +64,30 @@ def test_change_must_use_the_object():
     assert mo._covered(village, [{**ruins, "manual": True}], TERRAIN) == 0
 
 
+def test_ruined_village_change():
+    # Fictional terrains: metatile 9 is a roof, 10 rubble, 11 a ruined gate (terrain 0x25).
+    terrain = TERRAIN + bytes([0x01, 0x01, mo.RUINS_TERRAIN])
+    ROOF, RUBBLE, RUINED = 9, 10, 11
+    template = {"gate": (1, 1), "before": ((ROOF, ROOF, ROOF), (PLAINS, VILLAGE, PLAINS)),
+                "after": ((RUBBLE, RUBBLE, RUBBLE), (PLAINS, RUINED, PLAINS)), "uses": 2}
+    rule = {**_rule(), "terrain": terrain, "pixels": [bytes([m]) * 256 for m in range(len(terrain))],
+            "ruins": [template], "ruinTiles": {ROOF: RUBBLE}}
+    rows = _grid(5, 4)
+    rows[1][1:4] = [ROOF] * 3
+    rows[2][2] = VILLAGE
+    village = next(o for o in mo.detect(rows, terrain) if o["kind"] == "village")
+    # The original village: its whole change, which holds the roof above the gate
+    assert mo.ruin_change(village, rows, rule) == {"x": 1, "y": 1, "w": 3, "h": 2,
+                                                   "rows": [[RUBBLE] * 3, [PLAINS, RUINED, PLAINS]]}
+    # Another village: tile by tile around the gate, the gate becomes a ruins tile
+    rows[1][1] = PLAINS
+    change = mo.ruin_change(village, rows, rule)
+    assert (change["x"], change["y"], change["w"], change["h"]) == (1, 0, 3, 3)
+    assert change["rows"][2][1] == RUINED and change["rows"][1] == [PLAINS, RUBBLE, RUBBLE]
+    # A gate on the top row has no roof cell
+    assert mo.ruin_change({**village, "y": 0}, rows, rule) is None
+
+
 def test_read_location_events():
     body = """
     Village(EVFLAG_TMP(9),  EventScr_Ch2_Village1, 4, 2)

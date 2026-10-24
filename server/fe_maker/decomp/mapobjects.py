@@ -9,7 +9,12 @@ The engine finds everything from the map itself:
   snags become obstacles by themselves (InitMapObstacles).
 
 So a newly painted object only needs a map change with its "after" tiles (open chest, closed
-village, floor, rubble) and, for the first four kinds, a location event. The "after" tiles are
+village, floor, rubble) and, for the first four kinds, a location event. A village can also be
+destroyed by an enemy that pillages (AiPillageAction, src/cp_perform.c): the Village macro puts a
+second location event on the roof, one cell above the gate, which applies the change holding the
+roof (TILE_COMMAND_20, src/eventinfo.c). In the game that change is the ruined village, a 3 x 3
+(or 3 x 2) rectangle around the gate, listed before the gate's own 1 x 1 change: the gate's last
+change is the closed village, the roof's is the ruins. New villages get both. The "after" tiles are
 learned from the original game's changes, for each tileset: the whole change when the new object
 matches one (walls also fix the shadows around them), else tile by tile.
 
@@ -114,7 +119,7 @@ def rules(decomp_dir: Path) -> dict[str, dict]:
         if assets.config.name not in result:
             _metatiles, terrain = maps.read_config(assets.config)
             result[assets.config.name] = {"templates": Counter(), "counts": {}, "terrain": terrain,
-                                          "pixels": maps.metatile_pixels(assets)}
+                                          "pixels": maps.metatile_pixels(assets), "ruins": Counter(), "ruinCounts": {}}
         if not layout["changes"]:
             continue
         width, height, cells = maps.read_layout(assets.layout)
@@ -132,8 +137,17 @@ def rules(decomp_dir: Path) -> dict[str, dict]:
                     k = KINDS.get(terrain[b]) if b < len(terrain) else None
                     if k in CHANGE_KINDS and a != b and terrain[a] != terrain[b]:
                         used.setdefault(k, []).append((i, j))
+            ruined = [(i, j) for i, j in used.get("village", []) if terrain[after[j][i]] == RUINS_TERRAIN]
+            if len(ruined) == 1 and len(used) == 1 and len(used["village"]) == 1:
+                gate = ruined[0]
+                entry["ruins"][(gate, tuple(map(tuple, before)), tuple(map(tuple, after)))] += 1
+                for j in range(c["h"]):
+                    for i in range(c["w"]):
+                        if before[j][i] != after[j][i]:
+                            entry["ruinCounts"].setdefault(before[j][i], Counter())[after[j][i]] += 1
+                continue
             if len(used) != 1:
-                continue  # story changes (roofs, bridges, ruined villages) or several objects at once
+                continue  # story changes (roofs, bridges) or several objects at once
             kind, object_cells = next(iter(used.items()))
             if kind == "village" and terrain[after[object_cells[0][1]][object_cells[0][0]]] != 0x04:
                 continue  # villages destroyed by brigands, not visited
@@ -147,6 +161,8 @@ def rules(decomp_dir: Path) -> dict[str, dict]:
             {"kind": k[0], "shape": k[1], "first": k[2], "before": k[3], "after": k[4], "uses": n}
             for k, n in entry["templates"].most_common()]
         entry["tiles"] = {m: counts.most_common(1)[0][0] for m, counts in entry.pop("counts").items()}
+        entry["ruins"] = [{"gate": k[0], "before": k[1], "after": k[2], "uses": n} for k, n in entry["ruins"].most_common()]
+        entry["ruinTiles"] = {m: counts.most_common(1)[0][0] for m, counts in entry.pop("ruinCounts").items()}
     # The same picture in another tileset: its state after, if this tileset has that picture too.
     by_pixels: dict[bytes, Counter] = {}
     for entry in result.values():
@@ -231,6 +247,50 @@ def after_change(obj: dict, rows: list[list[int]], rule: dict | None) -> dict | 
     return {"x": x0, "y": y0, "w": w, "h": h, "rows": after}
 
 
+RUINS_TERRAIN = 0x25   # TERRAIN_RUINS_REGULAR: a destroyed village's gate
+
+
+def ruin_change(obj: dict, rows: list[list[int]], rule: dict | None) -> dict | None:
+    """Map change {x, y, w, h, rows} showing a village destroyed by an enemy: an original ruined
+    village whose tiles match, else the 3 x 3 rectangle around the gate tile by tile (cells no
+    original ruin shows keep their tile; the gate becomes the most similar ruins tile). It holds the
+    roof, one cell above the gate, where the engine looks for it. None when the gate is on the top row."""
+    if not rule or obj["y"] < 1:
+        return None
+    height, width = len(rows), len(rows[0])
+    x, y = obj["x"], obj["y"]
+    best = None
+    for t in rule.get("ruins", []):
+        (gi, gj), h, w = t["gate"], len(t["before"]), len(t["before"][0])
+        x0, y0 = x - gi, y - gj
+        if x0 < 0 or y0 < 0 or x0 + w > width or y0 + h > height or not y0 <= y - 1:
+            continue
+        changed = [(i, j) for j in range(h) for i in range(w) if t["before"][j][i] != t["after"][j][i]]
+        if any(rows[y0 + j][x0 + i] != t["before"][j][i] for i, j in changed):
+            continue
+        score = (len(changed), t["uses"])
+        if best is None or score > best[0]:
+            after = [[t["after"][j][i] if (i, j) in changed else rows[y0 + j][x0 + i] for i in range(w)] for j in range(h)]
+            best = (score, {"x": x0, "y": y0, "w": w, "h": h, "rows": after})
+    if best:
+        return best[1]
+    x0, x1, y0 = max(0, x - 1), min(width - 1, x + 1), y - min(2, y)
+    tiles = rule.get("ruinTiles", {})
+    after = [[tiles.get(rows[j][i], rows[j][i]) for i in range(x0, x1 + 1)] for j in range(y0, y + 1)]
+    gate = rows[y][x]
+    if gate not in tiles:
+        terrain, pixels = rule["terrain"], rule["pixels"]
+        candidates = [c for c in range(len(terrain)) if terrain[c] == RUINS_TERRAIN]
+        if not candidates:
+            return None
+        after[y - y0][x - x0] = max(candidates, key=lambda c: sum(a == b for a, b in zip(pixels[c], pixels[gate])))
+    return {"x": x0, "y": y0, "w": x1 - x0 + 1, "h": y - y0 + 1, "rows": after}
+
+
+def _holds(c: dict, x: int, y: int) -> bool:
+    return c["x"] <= x < c["x"] + c["w"] and c["y"] <= y < c["y"] + c["h"]
+
+
 # ---------- objects of a map, as the project sees them ----------
 
 def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
@@ -260,7 +320,9 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
     """Objects of a layout with what the build will do for them.
 
     Each object: kind, x, y, cells, "new" (not on the original map), "change" (id of the change
-    used, None if none), "auto" (the change FE Maker adds, for new objects without one),
+    used, None if none), "auto" (the change FE Maker adds, for new objects without one), "ruin"
+    (for a new village no change ruins yet: the ruined village change FE Maker adds, to be listed
+    before the others so that the gate's last change stays the closed village),
     "noAfter" (new object whose used state is unknown for this tileset). `terrain` replaces the
     tileset's terrains when the project added metatiles (tileedit.py); `assets`: the layout drawn
     with another tile sheet (ticket 21), whose objects are new where the terrain changed."""
@@ -290,6 +352,7 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
         obj["new"] = any(changed(x, y) for x, y in obj["cells"])
         obj["change"] = _covered(obj, changes, terrain) if obj["kind"] in CHANGE_KINDS else None
         obj["auto"] = None
+        obj["ruin"] = None
         obj["noAfter"] = False
         off = settings.get(f"{obj['x']},{obj['y']}", {}).get("off", False)
         if obj["kind"] in CHANGE_KINDS and obj["new"] and obj["change"] is None and not off:
@@ -299,6 +362,12 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
             elif layout["changes"] and next_id <= maps.MAX_CHANGE_ID:
                 obj["auto"] = {"id": next_id, **change}
                 obj["change"] = next_id
+                next_id += 1
+        if obj["kind"] == "village" and obj["new"] and not off and layout["changes"] and next_id <= maps.MAX_CHANGE_ID \
+                and not any(_holds(c, obj["x"], obj["y"] - 1) for c in changes):
+            ruin = ruin_change(obj, rows, rule)
+            if ruin is not None:
+                obj["ruin"] = {"id": next_id, **ruin}
                 next_id += 1
     return objects
 
