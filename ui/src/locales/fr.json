@@ -705,6 +705,7 @@
   "dlg.openChapter": "Ouvrir le chapitre",
   "dlg.showTutorials": "Tutoriels",
   "dlg.none": "Aucun dialogue dans ce chapitre.",
+  "dlg.noMessage": "sans dialogue : ⚙ pour voir ses commandes",
   "dlg.via": "(scène appelée)",
   "dlg.message": "Message {id}",
   "dlg.edited": "Modifié dans le projet",

@@ -103,7 +103,7 @@
     if (selected !== index) return
     scenes = data.scenes
     originals = data.messages
-    const first = data.scenes.find((s) => s.trigger.kind !== 'tutorial') ?? data.scenes[0]
+    const first = data.scenes.find((s) => s.trigger.kind !== 'tutorial' && s.messages.length) ?? data.scenes.find((s) => s.messages.length)
     if (first) pick(String(first.messages[0]))
   }
 
@@ -371,6 +371,7 @@
             <button class="script-button" class:active={scriptName === scene.script} title={t('ev.open', { name: scene.script })}
                     onclick={() => { scriptName = scene.script; messageId = null }}>⚙{#if list.records[0]?.scripts?.[scene.script]}<span class="edited">✎</span>{/if}</button>
           </div>
+          {#if !scene.messages.length}<span class="muted tiny no-message">{t('dlg.noMessage')}</span>{/if}
           {#each scene.messages as m (m)}
             {@const id = String(m)}
             {@const msgSteps = edited[id] ?? originals[id] ?? []}
@@ -596,6 +597,7 @@
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .scenes .add button { font-size: 0.78rem; padding: 0.15rem 0.45rem; }
   .kind.new { color: var(--good); }
+  .no-message { padding-left: 0.4rem; }
   .script-button { margin-left: auto; padding: 0 0.3rem; font-size: 0.75rem; background: none; }
   .script-button.active { border-color: var(--accent); background: var(--accent-soft); }
   .quote-who { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }

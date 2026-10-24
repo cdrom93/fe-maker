@@ -1,6 +1,7 @@
 <script lang="ts">
   // Visual editor of an event script (server: decomp/events.py): one block per command, with a form
   // for the commands FE Maker knows; the others are kept as they are and can be moved or removed.
+  import { untrack } from 'svelte'
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
@@ -59,7 +60,8 @@
     const n = name
     error = ''
     selected = null
-    Promise.all([reference ? Promise.resolve(reference) : api.eventsReference(), api.eventScript(n)])
+    const known = untrack(() => reference)
+    Promise.all([known ? Promise.resolve(known) : api.eventsReference(), api.eventScript(n)])
       .then(([ref, s]) => {
         if (n !== name) return
         reference = ref

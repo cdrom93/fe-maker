@@ -856,6 +856,13 @@ class DecompData:
                 return {"kind": "other"}
             return {**trigger(caller, seen | {script}), "via": caller}
 
+        # Scripts started by the chapter's events that show no message (reinforcements, map changes...):
+        # listed too, for the event editor.
+        shown = {s["script"] for s in scenes}
+        script_file = {name: r for r, source in files.items() for name in events.find_scripts(source)}
+        for name in triggers:
+            if name not in shown and name in script_file and not name.startswith("EventListScr"):
+                scenes.append({"script": name, "messages": [], "file": script_file[name]})
         for scene in scenes:
             scene["trigger"] = trigger(scene["script"])
         scenes += self.quote_scenes(index)
