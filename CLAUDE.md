@@ -23,6 +23,7 @@ Docs are written in French (README in French and English); code and comments in 
 - Class gender is shown after the class name: ♂ blue, ♀ pink (`GenderSign`).
 - FEBuilderGBA (GPL-3.0) may be used freely as a reference or source; credit it in `CREDITS.md`.
 - Don't write things from scratch when an existing resource saves time and tokens: before coding a feature (engine behavior, ASM hack, event command, map/tile tool, data format reader, editor logic...), look at what already exists and reuse or adapt it when it fits. First FEBuilderGBA as a whole (its patches in `config/patch2/FE8U/`, its source code, its data/config files), then any other resource: FE-Repo / FEU (Fire Emblem Universe) hacks and tools, Event Assembler and its libraries, the decomp itself, Python/JS libraries. Check the license allows reuse and credit it in `CREDITS.md`.
+- Where to look: FEU's "Getting Started" index of tutorials and FEBuilder docs (https://feuniverse.us/t/getting-started/10320); laqieer's FEBuilderGBA fork (https://github.com/laqieer/FEBuilderGBA, GPL-3.0, archived 20/10/2026: cross-platform core, CLI, decomp support preview, headless mGBA playtests).
 - An unmodified project must rebuild the original ROM byte for byte: only write what changed (`changed_files()`, cparse re-renders only edited entries).
 - Patches are `.ups`. BUGFIX build option exists but is off by default (3 decomp BUGFIX blocks don't compile).
 
