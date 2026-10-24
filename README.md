@@ -39,8 +39,8 @@ Lancer / Run:
 server/.venv/Scripts/python -m fe_maker                  # Linux/macOS : server/.venv/bin/python
 ```
 
-L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lancement, elle demande votre ROM. Fermez la fenêtre de commande pour arrêter FE Maker ; si FE Maker tourne déjà, un nouveau lancement ouvre simplement le navigateur. Le bouton « Tester » demande que Docker Desktop soit démarré.
-*The interface opens in your browser. On first launch it asks for your ROM. Close the command window to stop FE Maker; if FE Maker is already running, launching it again just opens the browser. The "Test" button needs Docker Desktop to be running.*
+L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lancement, elle demande votre ROM. Fermez la fenêtre de commande pour arrêter FE Maker ; si FE Maker tourne déjà, un nouveau lancement le redémarre (pour prendre une nouvelle version), sauf pendant une compilation : il ouvre alors simplement le navigateur. Le bouton « Tester » demande que Docker Desktop soit démarré.
+*The interface opens in your browser. On first launch it asks for your ROM. Close the command window to stop FE Maker; if FE Maker is already running, launching it again restarts it (to load a new version), except during a build: then it just opens the browser. The "Test" button needs Docker Desktop to be running.*
 
 ## Développement / Development
 

@@ -42,6 +42,8 @@ class _State:
         self.build_lock = threading.Lock()
         self.build_status = {"state": "idle", "log": [], "error": None, "patch": None, "launch": False}
         self.emulator = emulator.Emulator()
+        # Set by __main__: stops the server (a new launch from the shortcut restarts FE Maker)
+        self.stop_server = None
 
     def get_decomp(self) -> DecompData:
         if self.decomp is None:
@@ -78,6 +80,17 @@ def status():
         "defaultProjectsDir": str(default_projects_dir()),
         "project": _project_info(state.project) if state.project else None,
     }
+
+
+@app.post("/api/shutdown")
+def shutdown():
+    """Stop the server, for a new launch of FE Maker to replace it; refused while a build runs."""
+    if state.build_lock.locked():
+        raise HTTPException(409, "buildRunning")
+    if state.stop_server is None:
+        raise HTTPException(501, "notStoppable")
+    state.stop_server()
+    return {"stopping": True}
 
 
 @app.put("/api/settings")
