@@ -196,3 +196,55 @@ def test_area_and_protect_objective_build(tmp_path):
     assert [p for p in project.validate() if p.severity == "error"] == []
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original
+
+
+def test_features_of_24_october_build(tmp_path):
+    """Accented and too-long dialogue lines, a new support pair, a replaced and a new portrait, another
+    palette and tile sheet for a map, convoy openers and chapters: the decomp still builds."""
+    from fe_maker.decomp import dialogues, maps, portraits
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "day24", "Day 24")
+    decomp = DecompData(project.decomp_dir)
+    message = decomp.chapter_dialogues(0)[0]["messages"][0]
+    steps = dialogues.parse(decomp.texts.raw(message))
+    say = next(s for s in steps if s["kind"] == "say")
+    say["text"] = "Élodie, ça va ? Où êtes-vous allés ce matin, après la très longue bataille du château ?"
+    talk = [{"kind": "face", "pos": "MidLeft", "face": "FID_New173"},
+            {"kind": "say", "pos": "MidLeft", "text": "Un nouveau portrait, avec des accents : é è à ç.", "wait": True}]
+    pair = {"a": "CHARACTER_FRANZ", "b": "CHARACTER_ROSS", "base": 20, "growth": 3}
+    support = {"kind": "support", "a": "CHARACTER_FRANZ", "b": "CHARACTER_ROSS", "rank": 1, "steps": talk}
+    pairs = decomp.original_supports() + [pair]
+    project.save("dialogues", {"messages": {str(message): steps}, "quotes": [support],
+                               "supports": [{k: p[k] for k in ("a", "b", "base", "growth")} for p in pairs]})
+
+    # Portraits: Seth's sheet replaces Gilliam's (4) and becomes a new portrait (173) for Ross.
+    sheet = portraits.to_sheet(project.decomp_dir, portraits.portrait_name(project.decomp_dir, 3))
+    (project.root / "assets" / "portraits").mkdir(parents=True, exist_ok=True)
+    for pid in (4, 173):
+        sheet.save(project.root / "assets" / "portraits" / f"{pid}.png")
+    project.save("portraits", {str(pid): {"file": f"portraits/{pid}.png", **portraits.detect(sheet)} for pid in (4, 173)})
+    characters = decomp.export_characters()
+    for ch in characters:
+        if ch["id"] == "CHARACTER_ROSS":
+            ch["portraitId"] = 173
+        if ch["id"] in ("CHARACTER_SETH", "CHARACTER_FRANZ"):
+            ch["convoyAccess"] = True
+    project.save("characters", characters)
+
+    # The prologue map with tile sheet 4 (redrawn by terrain) and the chapter 2 map with another palette.
+    layout = maps.layouts(project.decomp_dir)["PrologueMap"]
+    width, height, cells = maps.read_layout(layout["assets"].layout)
+    rows = [cells[y * width:(y + 1) * width] for y in range(height)]
+    target = maps.with_base(project.decomp_dir, layout["assets"], "TileConfiguration4")
+    grids, _missing = maps.convert_by_terrain(project.decomp_dir, maps.read_config(layout["assets"].config)[1], target, [rows])
+    ch2 = maps.chapter_map_assets(project.decomp_dir, maps.chapter_settings(project.decomp_dir)[2])
+    own = maps.palette_symbol(project.decomp_dir, ch2.palette)
+    other = [p["id"] for p in maps.palette_choices(project.decomp_dir, ch2) if p["id"] != own]
+    project.save("maps", {"layouts": {"PrologueMap": {"rows": grids[0]}}, "bases": {"PrologueMap": "TileConfiguration4"},
+                          "palettes": {ch2.layout.stem: other[0]} if other else {}})
+    project.save("chapters", {"unitGroups": {}, "objectives": {}, "convoy": {"0": True, "2": False}})
+
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original

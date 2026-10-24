@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, events, fonts, mapobjects, maps, objectives, portraits, quotes, supports, tileedit, units
+from . import combat, convoy, dialogues, events, fonts, mapobjects, maps, objectives, portraits, quotes, supports, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -180,6 +180,9 @@ class DecompData:
         self._original_unit_defs = dict(self.unit_defs)
         # Imported graphics (decomp-relative path -> content), see apply_portraits
         self.asset_files: dict[str, bytes | str] = {}
+        # Who opens the convoy and the chapters without it, when the project changes them (convoy.py)
+        self.convoy_openers: list[str] | None = None
+        self.no_convoy: list[int] | None = None
         # Ids of the portraits the project adds (their text codes go to textdefs.txt)
         self.new_faces: list[int] = []
         # Supports edited in the project (see _apply_supports)
@@ -335,7 +338,8 @@ class DecompData:
     def export_chapters() -> dict:
         """Project chapter data. Unit groups and objectives (by chapter index) are stored
         only once edited (see units.py and objectives.py). New groups (reinforcements):
-        "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups"."""
+        "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups".
+        "convoy" {chapter index: bool}: convoy available, once changed (convoy.py)."""
         return {"unitGroups": {}, "objectives": {}}
 
     def apply_chapters(self, chapters: dict) -> None:
@@ -349,6 +353,11 @@ class DecompData:
                 self._add_reinforcements(name, meta, group_units)
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
+        # Chapters with or without convoy, changed from the game's rule (ticket 29)
+        edited = {int(k): bool(v) for k, v in chapters.get("convoy", {}).items()}
+        if any(convoy.has_convoy(k) != v for k, v in edited.items()):
+            count = len(maps.chapter_settings(self.decomp_dir))
+            self.no_convoy = [i for i in range(count) if not edited.get(i, convoy.has_convoy(i))]
 
     # ---------- maps ----------
 
@@ -1141,6 +1150,8 @@ class DecompData:
                 "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
                 "affinity": AFFINITIES.get(f.get("affinity", "0")),
                 "abilities": _abilities(f.get("attributes", "0")),
+                # opens the convoy, with the units next to them (ticket 29, see convoy.py)
+                "convoyAccess": f["number"] in convoy.DEFAULT_OPENERS,
             })
         return result
 
@@ -1175,6 +1186,9 @@ class DecompData:
 
     def apply_characters(self, characters: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.characters.entries}
+        openers = [ch["id"] for ch in characters if ch.get("convoyAccess", ch["id"] in convoy.DEFAULT_OPENERS)]
+        if set(openers) != {k for k in entries if k in convoy.DEFAULT_OPENERS}:
+            self.convoy_openers = openers
         for ch in characters:
             entry = entries.get(ch["id"])
             if entry is None:
@@ -1404,6 +1418,10 @@ class DecompData:
         for rel, source in self.unit_defs.items():
             if source != self._original_unit_defs[rel]:
                 out[rel] = source
+        if self.convoy_openers is not None:
+            out[convoy.MENU_FILE] = convoy.with_openers(self._read(convoy.MENU_FILE), self.convoy_openers)
+        if self.no_convoy is not None:
+            out[convoy.CONTAINER_FILE] = convoy.with_chapters(self._read(convoy.CONTAINER_FILE), self.no_convoy)
         if self.promotions is not None and self.promotions != self._original_promotions:
             out[combat.PROMOTIONS_FILE] = combat.render_promotions(self._sources[combat.PROMOTIONS_FILE], self.promotions)
         if self.effectiveness is not None and self.effectiveness != self._original_effectiveness:

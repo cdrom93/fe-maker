@@ -11,6 +11,7 @@
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
   import ItemPicker from './ItemPicker.svelte'
+  import ClassPicker from './ClassPicker.svelte'
   import NumberField from './NumberField.svelte'
   import ObjectivePanel from './ObjectivePanel.svelte'
   import RecordList from './RecordList.svelte'
@@ -49,6 +50,20 @@
   let showCutscenes = $state(false)
 
   const chapter = $derived(chapters[selected])
+
+  const convoyEdit = $derived(chapter ? list.records[0]?.convoy?.[String(chapter.index)] : undefined)
+
+  /** Convoy available in this chapter (ticket 29); the game's value is not stored. */
+  function setConvoy(on: boolean) {
+    if (!chapter) return
+    const key = String(chapter.index)
+    const same = on === chapter.convoy
+    list.update(0, (c) => {
+      c.convoy ??= {}
+      if (same) delete c.convoy[key]
+      else c.convoy[key] = on
+    })
+  }
   // The map image changes with the project's painting of this chapter's layout.
   const mapVersion = $derived.by(() => {
     const rows = chapter?.map ? maps?.layouts?.[chapter.map]?.rows : undefined
@@ -341,6 +356,11 @@
           {#if chapter.map}<Mention kind="maps" id={chapter.map}>🗺 {t('chapter.editMap')}</Mention>{/if}
           <Mention kind="dialogues" id={String(chapter.index)}>💬 {t('chapter.editDialogues')}</Mention>
         </p>
+        <label class="check small convoy" title={t('chapter.convoyHint')}>
+          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
+          📦 {t('chapter.convoy')}
+          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
@@ -511,17 +531,7 @@
             <label>
               <span>{t('field.class')} {#if cls}<Mention kind="classes" id={unit.class}><span class="open">↗</span></Mention>{/if}</span>
               <span class="with-sign">
-                <select value={unit.class} onchange={(e) => editUnit(p.group, p.index, (u) => (u.class = (e.target as HTMLSelectElement).value))}>
-                  {#each classes.filter((k) => k.usedInGame) as k (k.id)}
-                    <option value={k.id} class={k.gender ?? ''}>{k.name || k.id}{k.gender === 'male' ? ' ♂' : k.gender === 'female' ? ' ♀' : ''}</option>
-                  {/each}
-                  <optgroup label={t('list.unusedClassesGroup')}>
-                    {#each classes.filter((k) => !k.usedInGame) as k (k.id)}
-                      <option value={k.id} class={k.gender ?? ''}>{k.name || k.id}{k.gender === 'male' ? ' ♂' : k.gender === 'female' ? ' ♀' : ''}</option>
-                    {/each}
-                  </optgroup>
-                </select>
-                <GenderSign gender={cls?.gender} />
+                <ClassPicker value={unit.class} {classes} label={t('field.class')} onchange={(v) => editUnit(p.group, p.index, (u) => (u.class = v))} />
               </span>
             </label>
             {/if}

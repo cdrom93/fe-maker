@@ -5,11 +5,11 @@
   import type { Character, ClassStatKey, ClassView, Item, Problem, Reference, StatKey } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
-  import GenderSign from './GenderSign.svelte'
   import RecordList from './RecordList.svelte'
   import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
   import PortraitPanel from './PortraitPanel.svelte'
+  import ClassPicker from './ClassPicker.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
@@ -28,24 +28,14 @@
   const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
   const LUCK_CAP = 30 // fixed by the engine, not per class
+  /** who opens the convoy in the game (server: convoy.DEFAULT_OPENERS) */
+  const CONVOY_OPENERS = ['CHARACTER_EIRIKA', 'CHARACTER_EPHRAIM']
 
   let selected = $state(0)
 
   followFocus('characters', useNavigator(), () => list.records.map((c) => c.id), (i) => {
     selected = i
   })
-
-  const GENDER_SIGN = { male: '♂', female: '♀' } as const
-  // The current class always stays in the list, even when unused classes are hidden.
-  // Classes never used in the game come last, in their own group of the list.
-  const usedClasses = $derived(classes.filter((k) => k.usedInGame))
-  const unusedClasses = $derived(classes.filter((k) => !k.usedInGame))
-
-  function classLabel(k: ClassView): string {
-    const sign = k.gender ? ` ${GENDER_SIGN[k.gender]}` : ''
-    const unused = k.usedInGame ? '' : ` (${t('field.unusedClass')})`
-    return `${k.name || k.id}${sign}${unused}`
-  }
 
   const ch = $derived(list.records[selected])
   const cls = $derived(classes.find((c) => c.id === ch?.class))
@@ -95,15 +85,7 @@
           <label title={problemFor('class')}>
             {t('field.class')}
             <span class="with-sign">
-              <select value={ch.class} onchange={(e) => edit((c) => (c.class = (e.target as HTMLSelectElement).value))}>
-                {#each usedClasses as k (k.id)}
-                  <option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>
-                {/each}
-                <optgroup label={t('list.unusedClassesGroup')}>
-                  {#each unusedClasses as k (k.id)}<option value={k.id} class={k.gender ?? ''}>{classLabel(k)}</option>{/each}
-                </optgroup>
-              </select>
-              <GenderSign gender={cls?.gender} />
+              <ClassPicker value={ch.class} {classes} label={t('field.class')} onchange={(v) => edit((c) => (c.class = v))} />
               <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
@@ -126,6 +108,13 @@
             </label>
           </div>
           <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
+          <label class="check small" title={t('field.convoyAccessHint')}>
+            <input type="checkbox" checked={ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id)} onchange={(e) => {
+              const on = (e.target as HTMLInputElement).checked
+              edit((c) => (c.convoyAccess = on))
+            }} />
+            📦 {t('field.convoyAccess')}
+          </label>
           <details class="portrait-details">
             <summary>🖼 {ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
               ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })

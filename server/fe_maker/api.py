@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from . import emulator, ferepo
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, events, fonts, mapobjects, maps, portraits, quotes, supports, tileedit, units
+from .decomp import convoy, dialogues, events, fonts, mapobjects, maps, portraits, quotes, supports, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
@@ -254,6 +254,7 @@ def list_chapters():
             "title": d.texts.get_name(title_id) if title_id in d.texts.messages else "",
             "map": layout,
             "events": _event_symbol(ch),
+            "convoy": convoy.has_convoy(i),   # in the game (ticket 29)
         })
     return result
 
@@ -788,14 +789,14 @@ def import_ferepo_portrait(portrait_id: int, body: FeRepoIn):
 
 
 @app.get("/api/ferepo/portraits")
-def ferepo_portraits(q: str = "", refresh: bool = False):
-    """Portraits of FE-Repo matching a search (name, folder, authors)."""
+def ferepo_portraits(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+    """Portraits of FE-Repo matching a search (name, folder, authors), one page; and the folders to browse."""
     try:
         index, when = ferepo.load_index(refresh)
     except ferepo.FeRepoError as e:
         raise HTTPException(503, str(e)) from e
-    entries, total = ferepo.search(index, ferepo.PORTRAITS, q)
-    return {"entries": entries, "total": total, "indexDate": when}
+    entries, total = ferepo.search(index, ferepo.PORTRAITS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.PORTRAITS)}
 
 
 @app.get("/api/ferepo/image")

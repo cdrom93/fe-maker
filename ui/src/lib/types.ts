@@ -11,6 +11,8 @@ export interface Character {
   weaponRanks: Record<string, string | number>
   affinity: string | null
   abilities: string[]
+  /** opens the convoy, with the units next to them (missing in older projects: Eirika and Ephraim) */
+  convoyAccess?: boolean
 }
 
 export interface Item {
@@ -90,6 +92,8 @@ export interface ChapterInfo {
   title: string
   map: string | null
   events: string | null
+  /** the convoy can be used in this chapter, in the game */
+  convoy: boolean
 }
 
 export interface MapUnit {
@@ -120,6 +124,8 @@ export interface ChaptersData {
   newGroups?: Record<string, NewGroup>
   /** objectives edited in the project, by chapter index */
   objectives?: Record<string, ObjectiveEdit>
+  /** convoy available or not, by chapter index, once changed from the game (server: convoy.py) */
+  convoy?: Record<string, boolean>
 }
 
 export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'area' | 'special'

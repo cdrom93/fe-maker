@@ -82,19 +82,37 @@ def describe(url: str) -> dict:
             "authors": authors, "license": "F2E" if any(t.upper() == "F2E" for t in tags) else "F2U"}
 
 
-def search(index: dict[str, list[str]], category: str, query: str = "", limit: int = 120) -> tuple[list[dict], int]:
-    """PNG files of a category whose name, folder or authors contain all the words of the query."""
+def search(index: dict[str, list[str]], category: str, query: str = "", limit: int = 120, folder: str = "",
+           offset: int = 0, f2e_only: bool = False) -> tuple[list[dict], int]:
+    """PNG files of a category whose name, folder or authors contain all the words of the query; `folder`:
+    only that folder (and its subfolders); `f2e_only`: only files free to edit. One page from `offset`."""
     words = [w for w in _fold(query).split() if w]
     found = []
     for url in index.get(category, []):
         if not url.lower().endswith(".png"):
             continue
         entry = describe(url)
+        if folder and entry["folder"] != folder and not entry["folder"].startswith(folder + "/"):
+            continue
+        if f2e_only and entry["license"] != "F2E":
+            continue
         text = _fold(f"{entry['name']} {entry['folder']} {' '.join(entry['authors'])}")
         if all(w in text for w in words):
             found.append(entry)
-    found.sort(key=lambda e: (e["folder"], e["name"]))
-    return found[:limit], len(found)
+    # Parts to build portraits with (the "Assistive..." folder) and loose files of the repository
+    # (references, tutorials) after the portraits themselves.
+    found.sort(key=lambda e: (not e["folder"] or e["folder"].startswith("Assistive"), e["folder"], e["name"]))
+    return found[offset:offset + limit], len(found)
+
+
+def folders(index: dict[str, list[str]], category: str) -> list[dict]:
+    """Top folders of a category (games, artists, generic portraits...) with their PNG count, to browse."""
+    count: dict[str, int] = {}
+    for url in index.get(category, []):
+        if url.lower().endswith(".png"):
+            top = describe(url)["folder"].split("/")[0]
+            count[top] = count.get(top, 0) + 1
+    return [{"name": name, "count": n} for name, n in sorted(count.items(), key=lambda kv: kv[0].lower()) if name]
 
 
 def _fold(text: str) -> str:

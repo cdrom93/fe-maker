@@ -79,3 +79,13 @@ def test_credits(tmp_path, decomp_dir):
     project.save("portraits", {})
     project.update_credits()
     assert (project.root / "CREDITS.txt").read_text(encoding="utf-8") == "Credits\n\nMy own thanks.\n"
+
+
+def test_browse_by_folder_and_license():
+    index = {ferepo.PORTRAITS: URLS}
+    assert ferepo.folders(index, ferepo.PORTRAITS) == [{"name": "FE08 Mugs (Sacred Stones)", "count": 1},
+                                                       {"name": "Generic Characters", "count": 1}]
+    found, total = ferepo.search(index, ferepo.PORTRAITS, "", folder="Generic Characters")
+    assert total == 1 and found[0]["name"] == "Villager Élodie"
+    assert ferepo.search(index, ferepo.PORTRAITS, "", f2e_only=True)[0][0]["name"] == "Amelia (Knight)"
+    assert ferepo.search(index, ferepo.PORTRAITS, "", offset=1)[0][0]["name"] == "Villager Élodie"

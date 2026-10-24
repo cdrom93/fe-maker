@@ -117,6 +117,14 @@
     }
   }
 
+  /** The current sheet as a file (a template to draw on). */
+  function download() {
+    const a = document.createElement('a')
+    a.href = portraitSheetUrl(portraitId)
+    a.download = `portrait-${portraitId}.png`
+    a.click()
+  }
+
   async function rename(name: string) {
     const r = await api.renamePortrait(portraitId, name)
     onproblems(r.problems)
@@ -163,7 +171,7 @@
     <div class="buttons">
       <button onclick={() => fileInput?.click()} disabled={busy}>🖼 {t('portrait.import')}</button>
       <button onclick={() => (browsing = browsing === 'replace' ? null : 'replace')} class:active={browsing === 'replace'}>🔎 {t('ferepo.open')}</button>
-      <a class="small" href={portraitSheetUrl(portraitId)} download={`portrait-${portraitId}.png`}>⬇ {t('portrait.download')}</a>
+      <button onclick={download}>⬇ {t('portrait.download')}</button>
       {#if info?.added}
         <button class="link" onclick={remove} disabled={busy} title={t('portrait.deleteHint')}>{t('portrait.delete')}</button>
       {:else if imported}

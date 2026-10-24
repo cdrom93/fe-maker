@@ -70,9 +70,10 @@ export const api = {
     request<{ entry: PortraitImport; problems: Problem[] }>('PATCH', `/api/portraits/${id}`, { name }),
   importFeRepoPortrait: (id: number, url: string) =>
     request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}/ferepo`, { url }),
-  feRepoPortraits: (q: string, refresh = false) =>
-    request<{ entries: FeRepoEntry[]; total: number; indexDate: number }>(
-      'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}${refresh ? '&refresh=true' : ''}`),
+  feRepoPortraits: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+      'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
   removePortrait: (id: number) => request<{ problems: Problem[] }>('DELETE', `/api/portraits/${id}`),
   eventsReference: () => request<EventsReference>('GET', '/api/events/reference'),
   eventScript: (name: string) => request<{ name: string; file: string; commands: EventCommand[] }>('GET', `/api/events/scripts/${name}`),
