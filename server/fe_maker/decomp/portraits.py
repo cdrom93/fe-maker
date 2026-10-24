@@ -162,8 +162,27 @@ def _rgba(img: Image.Image, scale: int) -> bytes:
     return out.getvalue()
 
 
-def face_png(sheet: Image.Image, scale: int = 1) -> bytes:
-    return _rgba(sheet.crop((0, 0, *FACE)), scale)
+# The game's mouth frames: 0-2 smiling, 3-5 not, the last of each at rest. Most portraits rest with the
+# same mouth smiling or not: the smile shows while the face talks (face.c), so the preview shows frame 0.
+SMILE_MOUTH = 0
+EYE_FRAMES = {"half": 0, "closed": 1}
+
+
+def face_png(sheet: Image.Image, scale: int = 1, smile: bool = False, eyes: str | None = None,
+             positions: dict | None = None) -> bytes:
+    """The dialogue face; with `positions` ({"mouth", "eyes"} in 8-pixel tiles), smiling or with the eyes
+    half closed or closed, as the text codes [ToggleSmile], [HalfCloseEyes] and [CloseEyes] show it."""
+    face = sheet.crop((0, 0, *FACE))
+    parts = []
+    if positions and smile:
+        parts.append((MOUTHS_AT[SMILE_MOUTH], positions["mouth"]))
+    if positions and eyes in EYE_FRAMES:
+        parts.append((EYES_AT[EYE_FRAMES[eyes]], positions["eyes"]))
+    for (sx, sy), (tx, ty) in parts:
+        frame = sheet.crop((sx, sy, sx + FRAME[0], sy + FRAME[1]))
+        mask = Image.frombytes("L", frame.size, bytes(0 if i == 0 else 255 for i in frame.tobytes()))
+        face.paste(frame, (FACE_X0 + 8 * tx, 8 * ty), mask)
+    return _rgba(face, scale)
 
 
 def chibi_png(sheet: Image.Image, scale: int = 1) -> bytes:

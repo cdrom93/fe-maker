@@ -1046,5 +1046,14 @@
   "maps.tiledError.unsupportedCompression": "Compresión de capa no compatible (elija CSV en las propiedades del mapa, en Tiled).",
   "maps.tiledError.badLayerSize": "Una capa no tiene el tamaño del mapa.",
   "maps.tiledError.tileOutOfRange": "El mapa usa casillas que este juego de casillas no tiene: se hizo con otro juego de casillas.",
-  "maps.tiledError.size": "Tamaño {w} × {h} imposible en el juego (al menos 15 × 10, como máximo 60 por lado)."
+  "maps.tiledError.size": "Tamaño {w} × {h} imposible en el juego (al menos 15 × 10, como máximo 60 por lado).",
+  "problem.missingTile": "el mapa usa casillas añadidas que se han eliminado ({tiles}): el juego mostrará cualquier cosa. Vuelva a pintar esas casillas o cree de nuevo las casillas",
+  "dlg.exprSmileOff": "Sonrisa: no. Haga clic para sonreír a partir del cursor (se ve cuando el personaje habla), hasta el próximo 😊",
+  "dlg.exprSmileOn": "Sonrisa: sí (hasta el próximo 😊 o el final del mensaje). Haga clic para parar a partir del cursor",
+  "dlg.exprMouthOff": "La boca se mueve cuando el personaje habla. Haga clic para inmovilizarla a partir del cursor",
+  "dlg.exprMouthOn": "Boca inmóvil: sí (hasta el próximo 🤐 o el final del mensaje). Haga clic para que vuelva a moverse",
+  "dlg.exprEyes": "Ojos",
+  "dlg.exprEyesNow": "{what}: así están los ojos ahora",
+  "dlg.exprEyesSet": "{what} a partir del cursor, hasta el próximo cambio de los ojos",
+  "dlg.exprWink": "Guiño (un instante, donde está el cursor)"
 }

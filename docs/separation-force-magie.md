@@ -11,6 +11,20 @@ FE8 n'a qu'une statistique, « For/Mag » (`pow`), qui sert aux armes physiques 
 
 FE Maker compile la décomp : la séparation se fait directement dans le code C du moteur, ce qui est plus simple et plus propre qu'un patch.
 
+### Reprendre le C-SkillSys tel quel ? (regardé le 24/10/2026)
+
+Le dépôt `FireEmblemUniverse/fe8u-cskillsys` (MIT, Mokha Lee) contient bien la séparation : `Kernel/Wizardry/Common/StrMagSplit` (code C et accroches), `Data/StrMag` (tables Mag par personnage `PersonMagicInfo.c` et par classe `JobMagicInfo.c`, objet « Mag Booster »). Il se compile sous Linux avec devkitARM, son Event Assembler (branche `mokha-fix`), FE-CLib-Mokha et des outils Python, puis s'écrit sur une ROM FE8U **propre**.
+
+Il s'accroche au jeu comme ceci : `ORG $17e34` puis un saut vers sa propre fonction (`UnitLoadStatsFromChracter`), c'est-à-dire le début d'une fonction du jeu remplacé, à son adresse d'origine. Environ 70 fichiers de ce type, plus des écritures au milieu de fonctions.
+
+Notre ROM n'est pas propre : FE Maker la recompile, et chaque donnée modifiée décale les adresses. Mais le code du moteur, lui, reste identique, seulement déplacé, et le fichier `.map` de notre compilation dit où se trouve chaque fonction. Une piste réaliste :
+
+1. compiler la décomp non modifiée une fois (c'est la ROM d'origine) et garder son `.map` ;
+2. pour chaque adresse du C-SkillSys, trouver la fonction du jeu qui la contient et son décalage, puis l'adresse de cette fonction dans notre compilation ;
+3. compiler le C-SkillSys avec ces adresses (références FE-CLib refaites depuis notre `.map`) et l'écrire après notre ROM, dans l'espace libre.
+
+Risques : une fonction du jeu que FE Maker réécrit (convoi, par exemple) et que le C-SkillSys accroche aussi ; ses textes, qu'il installe lui-même, alors que FE Maker réécrit la table des textes ; ses tables de données (compétences, Mag) qu'il faudrait éditer dans FE Maker. On aurait aussi les compétences, pas seulement la magie. Il faut un prototype (une image Docker avec ses outils, la traduction d'adresses, une vérification en jeu par playtest) pour savoir si ça tient.
+
 ## Ce qu'il faut changer dans la décomp
 
 Environ 80 endroits lisent ou écrivent `pow` (hors tables de données), dans une vingtaine de fichiers :

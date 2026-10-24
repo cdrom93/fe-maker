@@ -707,10 +707,13 @@ def map_sprite(class_id: str, side: str = "player", trim: bool = False):
 
 
 @app.get("/api/assets/portrait/{portrait_id}")
-def portrait(portrait_id: int, face: bool = False):
+def portrait(portrait_id: int, face: bool = False, smile: bool = False, eyes: str | None = None):
     """Small portrait (menus), or the big one shown in dialogues with `face` (the project's imported
-    sheet when it replaced this portrait)."""
+    sheet when it replaced this portrait); `smile` and `eyes` ("half", "closed"): the face as the
+    dialogue's expression codes leave it."""
     sheet = _imported_sheet(portrait_id)
+    if face and (smile or eyes):
+        return _face_with_expression(portrait_id, sheet, smile, eyes)
     if sheet is not None:
         png = portraits.face_png(sheet) if face else portraits.chibi_png(sheet, scale=3)
         return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
@@ -726,6 +729,20 @@ def item_icon(icon_id: int):
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")
+
+
+def _face_with_expression(portrait_id: int, sheet, smile: bool, eyes: str | None) -> Response:
+    if sheet is not None:
+        positions = state.project.load("portraits").get(str(portrait_id))
+    else:
+        try:
+            name = portraits.portrait_name(DECOMP_DIR, portrait_id)
+            sheet = portraits.to_sheet(DECOMP_DIR, name)
+        except (portraits.PortraitError, FileNotFoundError) as e:
+            raise HTTPException(404, str(e)) from e
+        positions = portraits.read_positions(DECOMP_DIR).get(name)
+    png = portraits.face_png(sheet, smile=smile, eyes=eyes, positions=positions)
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
 
 
 # ---------- imported portraits (phase 5) ----------

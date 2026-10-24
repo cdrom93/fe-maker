@@ -118,8 +118,10 @@ export const mapTilesetUrl = (id: string, base: string | null = null) =>
   `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
-export const portraitUrl = (id: number, face = false) =>
-  `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}`
+/** `smile`, `eyes`: the dialogue face as the expression codes leave it. */
+export const portraitUrl = (id: number, face = false, expression?: { smile?: boolean; eyes?: string }) =>
+  `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}` +
+  `${expression?.smile ? '&smile=true' : ''}${expression?.eyes && expression.eyes !== 'open' ? `&eyes=${expression.eyes}` : ''}`
 export const portraitSheetUrl = (id: number) => `/api/portraits/${id}/sheet.png?v=${portraitVersion.n}`
 export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
 export const patchUrl = '/api/project/patch'

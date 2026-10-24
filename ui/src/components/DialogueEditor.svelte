@@ -6,7 +6,7 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { layout, layoutBoxes, lineWidth } from '../lib/textLayout'
-  import { EXPRESSIONS, fromDisplay, toDisplay } from '../lib/dialogueCodes'
+  import { EXPRESSIONS, expressionsAt, fromDisplay, toDisplay } from '../lib/dialogueCodes'
   import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem, SupportPair } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
@@ -395,6 +395,9 @@
     return state
   }
   const shown = $derived(facesAt(stepIndex))
+  // Smile and eyes of the faces once the selected step is played, shown on the portraits
+  const expr = $derived(expressionsAt(steps, stepIndex))
+  const faceExpression = (pos: string) => ({ smile: expr.smile && line?.pos === pos, eyes: expr.eyes.get(pos) })
   // The line shown in the box: the selected one, or the last one before it.
   const line = $derived([...steps.slice(0, stepIndex + 1)].reverse().find((s) => s.kind === 'say') ?? null)
   // Battle quotes and last words are shown in the battle screen's narrower box.
@@ -423,6 +426,24 @@
   const faceLabel = (fid: string) => faces.find((f) => f.id === fid)?.name ?? fid.replace('FID_', '').replace(/([a-z])([A-Z])/g, '$1 $2')
   const posLabel = (pos: string) => t(`dlg.pos.${pos}`)
 </script>
+
+{#snippet exprButtons(i: number)}
+  {@const e = expressionsAt(steps, i)}
+  {@const pos = steps[i]?.pos ?? null}
+  {@const eyes = (pos && e.eyes.get(pos)) || 'open'}
+  <button class:on={e.smile} aria-pressed={e.smile} title={t(e.smile ? 'dlg.exprSmileOn' : 'dlg.exprSmileOff')}
+          onmousedown={(ev) => ev.preventDefault()} onclick={() => insertCode(i, 'ToggleSmile')}>😊</button>
+  <button class:on={e.mouthStill} aria-pressed={e.mouthStill} title={t(e.mouthStill ? 'dlg.exprMouthOn' : 'dlg.exprMouthOff')}
+          onmousedown={(ev) => ev.preventDefault()} onclick={() => insertCode(i, 'ToggleMouthMove')}>🤐</button>
+  <span class="eyes" role="group" aria-label={t('dlg.exprEyes')}>
+    {#each [['open', 'OpenEyes', '👀'], ['half', 'HalfCloseEyes', '😑'], ['closed', 'CloseEyes', '😌']] as [state, code, icon] (code)}
+      <button class:on={eyes === state} aria-pressed={eyes === state}
+              title={eyes === state ? t('dlg.exprEyesNow', { what: t(`dlg.code.${code}`) }) : t('dlg.exprEyesSet', { what: t(`dlg.code.${code}`) })}
+              onmousedown={(ev) => ev.preventDefault()} onclick={() => { if (eyes !== state) insertCode(i, code) }}>{icon}</button>
+    {/each}
+  </span>
+  <button title={t('dlg.exprWink')} onmousedown={(ev) => ev.preventDefault()} onclick={() => insertCode(i, 'Wink')}>😉</button>
+{/snippet}
 
 <div class="editor">
   <RecordList records={chapters} {selected} onselect={(i) => load(i)} problemIds={new Set()}>
@@ -571,20 +592,18 @@
                         style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px"
                         title={t('dlg.portraitHint', { name: faceLabel(fid) })} onclick={() => speakerClick(slot.pos)}
                         ondragstart={(e) => e.dataTransfer?.setData('text/plain', JSON.stringify({ from: slot.pos }))}>
-                  <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos} src={portraitUrl(portraitOf.get(fid)!, true)} alt={faceLabel(fid)} />
+                  <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos} src={portraitUrl(portraitOf.get(fid)!, true, faceExpression(slot.pos))} alt={faceLabel(fid)} />
                 </button>
                 <button class="leave" style="left: {(slot.x * 8 + 30) * SCALE}px" title={t('dlg.leaveHint', { name: faceLabel(fid) })}
                         aria-label={t('dlg.leaveHint', { name: faceLabel(fid) })} onclick={() => insertSteps([{ kind: 'clear', pos: slot.pos }])}>✕</button>
                 {#if line?.pos === slot.pos && steps[stepIndex]?.kind === 'say'}
                   <span class="face-codes" style="left: {(slot.x * 8 - 40) * SCALE}px">
-                    {#each EXPRESSIONS as ex (ex.code)}
-                      <button title={t(`dlg.code.${ex.code}`)} onmousedown={(e) => e.preventDefault()} onclick={() => insertCode(stepIndex, ex.code)}>{ex.icon}</button>
-                    {/each}
+                    {@render exprButtons(stepIndex)}
                   </span>
                 {/if}
               {:else}
                 <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos}
-                     src={portraitUrl(portraitOf.get(fid)!, true)} alt={faceLabel(fid)}
+                     src={portraitUrl(portraitOf.get(fid)!, true, faceExpression(slot.pos))} alt={faceLabel(fid)}
                      style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px" />
               {/if}
             {/if}
@@ -649,11 +668,7 @@
                       <option value="">{t('dlg.narrator')}</option>
                       {#each SLOTS as slot (slot.pos)}<option value={slot.pos}>{state.get(slot.pos) ? faceLabel(state.get(slot.pos)!) : '—'} ({posLabel(slot.pos)})</option>{/each}
                     </select>
-                    <span class="expressions">
-                      {#each EXPRESSIONS as ex (ex.code)}
-                        <button title={t(`dlg.code.${ex.code}`)} onclick={() => insertCode(i, ex.code)}>{ex.icon}</button>
-                      {/each}
-                    </span>
+                    <span class="expressions">{@render exprButtons(i)}</span>
                   </div>
                   <textarea rows={Math.min(8, Math.max(2, (s.text ?? '').split('\n').length))} bind:this={textAreas[i]} value={s.text ?? ''}
                             onfocus={() => { if (stepIndex !== i) boxIndex = 0; stepIndex = i }} onchange={(e) => editStep(i, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
@@ -727,6 +742,10 @@
   .stage.talk:hover .leave { opacity: 0.85; }
   .face-codes { position: absolute; bottom: 4px; display: flex; gap: 2px; background: rgb(0 0 0 / 0.6); border-radius: 6px; padding: 2px; z-index: 2; }
   .face-codes button { padding: 0 0.25rem; font-size: 0.9rem; }
+  .face-codes button.on, .expressions button.on { background: var(--accent); border-color: var(--accent); }
+  .eyes { display: inline-flex; gap: 0; margin: 0 0.15rem; }
+  .eyes button:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .eyes button:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .drop-ghost { position: absolute; top: 0; bottom: 0; border: 2px dashed var(--accent); border-radius: 6px; background: rgb(255 255 255 / 0.08); display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
   .drop-ghost span { font-size: 0.75rem; color: #fff; background: rgb(0 0 0 / 0.6); padding: 0 0.3rem; border-radius: 4px; margin-bottom: 4px; }
   .views { display: flex; gap: 0.2rem; margin-left: auto; }

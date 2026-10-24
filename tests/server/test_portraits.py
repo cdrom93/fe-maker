@@ -43,6 +43,22 @@ def test_detect_mouth_and_eyes():
     assert pt.detect(sheet) == {"mouth": [3, 5], "eyes": [2, 3]}
 
 
+def test_face_with_expression():
+    img = _sheet(mouth=(2, 6), eyes=(3, 4))
+    sheet, _ = pt.indexed(img)
+    plain, closed, smile = (Image.open(io.BytesIO(pt.face_png(sheet, positions={"mouth": [2, 6], "eyes": [3, 4]}, **k)))
+                            for k in ({}, {"eyes": "closed"}, {"smile": True}))
+    eye_cells = [(24 + x, 32 + y) for x in range(32) for y in range(16)]
+    mouth_cells = [(16 + x, 48 + y) for x in range(32) for y in range(16)]
+    assert [closed.getpixel(c) for c in eye_cells] == [sheet.crop((96, 64, 128, 80)).convert("RGBA").getpixel((x - 24, y - 32))
+                                                       if sheet.getpixel((96 + x - 24, 64 + y - 32)) else plain.getpixel((x, y))
+                                                       for x, y in eye_cells]
+    sx, sy = pt.MOUTHS_AT[pt.SMILE_MOUTH]
+    assert all(smile.getpixel((x, y)) == sheet.convert("RGBA").getpixel((sx + x - 16, sy + y - 48))
+               for x, y in mouth_cells if sheet.getpixel((sx + x - 16, sy + y - 48)))
+    assert [smile.getpixel(c) for c in eye_cells] == [plain.getpixel(c) for c in eye_cells]
+
+
 def test_files_round_trip(tmp_path):
     sheet, _ = pt.indexed(_sheet())
     files = pt.from_sheet(sheet)

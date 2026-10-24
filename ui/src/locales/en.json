@@ -1046,5 +1046,14 @@
   "maps.tiledError.unsupportedCompression": "Layer compression not supported (choose CSV in the map properties, in Tiled).",
   "maps.tiledError.badLayerSize": "A layer does not have the map's size.",
   "maps.tiledError.tileOutOfRange": "The map uses tiles this tile sheet does not have: it was made with another tile sheet.",
-  "maps.tiledError.size": "Size {w} × {h} not possible in the game (at least 15 × 10, at most 60 a side)."
+  "maps.tiledError.size": "Size {w} × {h} not possible in the game (at least 15 × 10, at most 60 a side).",
+  "problem.missingTile": "the map uses added tiles that were removed ({tiles}): the game will show garbage there. Repaint these cells or create the tiles again",
+  "dlg.exprSmileOff": "Smile: off. Click to smile from the cursor on (it shows while the character talks), until the next 😊",
+  "dlg.exprSmileOn": "Smile: on (until the next 😊 or the end of the message). Click to stop from the cursor on",
+  "dlg.exprMouthOff": "The mouth moves while the character talks. Click to keep it still from the cursor on",
+  "dlg.exprMouthOn": "Mouth still: on (until the next 🤐 or the end of the message). Click to make it move again",
+  "dlg.exprEyes": "Eyes",
+  "dlg.exprEyesNow": "{what}: the eyes are like this now",
+  "dlg.exprEyesSet": "{what} from the cursor on, until the eyes change again",
+  "dlg.exprWink": "Wink (for a moment, where the cursor is)"
 }

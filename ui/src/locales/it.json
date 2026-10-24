@@ -1046,5 +1046,14 @@
   "maps.tiledError.unsupportedCompression": "Compressione del livello non supportata (scegliete CSV nelle proprietà della mappa, in Tiled).",
   "maps.tiledError.badLayerSize": "Un livello non ha la dimensione della mappa.",
   "maps.tiledError.tileOutOfRange": "La mappa usa caselle che questo set non ha: è stata fatta con un altro set di caselle.",
-  "maps.tiledError.size": "Dimensione {w} × {h} impossibile nel gioco (almeno 15 × 10, al massimo 60 per lato)."
+  "maps.tiledError.size": "Dimensione {w} × {h} impossibile nel gioco (almeno 15 × 10, al massimo 60 per lato).",
+  "problem.missingTile": "la mappa usa caselle aggiunte che sono state eliminate ({tiles}): il gioco mostrerà qualsiasi cosa. Ridipingete queste caselle o ricreate le caselle",
+  "dlg.exprSmileOff": "Sorriso: no. Cliccate per sorridere dal cursore in poi (si vede quando il personaggio parla), fino al prossimo 😊",
+  "dlg.exprSmileOn": "Sorriso: sì (fino al prossimo 😊 o alla fine del messaggio). Cliccate per fermarlo dal cursore in poi",
+  "dlg.exprMouthOff": "La bocca si muove quando il personaggio parla. Cliccate per bloccarla dal cursore in poi",
+  "dlg.exprMouthOn": "Bocca immobile: sì (fino al prossimo 🤐 o alla fine del messaggio). Cliccate per farla muovere di nuovo",
+  "dlg.exprEyes": "Occhi",
+  "dlg.exprEyesNow": "{what}: gli occhi sono così ora",
+  "dlg.exprEyesSet": "{what} dal cursore in poi, fino al prossimo cambiamento degli occhi",
+  "dlg.exprWink": "Occhiolino (un istante, dove si trova il cursore)"
 }

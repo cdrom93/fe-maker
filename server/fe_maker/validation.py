@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass, field
 
 from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
-from .decomp import fonts, mapobjects, units
+from .decomp import fonts, mapobjects, tileedit, units
 from .decomp import maps as decomp_maps
 from .decomp import portraits as decomp_portraits
 from .decomp import supports as decomp_supports
@@ -405,7 +405,40 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
             elif c["x"] < 0 or c["y"] < 0 or c["x"] + w > width or c["y"] + h > height:
                 problems.append(Problem("error", "maps", layout_id, "changes", "changeOutOfMap", {"id": str(cid)},
                                         f"{layout_id}: change {cid} goes past the edge of the map"))
+    if known_layouts:
+        _validate_missing_tiles(problems, maps_data, known_layouts, decomp_dir)
     _validate_map_objects(problems, maps_data, known_layouts, decomp_dir, sizes)
+
+
+def _validate_missing_tiles(problems, maps_data: dict, known_layouts: dict, decomp_dir):
+    """Painted cells on a free slot of their tileset that the project does not fill (an added tile
+    removed while the map still used it, ticket 22): the game would show whatever the slot holds."""
+    free_slots: dict[str, set[int]] = {}
+    bases = maps_data.get("bases", {})
+    edited = maps_data.get("tilesets", {})
+    grids: dict[str, list] = {}
+    for layout_id, layout in maps_data.get("layouts", {}).items():
+        grids.setdefault(layout_id, []).append(layout.get("rows") or [])
+    for layout_id, changes in maps_data.get("changes", {}).items():
+        grids.setdefault(layout_id, []).extend(c.get("rows") or [] for c in changes)
+    for layout_id, layout_grids in grids.items():
+        if layout_id not in known_layouts:
+            continue
+        config = decomp_maps.with_base(decomp_dir, known_layouts[layout_id]["assets"], bases.get(layout_id)).config.stem
+        if config not in free_slots:
+            tile_layout = tileedit.layout_for(decomp_dir, config)
+            try:
+                tileset = tileedit.Tileset(decomp_dir, tile_layout, None) if tile_layout else None
+            except tileedit.TileEditError:
+                tileset = None
+            free_slots[config] = {n for n, dup in enumerate(tileset.duplicates) if dup and n not in tileset.used} \
+                if tileset else set()
+        filled = {int(k) for k in edited.get(config, {}).get("metatiles", {})}
+        missing = {m for grid in layout_grids for row in grid for m in row if isinstance(m, int)} & (free_slots[config] - filled)
+        if missing:
+            problems.append(Problem("warning", "maps", layout_id, "rows", "missingTile",
+                                    {"tiles": ", ".join(str(m) for m in sorted(missing))},
+                                    f"{layout_id}: tiles {sorted(missing)} were removed from the tileset"))
 
 
 def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp_dir, sizes: dict):

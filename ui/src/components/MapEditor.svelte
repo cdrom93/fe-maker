@@ -285,7 +285,11 @@
   const addedUsage = $derived(
     tilesetEdits && baseLayout
       ? addedTileUsage(list.records[0], tilesetEdits, baseLayout.tileset, maps.map((m) => m.id),
-                       (lid) => list.records[0]?.bases?.[lid] || maps.find((m) => m.id === lid)?.originalTileset || '')
+                       (lid) => {
+                         // a server older than the UI gives no originalTileset: its tileset then is the original one
+                         const m = maps.find((n) => n.id === lid)
+                         return list.records[0]?.bases?.[lid] || m?.originalTileset || m?.tileset || ''
+                       })
       : new Map<string, { cells: number; maps: string[] }>(),
   )
   const mapName = (lid: string) => maps.find((m) => m.id === lid)?.name ?? lid

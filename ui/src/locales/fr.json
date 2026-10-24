@@ -1046,5 +1046,14 @@
   "maps.tiledError.unsupportedCompression": "Compression de calque non prise en charge (choisissez CSV dans les propriétés de la carte, dans Tiled).",
   "maps.tiledError.badLayerSize": "Un calque n'a pas la taille de la carte.",
   "maps.tiledError.tileOutOfRange": "La carte utilise des tuiles que ce jeu de tuiles n'a pas : elle a été faite avec un autre jeu de tuiles.",
-  "maps.tiledError.size": "Taille {w} × {h} impossible pour le jeu (15 × 10 au moins, 60 au plus de chaque côté)."
+  "maps.tiledError.size": "Taille {w} × {h} impossible pour le jeu (15 × 10 au moins, 60 au plus de chaque côté).",
+  "problem.missingTile": "la carte utilise des tuiles ajoutées qui ont été supprimées ({tiles}) : le jeu y affichera n'importe quoi. Repeignez ces cases ou recréez les tuiles",
+  "dlg.exprSmileOff": "Sourire : non. Cliquer pour faire sourire à partir du curseur (se voit quand le personnage parle), jusqu'au prochain 😊",
+  "dlg.exprSmileOn": "Sourire : oui (jusqu'au prochain 😊 ou la fin du message). Cliquer pour arrêter à partir du curseur",
+  "dlg.exprMouthOff": "La bouche bouge quand le personnage parle. Cliquer pour l'immobiliser à partir du curseur",
+  "dlg.exprMouthOn": "Bouche immobile : oui (jusqu'au prochain 🤐 ou la fin du message). Cliquer pour la faire bouger de nouveau",
+  "dlg.exprEyes": "Yeux",
+  "dlg.exprEyesNow": "{what} : c'est l'état actuel des yeux",
+  "dlg.exprEyesSet": "{what} à partir du curseur, jusqu'au prochain changement des yeux",
+  "dlg.exprWink": "Clin d'œil (un instant, à l'endroit du curseur)"
 }
