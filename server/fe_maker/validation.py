@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field
 from .decomp import dialogues as decomp_dialogues
 from .decomp import fonts, mapobjects, units
 from .decomp import maps as decomp_maps
+from .decomp import supports as decomp_supports
 from .decomp.gamedata import (
     ABILITIES_REV,
     AFFINITIES_REV,
@@ -180,6 +181,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
         faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
         _validate_dialogues(problems, dialogues, faces)
+        if dialogues.get("supports") is not None:
+            original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
+            _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
     return problems
 
 
@@ -189,7 +193,7 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
     edited = list(data.get("messages", {}).items())
     for n, quote in enumerate(data.get("quotes", [])):
         edited.append((f"new{n}", quote.get("steps", [])))
-        if not quote.get("a") or (quote.get("kind") == "talk" and not quote.get("b")):
+        if not quote.get("a") or (quote.get("kind") in ("talk", "support") and not quote.get("b")):
             problems.append(Problem("error", "dialogues", f"new{n}", "a", "quoteWithoutCharacter", {},
                                     "new quote without character"))
     for key, steps in edited:
@@ -210,6 +214,44 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
             decomp_dialogues.render(steps)
         except (decomp_dialogues.DialogueError, KeyError, TypeError, AttributeError):
             problems.append(Problem("error", "dialogues", key, "steps", "badDialogue", {}, f"{key}: malformed dialogue"))
+
+
+def _validate_supports(problems, data: dict, character_ids: set[str], original: set[tuple[str, str]]):
+    """Support pairs ("support:A:B"): known characters, 7 partners at most, points in range, and the
+    conversations of the new pairs."""
+    seen: set[tuple[str, str]] = set()
+    partners: dict[str, int] = {}
+    talks = {(tuple(sorted((q.get("a"), q.get("b")))), int(q.get("rank", 0)))
+             for q in data.get("quotes", []) if q.get("kind") == "support" and q.get("a") and q.get("b")}
+    for p in data["supports"]:
+        a, b = p.get("a"), p.get("b")
+        rid = f"support:{a}:{b}"
+        for who in (a, b):
+            if who not in character_ids:
+                problems.append(Problem("error", "dialogues", rid, "a", "unknownCharacter", {}, f"{rid}: unknown character"))
+        if a == b:
+            problems.append(Problem("error", "dialogues", rid, "b", "supportSelf", {}, f"{rid}: a character with themself"))
+            continue
+        key = tuple(sorted((a, b)))
+        if key in seen:
+            problems.append(Problem("error", "dialogues", rid, "b", "supportDuplicate", {}, f"{rid}: pair listed twice"))
+        seen.add(key)
+        for who in (a, b):
+            partners[who] = partners.get(who, 0) + 1
+        _range(problems, "dialogues", rid, "base", p.get("base"), 0, decomp_supports.MAX_POINTS)
+        _range(problems, "dialogues", rid, "growth", p.get("growth"), 0, decomp_supports.MAX_POINTS)
+        numbers = isinstance(p.get("base"), int) and isinstance(p.get("growth"), int)
+        if numbers and decomp_supports.turns_to(1, p["base"], p["growth"]) is None:
+            problems.append(Problem("warning", "dialogues", rid, "growth", "supportNever", {}, f"{rid}: never reaches C"))
+        if key not in original:
+            missing = [r for r in (1, 2, 3) if (key, r) not in talks]
+            if missing:
+                problems.append(Problem("warning", "dialogues", rid, "talks", "supportNoTalk",
+                                        {"ranks": ", ".join("CBA"[r - 1] for r in missing)}, f"{rid}: conversations missing"))
+    for who, n in partners.items():
+        if n > decomp_supports.MAX_PARTNERS:
+            problems.append(Problem("error", "dialogues", f"support:{who}", "partners", "supportTooMany",
+                                    {"max": decomp_supports.MAX_PARTNERS}, f"{who}: too many support partners"))
 
 
 def map_size_problem(width: int, height: int) -> dict | None:

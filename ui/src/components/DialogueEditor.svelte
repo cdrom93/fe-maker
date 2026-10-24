@@ -6,10 +6,11 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { layout, layoutBoxes, lineWidth } from '../lib/textLayout'
-  import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem } from '../lib/types'
+  import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem, SupportPair } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
+  import SupportList from './SupportList.svelte'
   import TalkBubble from './TalkBubble.svelte'
 
   let { list, characters, problems }: { list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[] } = $props()
@@ -22,6 +23,7 @@
   ]
   const SCREEN_W = 240
   const ANY_CHAPTER = 255
+  const SUPPORTS = -2 // index of the "Supports" entry of the list
   const NEW = 'new:' // id prefix of a new quote in the editor
   const SCALE = 2
   // Codes put in a line with one click (they change the face of the speaker).
@@ -40,6 +42,7 @@
   let originals = $state<Record<string, DialogueStep[]>>({})
   let faces = $state<DialogueFace[]>([])
   let font = $state<DialogueFont | null>(null)
+  let supportInfo = $state<{ pairs: SupportPair[]; levelPoints: number[]; maxPartners: number } | null>(null)
   let boxIndex = $state(0)
   let messageId = $state<string | null>(null)
   let stepIndex = $state(0)
@@ -76,6 +79,7 @@
     font = fontInfo
     chapters = [
       { index: -1, id: 'all', title: '', map: null, events: null, name: t('dlg.allChapters') },
+      { index: SUPPORTS, id: 'supports', title: '', map: null, events: null, name: t('dlg.supports') },
       ...list_.map((c) => ({ ...c, id: String(c.index), name: c.title || c.id })),
     ]
     const asked = nav.focus?.kind === 'dialogues' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1
@@ -86,7 +90,13 @@
     selected = index
     messageId = null
     stepIndex = 0
-    const data = chapters[index].index < 0 ? await api.commonDialogues() : await api.chapterDialogues(chapters[index].index)
+    const which = chapters[index].index
+    let data: { scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }
+    if (which === SUPPORTS) {
+      const sup = await api.supportDialogues()
+      supportInfo = { pairs: sup.pairs, levelPoints: sup.levelPoints, maxPartners: sup.maxPartners }
+      data = sup
+    } else data = which < 0 ? await api.commonDialogues() : await api.chapterDialogues(which)
     if (selected !== index) return
     scenes = data.scenes
     originals = data.messages
@@ -168,6 +178,12 @@
     stepIndex = at
   }
 
+  /** First line of a message (the project's version if edited), for lists. */
+  function firstLineOf(id: string): string {
+    const q = id.startsWith(NEW) ? newQuotes[Number(id.slice(NEW.length))]?.steps : (edited[id] ?? originals[id])
+    return q?.find((s) => s.kind === 'say')?.text?.replace(/\[[^\]]*\]/g, '').split('\n')[0] ?? ''
+  }
+
   /** Portrait code of a character (its portrait id in the texts' list). */
   const faceOf = (pid: string) => faces.find((f) => f.portrait === characters.find((c) => c.id === pid)?.portraitId)?.id ?? faces[0]?.id ?? 'FID_Eirika'
 
@@ -209,6 +225,7 @@
   function quoteLabel(q: NewQuote): string {
     if (q.kind === 'battle') return t('dlg.trigger.battle', { a: charName(q.a), b: q.b ? charName(q.b) : t('dlg.anyone') })
     if (q.kind === 'death') return t('dlg.trigger.death', { a: charName(q.a) })
+    if (q.kind === 'support') return t('dlg.supportTalk', { rank: 'CBA'[(q.rank ?? 1) - 1], a: charName(q.a), b: charName(q.b ?? '') })
     if (q.kind === 'turn') return t(q.phase === 'enemy' ? 'dlg.trigger.enemyTurn' : q.phase === 'ally' ? 'dlg.trigger.allyTurn' : 'dlg.trigger.turn', { n: q.turn ?? 1 })
     return t('dlg.trigger.talk', { a: charName(q.a), b: charName(q.b ?? '') }) + (q.recruit ? ` · ${t('dlg.recruits')}` : '')
   }
@@ -312,10 +329,16 @@
     <section class="panel scenes">
       <div class="head">
         <h2>{chapter?.name ?? ''}</h2>
-        <label class="check"><input type="checkbox" bind:checked={showTutorials} /> {t('dlg.showTutorials')}</label>
+        {#if chapter?.index !== SUPPORTS}<label class="check"><input type="checkbox" bind:checked={showTutorials} /> {t('dlg.showTutorials')}</label>{/if}
       </div>
+      {#if chapter?.index === SUPPORTS}
+        {#if supportInfo}
+          <SupportList {list} originalPairs={supportInfo.pairs} {scenes} {characters} {problems} levelPoints={supportInfo.levelPoints}
+                       maxPartners={supportInfo.maxPartners} {messageId} firstLine={firstLineOf} faceCode={faceOf} onpick={pick} />
+        {/if}
+      {:else}
       <p class="muted small">{t('dlg.hint')}</p>
-      {#if chapter}<p class="small"><Mention kind="chapters" id={chapter.id}>{t('dlg.openChapter')}</Mention></p>{/if}
+      {#if chapter && chapter.index >= 0}<p class="small"><Mention kind="chapters" id={chapter.id}>{t('dlg.openChapter')}</Mention></p>{/if}
       {#if !visibleScenes.length}<p class="muted">{t('dlg.none')}</p>{/if}
       {#if chapterQuotes.length}
         <div class="scene">
@@ -357,20 +380,23 @@
           {/each}
         </div>
       {/each}
+      {/if}
     </section>
 
     {#if messageId}
       <section class="panel message-editor">
         <div class="head">
-          {#if quoteIndex >= 0}
-            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
+          {#if quoteIndex >= 0 && newQuotes[quoteIndex]?.kind === 'support'}
+            <h3>{quoteLabel(newQuotes[quoteIndex])}</h3>
+          {:else if quoteIndex >= 0}
+            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
             {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
           {/if}
         </div>
-        {#if quoteIndex >= 0 && newQuotes[quoteIndex]}
+        {#if quoteIndex >= 0 && newQuotes[quoteIndex] && newQuotes[quoteIndex].kind !== 'support'}
           {@const q = newQuotes[quoteIndex]}
           <div class="quote-who">
             {#if q.kind === 'turn'}

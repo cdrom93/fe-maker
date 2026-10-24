@@ -119,6 +119,7 @@
               </select>
             </label>
           </div>
+          <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
         </div>
       </section>
 

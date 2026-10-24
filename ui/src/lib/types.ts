@@ -341,11 +341,23 @@ export interface DialoguesData {
   messages: Record<string, DialogueStep[]>
   /** new battle quotes (a fights b; b "" = anyone) and death quotes (a's last words) */
   quotes?: NewQuote[]
+  /** support pairs, once edited (the whole list; server: decomp/supports.py) */
+  supports?: SupportPair[]
+}
+
+export interface SupportPair {
+  a: string
+  b: string
+  /** points at the start, and gained each turn the two start side by side (C at 81, B 161, A 241) */
+  base: number
+  growth: number
 }
 
 export interface NewQuote {
   /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
-  kind: 'battle' | 'death' | 'talk' | 'turn'
+  kind: 'battle' | 'death' | 'talk' | 'turn' | 'support'
+  /** support conversation: 1 = C, 2 = B, 3 = A */
+  rank?: number
   /** turn scene: the turn and the side whose phase starts it */
   turn?: number
   phase?: 'player' | 'enemy' | 'ally'

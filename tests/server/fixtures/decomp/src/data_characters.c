@@ -1,5 +1,6 @@
 // Fictional test data written for FE Maker. Not taken from the game.
 #include "global.h"
+#include "bmreliance.h"
 
 CONST_DATA struct CharacterData gCharacterData[] = {
     [CHARACTER_TESTHERO - 1] = {

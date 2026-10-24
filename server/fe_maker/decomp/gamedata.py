@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, fonts, mapobjects, maps, objectives, quotes, tileedit, units
+from . import combat, dialogues, fonts, mapobjects, maps, objectives, quotes, supports, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -178,6 +178,10 @@ class DecompData:
                 rel = path.relative_to(decomp_dir).as_posix()
                 self.unit_defs[rel] = self._read(rel)
         self._original_unit_defs = dict(self.unit_defs)
+        # Supports edited in the project (see _apply_supports)
+        self.support_source: str | None = None
+        self.support_talks: str | None = None
+        self.new_support_blocks: list[str] = []
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -565,7 +569,10 @@ class DecompData:
         turns = [q for q in data.get("quotes", []) if q.get("kind") == "turn"]
         for n, scene in enumerate(turns):
             self._add_turn_scene(n, scene)
-        new_quotes = [q for q in new_quotes if q.get("kind") != "turn"]
+        conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
+        if data.get("supports") is not None:
+            self._apply_supports(data["supports"], conversations)
+        new_quotes = [q for q in new_quotes if q.get("kind") not in ("turn", "support")]
         if not new_quotes:
             return
         self._load_chapter_events()
@@ -668,6 +675,68 @@ class DecompData:
         if talk.get("both"):
             lines.append(f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['b']}, {talk['a']})")
         self._add_to_list(found, dialogues.talk_script(name, message, talk["b"] if talk.get("recruit") else None), lines)
+
+    # ---------- supports ----------
+
+    def _support_owners(self) -> dict[str, str]:
+        """SupportData name -> character."""
+        out = {}
+        for e in self.characters.entries:
+            m = re.fullmatch(r"&\s*(\w+)", e.fields.get("pSupportData", "").strip())
+            if m:
+                out[m.group(1)] = e.fields["number"]
+        return out
+
+    def original_supports(self) -> list[dict]:
+        """The game's support pairs {a, b, base, growth, messages: [C, B, A]} (none without the files)."""
+        if not (self.decomp_dir / supports.SUPPORTS_FILE).is_file():
+            return []
+        blocks = supports.read_blocks(self._read(supports.SUPPORTS_FILE))
+        talks = supports.read_talks(self._read(supports.TALKS_FILE))
+        return [{**p, "messages": talks.get(tuple(sorted((p["a"], p["b"]))))}
+                for p in supports.pairs_of(blocks, self._support_owners())]
+
+    def _apply_supports(self, pairs: list[dict], conversations: list[dict]) -> None:
+        """Support pairs of the project: each character's list rewritten when it changed (a new
+        SupportData for a character who had none), new pairs added to gSupportTalkList with their
+        conversations (new quotes of kind "support")."""
+        source = self._read(supports.SUPPORTS_FILE)
+        blocks = supports.read_blocks(source)
+        owners = self._support_owners()
+        block_of = {char: name for name, char in owners.items()}
+        original = {owners[name]: partners for name, partners in blocks.items() if name in owners}
+        wanted = supports.partners_by_character(pairs, original)
+        changed = {}
+        entries = {e.fields["number"]: e for e in self.characters.entries}
+        for char, partners in sorted(wanted.items()):
+            if partners == original.get(char, []):
+                continue
+            if len(partners) > supports.MAX_PARTNERS:
+                raise GameDataError(f"{char}: more than {supports.MAX_PARTNERS} support partners")
+            name = block_of.get(char)
+            if name is None:
+                if char not in entries:
+                    raise GameDataError(f"Unknown character {char}")
+                name = f"SupportData_FEM_{char.removeprefix('CHARACTER_')}"
+                entries[char].fields["pSupportData"] = f"&{name}"
+                self.new_support_blocks.append(name)
+            changed[name] = partners
+        if changed:
+            self.support_source = supports.write_blocks(source, changed)
+        talks = supports.read_talks(self._read(supports.TALKS_FILE))
+        new_talks = []
+        for p in pairs:
+            key = tuple(sorted((p["a"], p["b"])))
+            if key in talks:
+                continue
+            msgs = []
+            for rank in (1, 2, 3):
+                steps = next((q.get("steps") for q in conversations if tuple(sorted((q.get("a"), q.get("b")))) == key
+                              and int(q.get("rank", 0)) == rank), None)
+                msgs.append(self.texts.add(self._message(steps)) if steps else 0)
+            new_talks.append((p["a"], p["b"], msgs))
+        if new_talks:
+            self.support_talks = supports.add_talks(self._read(supports.TALKS_FILE), new_talks)
 
     def _quote_flags(self) -> set[tuple[int, int]]:
         """(chapter, flag) of temporary flags already used by battle quotes and chapter events."""
@@ -1204,6 +1273,14 @@ class DecompData:
         for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
                 out[rel] = render_array(parsed)
+        if self.new_support_blocks:   # SupportData FE Maker adds are not declared in bmreliance.h
+            externs = "".join(f"extern CONST_DATA struct SupportData {n};\n" for n in self.new_support_blocks)
+            include = '#include "bmreliance.h"\n'
+            out[CHARACTERS_FILE] = out[CHARACTERS_FILE].replace(include, include + externs, 1)
+        if self.support_source is not None:
+            out[supports.SUPPORTS_FILE] = self.support_source
+        if self.support_talks is not None:
+            out[supports.TALKS_FILE] = self.support_talks
         if self.texts.edits or self.texts.added:
             out[TEXTS_FILE] = self.texts.render()
             chars = self.texts.special_chars()

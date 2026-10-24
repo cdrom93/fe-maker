@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, fonts, mapobjects, maps, quotes, tileedit, units
+from .decomp import dialogues, fonts, mapobjects, maps, quotes, supports, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
@@ -416,6 +416,19 @@ def common_dialogues():
     scenes = decomp.quote_scenes(quotes.ANY_CHAPTER)
     messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
     return {"scenes": scenes, "messages": messages}
+
+
+@app.get("/api/dialogues/supports")
+def support_dialogues():
+    """The game's support pairs (points at the start, points per turn side by side, C/B/A conversations),
+    as scenes of the dialogue editor, with their messages as steps."""
+    decomp = state.get_decomp()
+    pairs = decomp.original_supports()
+    scenes = [{"script": f"support:{p['a']}:{p['b']}", "trigger": {"kind": "support", "a": p["a"], "b": p["b"]},
+               "messages": [m for m in (p["messages"] or []) if m]} for p in pairs]
+    messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
+    return {"pairs": [{k: p[k] for k in ("a", "b", "base", "growth")} for p in pairs], "scenes": scenes, "messages": messages,
+            "levelPoints": list(supports.LEVEL_POINTS), "maxPartners": supports.MAX_PARTNERS}
 
 
 @app.get("/api/dialogues/font")
