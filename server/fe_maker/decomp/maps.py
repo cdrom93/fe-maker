@@ -281,6 +281,89 @@ def palette_choices(decomp_dir: Path, assets: MapAssets) -> list[dict]:
     return [{"id": s, "chapters": found[s]} for s in sorted(found, key=lambda s: order[s]) if s in files]
 
 
+# ---------- tile sheet of a map (ticket 21) ----------
+# A map can be drawn with another tile sheet of the game: its tileset images, tile config (metatiles
+# and terrains), tile and palette animations go together, with the palette its first chapter uses.
+BASE_FIELDS = ("obj1Id", "obj2Id", "tileConfigId", "objAnimId", "paletteAnimId")
+
+
+@lru_cache(maxsize=4)
+def base_choices(decomp_dir: Path) -> list[dict]:
+    """Tile sheets of the game, one per tile config: [{"id": tile config symbol, "map": chapter map
+    fields (BASE_FIELDS and paletteId) of its first chapter, "chapters": [indices]}], in the asset
+    table's order."""
+    table = asset_table(decomp_dir)
+    found: dict[str, dict] = {}
+    for i, chapter in enumerate(chapter_settings(decomp_dir)):
+        try:
+            chapter_map_assets(decomp_dir, chapter)
+        except MapError:
+            continue
+        m = chapter["map"]
+        entry = found.setdefault(table[m["tileConfigId"]], {
+            "id": table[m["tileConfigId"]], "map": {k: m.get(k, 0) for k in (*BASE_FIELDS, "paletteId")}, "chapters": []})
+        entry["chapters"].append(i)
+    order = {symbol: n for n, symbol in enumerate(table)}
+    return sorted(found.values(), key=lambda b: order[b["id"]])
+
+
+def base_of(decomp_dir: Path, symbol: str | None) -> dict | None:
+    return next((b for b in base_choices(decomp_dir) if b["id"] == symbol), None) if symbol else None
+
+
+def with_base(decomp_dir: Path, assets: MapAssets, symbol: str | None) -> MapAssets:
+    """The assets drawn with another tile sheet of the game (the same ones for None, the map's own
+    sheet or an unknown one); the palette is the one the sheet's first chapter uses."""
+    base = base_of(decomp_dir, symbol)
+    if base is None or symbol == palette_symbol(decomp_dir, assets.config):
+        return assets
+    files, table, m = asset_files(decomp_dir), asset_table(decomp_dir), base["map"]
+    tileset = [files[table[m["obj1Id"]]]] + ([files[table[m["obj2Id"]]]] if m.get("obj2Id") else [])
+    return MapAssets(tileset, files[table[m["paletteId"]]], files[table[m["tileConfigId"]]], assets.layout)
+
+
+def layout_assets(decomp_dir: Path, layout_id: str, base: str | None = None, palette: str | None = None) -> MapAssets:
+    """A layout's assets with the project's tile sheet and palette."""
+    return with_palette(decomp_dir, with_base(decomp_dir, layouts(decomp_dir)[layout_id]["assets"], base), palette)
+
+
+def convert_by_terrain(decomp_dir: Path, terrain_from: bytes, assets_to: MapAssets,
+                       grids: list[list[list[int]]]) -> tuple[list[list[list[int]]], list[int]]:
+    """Grids of metatiles (map rows, change rows) redrawn with another tile sheet: each metatile
+    becomes the new sheet's most used metatile of the same terrain in the game's maps (its most used
+    metatile when it has none of that terrain), so the map plays the same and only needs touching up.
+    Also returns the terrains the new sheet does not have."""
+    _metatiles, terrain_to = read_config(assets_to.config)
+    use: dict[int, int] = {}
+    for layout in layouts(decomp_dir).values():
+        if layout["assets"].config == assets_to.config:
+            placed = list(read_layout(layout["assets"].layout)[2])
+            if layout["changes"]:   # visited villages, open doors... only appear in changes
+                placed += [m for c in read_changes(decomp_dir, layout["changes"]) for row in c["rows"] for m in row]
+            for m in placed:
+                use[m] = use.get(m, 0) + 1
+    by_terrain: dict[int, int] = {}
+    for m in sorted(use, key=lambda m: -use[m]):
+        if m < len(terrain_to):
+            by_terrain.setdefault(terrain_to[m], m)
+    duplicates = duplicate_metatiles(assets_to)
+    for m, t in enumerate(terrain_to):   # a terrain no map of the game uses: any tile of it
+        if not duplicates[m]:
+            by_terrain.setdefault(t, m)
+    fallback = max(use, key=lambda m: use[m]) if use else 0
+
+    missing: set[int] = set()
+
+    def convert(m: int) -> int:
+        t = terrain_from[m] if m < len(terrain_from) else None
+        if t not in by_terrain:
+            missing.add(t if t is not None else 0)
+            return fallback
+        return by_terrain[t]
+
+    return [[[convert(m) for m in row] for row in grid] for grid in grids], sorted(missing)
+
+
 def palette_symbol(decomp_dir: Path, path: Path) -> str | None:
     return next((s for s, p in asset_files(decomp_dir).items() if p == path), None)
 

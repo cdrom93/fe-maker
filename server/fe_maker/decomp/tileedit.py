@@ -67,7 +67,10 @@ def _rotate(px: list[int], clockwise: bool) -> list[int]:
 class Tileset:
     """A tile config and its tileset image, with the project's added metatiles and tiles."""
 
-    def __init__(self, decomp_dir: Path, layout_id: str, edits: dict | None, painted: dict | None = None):
+    def __init__(self, decomp_dir: Path, layout_id: str, edits: dict | None, painted: dict | None = None,
+                 bases: dict | None = None):
+        """`layout_id`: any layout drawn with the tileset; `painted`: the project's painted layouts and
+        `bases`: the tile sheet the project chose for some of them (their tiles are not free slots)."""
         self.decomp_dir = decomp_dir
         self.layout = maps.layouts(decomp_dir)[layout_id]
         self.assets = self.layout["assets"]
@@ -85,17 +88,19 @@ class Tileset:
             self.metatiles[int(slot)] = list(m["tiles"])
             self.terrain[int(slot)] = m["terrain"]
         self.duplicates = maps.duplicate_metatiles(self.assets)
-        self.used = self._used_metatiles(painted or {})
+        self.used = self._used_metatiles(painted or {}, bases or {})
         self._pictures: dict[tuple[tuple[int, ...], int], int] | None = None
 
     @property
     def name(self) -> str:
         return self.assets.config.stem
 
-    def _used_metatiles(self, painted: dict) -> set[int]:
+    def _used_metatiles(self, painted: dict, bases: dict) -> set[int]:
         """Metatiles placed by any map or change using this tileset (original or painted)."""
         used: set[int] = set()
         for layout_id, layout in maps.layouts(self.decomp_dir).items():
+            if layout_id in bases and bases[layout_id] == self.name and layout_id in painted:
+                used.update(m for row in painted[layout_id]["rows"] for m in row)
             if layout["assets"].config != self.assets.config:
                 continue
             used.update(maps.read_layout(layout["assets"].layout)[2])

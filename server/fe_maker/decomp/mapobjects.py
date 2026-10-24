@@ -255,25 +255,39 @@ def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
 
 
 def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes: list[dict] | None,
-                settings: dict | None = None, terrain: bytes | None = None) -> list[dict]:
+                settings: dict | None = None, terrain: bytes | None = None,
+                assets: maps.MapAssets | None = None) -> list[dict]:
     """Objects of a layout with what the build will do for them.
 
     Each object: kind, x, y, cells, "new" (not on the original map), "change" (id of the change
     used, None if none), "auto" (the change FE Maker adds, for new objects without one),
     "noAfter" (new object whose used state is unknown for this tileset). `terrain` replaces the
-    tileset's terrains when the project added metatiles (tileedit.py)."""
+    tileset's terrains when the project added metatiles (tileedit.py); `assets`: the layout drawn
+    with another tile sheet (ticket 21), whose objects are new where the terrain changed."""
     layout = maps.layouts(decomp_dir)[layout_id]
-    assets = layout["assets"]
+    original = layout["assets"]
+    assets = assets or original
     if terrain is None:
         _metatiles, terrain = maps.read_config(assets.config)
-    width, height, cells = maps.read_layout(assets.layout)
+    width, height, cells = maps.read_layout(original.layout)
     rule = rules(decomp_dir).get(assets.config.name)
+    original_terrain = maps.read_config(original.config)[1] if assets.config != original.config else None
+
+    def changed(x: int, y: int) -> bool:
+        if x >= width or y >= height:
+            return True
+        if original_terrain is None:
+            return cells[y * width + x] != rows[y][x]
+        before, now = cells[y * width + x], rows[y][x]
+        return (original_terrain[before] if before < len(original_terrain) else None) != \
+            (terrain[now] if now < len(terrain) else None)
+
     settings = settings or {}
     objects = detect(rows, terrain)
     changes = list(changes or [])
     next_id = max((c["id"] for c in changes), default=-1) + 1
     for obj in objects:
-        obj["new"] = any(x >= width or y >= height or cells[y * width + x] != rows[y][x] for x, y in obj["cells"])
+        obj["new"] = any(changed(x, y) for x, y in obj["cells"])
         obj["change"] = _covered(obj, changes, terrain) if obj["kind"] in CHANGE_KINDS else None
         obj["auto"] = None
         obj["noAfter"] = False

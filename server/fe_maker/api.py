@@ -266,11 +266,13 @@ def chapter_map(index: int, fog: bool = False):
         project_maps = state.project.load("maps") if state.project else {}
         painted = project_maps.get("layouts", {}).get(assets.layout.stem)
         layout = (len(painted["rows"][0]), len(painted["rows"]), [c for row in painted["rows"] for c in row]) if painted else None
+        layout_id = assets.layout.stem
+        assets = maps.layout_assets(DECOMP_DIR, layout_id, project_maps.get("bases", {}).get(layout_id),
+                                    project_maps.get("palettes", {}).get(layout_id))
         edits = project_maps.get("tilesets", {}).get(assets.config.stem)
-        assets = maps.with_palette(DECOMP_DIR, assets, project_maps.get("palettes", {}).get(assets.layout.stem))
         with tempfile.TemporaryDirectory() as folder:
             if edits:
-                edited = tileedit.Tileset(DECOMP_DIR, assets.layout.stem, edits).edited_assets(Path(folder))
+                edited = tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), edits).edited_assets(Path(folder))
                 assets = dataclasses.replace(edited, palette=assets.palette)   # the chapter's palette
             png, _w, _h = maps.render_map(assets, scale=1, fog=fog, layout=layout)
     except (maps.MapError, tileedit.TileEditError) as e:
@@ -287,21 +289,33 @@ def _layout(layout_id: str) -> dict:
     return layout
 
 
+def _tile_layout(layout_id: str, assets: maps.MapAssets) -> str:
+    """A layout of the game drawn with these assets' tile sheet (tile edits work on it)."""
+    if assets.config == _layout(layout_id)["assets"].config:
+        return layout_id
+    return tileedit.layout_for(DECOMP_DIR, assets.config.stem) or layout_id
+
+
+def _project_bases() -> dict:
+    return state.project.load("maps").get("bases", {}) if state.project else {}
+
+
 @app.get("/api/maps")
 def list_maps():
     result = []
     for layout_id, layout in maps.layouts(DECOMP_DIR).items():
         width, height, _cells = maps.read_layout(layout["assets"].layout)
         result.append({"id": layout_id, "width": width, "height": height, "chapters": layout["chapters"],
-                       "tileset": layout["assets"].config.stem})
+                       "tileset": maps.with_base(DECOMP_DIR, layout["assets"], _project_bases().get(layout_id)).config.stem})
     return result
 
 
 @app.get("/api/maps/{layout_id}")
-def get_map(layout_id: str):
-    """The original layout, with what the editor needs about its tileset (terrains, duplicate metatiles)."""
+def get_map(layout_id: str, base: str | None = None):
+    """The original layout, with what the editor needs about its tileset (terrains, duplicate metatiles);
+    `base`: another tile sheet of the game chosen for the map (ticket 21)."""
     layout = _layout(layout_id)
-    assets = layout["assets"]
+    assets = maps.with_base(DECOMP_DIR, layout["assets"], base)
     width, height, cells = maps.read_layout(assets.layout)
     _metatiles, terrain = maps.read_config(assets.config)
     texts = state.get_decomp().texts
@@ -316,6 +330,10 @@ def get_map(layout_id: str):
         # Palettes of the tileset in the game, and the map's own (ticket 16)
         "palette": maps.palette_symbol(DECOMP_DIR, assets.palette),
         "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],
+        # Tile sheets of the game the map can be drawn with, and the map's own (ticket 21)
+        "originalBase": layout["assets"].config.stem,
+        "bases": [{"id": b["id"], "chapters": b["chapters"], "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
+                  for b in maps.base_choices(DECOMP_DIR)],
         # Original map changes (doors, villages...); None when the map has no change layer
         "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,
     }
@@ -332,6 +350,7 @@ class MapObjectsIn(BaseModel):
     changes: list[dict] | None = None   # None: the original change set
     objects: dict = {}
     tileset: dict | None = None         # metatiles added to the tileset (tileedit.py)
+    base: str | None = None             # another tile sheet of the game (ticket 21)
 
 
 @app.post("/api/maps/{layout_id}/objects")
@@ -343,8 +362,10 @@ def map_objects(layout_id: str, body: MapObjectsIn):
     if changes is None:
         changes = maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else []
     try:
-        terrain = bytes(tileedit.Tileset(DECOMP_DIR, layout_id, body.tileset).terrain) if body.tileset else None
-        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects, terrain)
+        assets = maps.with_base(DECOMP_DIR, layout["assets"], body.base)
+        terrain = bytes(tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.tileset).terrain) \
+            if body.tileset else None
+        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects, terrain, assets)
     except (IndexError, ValueError) as e:
         raise HTTPException(400, str(e)) from e
     events = state.get_decomp().map_object_events(layout_id)
@@ -359,14 +380,17 @@ def map_objects(layout_id: str, body: MapObjectsIn):
 class TilesetIn(BaseModel):
     edits: dict | None = None
     palette: str | None = None   # another palette of the tileset
+    base: str | None = None      # another tile sheet of the game
 
 
 @app.post("/api/maps/{layout_id}/tileset")
 def edited_tileset(layout_id: str, body: TilesetIn):
     """The tileset sheet with the project's added metatiles (not saved yet: the editor sends them)."""
-    palette = maps.with_palette(DECOMP_DIR, _layout(layout_id)["assets"], body.palette).palette
+    _layout(layout_id)
+    assets = maps.layout_assets(DECOMP_DIR, layout_id, body.base, body.palette)
+    palette = assets.palette
     try:
-        tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits)
+        tileset = tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.edits)
         with tempfile.TemporaryDirectory() as folder:
             assets = dataclasses.replace(tileset.edited_assets(Path(folder)), palette=palette)
             png = maps.render_tileset(assets)
@@ -386,14 +410,16 @@ class TransformIn(BaseModel):
     terrain: int = 0         # with op "terrain": the new terrain of the tiles
     edits: dict | None = None
     painted: dict = {}   # project painted layouts: their tiles are not free slots
+    bases: dict = {}     # project tile sheets of the layouts
 
 
 @app.post("/api/maps/{layout_id}/transform")
 def transform_tiles(layout_id: str, body: TransformIn):
     """A block of tiles mirrored or turned: new metatiles (and 8x8 tiles) added to the tileset when needed."""
     _layout(layout_id)
+    assets = maps.layout_assets(DECOMP_DIR, layout_id, body.bases.get(layout_id))
     try:
-        tileset = tileedit.Tileset(DECOMP_DIR, layout_id, body.edits, body.painted)
+        tileset = tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.edits, body.painted, body.bases)
         before = set(tileset.edits["metatiles"])
         if body.op == "terrain":
             rows = tileset.with_terrain(body.rows, body.terrain)
@@ -410,9 +436,41 @@ def transform_tiles(layout_id: str, body: TransformIn):
 
 
 @app.get("/api/maps/{layout_id}/tileset.png")
-def map_tileset(layout_id: str, palette: str | None = None):
-    png = maps.render_tileset(maps.with_palette(DECOMP_DIR, _layout(layout_id)["assets"], palette))
+def map_tileset(layout_id: str, palette: str | None = None, base: str | None = None):
+    _layout(layout_id)
+    png = maps.render_tileset(maps.layout_assets(DECOMP_DIR, layout_id, base, palette))
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+class ConvertIn(BaseModel):
+    rows: list[list[int]]
+    changes: list[dict] | None = None   # None: the original change set
+    base: str | None = None             # the map's tile sheet now (None: its own)
+    to: str                             # the tile sheet to draw it with
+    edits: dict | None = None           # tiles the project added to the current sheet (their terrains)
+
+
+@app.post("/api/maps/{layout_id}/convert")
+def convert_map(layout_id: str, body: ConvertIn):
+    """The map and its changes redrawn with another tile sheet of the game, tile by tile by terrain
+    (ticket 21): the map plays the same, the user then touches it up."""
+    layout = _layout(layout_id)
+    if maps.base_of(DECOMP_DIR, body.to) is None:
+        raise HTTPException(400, "unknownTileSheet")
+    source = maps.with_base(DECOMP_DIR, layout["assets"], body.base)
+    try:
+        terrain = bytes(tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, source), body.edits).terrain) \
+            if body.edits else maps.read_config(source.config)[1]
+    except tileedit.TileEditError as e:
+        raise HTTPException(409, str(e)) from e
+    changes = body.changes
+    if changes is None:
+        changes = maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else []
+    target = maps.with_base(DECOMP_DIR, layout["assets"], body.to)
+    if target.config == source.config:
+        return {"rows": body.rows, "changes": changes, "missingTerrains": []}
+    grids, missing = maps.convert_by_terrain(DECOMP_DIR, terrain, target, [body.rows] + [c["rows"] for c in changes])
+    return {"rows": grids[0], "changes": [{**c, "rows": g} for c, g in zip(changes, grids[1:])], "missingTerrains": missing}
 
 
 @app.get("/api/chapters/{index}/dialogues")

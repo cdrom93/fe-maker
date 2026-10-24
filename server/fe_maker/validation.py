@@ -360,9 +360,14 @@ def _validate_maps(problems, maps_data: dict, decomp_dir=None):
             known_layouts = decomp_maps.layouts(decomp_dir)
         except FileNotFoundError:
             pass  # decomp without chapters (test fixtures)
+    bases = maps_data.get("bases", {})
+    for layout_id, symbol in bases.items():
+        if layout_id in known_layouts and decomp_maps.base_of(decomp_dir, symbol) is None:
+            problems.append(Problem("error", "maps", layout_id, "base", "unknownTileSheet", {},
+                                    f"{layout_id}: unknown tile sheet {symbol}"))
     for layout_id, symbol in maps_data.get("palettes", {}).items():
-        if layout_id in known_layouts and symbol not in {
-                p["id"] for p in decomp_maps.palette_choices(decomp_dir, known_layouts[layout_id]["assets"])}:
+        if layout_id in known_layouts and symbol not in {p["id"] for p in decomp_maps.palette_choices(
+                decomp_dir, decomp_maps.with_base(decomp_dir, known_layouts[layout_id]["assets"], bases.get(layout_id)))}:
             problems.append(Problem("error", "maps", layout_id, "palette", "paletteNotForTileset", {},
                                     f"{layout_id}: palette {symbol} does not go with its tileset"))
     # A resized map must still hold its original changes.
@@ -446,13 +451,15 @@ def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, ch
     movement = {c["id"]: c.get("movement") for c in classes}
     char_class = {c["id"]: c["class"] for c in characters}
     for layout_id, layout in layouts.items():
-        assets = layout["assets"]
+        assets = decomp_maps.with_base(decomp_dir, layout["assets"], maps_data.get("bases", {}).get(layout_id))
         for index in layout["chapters"]:
             groups = [g for g in groups_by_chapter.get(index, []) if g["origin"] != "cutscene"]
-            if layout_id not in painted and not any(g["name"] in edited_groups for g in groups) \
+            if layout_id not in painted and layout_id not in maps_data.get("bases", {}) \
+                    and not any(g["name"] in edited_groups for g in groups) \
                     and str(index) not in objectives_by_chapter:
                 continue
             original_map = decomp_maps.read_layout(assets.layout)
+            _metatiles, original_terrain = decomp_maps.read_config(layout["assets"].config)
             if layout_id in painted and painted[layout_id].get("rows"):
                 rows = painted[layout_id]["rows"]
                 width, height, cells = len(rows[0]), len(rows), [c for row in rows for c in row]
@@ -465,7 +472,8 @@ def _validate_chapter_maps(problems, decomp, chapters: dict, maps_data: dict, ch
                 if not (0 <= x < w and 0 <= y < h):
                     return None
                 m = c[y * w + x]
-                return terrain[m] if m < len(terrain) else 0
+                table = original_terrain if layout_map is original_map else terrain
+                return table[m] if m < len(table) else 0
 
             for g in groups:
                 original_units = original_groups[g["name"]].units if g["name"] in original_groups else []

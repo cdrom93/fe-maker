@@ -367,14 +367,24 @@ class DecompData:
         settings = maps_data.get("objects", {})
         tilesets = maps_data.get("tilesets", {})
         palettes = maps_data.get("palettes", {})
-        if not painted and not changes and not settings and not tilesets and not palettes:
+        bases = maps_data.get("bases", {})
+        if not painted and not changes and not settings and not tilesets and not palettes and not bases:
             return
         known = maps.layouts(self.decomp_dir)
+        # Another tile sheet of the game, for every chapter on the layout (ticket 21).
+        for layout_id, symbol in bases.items():
+            base = maps.base_of(self.decomp_dir, symbol)
+            if layout_id not in known or base is None:
+                continue
+            self._load_chapter_events()
+            for chapter in known[layout_id]["chapters"]:
+                self.chapter_settings["chapters"][chapter]["map"].update(base["map"])
         # Another palette of the tileset, for every chapter on the layout (ticket 16).
         for layout_id, symbol in palettes.items():
             if layout_id not in known or not symbol:
                 continue
-            if symbol not in {p["id"] for p in maps.palette_choices(self.decomp_dir, known[layout_id]["assets"])}:
+            assets = maps.with_base(self.decomp_dir, known[layout_id]["assets"], bases.get(layout_id))
+            if symbol not in {p["id"] for p in maps.palette_choices(self.decomp_dir, assets)}:
                 raise GameDataError(f"{layout_id}: palette {symbol} does not go with its tileset")
             self._load_chapter_events()
             index = maps.asset_table(self.decomp_dir).index(symbol)
@@ -389,7 +399,7 @@ class DecompData:
                 self.map_files.update(tileset.files())
                 terrains[config_name] = bytes(tileset.terrain)
         map_change_source = original_source = None  # read when a change set is written
-        for layout_id in sorted(set(painted) | set(changes) | set(settings)):
+        for layout_id in sorted(set(painted) | set(changes) | set(settings) | set(bases)):
             if layout_id not in known:
                 continue
             json_rel = known[layout_id]["changes"]
@@ -397,8 +407,12 @@ class DecompData:
             change_list = changes.get(layout_id)
             explicit = change_list if change_list is not None else (
                 maps.read_changes(self.decomp_dir, json_rel) if json_rel else [])
-            terrain = terrains.get(known[layout_id]["assets"].config.stem)
-            objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id), terrain)
+            assets = maps.with_base(self.decomp_dir, known[layout_id]["assets"], bases.get(layout_id))
+            terrain = terrains.get(assets.config.stem)
+            if terrain is None and assets.config != known[layout_id]["assets"].config:
+                terrain = maps.read_config(assets.config)[1]
+            objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id),
+                                             terrain, assets)
             autos = [o["auto"] for o in objects if o["auto"]]
             if json_rel and (change_list is not None or autos):
                 if map_change_source is None:

@@ -186,6 +186,9 @@ export interface MapLayout {
   /** the map's palette in the game, and the tileset's palettes in the game (ticket 16) */
   palette: string | null
   palettes: { id: string; chapters: number[]; colors: string[] }[]
+  /** the map's tile sheet in the game, and the game's tile sheets it can be drawn with (ticket 21) */
+  originalBase: string
+  bases: { id: string; chapters: number[]; palette: string }[]
 }
 
 /** A map change: tiles put over a rectangle of the map during the game (door, village, wall...). */
@@ -215,6 +218,8 @@ export interface MapsData {
   tilesets?: Record<string, TilesetEdits>
   /** another palette of the tileset, by layout id (an asset name of the game, server: maps.palette_choices) */
   palettes?: Record<string, string>
+  /** another tile sheet of the game, by layout id (its tile config name, server: maps.base_choices) */
+  bases?: Record<string, string>
 }
 
 export interface TilesetEdits {

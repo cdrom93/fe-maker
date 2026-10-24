@@ -80,12 +80,17 @@ export const api = {
     request<{ pairs: SupportPair[]; scenes: DialogueScene[]; messages: Record<string, DialogueStep[]>; levelPoints: number[]; maxPartners: number }>(
       'GET', '/api/dialogues/supports'),
   commonDialogues: () => request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', '/api/dialogues/common'),
-  map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
-  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>
+  map: (id: string, base: string | null = null) =>
+    request<MapLayout>('GET', `/api/maps/${id}${base ? `?base=${encodeURIComponent(base)}` : ''}`),
+  convertMap: (id: string, body: { rows: number[][]; changes: MapChange[] | null; base: string | null; to: string; edits: TilesetEdits | null }) =>
+    request<{ rows: number[][]; changes: MapChange[]; missingTerrains: number[] }>('POST', `/api/maps/${id}/convert`, body),
+  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
-  mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null) =>
-    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette }),
-  transformTiles: (id: string, body: { rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts'] }) =>
+  mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null, base: string | null) =>
+    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base }),
+  transformTiles: (id: string, body: {
+    rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts']; bases: Record<string, string>
+  }) =>
     request<{ rows: number[][]; edits: TilesetEdits; tileset: string; similar: number[][] | null }>('POST', `/api/maps/${id}/transform`, body),
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
@@ -102,7 +107,8 @@ export const api = {
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
 /** `version` changes when the project's painted layout changes (the image is not cached then). */
 export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${index}/map.png${version ? `?v=${version}` : ''}`
-export const mapTilesetUrl = (id: string) => `/api/maps/${id}/tileset.png`
+export const mapTilesetUrl = (id: string, base: string | null = null) =>
+  `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
 export const portraitUrl = (id: number, face = false) =>

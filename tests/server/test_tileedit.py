@@ -122,3 +122,30 @@ def test_similar_tile_of_the_game_is_offered(tmp_path, monkeypatch):
     assert h != 2 and str(h) in ts.edits["metatiles"]
     assert ts.similar_original(h) == 2
     assert ts.similar_original(1) is None          # only added metatiles get an offer
+
+
+def _config(path, terrains):
+    """A fictional tile config: metatile m drawn with tile m everywhere (all different), its terrain."""
+    config = bytearray(0x2400)
+    for m, t in enumerate(terrains):
+        struct.pack_into("<4H", config, 8 * m, m, m, m, m)
+        config[0x2000 + m] = t
+    for m in range(len(terrains), 0x400):      # unused slots: copies of one filler metatile
+        struct.pack_into("<4H", config, 8 * m, 0x3FF, 0x3FF, 0x3FF, 0x3FF)
+    path.write_bytes(bytes(config))
+
+
+def test_map_drawn_with_another_tile_sheet(tmp_path, monkeypatch):
+    plains, forest, village = 0x01, 0x0C, 0x03
+    _config(tmp_path / "A.bin", [plains, forest, village])
+    _config(tmp_path / "B.bin", [plains, plains, forest, forest])
+    (tmp_path / "Other.mar").write_bytes(b"".join(struct.pack("<H", m << 5) for m in [1, 1, 1, 2, 3, 3]))
+    (tmp_path / "Other.json").write_text(json.dumps({"id": "Other", "width": 6, "height": 1}), encoding="utf-8")
+    a = maps.MapAssets([tmp_path / "A.png"], tmp_path / "A.pal", tmp_path / "A.bin", tmp_path / "Map.mar")
+    b = maps.MapAssets([tmp_path / "B.png"], tmp_path / "B.pal", tmp_path / "B.bin", tmp_path / "Other.mar")
+    monkeypatch.setattr(maps, "layouts", lambda _d: {
+        "Map": {"chapters": [0], "assets": a, "changes": None}, "Other": {"chapters": [1], "assets": b, "changes": None}})
+    terrain_a = maps.read_config(a.config)[1]
+    # Each tile becomes sheet B's most used tile of its terrain; B has no village: its most used tile.
+    grids, missing = maps.convert_by_terrain(tmp_path, terrain_a, b, [[[0, 1, 2]], [[1], [0]]])
+    assert grids == [[[1, 3, 1]], [[3], [1]]] and missing == [village]

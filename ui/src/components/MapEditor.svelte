@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, ApiError, itemIconUrl, mapTilesetUrl, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -130,6 +130,12 @@
   const tilesetEdits = $derived<TilesetEdits | undefined>(baseLayout ? list.records[0]?.tilesets?.[baseLayout.tileset] : undefined)
   /** The palette chosen in the project for this map (ticket 16), else the game's. */
   const chosenPalette = $derived<string | null>((info && list.records[0]?.palettes?.[info.id]) || null)
+  /** The tile sheet chosen in the project for this map (ticket 21), else the game's. */
+  const chosenBase = $derived<string | null>((info && list.records[0]?.bases?.[info.id]) || null)
+  let baseError = $state('')
+  /** terrains of the map the new tile sheet does not have (cells to touch up) */
+  let baseMissing = $state<number[]>([])
+  let loadingBase: string | null = null
   const objectSettings = $derived<Record<string, MapObjectSettings>>((info && list.records[0]?.objects?.[info.id]) ?? {})
   const objects = $derived(objectsInfo?.objects ?? [])
   const keyOf = (o: { x: number; y: number }) => `${o.x},${o.y}`
@@ -183,6 +189,7 @@
     const base = baseLayout
     const edits = tilesetEdits ? JSON.parse(JSON.stringify(tilesetEdits)) : null
     const palette = chosenPalette
+    const tileSheet = chosenBase
     if (!info || !base) return
     const id = info.id
     const n = ++tilesetRequest
@@ -191,7 +198,7 @@
       sheet = baseSheet
       return
     }
-    api.mapTileset(id, edits, palette).then(async (r) => {
+    api.mapTileset(id, edits, palette, tileSheet).then(async (r) => {
       const img = await loadImage(r.sheet)
       if (n !== tilesetRequest || maps[selected]?.id !== id) return
       layout = { ...base, terrains: r.terrains, duplicates: r.duplicates }
@@ -211,6 +218,7 @@
       const r = await api.transformTiles(id, {
         rows: $state.snapshot(stamp) as number[][], op, terrain, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
         painted: JSON.parse(JSON.stringify(list.records[0]?.layouts ?? {})),
+        bases: JSON.parse(JSON.stringify(list.records[0]?.bases ?? {})),
       })
       if (maps[selected]?.id !== id) return
       if (JSON.stringify(r.edits) !== JSON.stringify(tilesetEdits ?? { metatiles: {}, tiles: {} })) {
@@ -250,7 +258,9 @@
   $effect(() => {
     if (!info || !layout) return
     const id = info.id
-    const body = JSON.parse(JSON.stringify({ rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings, tileset: tilesetEdits ?? null }))
+    const body = JSON.parse(JSON.stringify({
+      rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings, tileset: tilesetEdits ?? null, base: chosenBase,
+    }))
     const timer = setTimeout(async () => {
       const n = ++objectsRequest
       try {
@@ -291,9 +301,13 @@
     objectsInfo = null
     selectedObject = null
     transformError = ''
+    baseError = ''
     const id = maps[index].id
-    const [data, img] = await Promise.all([api.map(id), loadImage(mapTilesetUrl(id))])
+    const tileSheet = list.records[0]?.bases?.[id] || null
+    loadingBase = tileSheet
+    const [data, img] = await Promise.all([api.map(id, tileSheet), loadImage(mapTilesetUrl(id, tileSheet))])
     if (maps[selected]?.id !== id) return
+    loadingBase = null
     baseSheet = img
     baseLayout = data
     if (!list.records[0]?.tilesets?.[data.tileset] && !list.records[0]?.palettes?.[id]) {
@@ -648,7 +662,47 @@
       if (d.changes) delete d.changes[id]
       if (d.objects) delete d.objects[id]
       if (d.palettes) delete d.palettes[id]
+      if (d.bases) delete d.bases[id]
     })
+    baseMissing = []
+  }
+
+  // The tile sheet changed (chosen, undone, reset): the map is loaded again with it.
+  $effect(() => {
+    const wanted = chosenBase ?? baseLayout?.originalBase
+    if (!baseLayout || !wanted || wanted === baseLayout.tileset || wanted === loadingBase) return
+    untrack(() => load(selected))
+  })
+
+  /** Draw the map with another tile sheet of the game (ticket 21): every cell, and the cells of its
+   * changes, take a tile of the same terrain (server: maps.convert_by_terrain). */
+  async function setBase(to: string) {
+    if (!info || !baseLayout) return
+    const id = info.id
+    if ((chosenBase ?? baseLayout.originalBase) === to || !confirm(t('maps.baseConfirm'))) return
+    baseError = ''
+    try {
+      const r = await api.convertMap(id, {
+        rows: $state.snapshot(savedRows) as number[][], changes: $state.snapshot(list.records[0]?.changes?.[id] ?? null) as MapChange[] | null,
+        base: chosenBase, to, edits: tilesetEdits ? (JSON.parse(JSON.stringify(tilesetEdits)) as TilesetEdits) : null,
+      })
+      if (maps[selected]?.id !== id) return
+      list.update(0, (d) => {
+        d.layouts ??= {}
+        d.layouts[id] = { rows: r.rows }
+        if (r.changes.length) {
+          d.changes ??= {}
+          d.changes[id] = r.changes
+        }
+        d.bases ??= {}
+        if (to === baseLayout!.originalBase) delete d.bases[id]
+        else d.bases[id] = to
+        if (d.palettes) delete d.palettes[id]
+      })
+      baseMissing = r.missingTerrains
+    } catch (e) {
+      baseError = e instanceof ApiError ? t(`problem.${e.detail}`) : String(e)
+    }
   }
 
   /** Another palette of the tileset for this map (every chapter on it). */
@@ -851,6 +905,26 @@
             <span class="muted small">{t('maps.sizeHint')}</span>
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
+          <details class="bases-panel">
+            <summary class="small">{t('maps.base')} : {(chosenBase ?? layout.originalBase).replace('TileConfiguration', '')}
+              {#if chosenBase}<span class="edited">✎</span>{/if}</summary>
+            <div class="bases" role="radiogroup" aria-label={t('maps.base')}>
+              {#each layout.bases as b (b.id)}
+                {@const names = b.chapters.map(chapterTitle)}
+                {@const current = (chosenBase ?? layout.originalBase) === b.id}
+                <button role="radio" aria-checked={current} class="base-choice" class:active={current} title={`${b.id} — ${names.join(', ')}`}
+                        onclick={() => setBase(b.id)}>
+                  <span class="thumb" style="background-image: url({mapTilesetUrl(info!.id, b.id)})"></span>
+                  <span class="tiny">{names.slice(0, 2).join(', ')}{names.length > 2 ? ` +${names.length - 2}` : ''}{b.id === layout.originalBase ? ` · ${t('maps.baseOriginal')}` : ''}</span>
+                </button>
+              {/each}
+            </div>
+            <p class="muted tiny">{t('maps.baseHint')}</p>
+          </details>
+          {#if baseMissing.length}
+            <p class="warn small">{t('maps.baseMissing', { terrains: baseMissing.map((m) => layout!.terrainNames[m] || `#${m}`).join(', ') })}</p>
+          {/if}
+          {#if baseError}<p class="bad small">{baseError}</p>{/if}
           {#if layout.palettes.length > 1}
             <div class="palettes" role="radiogroup" aria-label={t('maps.palette')}>
               <span class="small">{t('maps.palette')}</span>
@@ -865,13 +939,14 @@
             </div>
           {/if}
         {/if}
-        {#if painted || changesEdited || objectsEdited || paletteEdited}
+        {#if painted || changesEdited || objectsEdited || paletteEdited || chosenBase}
           <p class="small">
             <span class="edited">✎</span>
             {#if painted}{t('maps.changed', { n: changedCells })}{/if}
             {#if changesEdited}{t('maps.changesEdited')}{/if}
             {#if objectsEdited}{t('maps.objectsEdited')}{/if}
             {#if paletteEdited}{t('maps.paletteEdited')}{/if}
+            {#if chosenBase}{t('maps.baseEdited')}{/if}
             <button class="link" onclick={reset}>{t('maps.reset')}</button>
           </p>
         {/if}
@@ -1258,6 +1333,12 @@
   .palettes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
   .palette-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem 0.4rem; }
   .palette-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+  .bases-panel { margin-top: 0.4rem; }
+  .bases-panel summary { cursor: pointer; }
+  .bases { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0; }
+  .base-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem; }
+  .base-choice.active { border-color: var(--accent); background: var(--accent-soft); }
+  .base-choice .thumb { width: 96px; height: 48px; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; border-radius: 3px; }
   .swatches { display: flex; }
   .swatches span { width: 8px; height: 12px; }
 </style>
