@@ -466,8 +466,20 @@ export interface TestOptions {
  * in 8-pixel tiles from the face's top-left corner. */
 export interface PortraitImport {
   file: string
+  /** imported from FE-Repo: credited in the project's CREDITS.txt */
+  source?: FeRepoEntry
   mouth: [number, number]
   eyes: [number, number]
+}
+
+/** A file of FE-Repo, as its name describes it (server: ferepo.py). */
+export interface FeRepoEntry {
+  url: string
+  folder: string
+  name: string
+  authors: string[]
+  /** F2E: free to use and edit; F2U: free to use, not to edit */
+  license: 'F2E' | 'F2U'
 }
 
 export interface PortraitInfo {

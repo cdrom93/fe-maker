@@ -128,7 +128,7 @@
           <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
           <details class="portrait-details">
             <summary>🖼 {t('portrait.title', { id: ch.portraitId })}</summary>
-            <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} />
+            <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} characterName={ch.name} />
           </details>
         </div>
       </section>

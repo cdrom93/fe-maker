@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import builder, ups
+from . import builder, ferepo, ups
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks
 from .paths import DECOMP_DIR
@@ -34,6 +34,7 @@ DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tw
 # Record fields added after the first project format: filled from the original game on load.
 FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
 
+RESOURCES_HEADER = "Community resources (written by FE Maker)\n----------------------------------------\n"
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
 
@@ -153,6 +154,18 @@ class Project:
         simple = bool(options.get("simplePrologue", self.test_options["simplePrologue"]))
         self.meta["testOptions"] = {"start": start, "simplePrologue": simple}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def update_credits(self) -> None:
+        """CREDITS.txt lists the community resources the project uses (imported from FE-Repo), after
+        what the user wrote."""
+        path = self.root / "CREDITS.txt"
+        text = path.read_text(encoding="utf-8") if path.is_file() else CREDITS_HEADER
+        mine = text.split(RESOURCES_HEADER)[0].rstrip("\n") + "\n"
+        sources = [e["source"] for e in self.load("portraits").values() if isinstance(e, dict) and e.get("source")]
+        lines = sorted({ferepo.credit_line(s) for s in sources})
+        if lines:
+            mine += "\n" + RESOURCES_HEADER + "".join(f"{line}\n" for line in lines)
+        path.write_text(mine, encoding="utf-8")
 
     def generate_overlay(self, decomp_dir: Path | None = None, for_test: bool = False) -> Path:
         """Write the decomp files changed by this project into build/overlay."""

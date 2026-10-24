@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import emulator
+from . import emulator, ferepo
 from .builder import BuildError
 from .config import Settings, default_projects_dir
 from .decomp import dialogues, events, fonts, mapobjects, maps, portraits, quotes, supports, tileedit, units
@@ -605,10 +605,9 @@ def portrait_info(portrait_id: int):
             "original": portraits.read_positions(DECOMP_DIR).get(name), "imported": imported}
 
 
-@app.post("/api/portraits/{portrait_id}")
-async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
+def _import_portrait(portrait_id: int, data: bytes, source: dict | None = None) -> dict:
     """Replace a portrait with a 128 x 112 sheet (16 colors at most): stored in the project's assets,
-    mouth and eyes placed automatically."""
+    mouth and eyes placed automatically; `source`: where it comes from (FE-Repo), for the credits."""
     import io
 
     from PIL import Image, UnidentifiedImageError
@@ -616,7 +615,6 @@ async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
     project = state.require_project()
     try:
         portraits.portrait_name(DECOMP_DIR, portrait_id)
-        data = await file.read()
         with Image.open(io.BytesIO(data)) as img:
             sheet, _colors = portraits.indexed(img)
     except portraits.PortraitError as e:
@@ -628,10 +626,53 @@ async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     entry = {"file": rel, **portraits.detect(sheet)}
+    if source:
+        entry["source"] = source
     stored = project.load("portraits")
     stored[str(portrait_id)] = entry
     problems = project.save("portraits", stored)
+    project.update_credits()
     return {"entry": entry, "problems": [p.to_dict() for p in problems]}
+
+
+@app.post("/api/portraits/{portrait_id}")
+async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
+    return _import_portrait(portrait_id, await file.read())
+
+
+class FeRepoIn(BaseModel):
+    url: str
+
+
+@app.post("/api/portraits/{portrait_id}/ferepo")
+def import_ferepo_portrait(portrait_id: int, body: FeRepoIn):
+    """A portrait of FE-Repo replaces this one; its authors and license go to the project's credits."""
+    try:
+        data = ferepo.fetch(body.url)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(400, str(e)) from e
+    return _import_portrait(portrait_id, data, ferepo.describe(body.url))
+
+
+@app.get("/api/ferepo/portraits")
+def ferepo_portraits(q: str = "", refresh: bool = False):
+    """Portraits of FE-Repo matching a search (name, folder, authors)."""
+    try:
+        index, when = ferepo.load_index(refresh)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503, str(e)) from e
+    entries, total = ferepo.search(index, ferepo.PORTRAITS, q)
+    return {"entries": entries, "total": total, "indexDate": when}
+
+
+@app.get("/api/ferepo/image")
+def ferepo_image(url: str):
+    """A FE-Repo picture (thumbnails of the browser), downloaded once then cached."""
+    try:
+        data = ferepo.fetch(url)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(400, str(e)) from e
+    return Response(data, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
 
 
 @app.delete("/api/portraits/{portrait_id}")
@@ -643,6 +684,7 @@ def remove_portrait(portrait_id: int):
     if entry:
         (project.root / "assets" / entry["file"]).unlink(missing_ok=True)
     problems = project.save("portraits", stored)
+    project.update_credits()
     return {"problems": [p.to_dict() for p in problems]}
 
 

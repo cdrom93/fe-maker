@@ -3,16 +3,22 @@
   import { api, ApiError, portraitSheetUrl } from '../lib/api'
   import { problemText, t } from '../lib/i18n.svelte'
   import { portraitsChanged } from '../lib/portraits.svelte'
-  import type { PortraitImport, PortraitInfo, Problem } from '../lib/types'
+  import type { FeRepoEntry, PortraitImport, PortraitInfo, Problem } from '../lib/types'
+  import FeRepoBrowser from './FeRepoBrowser.svelte'
   import NumberField from './NumberField.svelte'
 
-  let { portraitId, problems, onproblems }: { portraitId: number; problems: Problem[]; onproblems: (p: Problem[]) => void } = $props()
+  let { portraitId, problems, onproblems, characterName = '' }: {
+    portraitId: number; problems: Problem[]; onproblems: (p: Problem[]) => void
+    /** the character's name, the first search in FE-Repo */
+    characterName?: string
+  } = $props()
 
   const SCALE = 2
   let info = $state<PortraitInfo | null>(null)
   let error = $state('')
   let busy = $state(false)
   let fileInput = $state<HTMLInputElement>()
+  let browsing = $state(false)
 
   const imported = $derived(info?.imported ?? null)
   const positions = $derived(imported ?? info?.original ?? null)
@@ -41,6 +47,21 @@
     } finally {
       busy = false
       if (fileInput) fileInput.value = ''
+    }
+  }
+
+  async function importFeRepo(e: FeRepoEntry) {
+    busy = true
+    error = ''
+    try {
+      onproblems((await api.importFeRepoPortrait(portraitId, e.url)).problems)
+      info = await api.portrait(portraitId)
+      portraitsChanged()
+      browsing = false
+    } catch (err) {
+      error = err instanceof ApiError ? t(`problem.portrait.${err.detail}`) : String(err)
+    } finally {
+      busy = false
     }
   }
 
@@ -83,10 +104,17 @@
     {#if info?.sharedWith.length}<p class="muted small">{t('portrait.shared', { ids: info.sharedWith.join(', ') })}</p>{/if}
     <div class="buttons">
       <button onclick={() => fileInput?.click()} disabled={busy}>🖼 {t('portrait.import')}</button>
+      <button onclick={() => (browsing = !browsing)} class:active={browsing}>🔎 {t('ferepo.open')}</button>
       <a class="small" href={portraitSheetUrl(portraitId)} download={`portrait-${portraitId}.png`}>⬇ {t('portrait.download')}</a>
       {#if imported}<button class="link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>{/if}
     </div>
     <input type="file" accept="image/png" hidden bind:this={fileInput} onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
+    {#if imported?.source}
+      <p class="small">
+        {t('ferepo.from', { name: imported.source.name, authors: imported.source.authors.join(', ') || t('ferepo.unknownAuthor') })}
+        <span class="badge" class:f2e={imported.source.license === 'F2E'} title={t(`ferepo.license.${imported.source.license}`)}>{imported.source.license}</span>
+      </p>
+    {/if}
     {#if imported}
       <div class="row">
         <NumberField label={t('portrait.mouthX')} value={imported.mouth[0]} min={0} max={8} compact onchange={(v) => move('mouth', 0, v)} />
@@ -99,6 +127,9 @@
     {#if error}<p class="bad small">{error}</p>{/if}
     {#each myProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
   </div>
+  {#if browsing}
+    <div class="ferepo"><FeRepoBrowser initial={characterName} {busy} onpick={importFeRepo} /></div>
+  {/if}
 </div>
 
 <style>
@@ -116,5 +147,9 @@
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }
   p { margin: 0; }
+  .ferepo { flex-basis: 100%; }
+  .active { border-color: var(--accent); background: var(--accent-soft); }
+  .badge { font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }
+  .badge.f2e { background: var(--accent-soft); color: var(--good); }
   .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 0.8rem; }
 </style>

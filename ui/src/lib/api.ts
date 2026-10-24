@@ -1,5 +1,5 @@
 import { portraitVersion } from './portraits.svelte'
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits'
 
@@ -59,6 +59,11 @@ export const api = {
     form.append('file', file)
     return request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}`, form)
   },
+  importFeRepoPortrait: (id: number, url: string) =>
+    request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}/ferepo`, { url }),
+  feRepoPortraits: (q: string, refresh = false) =>
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number }>(
+      'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}${refresh ? '&refresh=true' : ''}`),
   removePortrait: (id: number) => request<{ problems: Problem[] }>('DELETE', `/api/portraits/${id}`),
   eventsReference: () => request<EventsReference>('GET', '/api/events/reference'),
   eventScript: (name: string) => request<{ name: string; file: string; commands: EventCommand[] }>('GET', `/api/events/scripts/${name}`),
