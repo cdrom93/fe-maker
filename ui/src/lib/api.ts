@@ -59,6 +59,15 @@ export const api = {
     form.append('file', file)
     return request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}`, form)
   },
+  addPortrait: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ id: number; entry: PortraitImport; problems: Problem[] }>('POST', '/api/portraits/new', form)
+  },
+  addFeRepoPortrait: (url: string) =>
+    request<{ id: number; entry: PortraitImport; problems: Problem[] }>('POST', '/api/portraits/new/ferepo', { url }),
+  renamePortrait: (id: number, name: string) =>
+    request<{ entry: PortraitImport; problems: Problem[] }>('PATCH', `/api/portraits/${id}`, { name }),
   importFeRepoPortrait: (id: number, url: string) =>
     request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}/ferepo`, { url }),
   feRepoPortraits: (q: string, refresh = false) =>

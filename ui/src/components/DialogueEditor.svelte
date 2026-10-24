@@ -318,7 +318,7 @@
     if (!font || layout(text, font, maxWidth) === text) return 0
     return layoutBoxes(text, font, maxWidth).length
   }
-  const faceLabel = (fid: string) => fid.replace('FID_', '').replace(/([a-z])([A-Z])/g, '$1 $2')
+  const faceLabel = (fid: string) => faces.find((f) => f.id === fid)?.name ?? fid.replace('FID_', '').replace(/([a-z])([A-Z])/g, '$1 $2')
   const posLabel = (pos: string) => t(`dlg.pos.${pos}`)
 </script>
 

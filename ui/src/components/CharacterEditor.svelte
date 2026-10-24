@@ -127,8 +127,14 @@
           </div>
           <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
           <details class="portrait-details">
-            <summary>🖼 {t('portrait.title', { id: ch.portraitId })}</summary>
-            <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} characterName={ch.name} />
+            <summary>🖼 {ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
+              ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })
+              : t('portrait.title', { id: ch.portraitId })}</summary>
+            <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} characterName={ch.name} onnew={(id, name) => {
+              while (reference.portraits.length <= id) reference.portraits.push(null)
+              reference.portraits[id] = name
+              if (ch.portraitId !== id) edit((c) => (c.portraitId = id))
+            }} onremoved={(id) => (reference.portraits[id] = null)} />
           </details>
         </div>
       </section>

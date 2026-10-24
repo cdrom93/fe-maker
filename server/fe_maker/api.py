@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import dataclasses
+import os
 import tempfile
 import threading
 from pathlib import Path
@@ -198,8 +199,28 @@ def reference():
         "rankableTypes": RANKABLE_TYPES,
         "ranks": list(RANK_VALUES),
         "iconCount": len(d.item_icon_files()),
-        "portraits": portrait_names(DECOMP_DIR),
+        "portraits": _portrait_names(),
+        "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
     }
+
+
+def _added_portraits() -> dict[int, dict]:
+    """Portraits the project adds after the game's ones: id -> entry of data/portraits.json."""
+    if state.project is None:
+        return {}
+    return {int(k): e for k, e in state.project.load("portraits").items()
+            if k.isdigit() and portraits.is_new(DECOMP_DIR, int(k))}
+
+
+def _portrait_names() -> list[str | None]:
+    """Portrait name per id: the game's, then the project's new portraits (None for unused ids)."""
+    names = list(portrait_names(DECOMP_DIR))   # a copy: portrait_names is cached
+    added = _added_portraits()
+    if added:
+        first = len(names)
+        names += [(added[pid].get("name") or portraits.new_name(pid)) if pid in added else None
+                  for pid in range(first, max(added) + 1)]
+    return names
 
 
 # ---------- chapters (phase 3, read-only for now) ----------
@@ -477,7 +498,9 @@ def dialogue_font_sheet():
 def dialogue_faces():
     """Portraits a dialogue can show: text code (FID_...) and portrait id."""
     defs = DECOMP_DIR / dialogues.TEXT_DEFS_FILE
-    return [{"id": fid, "portrait": pid} for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
+    faces = [{"id": fid, "portrait": pid} for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
+    return faces + [{"id": portraits.face_code(pid), "portrait": pid, "name": e.get("name") or portraits.new_name(pid)}
+                    for pid, e in sorted(_added_portraits().items())]
 
 
 @app.get("/api/chapters/{index}/units")
@@ -595,26 +618,42 @@ def portrait_sheet(portrait_id: int):
 def portrait_info(portrait_id: int):
     """What the editor shows about a portrait: its name, the ids sharing its pictures, where its mouth
     and eyes go in the game, and the project's import."""
+    imported = state.project.load("portraits").get(str(portrait_id)) if state.project else None
+    if portraits.is_new(DECOMP_DIR, portrait_id):
+        if imported is None:
+            raise HTTPException(404, "unknownPortrait")
+        return {"id": portrait_id, "name": imported.get("name") or portraits.new_name(portrait_id), "sharedWith": [],
+                "original": None, "imported": imported, "added": True}
     try:
         name = portraits.portrait_name(DECOMP_DIR, portrait_id)
     except portraits.PortraitError as e:
         raise HTTPException(404, str(e)) from e
     names = portrait_names(DECOMP_DIR)
-    imported = state.project.load("portraits").get(str(portrait_id)) if state.project else None
     return {"id": portrait_id, "name": name, "sharedWith": [i for i, n in enumerate(names) if n == name and i != portrait_id],
-            "original": portraits.read_positions(DECOMP_DIR).get(name), "imported": imported}
+            "original": portraits.read_positions(DECOMP_DIR).get(name), "imported": imported, "added": False}
 
 
-def _import_portrait(portrait_id: int, data: bytes, source: dict | None = None) -> dict:
+def _free_portrait_id() -> int:
+    """The first id after the game's portraits that the project does not use yet."""
+    used = set(_added_portraits())
+    for pid in range(portraits.first_new_id(DECOMP_DIR), portraits.MAX_PORTRAIT_ID + 1):
+        if pid not in used:
+            return pid
+    raise HTTPException(400, "noFreePortrait")
+
+
+def _import_portrait(portrait_id: int, data: bytes, source: dict | None = None, name: str | None = None) -> dict:
     """Replace a portrait with a 128 x 112 sheet (16 colors at most): stored in the project's assets,
-    mouth and eyes placed automatically; `source`: where it comes from (FE-Repo), for the credits."""
+    mouth and eyes placed automatically; `source`: where it comes from (FE-Repo), for the credits.
+    An id after the game's portraits adds a new portrait, called `name`."""
     import io
 
     from PIL import Image, UnidentifiedImageError
 
     project = state.require_project()
     try:
-        portraits.portrait_name(DECOMP_DIR, portrait_id)
+        if not portraits.is_new(DECOMP_DIR, portrait_id):
+            portraits.portrait_name(DECOMP_DIR, portrait_id)
         with Image.open(io.BytesIO(data)) as img:
             sheet, _colors = portraits.indexed(img)
     except portraits.PortraitError as e:
@@ -629,10 +668,36 @@ def _import_portrait(portrait_id: int, data: bytes, source: dict | None = None) 
     if source:
         entry["source"] = source
     stored = project.load("portraits")
+    if portraits.is_new(DECOMP_DIR, portrait_id):
+        old = stored.get(str(portrait_id)) or {}
+        entry["name"] = (name or old.get("name") or (source or {}).get("name") or portraits.new_name(portrait_id))[:40]
     stored[str(portrait_id)] = entry
     problems = project.save("portraits", stored)
     project.update_credits()
-    return {"entry": entry, "problems": [p.to_dict() for p in problems]}
+    return {"id": portrait_id, "entry": entry, "problems": [p.to_dict() for p in problems]}
+
+
+# Declared before /api/portraits/{portrait_id}: "new" is not a portrait id.
+@app.post("/api/portraits/new")
+async def add_portrait(file: UploadFile = File(...)):
+    """A new portrait, after the game's ones, from a 128 x 112 sheet (named after the file)."""
+    return _import_portrait(_free_portrait_id(), await file.read(), name=Path(file.filename or "").stem or None)
+
+
+class PortraitNameIn(BaseModel):
+    name: str
+
+
+@app.patch("/api/portraits/{portrait_id}")
+def rename_portrait(portrait_id: int, body: PortraitNameIn):
+    """Rename a portrait the project adds (the name shown in the editors)."""
+    project = state.require_project()
+    stored = project.load("portraits")
+    entry = stored.get(str(portrait_id))
+    if entry is None or not portraits.is_new(DECOMP_DIR, portrait_id):
+        raise HTTPException(404, "unknownPortrait")
+    entry["name"] = body.name.strip()[:40] or portraits.new_name(portrait_id)
+    return {"entry": entry, "problems": [p.to_dict() for p in project.save("portraits", stored)]}
 
 
 @app.post("/api/portraits/{portrait_id}")
@@ -642,6 +707,16 @@ async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
 
 class FeRepoIn(BaseModel):
     url: str
+
+
+@app.post("/api/portraits/new/ferepo")
+def add_ferepo_portrait(body: FeRepoIn):
+    """A new portrait from FE-Repo; its authors and license go to the project's credits."""
+    try:
+        data = ferepo.fetch(body.url)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(400, str(e)) from e
+    return _import_portrait(_free_portrait_id(), data, ferepo.describe(body.url))
 
 
 @app.post("/api/portraits/{portrait_id}/ferepo")
@@ -677,7 +752,7 @@ def ferepo_image(url: str):
 
 @app.delete("/api/portraits/{portrait_id}")
 def remove_portrait(portrait_id: int):
-    """Back to the game's portrait (the imported sheet is deleted from the project)."""
+    """Back to the game's portrait, or a new portrait removed (the imported sheet is deleted from the project)."""
     project = state.require_project()
     stored = project.load("portraits")
     entry = stored.pop(str(portrait_id), None)
@@ -818,6 +893,7 @@ def ticket_image(name: str):
 
 # ---------- interface ----------
 
-UI_DIST = REPO_ROOT / "ui" / "dist"
+# FE_MAKER_UI_DIST: another build of the interface (a second dev server beside the user's one)
+UI_DIST = Path(os.environ.get("FE_MAKER_UI_DIST") or REPO_ROOT / "ui" / "dist")
 if UI_DIST.is_dir():
     app.mount("/", StaticFiles(directory=UI_DIST, html=True), name="ui")

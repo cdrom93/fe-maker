@@ -73,3 +73,53 @@ def test_imported_portrait_reaches_the_overlay(tmp_path, decomp_dir):
     files = d.changed_files()
     assert "graphics/portrait/portrait_Test_tileset.png" in files and "graphics/portrait/portrait_Test_palette.agbpal" in files
     assert "portrait_Test_mouth, 0, 2, 6, 3, 4, FACE_BLINK_NORMAL}" in files["src/portrait_data.c"]
+
+
+def test_new_portraits_are_added_after_the_game_ones(tmp_path, decomp_dir):
+    decomp = tmp_path / "decomp"
+    shutil.copytree(decomp_dir, decomp)
+    (decomp / "src" / "portrait_data.c").write_text(
+        "struct FaceData CONST_DATA portrait_data[] =\n{\n"
+        "\t{portrait_Test_tileset, portrait_Test_chibi, portrait_Test_palette, portrait_Test_mouth, 0, 2, 5, 3, 3, "
+        "FACE_BLINK_NORMAL}, // 0\n};\n", encoding="utf-8")
+    (decomp / "include").mkdir(exist_ok=True)
+    (decomp / "include" / "portrait_pointer.h").write_text("extern unsigned char portrait_Test_tileset[];\n", encoding="utf-8")
+    (decomp / "data" / "data_portrait.s").write_text(
+        '\t.global portrait_Test_tileset\nportrait_Test_tileset:\n\t.incbin "graphics/portrait/portrait_Test_tileset.4bpp.fk"\n',
+        encoding="utf-8")
+    assert pt.first_new_id(decomp) == 2 and pt.is_new(decomp, 3) and not pt.is_new(decomp, 1)
+    assets = tmp_path / "assets"
+    (assets / "portraits").mkdir(parents=True)
+    _sheet().save(assets / "portraits" / "3.png")
+    d = DecompData(decomp)
+    d.apply_portraits({"3": {"file": "portraits/3.png", "mouth": [2, 6], "eyes": [3, 4], "name": "Amelia"}}, assets)
+    files = d.changed_files()
+    assert "graphics/portrait/portrait_New3_tileset.png" in files and "graphics/portrait/portrait_New3_palette.agbpal" in files
+    table = files["src/portrait_data.c"]
+    # id 2 is unused: the mystery portrait keeps the table contiguous; id 3 is the new one.
+    assert "portrait_Mystery_1_mouth, 0, 2, 5, 3, 3, FACE_BLINK_NORMAL}, // 1\n" in table
+    assert "{portrait_New3_tileset, portrait_New3_chibi, portrait_New3_palette, portrait_New3_mouth, 0, 2, 6, 3, 4, " \
+        "FACE_BLINK_NORMAL}, // 2\n};" in table
+    assert 'portrait_New3_chibi:\n\t.incbin "graphics/portrait/portrait_New3_chibi.4bpp.lz"' in files["data/data_portrait.s"]
+    assert files["data/data_portrait.s"].startswith("\t.global portrait_Test_tileset")
+    assert "extern unsigned short portrait_New3_palette[];" in files["include/portrait_pointer.h"]
+    assert "[FID_New3] = 0x03, 0x01" in files["texts/textdefs.txt"]
+    from fe_maker.decomp.dialogues import read_faces
+    assert read_faces(files["texts/textdefs.txt"])["FID_New3"] == 3
+
+
+def test_new_portraits_validation(tmp_path, decomp_dir):
+    from fe_maker.validation import validate
+
+    d = DecompData(decomp_dir)
+    first = pt.first_new_id(decomp_dir)
+    chars = d.export_characters()
+    chars[0]["portraitId"] = first
+    dialogues = {"messages": {"0x1": [{"kind": "face", "pos": "MidLeft", "face": pt.face_code(first)}]}}
+    problems = validate(chars, d.export_items(), d, dialogues=dialogues)
+    codes = {(p.field, p.code) for p in problems}
+    assert ("portraitId", "unknownPortrait") in codes and ("face", "unknownFace") in codes
+    _sheet().save(tmp_path / "a.png")
+    added = {str(first): {"file": "a.png", "mouth": [2, 6], "eyes": [3, 4], "name": "Amelia"}}
+    problems = validate(chars, d.export_items(), d, dialogues=dialogues, portraits=added, assets_dir=tmp_path)
+    assert not [p for p in problems if p.code in ("unknownPortrait", "unknownFace")]

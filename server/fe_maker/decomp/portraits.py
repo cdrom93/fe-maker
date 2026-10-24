@@ -210,3 +210,63 @@ def overlay_files(decomp_dir: Path, name: str, files: dict[str, bytes]) -> dict[
     """Decomp-relative path -> content of a replaced portrait's files."""
     paths = _files(decomp_dir, name)
     return {paths[k].relative_to(decomp_dir).as_posix(): v for k, v in files.items()}
+
+
+# ---------- new portraits ----------
+# A project can add portraits after the game's ones: an id past the end of the portrait table.
+# Their files are portrait_New<id>_*, included like the game's (data/data_portrait.s, declared in
+# include/portrait_pointer.h), and the texts show them with a [FID_New<id>] code.
+
+DATA_FILE = "data/data_portrait.s"
+HEADER_FILE = "include/portrait_pointer.h"
+MAX_PORTRAIT_ID = 254           # a text's portrait code holds the id in one byte ([FID_X] = id, 0x01)
+_GAP_ROW = "{portrait_Mystery_1_tileset, portrait_Mystery_1_chibi, portrait_Mystery_1_palette, portrait_Mystery_1_mouth, " \
+    "0, 2, 5, 3, 3, FACE_BLINK_NORMAL}"
+
+
+def first_new_id(decomp_dir: Path) -> int:
+    """The first id after the game's portraits."""
+    return len(portrait_names(decomp_dir))
+
+
+def new_name(portrait_id: int) -> str:
+    return f"New{portrait_id}"
+
+
+def face_code(portrait_id: int) -> str:
+    return f"FID_New{portrait_id}"
+
+
+def is_new(decomp_dir: Path, portrait_id: int) -> bool:
+    return first_new_id(decomp_dir) <= portrait_id <= MAX_PORTRAIT_ID
+
+
+def add_to_sources(data_s: str, header: str, table: str, first: int,
+                   added: dict[int, dict[str, list[int]]]) -> tuple[str, str, str]:
+    """data_portrait.s, portrait_pointer.h and portrait_data.c with the new portraits (id -> mouth and
+    eye positions). Ids missing between the game's last one and a new one show the mystery portrait."""
+    incbins, externs, rows = [], [], []
+    for pid in range(first, max(added) + 1):
+        if pid not in added:
+            rows.append(f"\t{_GAP_ROW}, // {pid - 1}\n")
+            continue
+        n = new_name(pid)
+        for part, kind in (("palette", "agbpal"), ("mouth", "4bpp"), ("chibi", "4bpp.lz"), ("tileset", "4bpp.fk")):
+            path = f"graphics/portrait/portrait_{n}_{part}.{kind}"
+            incbins.append(f"\t.global portrait_{n}_{part}\nportrait_{n}_{part}:\n\t.incbin \"{path}\"\n\t.align 2, 0\n")
+        externs.append(f"extern unsigned short portrait_{n}_palette[];\n"
+                       + "".join(f"extern unsigned char portrait_{n}_{p}[];\n" for p in ("mouth", "chibi", "tileset")))
+        (mx, my), (ex, ey) = added[pid]["mouth"], added[pid]["eyes"]
+        rows.append(f"\t{{portrait_{n}_tileset, portrait_{n}_chibi, portrait_{n}_palette, portrait_{n}_mouth, "
+                    f"0, {int(mx)}, {int(my)}, {int(ex)}, {int(ey)}, FACE_BLINK_NORMAL}}, // {pid - 1}\n")
+    end = table.rindex("};")
+    table = table[:end] + "".join(rows) + table[end:]
+    data_s = data_s.rstrip("\n") + "\n" + "".join(incbins)
+    header = header.rstrip("\n") + "\n" + "".join(externs)
+    return data_s, header, table
+
+
+def textdefs_with_faces(textdefs: str, ids: list[int]) -> str:
+    """texts/textdefs.txt with a portrait code for each new portrait."""
+    lines = [f"[{face_code(pid)}] = 0x{pid:02X}, 0x01" for pid in sorted(ids)]
+    return textdefs.rstrip("\n") + "\n\n// FE Maker: new portraits\n" + "\n".join(lines) + "\n"

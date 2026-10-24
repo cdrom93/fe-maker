@@ -7,18 +7,26 @@
   import FeRepoBrowser from './FeRepoBrowser.svelte'
   import NumberField from './NumberField.svelte'
 
-  let { portraitId, problems, onproblems, characterName = '' }: {
+  let { portraitId, problems, onproblems, characterName = '', onnew, onremoved }: {
     portraitId: number; problems: Problem[]; onproblems: (p: Problem[]) => void
     /** the character's name, the first search in FE-Repo */
     characterName?: string
+    /** a new portrait was added for this character (after the game's ones), or renamed */
+    onnew?: (id: number, name: string) => void
+    /** a portrait the project added was deleted */
+    onremoved?: (id: number) => void
   } = $props()
 
   const SCALE = 2
   let info = $state<PortraitInfo | null>(null)
+  /** no portrait with this id (a deleted new portrait, or a number past the end) */
+  let missing = $state(false)
   let error = $state('')
   let busy = $state(false)
   let fileInput = $state<HTMLInputElement>()
-  let browsing = $state(false)
+  let newInput = $state<HTMLInputElement>()
+  /** what a FE-Repo pick does: replace this portrait or add a new one */
+  let browsing = $state<'replace' | 'new' | null>(null)
 
   const imported = $derived(info?.imported ?? null)
   const positions = $derived(imported ?? info?.original ?? null)
@@ -28,9 +36,12 @@
     const id = portraitId
     error = ''
     info = null
+    missing = false
     api.portrait(id).then((i) => {
       if (id === portraitId) info = i
-    }).catch(() => {})
+    }).catch(() => {
+      if (id === portraitId) missing = true
+    })
   })
 
   async function importFile(file: File | undefined) {
@@ -50,14 +61,37 @@
     }
   }
 
+  async function addFile(file: File | undefined) {
+    if (!file) return
+    await adding(() => api.addPortrait(file))
+    if (newInput) newInput.value = ''
+  }
+
+  async function adding(call: () => Promise<{ id: number; entry: PortraitImport; problems: Problem[] }>) {
+    busy = true
+    error = ''
+    try {
+      const r = await call()
+      onproblems(r.problems)
+      portraitsChanged()
+      browsing = null
+      onnew?.(r.id, r.entry.name ?? '')
+    } catch (e) {
+      error = e instanceof ApiError ? t(`problem.portrait.${e.detail}`) : String(e)
+    } finally {
+      busy = false
+    }
+  }
+
   async function importFeRepo(e: FeRepoEntry) {
+    if (browsing === 'new') return adding(() => api.addFeRepoPortrait(e.url))
     busy = true
     error = ''
     try {
       onproblems((await api.importFeRepoPortrait(portraitId, e.url)).problems)
       info = await api.portrait(portraitId)
       portraitsChanged()
-      browsing = false
+      browsing = null
     } catch (err) {
       error = err instanceof ApiError ? t(`problem.portrait.${err.detail}`) : String(err)
     } finally {
@@ -67,13 +101,27 @@
 
   async function remove() {
     busy = true
+    const added = info?.added
     try {
       onproblems((await api.removePortrait(portraitId)).problems)
-      info = await api.portrait(portraitId)
       portraitsChanged()
+      if (added) {
+        info = null
+        missing = true
+        onremoved?.(portraitId)
+      } else {
+        info = await api.portrait(portraitId)
+      }
     } finally {
       busy = false
     }
+  }
+
+  async function rename(name: string) {
+    const r = await api.renamePortrait(portraitId, name)
+    onproblems(r.problems)
+    info = { ...info!, name: r.entry.name ?? name, imported: r.entry }
+    onnew?.(portraitId, r.entry.name ?? name)
   }
 
   async function move(part: 'mouth' | 'eyes', k: 0 | 1, value: number) {
@@ -89,6 +137,9 @@
   }
 </script>
 
+{#if missing}
+  <p class="bad small">{t('portrait.missing', { id: portraitId })}</p>
+{:else}
 <div class="portrait-panel">
   <div class="sheet" style="width: {128 * SCALE}px; height: {112 * SCALE}px">
     <img src={portraitSheetUrl(portraitId)} alt={info?.name ?? ''} style="width: {128 * SCALE}px; height: {112 * SCALE}px" />
@@ -98,17 +149,39 @@
     {/if}
   </div>
   <div class="side">
-    <p class="small">
-      {#if imported}<strong>{t('portrait.imported')}</strong>{:else}{t('portrait.game', { name: info?.name ?? '' })}{/if}
-    </p>
+    {#if info?.added}
+      <label class="small name">{t('portrait.name')}
+        <input value={info.name} maxlength="40" onchange={(e) => rename((e.target as HTMLInputElement).value)} />
+      </label>
+      <p class="muted tiny">{t('portrait.addedHint', { id: portraitId })}</p>
+    {:else}
+      <p class="small">
+        {#if imported}<strong>{t('portrait.imported')}</strong>{:else}{t('portrait.game', { name: info?.name ?? '' })}{/if}
+      </p>
+    {/if}
     {#if info?.sharedWith.length}<p class="muted small">{t('portrait.shared', { ids: info.sharedWith.join(', ') })}</p>{/if}
     <div class="buttons">
       <button onclick={() => fileInput?.click()} disabled={busy}>🖼 {t('portrait.import')}</button>
-      <button onclick={() => (browsing = !browsing)} class:active={browsing}>🔎 {t('ferepo.open')}</button>
+      <button onclick={() => (browsing = browsing === 'replace' ? null : 'replace')} class:active={browsing === 'replace'}>🔎 {t('ferepo.open')}</button>
       <a class="small" href={portraitSheetUrl(portraitId)} download={`portrait-${portraitId}.png`}>⬇ {t('portrait.download')}</a>
-      {#if imported}<button class="link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>{/if}
+      {#if info?.added}
+        <button class="link" onclick={remove} disabled={busy} title={t('portrait.deleteHint')}>{t('portrait.delete')}</button>
+      {:else if imported}
+        <button class="link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>
+      {/if}
     </div>
     <input type="file" accept="image/png" hidden bind:this={fileInput} onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
+    {#if onnew && info && !info.added}
+      <div class="new">
+        <span class="small"><strong>➕ {t('portrait.new')}</strong></span>
+        <span class="muted tiny">{t('portrait.newHint')}</span>
+        <div class="buttons">
+          <button onclick={() => newInput?.click()} disabled={busy}>🖼 {t('portrait.newFile')}</button>
+          <button onclick={() => (browsing = browsing === 'new' ? null : 'new')} class:active={browsing === 'new'}>🔎 {t('portrait.newFeRepo')}</button>
+        </div>
+        <input type="file" accept="image/png" hidden bind:this={newInput} onchange={(e) => addFile((e.target as HTMLInputElement).files?.[0])} />
+      </div>
+    {/if}
     {#if imported?.source}
       <p class="small">
         {t('ferepo.from', { name: imported.source.name, authors: imported.source.authors.join(', ') || t('ferepo.unknownAuthor') })}
@@ -131,6 +204,7 @@
     <div class="ferepo"><FeRepoBrowser initial={characterName} {busy} onpick={importFeRepo} /></div>
   {/if}
 </div>
+{/if}
 
 <style>
   .portrait-panel { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: flex-start; }
@@ -148,6 +222,9 @@
   .warn { color: var(--warn); }
   p { margin: 0; }
   .ferepo { flex-basis: 100%; }
+  .new { display: flex; flex-direction: column; gap: 0.25rem; border-top: 1px solid var(--border); padding-top: 0.4rem; }
+  .name { display: flex; gap: 0.4rem; align-items: center; }
+  .name input { flex: 1; max-width: 16rem; }
   .active { border-color: var(--accent); background: var(--accent-soft); }
   .badge { font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }
   .badge.f2e { background: var(--accent-soft); color: var(--good); }

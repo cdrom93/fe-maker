@@ -302,6 +302,8 @@ export interface Reference {
   ranks: string[]
   iconCount: number
   portraits: (string | null)[]
+  /** the first portrait id after the game's ones (portraits the project adds) */
+  firstNewPortrait: number
 }
 
 /** A step of a dialogue (server: decomp/dialogues.py). */
@@ -336,6 +338,8 @@ export interface DialogueFont {
 export interface DialogueFace {
   id: string
   portrait: number
+  /** name of a portrait the project adds */
+  name?: string
 }
 
 export interface DialoguesData {
@@ -466,6 +470,8 @@ export interface TestOptions {
  * in 8-pixel tiles from the face's top-left corner. */
 export interface PortraitImport {
   file: string
+  /** name of a portrait the project adds (after the game's ones) */
+  name?: string
   /** imported from FE-Repo: credited in the project's CREDITS.txt */
   source?: FeRepoEntry
   mouth: [number, number]
@@ -489,4 +495,6 @@ export interface PortraitInfo {
   sharedWith: number[]
   original: { mouth: [number, number]; eyes: [number, number] } | null
   imported: PortraitImport | null
+  /** a portrait the project adds, after the game's ones */
+  added: boolean
 }

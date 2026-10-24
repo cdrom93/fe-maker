@@ -180,6 +180,8 @@ class DecompData:
         self._original_unit_defs = dict(self.unit_defs)
         # Imported graphics (decomp-relative path -> content), see apply_portraits
         self.asset_files: dict[str, bytes | str] = {}
+        # Ids of the portraits the project adds (their text codes go to textdefs.txt)
+        self.new_faces: list[int] = []
         # Supports edited in the project (see _apply_supports)
         self.support_source: str | None = None
         self.support_talks: str | None = None
@@ -562,15 +564,29 @@ class DecompData:
             return
         table = self._read(portraits.PORTRAIT_TABLE)
         source = table
+        first = portraits.first_new_id(self.decomp_dir)
+        added: dict[int, dict] = {}
         for key, entry in sorted(data.items(), key=lambda kv: int(kv[0])):
-            name = portraits.portrait_name(self.decomp_dir, int(key))
+            pid = int(key)
+            new = portraits.is_new(self.decomp_dir, pid)
+            name = portraits.new_name(pid) if new else portraits.portrait_name(self.decomp_dir, pid)
             path = assets_dir / entry["file"]
             if not path.is_file():
                 raise GameDataError(f"Portrait {key}: {entry['file']} not found")
             with Image.open(path) as img:
                 sheet, _colors = portraits.indexed(img)
             self.asset_files.update(portraits.overlay_files(self.decomp_dir, name, portraits.from_sheet(sheet)))
-            source = portraits.write_positions(source, name, entry.get("mouth", [2, 6]), entry.get("eyes", [3, 4]))
+            positions = {"mouth": entry.get("mouth", [2, 6]), "eyes": entry.get("eyes", [3, 4])}
+            if new:
+                added[pid] = positions
+            else:
+                source = portraits.write_positions(source, name, positions["mouth"], positions["eyes"])
+        if added:
+            data_s, header, source = portraits.add_to_sources(
+                self._read(portraits.DATA_FILE), self._read(portraits.HEADER_FILE), source, first, added)
+            self.asset_files[portraits.DATA_FILE] = data_s
+            self.asset_files[portraits.HEADER_FILE] = header
+            self.new_faces = sorted(added)
         if source != table:
             self.asset_files[portraits.PORTRAIT_TABLE] = source
 
@@ -1360,11 +1376,17 @@ class DecompData:
             out[supports.SUPPORTS_FILE] = self.support_source
         if self.support_talks is not None:
             out[supports.TALKS_FILE] = self.support_talks
+        chars: set[str] = set()
         if self.texts.edits or self.texts.added:
             out[TEXTS_FILE] = self.texts.render()
             chars = self.texts.special_chars()
+        if chars or self.new_faces:
+            defs = self._read(dialogues.TEXT_DEFS_FILE)
             if chars:
-                out[dialogues.TEXT_DEFS_FILE] = textdefs_with(self._read(dialogues.TEXT_DEFS_FILE), chars)
+                defs = textdefs_with(defs, chars)
+            if self.new_faces:
+                defs = portraits.textdefs_with_faces(defs, self.new_faces)
+            out[dialogues.TEXT_DEFS_FILE] = defs
         for rel, source in self.unit_defs.items():
             if source != self._original_unit_defs[rel]:
                 out[rel] = source

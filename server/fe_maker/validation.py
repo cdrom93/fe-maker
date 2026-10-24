@@ -105,6 +105,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     weapon_types = set(WEAPON_TYPES.values())
     original = {c["id"]: c for c in decomp.export_characters()}
     used_classes = decomp.classes_used_in_game()
+    first_new = decomp_portraits.first_new_id(decomp.decomp_dir)
+    added_portraits = {int(k) for k in (portraits or {}) if str(k).isdigit() and int(k) >= first_new}
 
     _duplicates(problems, "characters", characters)
     for ch in characters:
@@ -117,6 +119,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
                                     f"{rid}: this class is never used in the original game, its graphics may be incomplete"))
         _range(problems, "characters", rid, "level", ch.get("level"), 0, 127)  # 0 for generic units
         _range(problems, "characters", rid, "portraitId", ch.get("portraitId"), 0, 0xFFFF)
+        if isinstance(ch.get("portraitId"), int) and ch["portraitId"] >= first_new and ch["portraitId"] not in added_portraits:
+            problems.append(Problem("error", "characters", rid, "portraitId", "unknownPortrait", {},
+                                    f"{rid}: unknown portrait"))
         if ch.get("affinity") is not None and ch["affinity"] not in AFFINITIES_REV:
             problems.append(Problem("error", "characters", rid, "affinity", "unknownAffinity", {}, f"{rid}: unknown affinity"))
         unknown = [a for a in ch.get("abilities", []) if a not in ABILITIES_REV]
@@ -185,6 +190,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     if dialogues is not None:
         defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
         faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
+        faces.update({decomp_portraits.face_code(pid): pid for pid in added_portraits})
         _validate_dialogues(problems, dialogues, faces)
         if dialogues.get("scripts"):
             _validate_scripts(problems, dialogues["scripts"], decomp)
@@ -231,7 +237,8 @@ def _validate_portraits(problems, data: dict, decomp: DecompData, assets_dir):
     for key, entry in data.items():
         rid = f"portrait:{key}"
         try:
-            decomp_portraits.portrait_name(decomp.decomp_dir, int(key))
+            if not decomp_portraits.is_new(decomp.decomp_dir, int(key)):
+                decomp_portraits.portrait_name(decomp.decomp_dir, int(key))
         except (decomp_portraits.PortraitError, ValueError):
             problems.append(Problem("error", "characters", rid, "portraitId", "unknownPortrait", {}, f"{rid}: unknown portrait"))
             continue
