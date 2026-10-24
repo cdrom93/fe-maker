@@ -198,6 +198,8 @@ export interface MapChange {
   rows: number[][]
   /** tile block of the original change (kept when edited) */
   tiles?: string
+  /** drawn by hand for an object (ticket 19): it counts for the object whatever its tiles */
+  manual?: boolean
 }
 
 /** Project map data (data/maps.json): layouts once painted. */

@@ -60,6 +60,8 @@ def test_change_must_use_the_object():
     closing = {"id": 1, "x": 1, "y": 1, "w": 1, "h": 1, "rows": [[CLOSED]]}
     assert mo._covered(village, [ruins], TERRAIN) is None
     assert mo._covered(village, [ruins, closing], TERRAIN) == 1
+    # Drawn by hand for the object (ticket 19): it counts whatever its tiles.
+    assert mo._covered(village, [{**ruins, "manual": True}], TERRAIN) == 0
 
 
 def test_read_location_events():

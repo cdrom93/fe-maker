@@ -752,8 +752,9 @@
     const x = hover?.x ?? Math.max(0, Math.floor(width / 2) - 1)
     const y = hover?.y ?? Math.max(0, Math.floor(height / 2) - 1)
     const fresh: MapChange = { id, x: Math.min(x, width - w), y: Math.min(y, height - h), w, h, rows: tilesUnder(x, y, w, h) }
+    const at = changes.length   // `changes` is derived: it already holds the new change after saving
     saveChanges([...changes, fresh])
-    layer = changes.length
+    layer = at
     showChanges = true
   }
 
@@ -768,6 +769,24 @@
     }
     const i = layer
     saveChanges(changes.map((k, n) => (n === i ? c : k)))
+  }
+
+  /** The object's "after" tiles drawn by hand (ticket 19): FE Maker's own guess, else the map, as a
+   * change of the project the editor opens at once (a snag's passage can be made wider). */
+  function manualAfter(o: MapObject) {
+    if (!changes) return
+    const xs = o.cells.map((c) => c[0])
+    const ys = o.cells.map((c) => c[1])
+    const x = Math.min(...xs)
+    const y = Math.min(...ys)
+    const w = Math.max(...xs) - x + 1
+    const h = Math.max(...ys) - y + 1
+    const base = o.auto ?? { x, y, w, h, rows: tilesUnder(x, y, w, h) }
+    const id = changes.length ? Math.max(...changes.map((c) => c.id)) + 1 : 0
+    const at = changes.length
+    saveChanges([...changes, { id, x: base.x, y: base.y, w: base.w, h: base.h, rows: base.rows.map((r) => [...r]), manual: true }])
+    layer = at
+    showChanges = true
   }
 
   function removeChange() {
@@ -910,7 +929,7 @@
             </div>
             {#if change}
               <div class="change-panel">
-                <p class="muted small">{t('maps.changeEditHint')}</p>
+                <p class="muted small">{t(change.manual ? 'maps.manualChangeHint' : 'maps.changeEditHint')}</p>
                 <div class="row">
                   <NumberField label={t('maps.changeId')} value={change.id} min={0} max={MAX_CHANGE_ID} compact onchange={(v) => editChange('id', v)} />
                   <NumberField label="X" value={change.x} min={0} max={width - 1} compact onchange={(v) => editChange('x', v)} />
@@ -1070,6 +1089,16 @@
             <input type="checkbox" checked={isActive(o)} onchange={(e) => setObject(o, { off: !(e.target as HTMLInputElement).checked })} />
             {t('maps.obj.active')}
           </label>
+        {/if}
+        {#if isActive(o) && CHANGE_KINDS.includes(o.kind) && changes}
+          {@const own = o.change !== null && !o.auto ? changes.findIndex((c) => c.id === o.change) : -1}
+          <p class="small">
+            {#if own >= 0}
+              <button class="link" onclick={() => { layer = own; showChanges = true }}>{t('maps.obj.editAfter', { id: o.change ?? 0 })}</button>
+            {:else if o.new}
+              <button class="link" onclick={() => manualAfter(o)}>{t(o.kind === 'snag' || o.kind === 'wall' ? 'maps.obj.manualPassage' : 'maps.obj.manualAfter')}</button>
+            {/if}
+          </p>
         {/if}
         {#if isActive(o)}
           {#if o.kind === 'chest'}

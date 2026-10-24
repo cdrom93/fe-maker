@@ -238,7 +238,8 @@ def after_change(obj: dict, rows: list[list[int]], rule: dict | None) -> dict | 
 def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
     """Id of the change the engine applies when the object is used (the last one holding its cell),
     if that change puts the object in its used state. A village painted inside the rectangle of
-    another village's change would else close (or ruin) the wrong village."""
+    another village's change would else close (or ruin) the wrong village. A change the project
+    marks "manual" (its tiles drawn by hand for the object) always counts."""
     found = None
     x, y = obj["x"], obj["y"]
     for c in changes:
@@ -246,6 +247,8 @@ def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
             found = c
     if found is None:
         return None
+    if found.get("manual"):
+        return found["id"]   # drawn by hand for an object (ticket 19): it counts whatever its tiles
     try:
         after = found["rows"][y - found["y"]][x - found["x"]]
     except (IndexError, KeyError):
