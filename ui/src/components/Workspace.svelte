@@ -217,7 +217,7 @@
 
 {#if reference}
   {#if tab === 'characters'}
-    <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} />
+    <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} onproblems={(p) => (problems = p)} />
   {:else if tab === 'classes'}
     <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'items'}

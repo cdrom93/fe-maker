@@ -1,6 +1,7 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import { portraitVersion } from './portraits.svelte'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
-export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues'
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits'
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {
@@ -52,6 +53,13 @@ export const api = {
     request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
   dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),
   dialogueFont: () => request<DialogueFont>('GET', '/api/dialogues/font'),
+  portrait: (id: number) => request<PortraitInfo>('GET', `/api/portraits/${id}`),
+  importPortrait: (id: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}`, form)
+  },
+  removePortrait: (id: number) => request<{ problems: Problem[] }>('DELETE', `/api/portraits/${id}`),
   eventsReference: () => request<EventsReference>('GET', '/api/events/reference'),
   eventScript: (name: string) => request<{ name: string; file: string; commands: EventCommand[] }>('GET', `/api/events/scripts/${name}`),
   supportDialogues: () =>
@@ -83,6 +91,8 @@ export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${i
 export const mapTilesetUrl = (id: string) => `/api/maps/${id}/tileset.png`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
-export const portraitUrl = (id: number, face = false) => `/api/assets/portrait/${id}${face ? '?face=true' : ''}`
+export const portraitUrl = (id: number, face = false) =>
+  `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}`
+export const portraitSheetUrl = (id: number) => `/api/portraits/${id}/sheet.png?v=${portraitVersion.n}`
 export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
 export const patchUrl = '/api/project/patch'

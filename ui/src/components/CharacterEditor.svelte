@@ -9,6 +9,7 @@
   import RecordList from './RecordList.svelte'
   import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
+  import PortraitPanel from './PortraitPanel.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
@@ -17,7 +18,12 @@
     items,
     reference,
     problems,
-  }: { list: EditableList<Character>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[] } = $props()
+    onproblems,
+  }: {
+    list: EditableList<Character>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[]
+    /** problems after a change saved outside the list (an imported portrait) */
+    onproblems: (p: Problem[]) => void
+  } = $props()
 
   const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
@@ -120,6 +126,10 @@
             </label>
           </div>
           <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
+          <details class="portrait-details">
+            <summary>🖼 {t('portrait.title', { id: ch.portraitId })}</summary>
+            <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} />
+          </details>
         </div>
       </section>
 
@@ -229,4 +239,6 @@
     .editor { grid-template-columns: 1fr; }
     .identity { flex-direction: column; }
   }
+  .portrait-details { margin-top: 0.5rem; }
+  .portrait-details summary { cursor: pointer; font-size: 0.85rem; margin-bottom: 0.4rem; }
 </style>

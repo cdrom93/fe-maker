@@ -185,6 +185,7 @@ fe-maker/
 - Textes : gestion multilingue.
 
 ### Phase 5 — Bibliothèque de ressources communautaires
+> Commencée le 24/10/2026 : import de portraits personnels. Fiche personnage, « Portrait n° N : remplacer par une image » : une planche PNG de 128 × 112 pixels, 16 couleurs au plus, au format des portraits de FE-Repo et FEBuilderGBA (disposition lue dans le code de FEBuilderGBA), remplace le portrait du jeu (visage, yeux mi-clos et fermés, six bouches, mini-portrait, palette). La place de la bouche et des yeux est trouvée toute seule (exacte sur les 86 portraits du jeu) et reste réglable ; la planche actuelle se télécharge comme modèle ; les aperçus de toute l'appli (dialogues compris) montrent le nouveau portrait. Contrôles : taille, nombre de couleurs, parties de l'image que le jeu ne montre pas. Pas encore compilé (Docker en panne) ni testé en jeu. Reste : ajouter de nouveaux portraits (pas seulement remplacer), les autres ressources (sprites de carte, animations, icônes), le navigateur FE-Repo.
 - Navigateur intégré de FE-Repo (portraits, animations de combat, sprites de carte, icônes, cartes, tilesets, décors) avec aperçus.
 - Exploiter `file_urls.json` du dépôt FE-Repo comme index si le format s'y prête.
 - Téléchargement à la demande, conversion automatique au format GBA (palette, taille), gestion des licences F2E/F2U et des crédits (voir section 2).

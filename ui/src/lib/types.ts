@@ -461,3 +461,20 @@ export interface TestOptions {
   /** prologue without its cutscene: units are simply on the map */
   simplePrologue: boolean
 }
+
+/** A portrait sheet imported in the project (server: decomp/portraits.py): mouth and eye frames
+ * in 8-pixel tiles from the face's top-left corner. */
+export interface PortraitImport {
+  file: string
+  mouth: [number, number]
+  eyes: [number, number]
+}
+
+export interface PortraitInfo {
+  id: number
+  name: string
+  /** other portrait ids drawn with the same pictures */
+  sharedWith: number[]
+  original: { mouth: [number, number]; eyes: [number, number] } | null
+  imported: PortraitImport | null
+}

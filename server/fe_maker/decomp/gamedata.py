@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, events, fonts, mapobjects, maps, objectives, quotes, supports, tileedit, units
+from . import combat, dialogues, events, fonts, mapobjects, maps, objectives, portraits, quotes, supports, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -178,6 +178,8 @@ class DecompData:
                 rel = path.relative_to(decomp_dir).as_posix()
                 self.unit_defs[rel] = self._read(rel)
         self._original_unit_defs = dict(self.unit_defs)
+        # Imported graphics (decomp-relative path -> content), see apply_portraits
+        self.asset_files: dict[str, bytes | str] = {}
         # Supports edited in the project (see _apply_supports)
         self.support_source: str | None = None
         self.support_talks: str | None = None
@@ -546,6 +548,31 @@ class DecompData:
             self.event_sources[rel] = source[:declaration] + scripts + source[declaration:start] + body + source[end:]
 
     # ---------- dialogues ----------
+
+    @staticmethod
+    def export_portraits() -> dict:
+        """Project portraits: portrait id -> imported sheet (see portraits.py); empty for the game."""
+        return {}
+
+    def apply_portraits(self, data: dict, assets_dir: Path) -> None:
+        """Sheets imported in the project replace the game's portraits (files and mouth / eye positions)."""
+        from PIL import Image
+
+        if not data:
+            return
+        table = self._read(portraits.PORTRAIT_TABLE)
+        source = table
+        for key, entry in sorted(data.items(), key=lambda kv: int(kv[0])):
+            name = portraits.portrait_name(self.decomp_dir, int(key))
+            path = assets_dir / entry["file"]
+            if not path.is_file():
+                raise GameDataError(f"Portrait {key}: {entry['file']} not found")
+            with Image.open(path) as img:
+                sheet, _colors = portraits.indexed(img)
+            self.asset_files.update(portraits.overlay_files(self.decomp_dir, name, portraits.from_sheet(sheet)))
+            source = portraits.write_positions(source, name, entry.get("mouth", [2, 6]), entry.get("eyes", [3, 4]))
+        if source != table:
+            self.asset_files[portraits.PORTRAIT_TABLE] = source
 
     @staticmethod
     def export_dialogues() -> dict:
@@ -1321,7 +1348,7 @@ class DecompData:
     def changed_files(self) -> dict[str, str | bytes]:
         """Decomp-relative path -> new content (text, or bytes for binary files), for files that
         differ from the decomp."""
-        out: dict[str, str | bytes] = dict(self.map_files)
+        out: dict[str, str | bytes] = {**self.map_files, **self.asset_files}
         for rel, parsed in ((CHARACTERS_FILE, self.characters), (ITEMS_FILE, self.items), (CLASSES_FILE, self.classes)):
             if any(e.fields != e.original_fields for e in parsed.entries):
                 out[rel] = render_array(parsed)

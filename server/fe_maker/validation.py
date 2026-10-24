@@ -12,6 +12,7 @@ from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
 from .decomp import fonts, mapobjects, units
 from .decomp import maps as decomp_maps
+from .decomp import portraits as decomp_portraits
 from .decomp import supports as decomp_supports
 from .decomp.gamedata import (
     ABILITIES_REV,
@@ -94,7 +95,8 @@ def _duplicates(problems, kind, records):
 
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
-             chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None) -> list[Problem]:
+             chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None,
+             portraits: dict | None = None, assets_dir=None) -> list[Problem]:
     global _font
     _font = fonts.widths(decomp.decomp_dir)
     problems: list[Problem] = []
@@ -178,6 +180,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         if chapters is not None:
             _validate_chapter_maps(problems, decomp, chapters, maps, characters,
                                    classes if classes is not None else decomp.export_classes())
+    if portraits:
+        _validate_portraits(problems, portraits, decomp, assets_dir)
     if dialogues is not None:
         defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
         faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
@@ -217,6 +221,38 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
             decomp_dialogues.render(steps)
         except (decomp_dialogues.DialogueError, KeyError, TypeError, AttributeError):
             problems.append(Problem("error", "dialogues", key, "steps", "badDialogue", {}, f"{key}: malformed dialogue"))
+
+
+def _validate_portraits(problems, data: dict, decomp: DecompData, assets_dir):
+    """Imported portrait sheets: an existing portrait, a readable 128 x 112 sheet of 16 colors at most,
+    mouth and eyes on the face."""
+    from PIL import Image, UnidentifiedImageError
+
+    for key, entry in data.items():
+        rid = f"portrait:{key}"
+        try:
+            decomp_portraits.portrait_name(decomp.decomp_dir, int(key))
+        except (decomp_portraits.PortraitError, ValueError):
+            problems.append(Problem("error", "characters", rid, "portraitId", "unknownPortrait", {}, f"{rid}: unknown portrait"))
+            continue
+        path = (assets_dir / entry.get("file", "")) if assets_dir is not None else None
+        if path is not None:
+            try:
+                with Image.open(path) as img:
+                    sheet, _colors = decomp_portraits.indexed(img)
+                if decomp_portraits.cut_pixels(sheet):
+                    problems.append(Problem("warning", "characters", rid, "file", "portrait.cut", {},
+                                            f"{rid}: parts of the picture the game does not show"))
+            except decomp_portraits.PortraitError as e:
+                problems.append(Problem("error", "characters", rid, "file", f"portrait.{e}", {}, f"{rid}: {e}"))
+            except (OSError, UnidentifiedImageError):
+                problems.append(Problem("error", "characters", rid, "file", "portrait.notAnImage", {}, f"{rid}: no image"))
+        for part, (max_x, max_y) in (("mouth", (8, 8)), ("eyes", (8, 8))):
+            pos = entry.get(part)
+            if not (isinstance(pos, list) and len(pos) == 2 and all(isinstance(v, int) for v in pos)
+                    and 0 <= pos[0] <= max_x and 0 <= pos[1] <= max_y):
+                problems.append(Problem("error", "characters", rid, part, "outOfRange", {"min": 0, "max": max_x},
+                                        f"{rid}: {part} outside the face"))
 
 
 def _validate_scripts(problems, scripts: dict, decomp: DecompData):

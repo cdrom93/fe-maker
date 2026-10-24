@@ -47,7 +47,8 @@ def render_indexed(png: Path, palette: list[tuple[int, int, int]], scale: int = 
 
 @lru_cache(maxsize=4)
 def portrait_names(decomp_dir: Path) -> list[str | None]:
-    """Portrait name per portrait id, e.g. 'Eirika' (None for empty rows)."""
+    """Portrait name per portrait id, e.g. 'Eirika' (None for empty rows). Portrait ids start at 1
+    (GetPortraitData reads portrait_data[fid - 1]): the array's opening "{" line stands for id 0."""
     source = (decomp_dir / PORTRAIT_TABLE).read_text(encoding="utf-8")
     names = []
     for line in source.splitlines():

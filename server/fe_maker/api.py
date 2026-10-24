@@ -16,12 +16,12 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, events, fonts, mapobjects, maps, quotes, supports, tileedit, units
+from .decomp import dialogues, events, fonts, mapobjects, maps, portraits, quotes, supports, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
 from .paths import DECOMP_DIR, REPO_ROOT
-from .project import DATA_FILES, Project, ProjectError, slugify
+from .project import DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
 from .rom import InvalidRomError
 from .tickets import TicketError, TicketStore
 
@@ -536,7 +536,12 @@ def map_sprite(class_id: str, side: str = "player", trim: bool = False):
 
 @app.get("/api/assets/portrait/{portrait_id}")
 def portrait(portrait_id: int, face: bool = False):
-    """Small portrait (menus), or the big one shown in dialogues with `face`."""
+    """Small portrait (menus), or the big one shown in dialogues with `face` (the project's imported
+    sheet when it replaced this portrait)."""
+    sheet = _imported_sheet(portrait_id)
+    if sheet is not None:
+        png = portraits.face_png(sheet) if face else portraits.chibi_png(sheet, scale=3)
+        return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
     png = face_preview(DECOMP_DIR, portrait_id) if face else portrait_preview(DECOMP_DIR, portrait_id)
     if png is None:
         raise HTTPException(404)
@@ -549,6 +554,96 @@ def item_icon(icon_id: int):
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")
+
+
+# ---------- imported portraits (phase 5) ----------
+
+def _imported_sheet(portrait_id: int):
+    """The project's sheet replacing a portrait (indexed), or None."""
+    if state.project is None:
+        return None
+    entry = state.project.load("portraits").get(str(portrait_id))
+    path = state.project.root / "assets" / entry["file"] if entry else None
+    if path is None or not path.is_file():
+        return None
+    from PIL import Image
+
+    with Image.open(path) as img:
+        try:
+            return portraits.indexed(img)[0]
+        except portraits.PortraitError:
+            return None
+
+
+@app.get("/api/portraits/{portrait_id}/sheet.png")
+def portrait_sheet(portrait_id: int):
+    """The portrait as a 128 x 112 sheet: the project's imported one, else the game's."""
+    import io
+
+    sheet = _imported_sheet(portrait_id)
+    if sheet is None:
+        try:
+            sheet = portraits.to_sheet(DECOMP_DIR, portraits.portrait_name(DECOMP_DIR, portrait_id))
+        except (portraits.PortraitError, FileNotFoundError) as e:
+            raise HTTPException(404, str(e)) from e
+    out = io.BytesIO()
+    sheet.save(out, "PNG")
+    return Response(out.getvalue(), media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/portraits/{portrait_id}")
+def portrait_info(portrait_id: int):
+    """What the editor shows about a portrait: its name, the ids sharing its pictures, where its mouth
+    and eyes go in the game, and the project's import."""
+    try:
+        name = portraits.portrait_name(DECOMP_DIR, portrait_id)
+    except portraits.PortraitError as e:
+        raise HTTPException(404, str(e)) from e
+    names = portrait_names(DECOMP_DIR)
+    imported = state.project.load("portraits").get(str(portrait_id)) if state.project else None
+    return {"id": portrait_id, "name": name, "sharedWith": [i for i, n in enumerate(names) if n == name and i != portrait_id],
+            "original": portraits.read_positions(DECOMP_DIR).get(name), "imported": imported}
+
+
+@app.post("/api/portraits/{portrait_id}")
+async def import_portrait(portrait_id: int, file: UploadFile = File(...)):
+    """Replace a portrait with a 128 x 112 sheet (16 colors at most): stored in the project's assets,
+    mouth and eyes placed automatically."""
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+
+    project = state.require_project()
+    try:
+        portraits.portrait_name(DECOMP_DIR, portrait_id)
+        data = await file.read()
+        with Image.open(io.BytesIO(data)) as img:
+            sheet, _colors = portraits.indexed(img)
+    except portraits.PortraitError as e:
+        raise HTTPException(400, str(e)) from e
+    except (UnidentifiedImageError, OSError) as e:
+        raise HTTPException(400, "notAnImage") from e
+    rel = f"{PORTRAITS_DIR}/{portrait_id}.png"
+    target = project.root / "assets" / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    entry = {"file": rel, **portraits.detect(sheet)}
+    stored = project.load("portraits")
+    stored[str(portrait_id)] = entry
+    problems = project.save("portraits", stored)
+    return {"entry": entry, "problems": [p.to_dict() for p in problems]}
+
+
+@app.delete("/api/portraits/{portrait_id}")
+def remove_portrait(portrait_id: int):
+    """Back to the game's portrait (the imported sheet is deleted from the project)."""
+    project = state.require_project()
+    stored = project.load("portraits")
+    entry = stored.pop(str(portrait_id), None)
+    if entry:
+        (project.root / "assets" / entry["file"]).unlink(missing_ok=True)
+    problems = project.save("portraits", stored)
+    return {"problems": [p.to_dict() for p in problems]}
 
 
 # ---------- build and test ----------
