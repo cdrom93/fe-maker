@@ -42,4 +42,6 @@ sha1sum -c checksum.sha1 || echo "[fe-maker] Checksum differs from the original 
 cp fireemblem8.gba /out/fireemblem8.gba
 # Symbol addresses, for playtests (fe_maker.playtest).
 cp fireemblem8.map /out/fireemblem8.map
+# Symbols with their types, for patches built against this ROM (C-SkillSys prototype).
+cp fireemblem8.elf /out/fireemblem8.elf
 echo "[fe-maker] Done"

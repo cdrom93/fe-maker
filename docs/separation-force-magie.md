@@ -23,6 +23,15 @@ Notre ROM n'est pas propre : FE Maker la recompile, et chaque donnée modifiée 
 2. pour chaque adresse du C-SkillSys, trouver la fonction du jeu qui la contient et son décalage, puis l'adresse de cette fonction dans notre compilation ;
 3. compiler le C-SkillSys avec ces adresses (références FE-CLib refaites depuis notre `.map`) et l'écrire après notre ROM, dans l'espace libre.
 
+**Prototype du 24/10/2026 (soir)** : `docker/cskillsys/` (image `fe-maker-cskillsys` : devkitARM, ColorzCore compilé pour Linux avec .NET 6, outils d'Event Assembler ; `port.py` traduit les adresses, testé par `tests/server/test_cskillsys_port.py`). Résultats :
+
+- le C-SkillSys (commit `f61f6c2`, avec FE-CLib-Mokha `3503999`, de la même époque) se compile dans Docker sur la ROM d'origine et démarre ;
+- sur une ROM de FE Maker (projet « test » de l'utilisateur), 69 811 adresses sont traduites par symbole (la référence de FE-CLib vient de l'ELF de la décomp : mêmes adresses que notre ROM d'origine, une centaine de noms différents seulement), il ne reste qu'un conflit (intro de débogage, non installée) et la ROM se compile (18 Mo) ;
+- son espace libre est déplacé après 16 Mo : les zones libres de la ROM d'origine qu'il utilise (0xB2A604, 0xEFB2E0) sont reconnues automatiquement, et nos données y débordent déjà de 0x4AA0 octets. Sur la ROM d'origine, ce déplacement marche ;
+- mais sur la ROM du projet, le jeu reste sur un écran noir au démarrage (pas encore compris), et surtout le C-SkillSys **refait tous les textes du jeu** depuis sa propre copie (`Contents/Texts`, nouvel arbre de Huffman écrit dans le code) et remplace plusieurs tables (objets, sorts…) : il effacerait les modifications de FE Maker.
+
+Conclusion : la traduction d'adresses marche, mais intégrer le C-SkillSys veut dire réconcilier ses données avec celles de FE Maker, partie par partie (textes, tables, sauvegarde), et recommencer à chaque version du C-SkillSys. Arrêté là, à la demande de l'utilisateur, pour revenir aux chapitres. La séparation force/magie écrite directement dans le moteur (plan plus haut) reste la piste la plus sûre.
+
 Risques : une fonction du jeu que FE Maker réécrit (convoi, par exemple) et que le C-SkillSys accroche aussi ; ses textes, qu'il installe lui-même, alors que FE Maker réécrit la table des textes ; ses tables de données (compétences, Mag) qu'il faudrait éditer dans FE Maker. On aurait aussi les compétences, pas seulement la magie. Il faut un prototype (une image Docker avec ses outils, la traduction d'adresses, une vérification en jeu par playtest) pour savoir si ça tient.
 
 ## Ce qu'il faut changer dans la décomp
