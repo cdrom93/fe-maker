@@ -16,10 +16,10 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, fonts, mapobjects, maps, quotes, supports, tileedit, units
+from .decomp import dialogues, events, fonts, mapobjects, maps, quotes, supports, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
-from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
+from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import DATA_FILES, Project, ProjectError, slugify
 from .rom import InvalidRomError
@@ -429,6 +429,30 @@ def support_dialogues():
     messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
     return {"pairs": [{k: p[k] for k in ("a", "b", "base", "growth")} for p in pairs], "scenes": scenes, "messages": messages,
             "levelPoints": list(supports.LEVEL_POINTS), "maxPartners": supports.MAX_PARTNERS}
+
+
+@app.get("/api/events/reference")
+def events_reference():
+    """What the visual event editor offers: known commands and their arguments, songs, backgrounds."""
+    def constants(rel: str, prefix: str) -> list[str]:
+        path = DECOMP_DIR / rel
+        return events.read_constants(path.read_text(encoding="utf-8"), prefix) if path.is_file() else []
+
+    return {"commands": {op: [{"name": n, "kind": k} for n, k in spec] for op, spec in events.COMMANDS.items()},
+            "addable": list(events.ADDABLE), "songs": constants("include/constants/songs.h", "SONG_"),
+            "backgrounds": constants("include/constants/backgrounds.h", "BG_")}
+
+
+@app.get("/api/events/scripts/{name}")
+def event_script(name: str):
+    """An event script of the game as commands (the project's edit, if any, is in data/dialogues.json)."""
+    decomp = state.get_decomp()
+    try:
+        commands = decomp.script_commands(name)
+    except (GameDataError, events.EventError) as e:
+        raise HTTPException(404, str(e)) from e
+    rel, _start, _end = decomp.find_script(name)
+    return {"name": name, "file": rel, "commands": commands}
 
 
 @app.get("/api/dialogues/font")

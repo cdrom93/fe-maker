@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 from .decomp import dialogues as decomp_dialogues
+from .decomp import events as decomp_events
 from .decomp import fonts, mapobjects, units
 from .decomp import maps as decomp_maps
 from .decomp import supports as decomp_supports
@@ -181,6 +182,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
         faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
         _validate_dialogues(problems, dialogues, faces)
+        if dialogues.get("scripts"):
+            _validate_scripts(problems, dialogues["scripts"], decomp)
         if dialogues.get("supports") is not None:
             original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
             _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
@@ -214,6 +217,32 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
             decomp_dialogues.render(steps)
         except (decomp_dialogues.DialogueError, KeyError, TypeError, AttributeError):
             problems.append(Problem("error", "dialogues", key, "steps", "badDialogue", {}, f"{key}: malformed dialogue"))
+
+
+def _validate_scripts(problems, scripts: dict, decomp: DecompData):
+    """Event scripts edited in the visual editor ("script:<name>#<n>"): known script, well-formed
+    commands, existing messages."""
+    for name, commands in scripts.items():
+        if decomp.find_script(name) is None:
+            problems.append(Problem("error", "dialogues", f"script:{name}", "commands", "unknownScript", {},
+                                    f"{name}: unknown event script"))
+            continue
+        for n, c in enumerate(commands if isinstance(commands, list) else []):
+            rid = f"script:{name}#{n}"
+            code = decomp_events.validate_command(c)
+            if code:
+                problems.append(Problem("error", "dialogues", rid, "args", code, {}, f"{rid}: {code}"))
+                continue
+            spec = decomp_events.COMMANDS.get(c.get("op"), [])
+            for (arg, kind), value in zip(spec, c.get("args") or []):
+                if kind == "message":
+                    try:
+                        found = int(str(value), 0) in decomp.texts.messages
+                    except ValueError:
+                        found = True   # a constant: the compiler checks it
+                    if not found:
+                        problems.append(Problem("error", "dialogues", rid, arg, "unknownMessage", {"id": str(value)},
+                                                f"{rid}: unknown message {value}"))
 
 
 def _validate_supports(problems, data: dict, character_ids: set[str], original: set[tuple[str, str]]):

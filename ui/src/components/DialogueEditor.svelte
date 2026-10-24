@@ -10,6 +10,7 @@
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
+  import ScriptEditor from './ScriptEditor.svelte'
   import SupportList from './SupportList.svelte'
   import TalkBubble from './TalkBubble.svelte'
 
@@ -45,6 +46,8 @@
   let supportInfo = $state<{ pairs: SupportPair[]; levelPoints: number[]; maxPartners: number } | null>(null)
   let boxIndex = $state(0)
   let messageId = $state<string | null>(null)
+  /** event script shown in the visual editor (instead of a message) */
+  let scriptName = $state<string | null>(null)
   let stepIndex = $state(0)
   let showTutorials = $state(false)
 
@@ -105,6 +108,7 @@
   }
 
   function pick(id: string) {
+    scriptName = null
     messageId = id
     stepIndex = 0
     boxIndex = 0
@@ -364,6 +368,8 @@
           <div class="scene-title">
             <span class="kind {scene.trigger.kind}">{sceneLabel(scene)}</span>
             {#if scene.trigger.via}<span class="muted tiny" title={scene.script}>{t('dlg.via')}</span>{/if}
+            <button class="script-button" class:active={scriptName === scene.script} title={t('ev.open', { name: scene.script })}
+                    onclick={() => { scriptName = scene.script; messageId = null }}>⚙{#if list.records[0]?.scripts?.[scene.script]}<span class="edited">✎</span>{/if}</button>
           </div>
           {#each scene.messages as m (m)}
             {@const id = String(m)}
@@ -383,7 +389,11 @@
       {/if}
     </section>
 
-    {#if messageId}
+    {#if scriptName}
+      <section class="panel">
+        <ScriptEditor name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(id)} />
+      </section>
+    {:else if messageId}
       <section class="panel message-editor">
         <div class="head">
           {#if quoteIndex >= 0 && newQuotes[quoteIndex]?.kind === 'support'}
@@ -586,6 +596,8 @@
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .scenes .add button { font-size: 0.78rem; padding: 0.15rem 0.45rem; }
   .kind.new { color: var(--good); }
+  .script-button { margin-left: auto; padding: 0 0.3rem; font-size: 0.75rem; background: none; }
+  .script-button.active { border-color: var(--accent); background: var(--accent-soft); }
   .quote-who { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
   @media (max-width: 1100px) { .detail { grid-template-columns: 1fr; } }
 </style>

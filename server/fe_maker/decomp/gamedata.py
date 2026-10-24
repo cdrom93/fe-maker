@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, fonts, mapobjects, maps, objectives, quotes, supports, tileedit, units
+from . import combat, dialogues, events, fonts, mapobjects, maps, objectives, quotes, supports, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -570,6 +570,8 @@ class DecompData:
         turns = [q for q in data.get("quotes", []) if q.get("kind") == "turn"]
         for n, scene in enumerate(turns):
             self._add_turn_scene(n, scene)
+        if data.get("scripts"):
+            self._apply_scripts(data["scripts"])
         conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
         if data.get("supports") is not None:
             self._apply_supports(data["supports"], conversations)
@@ -676,6 +678,40 @@ class DecompData:
         if talk.get("both"):
             lines.append(f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['b']}, {talk['a']})")
         self._add_to_list(found, dialogues.talk_script(name, message, talk["b"] if talk.get("recruit") else None), lines)
+
+    # ---------- event scripts (visual editor) ----------
+
+    def find_script(self, name: str) -> tuple[str, int, int] | None:
+        """(file, body start, body end) of an event script."""
+        self._load_event_sources()
+        for rel, source in self.event_sources.items():
+            if name in source:
+                found = events.find_scripts(source).get(name)
+                if found:
+                    return rel, *found
+        return None
+
+    def script_commands(self, name: str) -> list[dict]:
+        found = self.find_script(name)
+        if found is None:
+            raise GameDataError(f"Unknown event script {name}")
+        rel, start, end = found
+        return events.parse_script(self.event_sources[rel][start:end])
+
+    def _apply_scripts(self, scripts: dict[str, list[dict]]) -> None:
+        """Scripts edited in the visual editor replace the original ones (only when they differ)."""
+        for name, commands in sorted(scripts.items()):
+            found = self.find_script(name)
+            if found is None:
+                raise GameDataError(f"Unknown event script {name}")
+            rel, start, end = found
+            source = self.event_sources[rel]
+            if events.same_commands(events.parse_script(source[start:end]), commands):
+                continue
+            bad = next((c for c in commands if events.validate_command(c)), None)
+            if bad is not None:
+                raise GameDataError(f"{name}: bad command {bad.get('op')}")
+            self.event_sources[rel] = source[:start] + events.render_script(commands) + source[end:]
 
     # ---------- supports ----------
 
@@ -830,11 +866,10 @@ class DecompData:
 
     # ---------- chapter objectives ----------
 
-    def _load_chapter_events(self) -> None:
-        if self.chapter_settings is not None:
+    def _load_event_sources(self) -> None:
+        """The chapters' event files (src/events/*.h), once."""
+        if self._original_event_sources:
             return
-        self._settings_raw = self._read(maps.CHAPTER_SETTINGS_FILE)
-        self.chapter_settings = json.loads(self._settings_raw)
         self.event_sources = {}
         for pattern in EVENT_INFO_FILES:
             for path in sorted(self.decomp_dir.glob(pattern)):
@@ -842,6 +877,13 @@ class DecompData:
                 if rel not in self.unit_defs:
                     self.event_sources[rel] = self._read(rel)
         self._original_event_sources = dict(self.event_sources)
+
+    def _load_chapter_events(self) -> None:
+        if self.chapter_settings is not None:
+            return
+        self._settings_raw = self._read(maps.CHAPTER_SETTINGS_FILE)
+        self.chapter_settings = json.loads(self._settings_raw)
+        self._load_event_sources()
         # Death quotes: the one flagged EVFLAG_DEFEAT_BOSS names the chapter's boss.
         self._chapter_constants = {}
         if (self.decomp_dir / objectives.CHAPTERS_HEADER).is_file():
@@ -1299,13 +1341,13 @@ class DecompData:
                 self._sources[combat.EFFECTIVENESS_FILE], self.effectiveness)
         if self.triangle is not None and self.triangle != self._original_triangle:
             out[combat.TRIANGLE_FILE] = combat.render_triangle(self._sources[combat.TRIANGLE_FILE], self.triangle)
+        for rel, source in self.event_sources.items():
+            if source != self._original_event_sources[rel]:
+                out[rel] = source
         if self.chapter_settings is not None:
             settings = json.dumps(self.chapter_settings, indent=2)  # same layout as the decomp's file
             if settings != self._settings_raw:
                 out[maps.CHAPTER_SETTINGS_FILE] = settings
-            for rel, source in self.event_sources.items():
-                if source != self._original_event_sources[rel]:
-                    out[rel] = source
             if self.defeat_talks != self._original_defeat_talks:
                 out[objectives.DEFEAT_TALK_FILE] = self.defeat_talks
         return out

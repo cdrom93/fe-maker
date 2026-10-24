@@ -345,6 +345,25 @@ export interface DialoguesData {
   quotes?: NewQuote[]
   /** support pairs, once edited (the whole list; server: decomp/supports.py) */
   supports?: SupportPair[]
+  /** event scripts edited in the visual editor, by script name (server: decomp/events.py) */
+  scripts?: Record<string, EventCommand[]>
+}
+
+/** A command of an event script: a macro and its arguments (no args: a bare macro);
+ * op "#" is a comment (text), op "" a blank line. */
+export interface EventCommand {
+  op: string
+  args?: string[]
+  text?: string
+}
+
+export interface EventsReference {
+  /** known commands: their arguments (name, kind: song, message, character, group, x, y, frames, ...) */
+  commands: Record<string, { name: string; kind: string }[]>
+  /** commands the editor offers to add */
+  addable: string[]
+  songs: string[]
+  backgrounds: string[]
 }
 
 export interface SupportPair {
