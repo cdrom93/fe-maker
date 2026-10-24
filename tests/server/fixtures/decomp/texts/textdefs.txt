@@ -1,0 +1,6 @@
+// Fictional text codes for the tests
+[X] = 0x00
+[LF] = 0x01
+[A] = 0x03
+[.] = 31
+[FID_Eirika] = 0x02, 0x01

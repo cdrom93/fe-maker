@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from . import emulator
 from .builder import BuildError
 from .config import Settings, default_projects_dir
-from .decomp import dialogues, mapobjects, maps, quotes, tileedit, units
+from .decomp import dialogues, fonts, mapobjects, maps, quotes, tileedit, units
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData
@@ -397,6 +397,24 @@ def common_dialogues():
     scenes = decomp.quote_scenes(quotes.ANY_CHAPTER)
     messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
     return {"scenes": scenes, "messages": messages}
+
+
+@app.get("/api/dialogues/font")
+def dialogue_font():
+    """The talk font for the editor's layout and preview: character -> [byte, width in pixels], and the
+    box sizes (the same layout as the build, see dialogues.layout)."""
+    table = fonts.widths(DECOMP_DIR)
+    chars = {ch: [fonts.char_byte(ch), w] for ch, w in fonts.char_widths(table).items()}
+    return {"chars": chars, "talkWidth": dialogues.TALK_WIDTH, "battleWidth": dialogues.BATTLE_WIDTH,
+            "boxLines": dialogues.BOX_LINES}
+
+
+@app.get("/api/dialogues/font.png")
+def dialogue_font_sheet():
+    png = fonts.font_sheet(DECOMP_DIR)
+    if png is None:
+        raise HTTPException(404, "No font")
+    return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
 @app.get("/api/dialogues/faces")

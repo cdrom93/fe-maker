@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .fonts import char_byte
+
 _MSGIDX_RE = re.compile(r"^#([0-9a-fA-Fx]+)")
 _MACRO_RE = re.compile(r"^##\s*(\w+)")
 _NAME_RE = re.compile(r"^(.*?)((?:\[[^\]]*\])*)$", re.DOTALL)
@@ -26,8 +28,33 @@ def name_message(name: str) -> str:
     misses and keeps reading the next message (seen in game: "Rapieros enH-e3
     Sord"). The original game pads such names with [.], e.g. "Gilliam[.][X]".
     """
-    padding = "[.]" if len(name.encode("utf-8")) % 2 else ""
+    padding = "[.]" if text_size(name) % 2 else ""
     return f"{name}{padding}[X]"
+
+
+def text_size(text: str) -> int:
+    """Bytes of printable text in the game: one per character of the game's code page (accented
+    letters too, written as codes by TextFile.render), else its UTF-8 bytes."""
+    return sum(1 if char_byte(ch) is not None else len(ch.encode("utf-8")) for ch in text)
+
+
+_SPECIAL_RE = re.compile(r"[^\x00-\x7F]")
+
+
+def special_chars(body: str) -> set[str]:
+    """Non-ASCII characters of a message that the game's code page has (they become text codes)."""
+    return {ch for ch in _SPECIAL_RE.findall(body) if char_byte(ch) is not None}
+
+
+def encode_special(body: str) -> str:
+    """é -> [é]: the code, defined in textdefs.txt with the character's byte (see fonts.py)."""
+    return _SPECIAL_RE.sub(lambda m: f"[{m.group(0)}]" if char_byte(m.group(0)) is not None else m.group(0), body)
+
+
+def textdefs_with(textdefs: str, chars: set[str]) -> str:
+    """texts/textdefs.txt with a code for each character (its byte in the game's code page)."""
+    lines = [f"[{ch}] = 0x{char_byte(ch):02X}" for ch in sorted(chars)]
+    return textdefs.rstrip("\n") + "\n\n// FE Maker: accented letters\n" + "\n".join(lines) + "\n"
 
 
 @dataclass
@@ -95,14 +122,18 @@ class TextFile:
         if current != name:
             self.set_raw(index, name_message(name))
 
+    def special_chars(self) -> set[str]:
+        """Accented letters of the edited and added messages (they need codes in textdefs.txt)."""
+        return set().union(*(special_chars(b) for b in [*self.edits.values(), *self.added.values()]))
+
     def render(self) -> str:
         lines = list(self.lines)
         # Replace from the end so earlier line indices stay valid.
         for index in sorted(self.edits, key=lambda k: self.messages[k].body_start, reverse=True):
             msg = self.messages[index]
-            lines[msg.body_start:msg.body_end] = self.edits[index].split("\n") + [""]
+            lines[msg.body_start:msg.body_end] = encode_special(self.edits[index]).split("\n") + [""]
         text = "\n".join(lines)
         if self.added:
             text = text.rstrip("\n") + "\n\n" + "".join(
-                f"## MSG_{index:03X}\n{body}\n\n" for index, body in sorted(self.added.items()))
+                f"## MSG_{index:03X}\n{encode_special(body)}\n\n" for index, body in sorted(self.added.items()))
         return text

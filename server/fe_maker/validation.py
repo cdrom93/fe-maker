@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 from .decomp import dialogues as decomp_dialogues
-from .decomp import mapobjects, units
+from .decomp import fonts, mapobjects, units
 from .decomp import maps as decomp_maps
 from .decomp.gamedata import (
     ABILITIES_REV,
@@ -58,6 +58,17 @@ def _range(problems, kind, rid, fname, value, lo, hi):
                                 f"{rid}.{fname} must be between {lo} and {hi}"))
 
 
+# Characters the game's font can draw (set by validate from the decomp's font).
+_font: dict[int, int] = dict(fonts._FALLBACK)
+
+
+def _chars(problems, kind, rid, fname, text, params=None):
+    missing = fonts.unsupported(text, _font)
+    if missing:
+        problems.append(Problem("error", kind, rid, fname, "unsupportedChars", {**(params or {}), "chars": " ".join(missing)},
+                                f"{rid}: the game font cannot draw {' '.join(missing)}"))
+
+
 def _name(problems, kind, rid, name):
     if not isinstance(name, str) or not name.strip():
         problems.append(Problem("error", kind, rid, "name", "nameEmpty", {}, f"{rid} has no name"))
@@ -65,9 +76,7 @@ def _name(problems, kind, rid, name):
     if any(c in name for c in "[]#"):
         problems.append(Problem("error", kind, rid, "name", "nameForbiddenChars", {"chars": "[ ] #"},
                                 f"{rid}: name cannot contain [ ] or #"))
-    if not name.isascii():
-        problems.append(Problem("error", kind, rid, "name", "nameNonAscii", {},
-                                f"{rid}: the game font has no accented letters"))
+    _chars(problems, kind, rid, "name", name)
     if len(name) > NAME_MAX_LENGTH:
         problems.append(Problem("warning", kind, rid, "name", "nameTooLong", {"max": NAME_MAX_LENGTH},
                                 f"{rid}: name longer than {NAME_MAX_LENGTH} characters may overflow"))
@@ -84,6 +93,8 @@ def _duplicates(problems, kind, records):
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
              chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None) -> list[Problem]:
+    global _font
+    _font = fonts.widths(decomp.decomp_dir)
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
     icon_count = len(decomp.item_icon_files())
@@ -190,9 +201,8 @@ def _validate_dialogues(problems, data: dict, faces: dict[str, int]):
                                         f"{key}: unknown portrait"))
             if kind == "say" and not str(step.get("text", "")).strip():
                 problems.append(Problem("warning", "dialogues", rid, "text", "emptyLine", {}, f"{key}: empty line"))
-            if kind == "say" and not str(step.get("text", "")).isascii():
-                problems.append(Problem("error", "dialogues", rid, "text", "nameNonAscii", {},
-                                        f"{key}: the game font has no accented letters"))
+            if kind == "say":
+                _chars(problems, "dialogues", rid, "text", str(step.get("text", "")))
             for pos in (step.get("pos"), step.get("to")):
                 if pos is not None and pos not in decomp_dialogues.POSITIONS:
                     problems.append(Problem("error", "dialogues", rid, "pos", "unknownPosition", {}, f"{key}: unknown position"))
@@ -272,9 +282,8 @@ def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp
     for layout_id, objects in settings.items():
         for key, s in objects.items():
             text = s.get("text") if isinstance(s, dict) else None
-            if isinstance(text, str) and not text.isascii():
-                problems.append(Problem("error", "maps", layout_id, "objects", "nameNonAscii", {"at": key},
-                                        f"{layout_id} {key}: the game font has no accented letters"))
+            if isinstance(text, str):
+                _chars(problems, "maps", layout_id, "objects", text, {"at": key})
     for layout_id, layout in painted.items():
         if layout_id not in known_layouts or layout_id not in sizes:
             continue
@@ -401,8 +410,8 @@ def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=fr
             lines = text.strip().split("\n")
             if not text.strip():
                 problems.append(Problem("error", "chapters", rid, "statusText", "nameEmpty", {}, f"{rid}: empty objective text"))
-            elif any(ord(c) > 127 for c in text):
-                problems.append(Problem("error", "chapters", rid, "statusText", "nameNonAscii", {}, f"{rid}: accented letters"))
+            elif fonts.unsupported(text, _font):
+                _chars(problems, "chapters", rid, "statusText", text)
             elif len(lines) > 2 or any(len(line) > OBJECTIVE_LINE_MAX for line in lines):
                 problems.append(Problem("warning", "chapters", rid, "statusText", "objectiveTextTooLong",
                                         {"lines": 2, "max": OBJECTIVE_LINE_MAX}, f"{rid}: objective text may not fit"))

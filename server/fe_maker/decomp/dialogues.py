@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import re
 
+from .fonts import char_byte
+from .texts import text_size
+
 POSITIONS = ("FarFarLeft", "FarLeft", "MidLeft", "Left", "Right", "MidRight", "FarRight", "FarFarRight")
 _TOKEN_RE = re.compile(r"\[([^\]]*)\]")
 # Codes that are printable characters (>= 0x20 in texts/textdefs.txt): they count in a text run.
@@ -151,8 +154,85 @@ def _say(items: list[tuple[str, str]], pos: str | None, opened: bool = True) -> 
 
 def _pad(run: str) -> str:
     """Text run padded to an even number of bytes."""
-    size = sum(len(value.encode("utf-8")) if kind == "text" else 1 for kind, value in tokens(run))
+    size = sum(text_size(value) if kind == "text" else 1 for kind, value in tokens(run))
     return run + ("[.]" if size % 2 else "")
+
+
+# ---------- layout: lines that fit in the box ----------
+
+TALK_WIDTH = 208     # widest line of a conversation: the box is 28 tiles at most, with its border (src/scene.c)
+BATTLE_WIDTH = 144   # battle quotes and last words: the battle screen's box is 20 tiles wide (PutTalkBubble)
+BOX_LINES = 2        # lines of a box; the game scrolls the text up for a third line
+PRINTABLE_BYTES = {"LQuote": 0x93, "RQuote": 0x94, "DashedLine": 0x7F}
+
+
+def line_width(line: str, widths: dict[int, int]) -> int:
+    """Width in pixels of a line in the talk font (codes take no room)."""
+    total = 0
+    for kind, value in tokens(line):
+        if kind == "text":
+            total += sum(widths.get(char_byte(ch) or -1, 0) for ch in value)
+        elif value in PRINTABLE_BYTES:
+            total += widths.get(PRINTABLE_BYTES[value], 0)
+    return total
+
+
+def _split_word(word: str, widths: dict[int, int], max_width: int) -> list[str]:
+    """A word wider than the box, cut between characters (never inside a [code])."""
+    parts: list[str] = []
+    current = ""
+    for kind, value in tokens(word):
+        pieces = list(value) if kind == "text" else [f"[{value}]"]
+        for piece in pieces:
+            if current and line_width(current + piece, widths) > max_width:
+                parts.append(current)
+                current = ""
+            current += piece
+    return [*parts, current] if current else parts
+
+
+def wrap_line(line: str, widths: dict[int, int], max_width: int) -> list[str]:
+    """A line cut between words so that each part fits in `max_width` pixels."""
+    out: list[str] = []
+    current = ""
+    for word in line.split(" "):
+        candidate = f"{current} {word}" if current else word
+        if line_width(candidate, widths) <= max_width:
+            current = candidate
+            continue
+        if current:
+            out.append(current)
+        parts = _split_word(word, widths, max_width) if line_width(word, widths) > max_width else [word]
+        out += parts[:-1]
+        current = parts[-1] if parts else ""
+    if current or not out:
+        out.append(current)
+    return out
+
+
+def layout(text: str, widths: dict[int, int], max_width: int = TALK_WIDTH) -> str:
+    """Text of a line laid out for the game: lines too wide for the box are cut between words, and
+    a box that gets more than two lines that way is split into boxes of two lines (a button press
+    between them). Lines that fit are kept as written."""
+    boxes: list[str] = []
+    for box in text.split("\n\n"):
+        lines: list[str] = []
+        wrapped = False
+        for line in box.split("\n"):
+            if line_width(line, widths) <= max_width:
+                lines.append(line)
+            else:
+                wrapped = True
+                lines += wrap_line(line, widths, max_width)
+        if wrapped and len(lines) > BOX_LINES:
+            boxes += ["\n".join(lines[k:k + BOX_LINES]) for k in range(0, len(lines), BOX_LINES)]
+        else:
+            boxes.append("\n".join(lines))
+    return "\n\n".join(boxes)
+
+
+def layout_steps(steps: list[dict], widths: dict[int, int], max_width: int = TALK_WIDTH) -> list[dict]:
+    return [{**s, "text": layout(s.get("text", ""), widths, max_width)} if s.get("kind") == "say" else s for s in steps]
 
 
 def _text_runs(text: str) -> str:

@@ -40,12 +40,14 @@ def test_weapon_rank_without_battle_animation(decomp_dir):
     assert not any(c[2] == "noBattleAnimation" for c in codes)
 
 
-def test_accents_are_an_error(decomp_dir):
+def test_characters_the_font_lacks_are_an_error(decomp_dir):
     d = DecompData(decomp_dir)
     chars = d.export_characters()
-    chars[0]["name"] = "Héro"
-    problems = [p for p in validate(chars, d.export_items(), d) if p.code == "nameNonAscii"]
-    assert problems and problems[0].severity == "error"
+    chars[0]["name"] = "Héro"  # the test font has é
+    assert not [p for p in validate(chars, d.export_items(), d) if p.code == "unsupportedChars"]
+    chars[0]["name"] = "Hèro☃"
+    problems = [p for p in validate(chars, d.export_items(), d) if p.code == "unsupportedChars"]
+    assert problems and problems[0].severity == "error" and problems[0].params["chars"] == "è ☃"
 
 
 def test_unused_class_is_a_warning(decomp_dir):
@@ -88,13 +90,13 @@ def test_ai_outside_engine_tables(decomp_dir):
 def test_objective_problems(decomp_dir):
     d = DecompData(decomp_dir)
     objectives = {
-        "0": {"type": "seize", "seize": [], "statusText": "Prendre le château"},
+        "0": {"type": "seize", "seize": [], "statusText": "Prendre le château ☃"},
         "1": {"type": "defense", "turns": 0, "statusText": "Survive for 12 turns and more\nand more\nand more"},
         "2": {"type": "defeat_all", "statusText": "Defeat all enemies"},
     }
     codes = _codes(validate(d.export_characters(), d.export_items(), d, chapters={"unitGroups": {}, "objectives": objectives}))
     assert ("objective#0", "seize", "noSeizeTile") in codes
-    assert ("objective#0", "statusText", "nameNonAscii") in codes
+    assert ("objective#0", "statusText", "unsupportedChars") in codes
     assert ("objective#1", "turns", "outOfRange") in codes
     assert ("objective#1", "statusText", "objectiveTextTooLong") in codes
     assert not [c for c in codes if c[0] == "objective#2"]

@@ -1,4 +1,4 @@
-import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueScene, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues'
 
@@ -51,6 +51,7 @@ export const api = {
   chapterDialogues: (index: number) =>
     request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
   dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),
+  dialogueFont: () => request<DialogueFont>('GET', '/api/dialogues/font'),
   commonDialogues: () => request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', '/api/dialogues/common'),
   map: (id: string) => request<MapLayout>('GET', `/api/maps/${id}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null }) =>

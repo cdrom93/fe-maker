@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from . import combat, dialogues, mapobjects, maps, objectives, quotes, tileedit, units
+from . import combat, dialogues, fonts, mapobjects, maps, objectives, quotes, tileedit, units
 from .cparse import (
     parse_array,
     parse_designated_list,
@@ -19,7 +19,7 @@ from .cparse import (
     render_array,
     render_designated_list,
 )
-from .texts import TextFile
+from .texts import TextFile, textdefs_with
 
 CHARACTERS_FILE = "src/data_characters.c"
 CLASSES_FILE = "src/data_classes.c"
@@ -539,11 +539,12 @@ class DecompData:
         return {"messages": {}, "quotes": []}
 
     def apply_dialogues(self, data: dict) -> None:
+        in_battle = self._quote_messages() if data.get("messages") else set()
         for key, steps in data.get("messages", {}).items():
             index = int(key, 0) if isinstance(key, str) else int(key)
             if index not in self.texts.messages:
                 raise GameDataError(f"Unknown message {key}")
-            body = dialogues.render(steps)
+            body = self._message(steps, index in in_battle)
             if not dialogues.same_message(self.texts.raw(index), body):
                 self.texts.set_raw(index, body)
         new_quotes = [q for q in data.get("quotes", []) if q.get("a") and q.get("kind") != "talk"]
@@ -561,7 +562,7 @@ class DecompData:
             raise GameDataError(f"{quotes.FILE} not found")
         used = self._quote_flags()
         for q in new_quotes:
-            msg = self.texts.add(dialogues.render(q.get("steps") or []))
+            msg = self.texts.add(self._message(q.get("steps") or [], battle=True))
             chapter = int(q.get("chapter", quotes.ANY_CHAPTER))
             if q.get("kind") == "battle":
                 flag = next(n for n in range(quotes.FIRST_FLAG, 70) if (chapter, n) not in used)
@@ -570,6 +571,19 @@ class DecompData:
                                                             q["a"], q.get("b", ""), msg, flag)
             else:
                 self.defeat_talks = quotes.add_death_quote(self.defeat_talks, self._chapter_constants, chapter, q["a"], msg)
+
+    def _message(self, steps: list[dict], battle: bool = False) -> str:
+        """Message body of dialogue steps, laid out for the box (battle quotes have a narrower one)."""
+        width = dialogues.BATTLE_WIDTH if battle else dialogues.TALK_WIDTH
+        return dialogues.render(dialogues.layout_steps(steps, fonts.widths(self.decomp_dir), width))
+
+    def _quote_messages(self) -> set[int]:
+        """Messages of the battle quotes and last words (shown in the battle screen's box)."""
+        if not (self.decomp_dir / maps.CHAPTER_SETTINGS_FILE).is_file():
+            return set()
+        self._load_chapter_events()
+        found = quotes.read_quotes(self.defeat_talks, self._chapter_constants)
+        return {q["msg"] for q in found["battle"] + found["death"]}
 
     def _event_list(self, index: int, field: str) -> tuple[str, int, int]:
         """(file, body start, body end) of one of a chapter's event lists (turnBasedEvents...)."""
@@ -608,7 +622,7 @@ class DecompData:
         turn = max(1, int(scene.get("turn", 1)))
         faction = dialogues.FACTIONS.get(scene.get("phase", "player"), "FACTION_BLUE")
         flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
-        message = self.texts.add(dialogues.render(scene.get("steps") or []))
+        message = self.texts.add(self._message(scene.get("steps") or []))
         name = f"EventScr_FEM_Turn_{index}_{n}"
         self._add_to_list(found, dialogues.scene_script(name, message),
                           [f"TURN(EVFLAG_TMP({flag}), {name}, {turn}, 0, {faction})"])
@@ -637,7 +651,7 @@ class DecompData:
         index = int(talk.get("chapter", 0))
         found = self._event_list(index, "characterBasedEvents")
         flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
-        message = self.texts.add(dialogues.render(talk.get("steps") or []))
+        message = self.texts.add(self._message(talk.get("steps") or []))
         name = f"EventScr_FEM_Talk_{index}_{n}"
         lines = [f"CHAR(EVFLAG_TMP({flag}), {name}, {talk['a']}, {talk['b']})"]
         if talk.get("both"):
@@ -1181,6 +1195,9 @@ class DecompData:
                 out[rel] = render_array(parsed)
         if self.texts.edits or self.texts.added:
             out[TEXTS_FILE] = self.texts.render()
+            chars = self.texts.special_chars()
+            if chars:
+                out[dialogues.TEXT_DEFS_FILE] = textdefs_with(self._read(dialogues.TEXT_DEFS_FILE), chars)
         for rel, source in self.unit_defs.items():
             if source != self._original_unit_defs[rel]:
                 out[rel] = source

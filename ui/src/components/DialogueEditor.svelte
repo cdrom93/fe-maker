@@ -5,10 +5,12 @@
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
-  import type { Character, ChapterInfo, DialogueFace, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem } from '../lib/types'
+  import { layout, layoutBoxes, lineWidth } from '../lib/textLayout'
+  import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
+  import TalkBubble from './TalkBubble.svelte'
 
   let { list, characters, problems }: { list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[] } = $props()
 
@@ -37,6 +39,8 @@
   let scenes = $state<DialogueScene[]>([])
   let originals = $state<Record<string, DialogueStep[]>>({})
   let faces = $state<DialogueFace[]>([])
+  let font = $state<DialogueFont | null>(null)
+  let boxIndex = $state(0)
   let messageId = $state<string | null>(null)
   let stepIndex = $state(0)
   let showTutorials = $state(false)
@@ -67,8 +71,9 @@
   })
 
   onMount(async () => {
-    const [list_, faceList] = await Promise.all([api.chapters(), api.dialogueFaces()])
+    const [list_, faceList, fontInfo] = await Promise.all([api.chapters(), api.dialogueFaces(), api.dialogueFont()])
     faces = faceList
+    font = fontInfo
     chapters = [
       { index: -1, id: 'all', title: '', map: null, events: null, name: t('dlg.allChapters') },
       ...list_.map((c) => ({ ...c, id: String(c.index), name: c.title || c.id })),
@@ -92,6 +97,7 @@
   function pick(id: string) {
     messageId = id
     stepIndex = 0
+    boxIndex = 0
   }
 
   const hex = (id: string | number) => `0x${Number(id).toString(16).toUpperCase()}`
@@ -268,8 +274,29 @@
   const shown = $derived(facesAt(stepIndex))
   // The line shown in the box: the selected one, or the last one before it.
   const line = $derived([...steps.slice(0, stepIndex + 1)].reverse().find((s) => s.kind === 'say') ?? null)
-  const lineText = $derived(line?.text ? line.text.replace(/\[[^\]]*\]/g, '') : '')
+  // Battle quotes and last words are shown in the battle screen's narrower box.
+  const inBattle = $derived(
+    quoteIndex >= 0
+      ? ['battle', 'death'].includes(newQuotes[quoteIndex]?.kind ?? '')
+      : scenes.some((s) => ['battle', 'death'].includes(s.trigger.kind) && s.messages.some((m) => String(m) === messageId)),
+  )
+  const maxWidth = $derived(font ? (inBattle ? font.battleWidth : font.talkWidth) : 0)
+  const boxes = $derived(font && line ? layoutBoxes(line.text ?? '', font, maxWidth) : [])
+  const box = $derived(boxes[Math.min(boxIndex, boxes.length - 1)] ?? [])
   const speakerX = $derived(SLOTS.find((s) => s.pos === line?.pos)?.x ?? 15)
+  /** Left of the box in tiles, as the game puts it next to its speaker (PutTalkBubble, src/scene.c). */
+  const bubbleX = $derived.by(() => {
+    if (!font) return 1
+    const width = Math.ceil(Math.max(24, ...box.map((l) => lineWidth(l, font!))) / 8) + 2
+    if (speakerX < 16) return Math.max(1, speakerX + 3 - Math.floor(width / 2))
+    const tail = speakerX - 5
+    return Math.floor((width + 1) / 2) + tail >= 30 ? 29 - width : tail - Math.floor(width / 2)
+  })
+  /** Number of boxes once laid out, when the layout changes the text. */
+  function autoBoxes(text: string): number {
+    if (!font || layout(text, font, maxWidth) === text) return 0
+    return layoutBoxes(text, font, maxWidth).length
+  }
   const faceLabel = (fid: string) => fid.replace('FID_', '').replace(/([a-z])([A-Z])/g, '$1 $2')
   const posLabel = (pos: string) => t(`dlg.pos.${pos}`)
 </script>
@@ -394,10 +421,15 @@
                    style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px" />
             {/if}
           {/each}
-          {#if line}
-            <div class="bubble" style="left: {Math.max(4, Math.min(SCREEN_W - 196, speakerX * 8 - 96)) * SCALE}px">
-              {#each lineText.split('\n\n')[0].split('\n').slice(0, 2) as l, k (k)}<div>{l}</div>{/each}
-            </div>
+          {#if line && font}
+            <div class="bubble" style="left: {bubbleX * 8 * SCALE}px"><TalkBubble lines={box} {font} scale={SCALE} /></div>
+            {#if boxes.length > 1}
+              <div class="pager">
+                <button onclick={() => (boxIndex = Math.max(0, boxIndex - 1))} disabled={boxIndex === 0} title={t('dlg.prevBox')}>‹</button>
+                {t('dlg.box', { n: Math.min(boxIndex, boxes.length - 1) + 1, total: boxes.length })}
+                <button onclick={() => (boxIndex = Math.min(boxes.length - 1, boxIndex + 1))} disabled={boxIndex >= boxes.length - 1} title={t('dlg.nextBox')}>›</button>
+              </div>
+            {/if}
           {/if}
         </div>
 
@@ -405,7 +437,7 @@
           {#each steps as s, i (i)}
             {@const state = facesAt(i - 1)}
             <li class:active={stepIndex === i}>
-              <button class="num" onclick={() => (stepIndex = i)} title={t('dlg.showStep')}>{i + 1}</button>
+              <button class="num" onclick={() => { stepIndex = i; boxIndex = 0 }} title={t('dlg.showStep')}>{i + 1}</button>
               <div class="body">
                 {#if s.kind === 'face'}
                   <span class="tag">{t('dlg.step.face')}</span>
@@ -444,7 +476,14 @@
                     </span>
                   </div>
                   <textarea rows={Math.min(8, Math.max(2, (s.text ?? '').split('\n').length))} bind:this={textAreas[i]} value={s.text ?? ''}
-                            onfocus={() => (stepIndex = i)} onchange={(e) => editStep(i, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
+                            onfocus={() => { if (stepIndex !== i) boxIndex = 0; stepIndex = i }} onchange={(e) => editStep(i, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
+                  {@const auto = autoBoxes(s.text ?? '')}
+                  {#if auto && font}
+                    <p class="auto tiny">
+                      ✂ {t('dlg.autoLayout', { n: auto })}
+                      <button class="link" onclick={() => editStep(i, { text: layout(s.text ?? '', font!, maxWidth) })}>{t('dlg.applyLayout')}</button>
+                    </p>
+                  {/if}
                 {:else}
                   <span class="tag code">{t(`dlg.code.${s.code}`) === `dlg.code.${s.code}` ? s.code : t(`dlg.code.${s.code}`)}</span>
                   {#if s.pos}<span class="muted tiny">{posLabel(s.pos)}</span>{/if}
@@ -500,7 +539,10 @@
   .portrait { position: absolute; bottom: 0; image-rendering: pixelated; opacity: 0.75; }
   .portrait.flip { transform: scaleX(-1); }
   .portrait.speaking { opacity: 1; }
-  .bubble { position: absolute; top: 8px; width: 384px; min-height: 52px; background: #f8f4e8; color: #222; border-radius: 10px; padding: 8px 14px; font-size: 15px; line-height: 1.5; box-shadow: 0 2px 6px rgb(0 0 0 / 0.4); font-family: sans-serif; }
+  .bubble { position: absolute; top: 16px; }
+  .pager { position: absolute; right: 6px; bottom: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: #fff; background: rgb(0 0 0 / 0.55); padding: 0.1rem 0.35rem; border-radius: 4px; }
+  .pager button { padding: 0 0.35rem; font-size: 0.8rem; }
+  .auto { margin: 0; color: var(--muted); display: flex; gap: 0.5rem; align-items: baseline; width: 100%; }
   .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; max-height: calc(100vh - 560px); min-height: 200px; overflow-y: auto; }
   .steps li { display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.25rem; border-radius: 6px; border: 1px solid transparent; }
   .steps li.active { border-color: var(--accent); background: var(--accent-soft); }

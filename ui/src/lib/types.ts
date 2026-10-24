@@ -316,6 +316,14 @@ export interface DialogueScene {
   trigger: { kind: string; turn?: string; faction?: string; a?: string; b?: string; x?: string; y?: string; via?: string }
 }
 
+/** The game's talk font: character -> [byte, width in pixels], and the box sizes. */
+export interface DialogueFont {
+  chars: Record<string, [number, number]>
+  talkWidth: number
+  battleWidth: number
+  boxLines: number
+}
+
 export interface DialogueFace {
   id: string
   portrait: number
