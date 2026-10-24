@@ -78,6 +78,8 @@
   "stat.lck": "Chance",
   "stat.con": "Cons",
   "wtype.sword": "Épée",
+  "items.search": "Rechercher (nom, type d'arme)…",
+  "items.noMatch": "Aucun objet trouvé",
   "wtype.lance": "Lance",
   "wtype.axe": "Hache",
   "wtype.bow": "Arc",

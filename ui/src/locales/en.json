@@ -78,6 +78,8 @@
   "stat.lck": "Luck",
   "stat.con": "Con",
   "wtype.sword": "Sword",
+  "items.search": "Search (name, weapon type)…",
+  "items.noMatch": "No item found",
   "wtype.lance": "Lance",
   "wtype.axe": "Axe",
   "wtype.bow": "Bow",

@@ -10,6 +10,7 @@
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
+  import ItemPicker from './ItemPicker.svelte'
   import NumberField from './NumberField.svelte'
   import ObjectivePanel from './ObjectivePanel.svelte'
   import RecordList from './RecordList.svelte'
@@ -539,10 +540,8 @@
               {@const it = itemById.get(id)}
               <div class="slot">
                 {#if it}<Mention kind="items" {id}><img class="pixel" src={itemIconUrl(it.iconId)} alt="" /></Mention>{:else}<span class="blank"></span>{/if}
-                <select value={id} disabled={slot > unit.items.length} onchange={(e) => setItem(slot, (e.target as HTMLSelectElement).value)}>
-                  <option value="">{t('field.none')}</option>
-                  {#each weapons as w (w.id)}<option value={w.id}>{w.name}</option>{/each}
-                </select>
+                <ItemPicker icon={false} value={id} items={weapons} extra={[{ value: '', label: t('field.none') }]} disabled={slot > unit.items.length}
+                            label={t('chapter.items')} onchange={(v) => setItem(slot, v)} />
               </div>
             {/each}
             <AiPanel ai={unit.ai} side={unit.side} onchange={(ai) => editUnit(p.group, p.index, (u) => (u.ai = ai))} />
@@ -617,7 +616,7 @@
   .unit-panel h3 { margin: 0.5rem 0 0; }
   .big { font-size: 1.1rem; font-weight: 600; margin: 0; }
   .slot { display: flex; align-items: center; gap: 0.4rem; }
-  .slot select { flex: 1; min-width: 0; }
+  .slot :global(.picker) { flex: 1; min-width: 0; }
   .slot img, .blank { width: 16px; height: 16px; display: inline-block; }
   @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }

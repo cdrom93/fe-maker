@@ -24,6 +24,7 @@
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import type { ChapterInfo, Item, MapChange, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
   import Mention from './Mention.svelte'
+  import ItemPicker from './ItemPicker.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
@@ -1044,15 +1045,13 @@
             <div class="row">
               <label>
                 <span>{t('maps.obj.content')}</span>
-                <select value={st.gold ? GOLD : (st.item ?? '')} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined }) }}>
-                  <option value={GOLD}>{t('maps.obj.gold')}</option>
-                  {#each items as it (it.id)}<option value={it.id}>{it.name}</option>{/each}
-                </select>
+                <ItemPicker icon={false} value={st.gold ? GOLD : (st.item ?? '')} {items} extra={[{ value: GOLD, label: t('maps.obj.gold') }]} label={t('maps.obj.content')}
+                            onchange={(v) => setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined })} />
               </label>
               {#if st.gold}
                 <NumberField label={t('maps.obj.goldAmount')} value={st.gold} min={1} max={MAX_GOLD} compact onchange={(v) => setObject(o, { gold: v })} />
               {:else if st.item && itemById.get(st.item)}
-                <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt="" /> {itemById.get(st.item)!.name}</Mention>
+                <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt={itemById.get(st.item)!.name} title={itemById.get(st.item)!.name} /></Mention>
               {/if}
             </div>
           {:else if SHOP_KINDS.includes(o.kind)}
@@ -1064,10 +1063,8 @@
                   {@const it = itemById.get(id)}
                   <div class="ware">
                     {#if it}<Mention kind="items" {id}><img class="pixel" src={itemIconUrl(it.iconId)} alt="" /></Mention>{:else}<span class="blank-icon"></span>{/if}
-                    <select value={id} onchange={(e) => setShopItem(o, wares, i, (e.target as HTMLSelectElement).value)}>
-                      <option value="">{i < wares.length ? t('maps.obj.removeWare') : t('maps.obj.addWare')}</option>
-                      {#each items as item (item.id)}<option value={item.id}>{item.name}</option>{/each}
-                    </select>
+                    <ItemPicker icon={false} value={id} {items} extra={[{ value: '', label: i < wares.length ? t('maps.obj.removeWare') : t('maps.obj.addWare') }]}
+                                label={t('maps.obj.wares')} onchange={(v) => setShopItem(o, wares, i, v)} />
                   </div>
                 {/if}
               {/each}
@@ -1087,16 +1084,14 @@
                 <div class="row">
                   <label>
                     <span>{t('maps.obj.gift')}</span>
-                    <select value={st.gold ? GOLD : (st.item ?? '')} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined }) }}>
-                      <option value="">{t('field.none')}</option>
-                      <option value={GOLD}>{t('maps.obj.gold')}</option>
-                      {#each items as it (it.id)}<option value={it.id}>{it.name}</option>{/each}
-                    </select>
+                    <ItemPicker icon={false} value={st.gold ? GOLD : (st.item ?? '')} {items} label={t('maps.obj.gift')}
+                                extra={[{ value: '', label: t('field.none') }, { value: GOLD, label: t('maps.obj.gold') }]}
+                                onchange={(v) => setObject(o, v === GOLD ? { gold: st.gold || 1000, item: undefined } : { item: v, gold: undefined })} />
                   </label>
                   {#if st.gold}
                     <NumberField label={t('maps.obj.goldAmount')} value={st.gold} min={1} max={MAX_GOLD} compact onchange={(v) => setObject(o, { gold: v })} />
                   {:else if st.item && itemById.get(st.item)}
-                    <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt="" /> {itemById.get(st.item)!.name}</Mention>
+                    <Mention kind="items" id={st.item}><img class="pixel" src={itemIconUrl(itemById.get(st.item)!.iconId)} alt={itemById.get(st.item)!.name} title={itemById.get(st.item)!.name} /></Mention>
                   {/if}
                 </div>
               {/if}
@@ -1179,7 +1174,7 @@
   .object-panel .reset { align-self: flex-start; margin-left: 0; }
   .wares { display: flex; flex-direction: column; gap: 0.2rem; }
   .ware { display: flex; align-items: center; gap: 0.4rem; }
-  .ware select { max-width: 16rem; }
+  .ware :global(.picker) { width: 16rem; }
   .blank-icon { width: 16px; height: 16px; display: inline-block; }
   .faces { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .faces button { padding: 0.1rem; border-radius: 6px; line-height: 0; }
