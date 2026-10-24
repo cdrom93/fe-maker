@@ -6,11 +6,14 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { layout, layoutBoxes, lineWidth } from '../lib/textLayout'
+  import { EXPRESSIONS, fromDisplay, toDisplay } from '../lib/dialogueCodes'
   import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem, SupportPair } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
   import ScriptEditor from './ScriptEditor.svelte'
+  import ConversationThread from './ConversationThread.svelte'
+  import FacePicker from './FacePicker.svelte'
   import SupportList from './SupportList.svelte'
   import TalkBubble from './TalkBubble.svelte'
 
@@ -27,15 +30,6 @@
   const SUPPORTS = -2 // index of the "Supports" entry of the list
   const NEW = 'new:' // id prefix of a new quote in the editor
   const SCALE = 2
-  // Codes put in a line with one click (they change the face of the speaker).
-  const EXPRESSIONS = [
-    { code: 'ToggleSmile', icon: '😊' },
-    { code: 'ToggleMouthMove', icon: '🤐' },
-    { code: 'HalfCloseEyes', icon: '😑' },
-    { code: 'CloseEyes', icon: '😌' },
-    { code: 'OpenEyes', icon: '👀' },
-    { code: 'Wink', icon: '😉' },
-  ]
 
   let chapters = $state<(ChapterInfo & { name: string })[]>([])
   let selected = $state(0)
@@ -50,6 +44,31 @@
   let scriptName = $state<string | null>(null)
   let stepIndex = $state(0)
   let showTutorials = $state(false)
+  // "talk": the message as a conversation, typed in bubbles, portraits dragged on the stage (ticket 24);
+  // "steps": every step with all its settings.
+  const VIEW_KEY = 'fe-maker.dialogueView'
+  let view = $state<'talk' | 'steps'>(readView())
+  /** who says the next line typed in the conversation view */
+  let composerPos = $state<string | null>(null)
+  let showFacePicker = $state(false)
+  /** slot under a portrait being dragged over the stage */
+  let dropSlot = $state<string | null>(null)
+
+  function readView(): 'talk' | 'steps' {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'steps' ? 'steps' : 'talk'
+    } catch {
+      return 'talk'
+    }
+  }
+  function setView(v: 'talk' | 'steps') {
+    view = v
+    try {
+      localStorage.setItem(VIEW_KEY, v)
+    } catch {
+      // private window: the choice is not kept
+    }
+  }
 
   const edited = $derived(list.records[0]?.messages ?? {})
   const newQuotes = $derived<NewQuote[]>(list.records[0]?.quotes ?? [])
@@ -110,8 +129,11 @@
   function pick(id: string) {
     scriptName = null
     messageId = id
-    stepIndex = 0
+    // The conversation view adds after the selected line: start at the end of the message.
+    stepIndex = view === 'talk' ? Math.max(0, steps.length - 1) : 0
     boxIndex = 0
+    showFacePicker = false
+    composerPos = suggestSpeaker(stepIndex)
   }
 
   const hex = (id: string | number) => `0x${Number(id).toString(16).toUpperCase()}`
@@ -267,10 +289,90 @@
     })
   }
 
+  /** Steps put after the selected one (the last of them is selected). */
+  function insertSteps(added: DialogueStep[]) {
+    const at = Math.min(stepIndex + 1, steps.length)
+    save([...steps.slice(0, at), ...added, ...steps.slice(at)])
+    stepIndex = at + added.length - 1
+    boxIndex = 0
+  }
+
+  /** Who probably says the next line: a portrait on screen that did not say the last one. */
+  function suggestSpeaker(at: number): string | null {
+    const present = [...facesAt(at).keys()]
+    const last = [...steps.slice(0, at + 1)].reverse().find((s) => s.kind === 'say')?.pos ?? null
+    return present.find((p) => p !== last) ?? last ?? present[0] ?? null
+  }
+
+  function sayLine(text: string, pos: string | null) {
+    insertSteps([{ kind: 'say', pos, text, wait: true }])
+    composerPos = suggestSpeaker(stepIndex)
+  }
+
+  // ---------- stage (conversation view) ----------
+
+  /** Slots a portrait can be dropped in (the off-screen ones are left to the steps view). */
+  const STAGE_SLOTS = SLOTS.filter((s) => !s.pos.startsWith('FarFar'))
+  const isLeft = (pos: string) => (SLOTS.find((s) => s.pos === pos)?.x ?? 15) < 15
+
+  function slotAt(e: DragEvent | MouseEvent): string {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const tile = (e.clientX - r.left) / SCALE / 8
+    return STAGE_SLOTS.reduce((a, b) => (Math.abs(b.x - tile) < Math.abs(a.x - tile) ? b : a)).pos
+  }
+
+  /** A portrait comes in (from the picker), or moves to another slot (dragged on the stage). */
+  function placeFace(data: { face?: string; from?: string }, pos: string) {
+    const state = facesAt(stepIndex)
+    if (data.from) {
+      if (data.from === pos || state.has(pos)) return
+      insertSteps([{ kind: 'move', pos: data.from, to: pos }])
+      if (composerPos === data.from) composerPos = pos
+      return
+    }
+    if (!data.face) return
+    insertSteps([...(state.has(pos) ? [{ kind: 'clear' as const, pos }] : []), { kind: 'face', pos, face: data.face }])
+    composerPos = pos
+  }
+
+  /** A face picked in the list: in the first free slot, the left side first. */
+  function addFace(face: string) {
+    const state = facesAt(stepIndex)
+    const free = ['MidLeft', 'MidRight', 'Left', 'Right', 'FarLeft', 'FarRight'].find((p) => !state.has(p)) ?? 'MidRight'
+    placeFace({ face }, free)
+    showFacePicker = false
+  }
+
+  function onStageDrop(e: DragEvent) {
+    e.preventDefault()
+    const pos = slotAt(e)
+    dropSlot = null
+    try {
+      placeFace(JSON.parse(e.dataTransfer?.getData('text/plain') ?? '{}'), pos)
+    } catch {
+      // not a portrait
+    }
+  }
+
+  /** Clicking a portrait: they say the selected line (or the next one typed). */
+  function speakerClick(pos: string) {
+    const s = steps[stepIndex]
+    if (s?.kind === 'say' && s.pos !== pos) editStep(stepIndex, { pos })
+    composerPos = pos
+  }
+
   let textAreas: Record<number, HTMLTextAreaElement> = {}
   /** Put an expression code where the cursor is in a line. */
   function insertCode(i: number, code: string) {
     const area = textAreas[i]
+    if (view === 'talk') {
+      // the conversation view shows the codes as icons: the cursor is in that text
+      const shownText = toDisplay(steps[i].text ?? '')
+      const at = area ? area.selectionStart : shownText.length
+      const icon = EXPRESSIONS.find((ex) => ex.code === code)?.icon ?? `[${code}]`
+      editStep(i, { text: fromDisplay(`${shownText.slice(0, at)}${icon}${shownText.slice(at)}`) })
+      return
+    }
     const text = steps[i].text ?? ''
     const at = area ? area.selectionStart : text.length
     editStep(i, { text: `${text.slice(0, at)}[${code}]${text.slice(at)}` })
@@ -406,6 +508,10 @@
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
             {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
           {/if}
+          <div class="views" role="radiogroup" aria-label={t('dlg.view')}>
+            <button role="radio" aria-checked={view === 'talk'} class:active={view === 'talk'} onclick={() => setView('talk')} title={t('dlg.view.talkHint')}>💬 {t('dlg.view.talk')}</button>
+            <button role="radio" aria-checked={view === 'steps'} class:active={view === 'steps'} onclick={() => setView('steps')} title={t('dlg.view.stepsHint')}>☰ {t('dlg.view.steps')}</button>
+          </div>
         </div>
         {#if quoteIndex >= 0 && newQuotes[quoteIndex] && newQuotes[quoteIndex].kind !== 'support'}
           {@const q = newQuotes[quoteIndex]}
@@ -449,13 +555,38 @@
           </div>
         {/if}
 
-        <div class="stage" style="width: {SCREEN_W * SCALE}px; height: {160 * SCALE}px">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="stage" class:talk={view === 'talk'} style="width: {SCREEN_W * SCALE}px; height: {160 * SCALE}px"
+             ondragover={(e) => { if (view !== 'talk') return; e.preventDefault(); dropSlot = slotAt(e) }}
+             ondragleave={() => (dropSlot = null)} ondrop={(e) => { if (view === 'talk') onStageDrop(e) }}>
+          {#if dropSlot}
+            {@const slot = SLOTS.find((x) => x.pos === dropSlot)!}
+            <div class="drop-ghost" style="left: {(slot.x * 8 - 24) * SCALE}px; width: {48 * SCALE}px"><span>{posLabel(slot.pos)}</span></div>
+          {/if}
           {#each SLOTS as slot (slot.pos)}
             {@const fid = shown.get(slot.pos)}
             {#if fid && portraitOf.has(fid)}
-              <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos}
-                   src={portraitUrl(portraitOf.get(fid)!, true)} alt={faceLabel(fid)}
-                   style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px" />
+              {#if view === 'talk'}
+                <button class="portrait-button" class:speaking={line?.pos === slot.pos} draggable="true"
+                        style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px"
+                        title={t('dlg.portraitHint', { name: faceLabel(fid) })} onclick={() => speakerClick(slot.pos)}
+                        ondragstart={(e) => e.dataTransfer?.setData('text/plain', JSON.stringify({ from: slot.pos }))}>
+                  <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos} src={portraitUrl(portraitOf.get(fid)!, true)} alt={faceLabel(fid)} />
+                </button>
+                <button class="leave" style="left: {(slot.x * 8 + 30) * SCALE}px" title={t('dlg.leaveHint', { name: faceLabel(fid) })}
+                        aria-label={t('dlg.leaveHint', { name: faceLabel(fid) })} onclick={() => insertSteps([{ kind: 'clear', pos: slot.pos }])}>✕</button>
+                {#if line?.pos === slot.pos && steps[stepIndex]?.kind === 'say'}
+                  <span class="face-codes" style="left: {(slot.x * 8 - 40) * SCALE}px">
+                    {#each EXPRESSIONS as ex (ex.code)}
+                      <button title={t(`dlg.code.${ex.code}`)} onmousedown={(e) => e.preventDefault()} onclick={() => insertCode(stepIndex, ex.code)}>{ex.icon}</button>
+                    {/each}
+                  </span>
+                {/if}
+              {:else}
+                <img class="portrait" class:flip={slot.x < 15} class:speaking={line?.pos === slot.pos}
+                     src={portraitUrl(portraitOf.get(fid)!, true)} alt={faceLabel(fid)}
+                     style="left: {(slot.x * 8 - 48) * SCALE}px; width: {96 * SCALE}px; height: {80 * SCALE}px" />
+              {/if}
             {/if}
           {/each}
           {#if line && font}
@@ -470,6 +601,18 @@
           {/if}
         </div>
 
+        {#if view === 'talk'}
+          <div class="cast">
+            <button onclick={() => (showFacePicker = !showFacePicker)} class:active={showFacePicker}>＋ {t('dlg.addFace')}</button>
+            <span class="muted tiny">{t('dlg.stageHint')}</span>
+          </div>
+          {#if showFacePicker}
+            <FacePicker {faces} label={faceLabel} first={[...new Set(steps.filter((s) => s.kind === 'face').map((s) => s.face ?? ''))]}
+                        onpick={addFace} onclose={() => (showFacePicker = false)} />
+          {/if}
+          <ConversationThread {steps} {stepIndex} {facesAt} {faceLabel} {portraitOf} {isLeft} {textAreas} bind:composerPos
+                              onselect={(i) => { if (stepIndex !== i) boxIndex = 0; stepIndex = i }} onedit={editStep} onremove={removeStep} onsay={sayLine} />
+        {:else}
         <ol class="steps">
           {#each steps as s, i (i)}
             {@const state = facesAt(i - 1)}
@@ -540,6 +683,7 @@
           <button onclick={() => addStep('clear')}>＋ {t('dlg.add.clear')}</button>
           <button onclick={() => addStep('move')}>＋ {t('dlg.add.move')}</button>
         </div>
+        {/if}
         <p class="muted tiny">{t('dlg.textHint')}</p>
         {#each messageProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
       </section>
@@ -576,6 +720,20 @@
   .portrait { position: absolute; bottom: 0; image-rendering: pixelated; opacity: 0.75; }
   .portrait.flip { transform: scaleX(-1); }
   .portrait.speaking { opacity: 1; }
+  .portrait-button { position: absolute; bottom: 0; padding: 0; border: none; background: none; cursor: grab; }
+  .portrait-button .portrait { position: static; width: 100%; height: 100%; }
+  .portrait-button:hover .portrait { opacity: 1; filter: drop-shadow(0 0 3px var(--accent)); }
+  .leave { position: absolute; top: 166px; padding: 0 0.3rem; font-size: 0.7rem; opacity: 0; }
+  .stage.talk:hover .leave { opacity: 0.85; }
+  .face-codes { position: absolute; bottom: 4px; display: flex; gap: 2px; background: rgb(0 0 0 / 0.6); border-radius: 6px; padding: 2px; z-index: 2; }
+  .face-codes button { padding: 0 0.25rem; font-size: 0.9rem; }
+  .drop-ghost { position: absolute; top: 0; bottom: 0; border: 2px dashed var(--accent); border-radius: 6px; background: rgb(255 255 255 / 0.08); display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
+  .drop-ghost span { font-size: 0.75rem; color: #fff; background: rgb(0 0 0 / 0.6); padding: 0 0.3rem; border-radius: 4px; margin-bottom: 4px; }
+  .views { display: flex; gap: 0.2rem; margin-left: auto; }
+  .views button { font-size: 0.78rem; padding: 0.15rem 0.5rem; }
+  .views button.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+  .cast { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .cast button.active { background: var(--accent-soft); border-color: var(--accent); }
   .bubble { position: absolute; top: 16px; }
   .pager { position: absolute; right: 6px; bottom: 6px; display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: #fff; background: rgb(0 0 0 / 0.55); padding: 0.1rem 0.35rem; border-radius: 4px; }
   .pager button { padding: 0 0.35rem; font-size: 0.8rem; }
