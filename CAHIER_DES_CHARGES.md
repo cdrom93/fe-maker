@@ -216,6 +216,12 @@ Priorités proposées :
 
 Directions à décider avec l'utilisateur à partir de maquettes cliquables (25/10/2026) : accueil en graphe de campagne, carte en mode simple / avancé, événements en phrases ou en scène sur frise, test et vérification. Pas commencé.
 
+Choix de l'utilisateur (25/10/2026) :
+- **Campagne** : l'accueil en graphe des chapitres est retenu, avec des routes différentes possibles (embranchements).
+- **Carte** : mode simple par défaut ; le contenu exact du mode simple et du mode avancé sera réglé plus tard. Objectif : que le mode simple couvre environ 80 % des besoins, en automatisant le plus possible les éléments de carte (villages, coffres, portes, murs, bois morts, magasins : déjà automatiques quand ils sont peints).
+- **Conversations** : la scène sur une frise (direction B).
+- **Déclencheurs** : les phrases (direction A) suivent la structure du jeu (listes d'événements du chapitre : tours, conversations, cases, zones et drapeaux, puis un script) ; à confirmer.
+
 ### Phase 7 — Version PC (à redéfinir)
 Trois pistes à évaluer le moment venu :
 - **Recompilation statique de la ROM produite** avec [gba-recomp](https://github.com/JRickey/gba-recomp) (MIT/Apache-2.0) : l'outil traduit à l'avance une ROM GBA en programme natif (Windows, Linux, macOS), avec un modèle matériel complet (affichage, son, sauvegardes, manettes). [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) montre le résultat visé pour un jeu tactique : installeur « choisissez votre ROM, cliquez », écran large, options vidéo et son, version Android. Avantage décisif pour nous : **aucune modification de la décomp n'est redistribuée** (seule la ROM du joueur est recompilée chez lui), ce qui contourne le blocage de licence de la décomp. Point à vérifier : gba-recomp s'appuie sur une carte des fonctions par jeu, repérée par l'empreinte de la ROM ; une ROM modifiée par FE Maker n'y figurera pas. On pourrait la générer nous-mêmes, puisque la compilation de la décomp produit déjà la carte complète des symboles (fichier .map).
