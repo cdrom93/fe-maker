@@ -34,6 +34,12 @@ Conclusion : la traduction d'adresses marche, mais intégrer le C-SkillSys veut 
 
 Risques : une fonction du jeu que FE Maker réécrit (convoi, par exemple) et que le C-SkillSys accroche aussi ; ses textes, qu'il installe lui-même, alors que FE Maker réécrit la table des textes ; ses tables de données (compétences, Mag) qu'il faudrait éditer dans FE Maker. On aurait aussi les compétences, pas seulement la magie. Il faut un prototype (une image Docker avec ses outils, la traduction d'adresses, une vérification en jeu par playtest) pour savoir si ça tient.
 
+## Piste retenue pour plus tard (25/10/2026)
+
+Aucun patch existant ne modifie le code de la décomp : celui de FEBuilder (assembleur), la refonte de Mokha (2022, C + Event Assembler sur la ROM d'origine, sans licence indiquée, combat pas fini : https://feuniverse.us/t/fe8-c-ea-str-mag-split-rework-fix-on-expand-levelup-screen-fit-to-chax/14856) et le C-SkillSys visent tous la ROM d'origine. `MokhaLeee/cSkillsLite-fireemblem8u` est une décomp modifiée (MIT) mais ne parle pas de la magie.
+
+Plan : écrire la séparation directement dans les fonctions de la décomp (comme `seize.py` / `convoy.py`, dans le dossier de compilation), en reprenant le **code C** du module force/magie du C-SkillSys (MIT, crédit dans `CREDITS.md`), surtout les parties difficiles : sauvegarde agrandie et écran de montée de niveau. Pas de patch compilé, pas de traduction d'adresses.
+
 ## Ce qu'il faut changer dans la décomp
 
 Environ 80 endroits lisent ou écrivent `pow` (hors tables de données), dans une vingtaine de fichiers :
