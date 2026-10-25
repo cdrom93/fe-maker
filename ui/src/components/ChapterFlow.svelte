@@ -4,13 +4,14 @@
   import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterLink, DialogueScene, DialoguesData, EventCommand, Objective } from '../lib/types'
+  import type { ChapterInfo, ChapterLink, ChaptersData, DialogueScene, DialoguesData, EventCommand, Objective, UnitGroup } from '../lib/types'
   import Mention from './Mention.svelte'
 
   // The campaign (tickets 31, 39; interface mockups of 25/10/2026): chapters as cards with their map,
   // and how each one leads to the next. Each chapter's scripts end with a command that starts the next
   // one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
-  let { list }: { list: EditableList<DialoguesData> } = $props()
+  // chapterList: the project's chapter edits (objectives, unit groups), shown over the game's in the sheet
+  let { list, chapterList }: { list: EditableList<DialoguesData>; chapterList: EditableList<ChaptersData> } = $props()
 
   const NODE_W = 200
   const NODE_H = 164
@@ -52,7 +53,8 @@
   }
 
   /** The selected chapter's sheet, as in the mockup: objective, units, scenes (loaded when it is picked). */
-  let sheet = $state<{ index: number; objective: Objective | null; allies: number; enemies: number; scenes: string[] } | null>(null)
+  // The game's objective and groups as loaded; the project's edits are applied in `view` (like ChapterEditor).
+  let loaded = $state<{ index: number; objective: Objective | null; groups: UnitGroup[]; scenes: string[] } | null>(null)
   $effect(() => {
     const i = selected
     if (i === null || i === END || !chapters[i]) return
@@ -62,14 +64,24 @@
       api.chapterDialogues(i).catch(() => null),
     ]).then(([objective, units, dialogues]) => {
       if (selected !== i) return
-      const fighting = (units?.groups ?? []).filter((g) => g.origin !== 'cutscene').flatMap((g) => g.units)
-      sheet = {
-        index: i, objective,
-        allies: fighting.filter((u) => u.side !== 'enemy').length,
-        enemies: fighting.filter((u) => u.side === 'enemy').length,
-        scenes: [...new Set((dialogues?.scenes ?? []).map(sceneLabel))],
-      }
+      loaded = { index: i, objective, groups: units?.groups ?? [], scenes: [...new Set((dialogues?.scenes ?? []).map(sceneLabel))] }
     })
+  })
+  const sheet = $derived.by(() => {
+    if (!loaded) return null
+    const edits = chapterList.records[0]
+    const key = String(loaded.index)
+    const objective = loaded.objective ? { ...loaded.objective, ...(edits?.objectives?.[key] ?? {}) } : null
+    const newGroups = Object.entries(edits?.newGroups ?? {}).filter(([, g]) => g.chapter === loaded!.index).map(([name]) => name)
+    const fighting = [
+      ...loaded.groups.filter((g) => g.origin !== 'cutscene').map((g) => edits?.unitGroups?.[g.name] ?? g.units),
+      ...newGroups.map((name) => edits?.unitGroups?.[name] ?? []),
+    ].flat()
+    return {
+      index: loaded.index, objective, scenes: loaded.scenes,
+      allies: fighting.filter((u) => u.side !== 'enemy').length,
+      enemies: fighting.filter((u) => u.side === 'enemy').length,
+    }
   })
 
   function sceneLabel(s: DialogueScene): string {

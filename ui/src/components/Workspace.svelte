@@ -229,7 +229,7 @@
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else if tab === 'flow'}
-    <ChapterFlow list={lists.dialogues} />
+    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else}
