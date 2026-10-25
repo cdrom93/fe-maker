@@ -200,6 +200,22 @@ fe-maker/
 - « Mode expert » : accès au code C de la décomp depuis l'outil, système de modules/patchs moteur réutilisables (ex. compétences, nouvelles mécaniques).
 - Partage de modules entre utilisateurs.
 
+### Chantier continu — Interface graphique (ajouté le 25/10/2026)
+L'interface est l'un des points les plus importants : tout doit être facile à prendre en main et très visuel. Inspirations retenues (jeux avec éditeur) :
+- **Super Mario Maker 2** : tester tout de suite depuis l'endroit où l'on est ; palette d'éléments glissés sur le niveau, variantes d'un geste, éléments récents ; retours immédiats (son, animation) ; annulation rassurante avec historique ; niveau vérifié jouable avant publication ; leçons courtes au moment où l'on découvre un outil (dojo de Yamamura).
+- **Wargroove 1 et 2** : pinceaux de terrain qui se raccordent tout seuls (routes, rivières, côtes) ; événements « condition → action » avec drapeaux de campagne ; éditeur de scènes sur une frise (fond, météo, musique, acteurs) ; campagne vue comme un enchaînement de cartes.
+- **Advance Wars 1+2 : Re-Boot Camp** (Design Room) : une grille, quelques gros boutons de terrain, unités placées d'avance ; mode simple par défaut, détails rangés dans un mode avancé ; effets du terrain affichés pendant qu'on peint.
+- **Autres** : éditeur de déclencheurs de Warcraft III / StarCraft II (actions écrites en phrases aux mots cliquables) ; Battle for Wesnoth (éditeur libre, transitions de terrain automatiques, camps réglés en quelques boutons) ; Game Builder Garage (briques de programmation expliquées) ; Levelhead (tester et éditer sans coupure) ; RPG Maker MZ (pages d'événement, et ce qu'il ne faut pas faire : listes de commandes lourdes) ; éditeurs de scénarios de Heroes III et Age of Empires II (objectifs et événements datés dans une même fiche).
+
+Priorités proposées :
+1. Tester un chapitre donné : bouton ▶ sur chaque chapitre, avec ses unités, sans repasser par le prologue.
+2. Unités et objets glissés sur la carte, zones de mouvement et de danger visibles pendant l'édition.
+3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu).
+4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs.
+5. Vérification avant export par un test automatique ; petits tutoriels au bon moment.
+
+Directions à décider avec l'utilisateur à partir de maquettes cliquables (25/10/2026) : accueil en graphe de campagne, carte en mode simple / avancé, événements en phrases ou en scène sur frise, test et vérification. Pas commencé.
+
 ### Phase 7 — Version PC (à redéfinir)
 Trois pistes à évaluer le moment venu :
 - **Recompilation statique de la ROM produite** avec [gba-recomp](https://github.com/JRickey/gba-recomp) (MIT/Apache-2.0) : l'outil traduit à l'avance une ROM GBA en programme natif (Windows, Linux, macOS), avec un modèle matériel complet (affichage, son, sauvegardes, manettes). [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) montre le résultat visé pour un jeu tactique : installeur « choisissez votre ROM, cliquez », écran large, options vidéo et son, version Android. Avantage décisif pour nous : **aucune modification de la décomp n'est redistribuée** (seule la ROM du joueur est recompilée chez lui), ce qui contourne le blocage de licence de la décomp. Point à vérifier : gba-recomp s'appuie sur une carte des fonctions par jeu, repérée par l'empreinte de la ROM ; une ROM modifiée par FE Maker n'y figurera pas. On pourrait la générer nous-mêmes, puisque la compilation de la décomp produit déjà la carte complète des symboles (fichier .map).
@@ -266,3 +282,4 @@ Trois pistes à évaluer le moment venu :
 - [x] Compiler les jeux créés avec les corrections `BUGFIX` de la décomp : **accepté, mais désactivé par défaut** tant que 3 blocs `BUGFIX` de la décomp ne compilent pas (option `"bugfix"` dans `fe-maker.json`, voir `docs/audit-decomp.md`)
 - [ ] Proposer aux mainteneurs de la décomp les corrections des 3 blocs `BUGFIX` cassés
 - [ ] Piste retenue pour la version PC
+- [ ] Directions de l'interface (chantier « Interface graphique », section 4) : accueil, carte, événements, test
