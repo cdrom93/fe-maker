@@ -67,6 +67,8 @@ def test_no_world_map_option(tmp_path, decomp_dir):
         macros = (project.generate_overlay(decomp_dir, for_test=for_test) / "include" / "EAstdlib.h").read_text(encoding="utf-8")
         assert macros.count("#define MNCH EvtChangeChapterBM") == 1
         assert "#define MNCH EvtChangeChapterWM" not in macros
+        kind = (project.generate_overlay(decomp_dir, for_test=for_test) / "src" / "worldmap_path.c").read_text(encoding="utf-8")
+        assert kind.count("return BATTLEMAP_KIND_STORY;") == 2  # chapters are never taken for skirmishes
 
 
 def test_old_skip_intro_option_is_migrated(tmp_path, decomp_dir):

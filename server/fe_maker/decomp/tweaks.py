@@ -24,6 +24,9 @@ EVENT_MACROS_FILE = "include/EAstdlib.h"
 # There, MNCH goes straight to the chapter it names, like MNC2.
 _MNCH_DEFINE = "#define MNCH EvtChangeChapterWM\n"
 _MNCH_DIRECT = "/* FE Maker: no world map, straight to the next chapter */\n#define MNCH EvtChangeChapterBM\n"
+BATTLE_MAP_KIND_FILE = "src/worldmap_path.c"
+_BATTLE_MAP_KIND_ANCHOR = "u32 GetBattleMapKind(void)\n{\n    int i;\n    u32 chapterId = gPlaySt.chapterIndex;\n"
+_ALWAYS_STORY = "\n    /* FE Maker: no world map, every chapter is a story chapter */\n    return BATTLEMAP_KIND_STORY;\n"
 
 # Simplified prologue for test builds: no cutscene, the units are simply on the map.
 _SIMPLE_PROLOGUE_SCENE = """
@@ -107,13 +110,20 @@ def simplify_prologue(script: str) -> str:
 
 def without_world_map(decomp_dir: Path, files: dict[str, str]) -> dict[str, str]:
     """MNCH (and MoveToChapter) go straight to the chapter they name, like MNC2: no world map between
-    chapters (the project option "no world map", like FEBuilder's, and test builds started on the map)."""
+    chapters (the project option "no world map", like FEBuilder's, and test builds started on the map).
+    Every chapter is also a story chapter: GetBattleMapKind takes a chapter whose world map place was
+    never reached for a skirmish, and starts the skirmish opening, which waits for the world map on a
+    black screen (ticket 39: chapter 1 sent straight to chapter 2 or 3)."""
     macros = files.get(EVENT_MACROS_FILE) or (decomp_dir / EVENT_MACROS_FILE).read_text(encoding="utf-8")
     if _MNCH_DIRECT in macros:
         return files
     if _MNCH_DEFINE not in macros:
         raise TweakError(f"{EVENT_MACROS_FILE}: MNCH not found")
     files[EVENT_MACROS_FILE] = macros.replace(_MNCH_DEFINE, _MNCH_DIRECT, 1)
+    source = files.get(BATTLE_MAP_KIND_FILE) or (decomp_dir / BATTLE_MAP_KIND_FILE).read_text(encoding="utf-8")
+    if _BATTLE_MAP_KIND_ANCHOR not in source:
+        raise TweakError(f"{BATTLE_MAP_KIND_FILE}: GetBattleMapKind not found")
+    files[BATTLE_MAP_KIND_FILE] = source.replace(_BATTLE_MAP_KIND_ANCHOR, _BATTLE_MAP_KIND_ANCHOR + _ALWAYS_STORY, 1)
     return files
 
 

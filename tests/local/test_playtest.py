@@ -239,3 +239,28 @@ def test_world_map_ending_in_test_builds(tmp_path):
             _end_turn(game)
         assert game.wait_until(lambda: game.chapter() not in (0, 1), seconds=300, step=30, tap="A")
         assert game.chapter() == 0x38
+
+
+def test_chapter_one_straight_to_chapter_two(tmp_path):
+    """Ticket 39: chapter 1 sent straight to chapter 2 (no world map) used to stay on a black screen: the game
+    took chapter 2 for a skirmish (its world map place never reached). It is now played as a story chapter."""
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "direct", "Direct")
+    survive = {"type": "defense", "turns": 1, "seize": [], "statusText": "Survive"}
+    project.save("chapters", {"unitGroups": {}, "objectives": {"0": survive, "1": survive}})
+    commands = DecompData(project.decomp_dir).script_commands("EventScr_Ch1_EndingScene")
+    at = next(i for i, c in enumerate(commands) if c.get("op") == "MoveToChapter")
+    commands[at] = {"op": "MNC2", "args": ["0x2"]}
+    dialogues = project.load("dialogues")
+    dialogues["scripts"] = {"EventScr_Ch1_EndingScene": commands}
+    project.save("dialogues", dialogues)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        for chapter in (0, 1):
+            assert game.wait_until(lambda: game.chapter() == chapter and game.turn() == 1 and game.phase() == "player"
+                                   and game.units(), seconds=300, step=30, tap="A")
+            game.run(300)
+            _end_turn(game)
+        assert game.wait_until(lambda: game.chapter() == 2 and game.turn() == 1 and game.phase() == "player",
+                               seconds=300, step=30, tap="A")
