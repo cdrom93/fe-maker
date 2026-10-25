@@ -1074,5 +1074,11 @@
   "flow.worldMapOff": "No world map (like FEBuilder's option): each chapter leads straight to the one chosen here, in the exported game too.",
   "flow.makeDirect": "Go on without the world map",
   "flow.noWorldMapNote": "Without the world map, this link goes straight to the chosen chapter. In the original story, check it is the real next chapter (not a world map stopover).",
-  "flow.chapterNumber": "Chapter {n}"
+  "flow.chapterNumber": "Chapter {n}",
+  "flow.objective": "Objective",
+  "flow.turns": "{n} turns",
+  "flow.allies": "{n} allies",
+  "flow.enemies": "{n} enemies",
+  "flow.scenes": "Scenes",
+  "flow.openMap": "Open the map"
 }

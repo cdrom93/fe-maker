@@ -1074,5 +1074,11 @@
   "flow.worldMapOff": "Senza mappa del mondo (come l'opzione di FEBuilder): ogni capitolo porta direttamente a quello scelto qui, anche nel gioco esportato.",
   "flow.makeDirect": "Concatenare senza mappa del mondo",
   "flow.noWorldMapNote": "Senza mappa del mondo, questo collegamento va direttamente al capitolo scelto. Nella storia originale, verificate che sia il vero capitolo seguente (non un luogo di passaggio della mappa del mondo).",
-  "flow.chapterNumber": "Capitolo {n}"
+  "flow.chapterNumber": "Capitolo {n}",
+  "flow.objective": "Obiettivo",
+  "flow.turns": "{n} turni",
+  "flow.allies": "{n} alleati",
+  "flow.enemies": "{n} nemici",
+  "flow.scenes": "Scene",
+  "flow.openMap": "Aprire la mappa"
 }

@@ -4,7 +4,7 @@
   import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterLink, DialoguesData, EventCommand } from '../lib/types'
+  import type { ChapterInfo, ChapterLink, DialogueScene, DialoguesData, EventCommand, Objective } from '../lib/types'
   import Mention from './Mention.svelte'
 
   // The campaign (tickets 31, 39; interface mockups of 25/10/2026): chapters as cards with their map,
@@ -49,6 +49,33 @@
     } catch (e) {
       error = String(e)
     }
+  }
+
+  /** The selected chapter's sheet, as in the mockup: objective, units, scenes (loaded when it is picked). */
+  let sheet = $state<{ index: number; objective: Objective | null; allies: number; enemies: number; scenes: string[] } | null>(null)
+  $effect(() => {
+    const i = selected
+    if (i === null || i === END || !chapters[i]) return
+    Promise.all([
+      api.chapterObjective(i).catch(() => null),
+      api.chapterUnits(i).catch(() => null),
+      api.chapterDialogues(i).catch(() => null),
+    ]).then(([objective, units, dialogues]) => {
+      if (selected !== i) return
+      const fighting = (units?.groups ?? []).filter((g) => g.origin !== 'cutscene').flatMap((g) => g.units)
+      sheet = {
+        index: i, objective,
+        allies: fighting.filter((u) => u.side !== 'enemy').length,
+        enemies: fighting.filter((u) => u.side === 'enemy').length,
+        scenes: [...new Set((dialogues?.scenes ?? []).map(sceneLabel))],
+      }
+    })
+  })
+
+  function sceneLabel(s: DialogueScene): string {
+    const key = `dlg.trigger.${s.trigger.kind}`
+    const text = t(key, { n: s.trigger.turn ?? '', a: s.trigger.a ?? '', b: s.trigger.b ?? '', x: s.trigger.x ?? '', y: s.trigger.y ?? '' })
+    return text === key ? s.script : text
   }
 
   /** How a link really goes: without the world map, MNCH goes straight to its chapter. */
@@ -240,9 +267,33 @@
   {#if selected !== null && selected !== END && chapters[selected]}
     {@const mine = links[selected] ?? []}
     <section class="panel detail">
+      <span class="card-num">{t('flow.chapterNumber', { n: selected })}</span>
+      <h2 class="sheet-title">{title(selected)}</h2>
       <img class="pixel detail-map" src={chapterMapUrl(selected)} alt="" />
-      <h3>{title(selected)} <span class="muted tiny">#{selected}</span></h3>
-      <p class="small"><Mention kind="chapters" id={String(selected)}>{t('dlg.openChapter')}</Mention> · <Mention kind="dialogues" id={String(selected)}>💬 {t('chapter.editDialogues')}</Mention></p>
+      {#if sheet?.index === selected}
+        <div class="sheet-block">
+          <h4>{t('flow.objective')}</h4>
+          <div class="goal">
+            🚩 {sheet.objective ? t(`objective.type.${sheet.objective.type}`) : '…'}{sheet.objective?.type === 'defense' ? ` · ${t('flow.turns', { n: sheet.objective.turns })}` : ''}
+          </div>
+          <div class="chips">
+            <span class="chip ally">{t('flow.allies', { n: sheet.allies })}</span>
+            <span class="chip enemy">{t('flow.enemies', { n: sheet.enemies })}</span>
+          </div>
+        </div>
+        {#if sheet.scenes.length}
+          <div class="sheet-block">
+            <h4>{t('flow.scenes')}</h4>
+            {#each sheet.scenes as s (s)}
+              <Mention kind="dialogues" id={String(selected)}><span class="scene">{s}</span></Mention>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+      <div class="sheet-buttons">
+        <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
+        {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">🗺 {t('flow.openMap')}</span></Mention>{/if}
+      </div>
       <h4>{t('flow.next')}</h4>
       {#if !mine.length}<p class="muted small">{t('flow.noNext')}</p>{/if}
       {#each mine as l, k (k)}
@@ -294,7 +345,7 @@
   .tiny { font-size: 0.72rem; }
   .bad { color: var(--bad); }
   .warn { color: var(--warn); margin: 0.3rem 0 0; }
-  h2, h3, h4 { margin: 0 0 0.4rem; }
+  h2, h4 { margin: 0 0 0.4rem; }
   h4 { margin-top: 0.8rem; font-size: 0.85rem; }
   p { margin: 0 0 0.4rem; }
   .legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-bottom: 0.4rem; }
@@ -322,6 +373,16 @@
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .card-num { font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
   .card-title { font-size: 0.9rem; font-weight: 800; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+  .sheet-title { font-size: 1.4rem; margin: 0.1rem 0 0.6rem; }
+  .sheet-block { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.7rem; }
+  .sheet-block h4 { margin: 0; }
+  .goal { padding: 0.55rem 0.75rem; border-radius: var(--radius); background: var(--panel-2); border: 1px solid var(--border); font-weight: 800; }
+  .chip { padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; }
+  .chip.ally { background: var(--accent-soft); color: var(--accent); }
+  .chip.enemy { background: var(--bad-soft); color: var(--bad); }
+  .scene { display: block; padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; font-size: 0.85rem; }
+  .sheet-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.8rem; }
+  .big-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 0.9rem; border-radius: var(--radius); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
   .detail-map { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; background: var(--panel-2); margin-bottom: 0.5rem; }
   .unreached { margin-top: 0.5rem; }
   .unreached summary { cursor: pointer; }
