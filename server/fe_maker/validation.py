@@ -7,6 +7,7 @@ translated text, `message` is the English fallback.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 
 from .decomp import dialogues as decomp_dialogues
@@ -462,14 +463,24 @@ def _validate_missing_tiles(problems, maps_data: dict, known_layouts: dict, deco
                 tileset = tileedit.Tileset(decomp_dir, tile_layout, None) if tile_layout else None
             except tileedit.TileEditError:
                 tileset = None
-            free_slots[config] = {n for n, dup in enumerate(tileset.duplicates) if dup and n not in tileset.used} \
-                if tileset else set()
+            free_slots[config] = _filler_slots(tileset) if tileset else set()
         filled = {int(k) for k in edited.get(config, {}).get("metatiles", {})}
         missing = {m for grid in layout_grids for row in grid for m in row if isinstance(m, int)} & (free_slots[config] - filled)
         if missing:
             problems.append(Problem("warning", "maps", layout_id, "rows", "missingTile",
                                     {"tiles": ", ".join(str(m) for m in sorted(missing))},
                                     f"{layout_id}: tiles {sorted(missing)} were removed from the tileset"))
+
+
+def _filler_slots(tileset) -> set[int]:
+    """Empty slots of a tileset: copies of its filler metatile (the most common duplicate), which shows
+    garbage. Other duplicates are real tiles of the game (copies of an earlier one) a map may use."""
+    dups = Counter((tuple(tileset.metatiles[n]), tileset.terrain[n]) for n, dup in enumerate(tileset.duplicates) if dup)
+    if not dups:
+        return set()
+    filler = dups.most_common(1)[0][0]
+    return {n for n, dup in enumerate(tileset.duplicates)
+            if dup and (tuple(tileset.metatiles[n]), tileset.terrain[n]) == filler}
 
 
 def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp_dir, sizes: dict):

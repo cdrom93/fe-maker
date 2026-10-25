@@ -172,3 +172,14 @@ def test_manual_change_must_hold_its_object(monkeypatch):
     _validate_map_objects(problems, {"layouts": {"M": {"rows": []}}, "changes": {"M": changes}},
                           {"M": {"changes": None}}, None, {"M": (15, 10)})
     assert [(p.code, p.params) for p in problems] == [("manualChangeOffObject", {"id": 1})]
+
+
+def test_only_filler_slots_count_as_removed_tiles():
+    from types import SimpleNamespace
+
+    from fe_maker.validation import _filler_slots
+
+    # slot 2 copies the real tile 0 (a tile of the game a map may use); slots 3-5 hold the filler
+    metatiles = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 2, 3, 4], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+    tileset = SimpleNamespace(metatiles=metatiles, terrain=bytes(6), duplicates=[False, False, True, True, True, True])
+    assert _filler_slots(tileset) == {3, 4, 5}
