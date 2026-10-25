@@ -183,7 +183,7 @@
       <input type="checkbox" checked={simplePrologue} onchange={async (e) => (simplePrologue = (await api.setTestOptions({ simplePrologue: (e.target as HTMLInputElement).checked })).simplePrologue)} />
       {t('ws.simplePrologue')}
     </label>
-    <button class="primary" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
+    <button class="play" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
     <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
   </div>
@@ -258,8 +258,9 @@
   .problems .warning { color: var(--warn); }
   .bad { color: var(--bad); }
   .warn { color: var(--warn); }
-  .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; overflow-x: auto; }
-  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 0.5rem 1rem; white-space: nowrap; }
-  .tabs button.active { border-bottom-color: var(--accent); font-weight: 600; }
+  .tabs { display: flex; gap: 0.3rem; padding: 0.3rem; margin-bottom: 1rem; overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-big); }
+  .tabs button { border: none; background: none; padding: 0.55rem 1rem; white-space: nowrap; color: var(--muted); }
+  .tabs button:hover:not(.active) { background: var(--panel-2); color: var(--text); }
+  .tabs button.active { background: var(--header); color: var(--header-text); font-weight: 800; }
   .badge { margin-left: 0.4rem; background: var(--bad); color: var(--panel); border-radius: 999px; padding: 0 0.45em; font-size: 0.75rem; }
 </style>

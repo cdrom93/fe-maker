@@ -97,22 +97,26 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.6rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
+    padding: 0.6rem 1.5rem;
+    background: var(--header);
+    color: var(--header-text);
     /* Always visible: tickets and languages stay at hand while scrolling. */
     position: sticky;
     top: 0;
     z-index: 20;
   }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
-  .brand strong { font-size: 1.15rem; }
+  .brand strong { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
+  .brand .muted { color: var(--header-muted); }
   .tools { display: flex; gap: 0.75rem; align-items: center; }
+  .tools button { background: transparent; color: var(--header-text); border-color: #ffffff33; }
+  .tools button:hover:not(:disabled) { border-color: var(--header-text); }
   .ticket { padding: 0.25em 0.7em; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; }
+  .ticket.active { background: var(--panel); color: var(--text); }
   .count { min-width: 1.4em; padding: 0 0.3em; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 0.72rem; text-align: center; }
   .lang { display: flex; gap: 0.25rem; }
   .lang button { padding: 0.3em 0.4em; display: grid; place-items: center; }
-  .lang button.active { background: var(--accent-soft); border-color: var(--accent); }
+  .lang button.active { background: var(--panel); border-color: var(--panel); }
   main { padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
   /* The ticket column takes the right side: the app stays usable next to it. */
   main.with-side { margin-right: 380px; }

@@ -1,22 +1,28 @@
 :root {
+  /* Theme of the interface mockups (25/10/2026): warm light ground, dark header, round font, big rounded controls. */
   --bg: #f4f1ea;
   --panel: #ffffff;
-  --panel-2: #f9f7f2;
-  --border: #ddd6c8;
-  --text: #2a2622;
-  --muted: #7a7166;
-  --accent: #2f5d8a;
+  --panel-2: #faf8f3;
+  --border: #e2ddd2;
+  --text: #1f2430;
+  --muted: #5e6472;
+  --accent: #2c5ba6;
   --accent-text: #ffffff;
-  --accent-soft: #e3ecf5;
+  --accent-soft: #e7eef9;
   --good: #2e7d4f;
-  --bad: #b3261e;
-  --bad-soft: #fbe9e7;
-  --warn: #9a6700;
-  --warn-soft: #fff4d6;
+  --good-text: #ffffff;
+  --bad: #b23a2e;
+  --bad-soft: #f7e3e0;
+  --warn: #8a5300;
+  --warn-soft: #fbe8cc;
   --male: #2f6fd1;
   --female: #d6407f;
-  --radius: 8px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --header: #1f2430;
+  --header-text: #ffffff;
+  --header-muted: #c9ced8;
+  --radius: 10px;
+  --radius-big: 14px;
+  font-family: 'Nunito Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   color: var(--text);
   background: var(--bg);
@@ -40,45 +46,53 @@
     --warn-soft: #3a3020;
     --male: #6aa8ff;
     --female: #ff7ab3;
+    --good-text: #10161c;
+    --header: #111214;
+    --header-text: #ece6dc;
+    --header-muted: #a39a8d;
   }
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); }
 
-h1, h2, h3 { margin: 0 0 0.5em; font-weight: 650; }
+h1, h2, h3 { margin: 0 0 0.5em; font-weight: 800; }
 h1 { font-size: 1.6rem; }
 h2 { font-size: 1.2rem; }
-h3 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.8rem; }
+h3 { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
 
 button {
   font: inherit;
+  font-weight: 700;
   padding: 0.45em 0.9em;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
+  transition: border-color 120ms, background-color 120ms, transform 80ms;
 }
 button:hover:not(:disabled) { border-color: var(--accent); }
+button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: default; }
-button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 800; }
+button.play { background: var(--good); color: var(--good-text); border-color: var(--good); font-weight: 800; }
 
 input, select, textarea {
   font: inherit;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.35em 0.5em;
   min-width: 0;
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input.invalid { border-color: var(--bad); background: var(--bad-soft); }
 
-label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.85rem; color: var(--muted); }
+label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-big); padding: 1rem; }
 .muted { color: var(--muted); }
 .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 .pixel { image-rendering: pixelated; }

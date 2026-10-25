@@ -220,6 +220,8 @@ Choix de l'utilisateur (25/10/2026) :
 - **Campagne** : l'accueil en graphe des chapitres est retenu, avec des routes différentes possibles (embranchements).
 - **Carte** : mode simple par défaut ; le contenu exact du mode simple et du mode avancé sera réglé plus tard. Objectif : que le mode simple couvre environ 80 % des besoins, en automatisant le plus possible les éléments de carte (villages, coffres, portes, murs, bois morts, magasins : déjà automatiques quand ils sont peints).
 - **Conversations** : la scène sur une frise (direction B).
+- **Thème** (fait le 25/10/2026) : l'appli entière prend l'apparence des maquettes : fond clair chaud, barre du haut sombre, police Nunito (OFL, fournie avec l'appli), gros boutons arrondis, onglets en pastilles, bouton « Tester » vert. La disposition des écrans ne change pas encore : chaque écran rejoindra sa maquette quand il sera refait.
+- **Lot suivant** (après le 29/10/2026, quota de la semaine) : portée et zone de danger sur la carte du chapitre, effets du terrain pendant qu'on peint, historique visible des annulations, « ▶ Tester ce chapitre », onglet Enchaînements enrichi (mini-carte, objectif, unités, bouton ▶).
 - **Déclencheurs** : les phrases (direction A) suivent la structure du jeu (listes d'événements du chapitre : tours, conversations, cases, zones et drapeaux, puis un script) ; à confirmer.
 
 ### Phase 7 — Version PC (à redéfinir)
