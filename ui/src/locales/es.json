@@ -1080,5 +1080,6 @@
   "flow.allies": "{n} aliados",
   "flow.enemies": "{n} enemigos",
   "flow.scenes": "Escenas",
-  "flow.openMap": "Abrir el mapa"
+  "flow.openMap": "Abrir el mapa",
+  "problem.manualChangeOffObject": "cambio {id} hecho a mano para un objeto: ya no contiene la casilla del objeto (tronco, muro, puerta, cofre, aldea), el juego nunca lo aplicará. Amplíelo hasta esa casilla"
 }

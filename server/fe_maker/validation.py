@@ -490,6 +490,13 @@ def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp
                 if known_layouts[layout_id]["changes"] else []), settings.get(layout_id))
         except (IndexError, TypeError, ValueError):
             continue  # malformed rows: reported above
+        # A change drawn by hand for an object is applied only through the object's own cell: moved
+        # off it, it never shows (the passage of a snag drawn beside the snag).
+        cells = {(o["x"], o["y"]) for o in found if o["kind"] in mapobjects.CHANGE_KINDS}
+        for c in maps_data.get("changes", {}).get(layout_id) or []:
+            if c.get("manual") and not any(c["x"] <= x < c["x"] + c["w"] and c["y"] <= y < c["y"] + c["h"] for x, y in cells):
+                problems.append(Problem("warning", "maps", layout_id, "changes", "manualChangeOffObject", {"id": c["id"]},
+                                        f"{layout_id}: change {c['id']} drawn for an object does not hold its cell"))
         for obj in found:
             params = {"object": obj["kind"], "x": obj["x"], "y": obj["y"]}
             if obj["noAfter"]:

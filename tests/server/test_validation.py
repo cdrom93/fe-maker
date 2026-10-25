@@ -157,3 +157,18 @@ def test_unusable_weapons_of_units(decomp_dir):
     next(c for c in chars if c["id"] == "CHARACTER_TESTHERO")["class"] = "CLASS_TESTKNIGHT"
     found = {(p.id, p.code) for p in validate(chars, items, d, chapters=chapters)}
     assert ("UnitDef_TestChapter#0", "weaponReserved") in found
+
+
+def test_manual_change_must_hold_its_object(monkeypatch):
+    from fe_maker.decomp import mapobjects
+    from fe_maker.validation import _validate_map_objects
+
+    snag = {"kind": "snag", "x": 6, "y": 4, "cells": [(6, 4)], "new": True, "change": 0, "auto": None, "ruin": None,
+            "noAfter": False}
+    monkeypatch.setattr(mapobjects, "map_objects", lambda *args, **kwargs: [snag])
+    passage = {"x": 6, "y": 4, "w": 3, "h": 1, "rows": [[1, 2, 2]], "manual": True}
+    changes = [dict(passage, id=0), dict(passage, id=1, x=7, w=2, rows=[[2, 2]]), dict(passage, id=2, x=7, w=2, manual=False)]
+    problems = []
+    _validate_map_objects(problems, {"layouts": {"M": {"rows": []}}, "changes": {"M": changes}},
+                          {"M": {"changes": None}}, None, {"M": (15, 10)})
+    assert [(p.code, p.params) for p in problems] == [("manualChangeOffObject", {"id": 1})]

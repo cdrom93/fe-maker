@@ -1080,5 +1080,6 @@
   "flow.allies": "{n} allies",
   "flow.enemies": "{n} enemies",
   "flow.scenes": "Scenes",
-  "flow.openMap": "Open the map"
+  "flow.openMap": "Open the map",
+  "problem.manualChangeOffObject": "change {id} drawn by hand for an object: it no longer holds the object's cell (snag, wall, door, chest, village), so the game will never apply it. Enlarge it to that cell"
 }

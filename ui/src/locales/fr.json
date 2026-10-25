@@ -1080,5 +1080,6 @@
   "flow.allies": "{n} alliés",
   "flow.enemies": "{n} ennemis",
   "flow.scenes": "Scènes",
-  "flow.openMap": "Ouvrir la carte"
+  "flow.openMap": "Ouvrir la carte",
+  "problem.manualChangeOffObject": "changement {id} fait à la main pour un objet : il ne contient plus la case de l'objet (tronc, mur, porte, coffre, village), le jeu ne l'appliquera jamais. Élargissez-le jusqu'à cette case"
 }
