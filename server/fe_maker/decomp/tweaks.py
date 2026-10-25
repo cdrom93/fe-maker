@@ -23,7 +23,7 @@ EVENT_MACROS_FILE = "include/EAstdlib.h"
 # build started on the map skips them: the next chapter would be the prologue again (ticket 38).
 # There, MNCH goes straight to the chapter it names, like MNC2.
 _MNCH_DEFINE = "#define MNCH EvtChangeChapterWM\n"
-_MNCH_DIRECT = "/* FE Maker test build: no world map, straight to the next chapter */\n#define MNCH EvtChangeChapterBM\n"
+_MNCH_DIRECT = "/* FE Maker: no world map, straight to the next chapter */\n#define MNCH EvtChangeChapterBM\n"
 
 # Simplified prologue for test builds: no cutscene, the units are simply on the map.
 _SIMPLE_PROLOGUE_SCENE = """
@@ -105,6 +105,18 @@ def simplify_prologue(script: str) -> str:
     return script[: m.end()] + _SIMPLE_PROLOGUE_SCENE + script[end:]
 
 
+def without_world_map(decomp_dir: Path, files: dict[str, str]) -> dict[str, str]:
+    """MNCH (and MoveToChapter) go straight to the chapter they name, like MNC2: no world map between
+    chapters (the project option "no world map", like FEBuilder's, and test builds started on the map)."""
+    macros = files.get(EVENT_MACROS_FILE) or (decomp_dir / EVENT_MACROS_FILE).read_text(encoding="utf-8")
+    if _MNCH_DIRECT in macros:
+        return files
+    if _MNCH_DEFINE not in macros:
+        raise TweakError(f"{EVENT_MACROS_FILE}: MNCH not found")
+    files[EVENT_MACROS_FILE] = macros.replace(_MNCH_DEFINE, _MNCH_DIRECT, 1)
+    return files
+
+
 def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) -> dict[str, str]:
     """Add the tweaks enabled for test builds to `files` (decomp-relative path -> content)."""
     start = options.get("start", "normal")
@@ -116,10 +128,7 @@ def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) ->
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
         files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else start_on_map(source)
     if start == "map":
-        macros = files.get(EVENT_MACROS_FILE) or (decomp_dir / EVENT_MACROS_FILE).read_text(encoding="utf-8")
-        if _MNCH_DEFINE not in macros:
-            raise TweakError(f"{EVENT_MACROS_FILE}: MNCH not found")
-        files[EVENT_MACROS_FILE] = macros.replace(_MNCH_DEFINE, _MNCH_DIRECT, 1)
+        files = without_world_map(decomp_dir, files)
     if options.get("simplePrologue"):
         def current(rel: str) -> str:
             return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")

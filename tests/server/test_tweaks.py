@@ -55,6 +55,20 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
         project.set_test_options({"start": "nowhere"})
 
 
+def test_no_world_map_option(tmp_path, decomp_dir):
+    """Ticket 39: like FEBuilder's option, chapters follow each other without the world map, in the
+    exported patch too; a test build started on the map does not apply it twice."""
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    assert project.world_map
+    assert not (project.generate_overlay(decomp_dir, for_test=False) / "include" / "EAstdlib.h").exists()
+    project.set_world_map(False)
+    assert not Project(tmp_path / "p", decomp_dir).world_map
+    for for_test in (False, True):
+        macros = (project.generate_overlay(decomp_dir, for_test=for_test) / "include" / "EAstdlib.h").read_text(encoding="utf-8")
+        assert macros.count("#define MNCH EvtChangeChapterBM") == 1
+        assert "#define MNCH EvtChangeChapterWM" not in macros
+
+
 def test_old_skip_intro_option_is_migrated(tmp_path, decomp_dir):
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
     project.meta["testOptions"] = {"skipIntro": True}

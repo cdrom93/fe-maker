@@ -102,6 +102,8 @@ export const api = {
   problems: () => request<{ problems: Problem[] }>('GET', '/api/project/problems'),
   testOptions: () => request<TestOptions>('GET', '/api/project/test-options'),
   setTestOptions: (o: Partial<TestOptions>) => request<TestOptions>('PUT', '/api/project/test-options', o),
+  worldMap: () => request<{ worldMap: boolean }>('GET', '/api/project/world-map'),
+  setWorldMap: (worldMap: boolean) => request<{ worldMap: boolean }>('PUT', '/api/project/world-map', { worldMap }),
   startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
   tickets: () => request<Ticket[]>('GET', '/api/tickets'),

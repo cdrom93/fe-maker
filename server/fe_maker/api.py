@@ -974,6 +974,23 @@ def put_test_options(body: TestOptionsIn):
     return project.test_options
 
 
+class WorldMapIn(BaseModel):
+    worldMap: bool
+
+
+@app.get("/api/project/world-map")
+def get_world_map():
+    return {"worldMap": state.require_project().world_map}
+
+
+@app.put("/api/project/world-map")
+def put_world_map(body: WorldMapIn):
+    """Ticket 39: chapters follow each other with or without the world map (exported patch too)."""
+    project = state.require_project()
+    project.set_world_map(body.worldMap)
+    return {"worldMap": project.world_map}
+
+
 class BuildIn(BaseModel):
     launch: bool = False
 

@@ -1003,9 +1003,9 @@
   "dlg.whoSpeaks": "Who speaks:",
   "dlg.typeLine": "Type the line… (Enter to add it, Shift+Enter for a new line, blank line = new bubble)",
   "dlg.addLine": "Add",
-  "ws.flow": "Story flow",
-  "flow.title": "How chapters follow each other",
-  "flow.hint": "Each arrow goes from a chapter to the one that follows it, starting from the prologue. Click a chapter to see and change where it leads. Optional maps (Tower of Valni, Lagdou Ruins) open from the world map: they are listed apart.",
+  "ws.flow": "Campaign",
+  "flow.title": "The campaign",
+  "flow.hint": "Each card is a chapter, with its map. Arrows show where its ending leads, starting from the prologue. Click a chapter to see and change where it leads. Optional maps (Tower of Valni, Lagdou Ruins) open from the world map: they are listed apart.",
   "flow.kind.worldMap": "through the world map",
   "flow.kind.direct": "straight (no world map)",
   "flow.kind.noSave": "straight, without saving",
@@ -1068,5 +1068,11 @@
   "dlg.addSceneMessage": "Dialogue of a scene",
   "field.canSeize": "Can seize",
   "field.canSeizeHint": "\"Seize\" command on the tile to take. In the game only Eirika and Ephraim (the route's leader) can: the Lord ability is not enough",
-  "flow.worldMapWarning": "Through the world map, the game goes to the chapter of the place the original story's world map takes the lord to, not necessarily the one chosen here. For a new flow, choose \"directly\". (Tests started on the map always go there directly.)"
+  "flow.worldMapWarning": "Through the world map, the game goes to the chapter of the place the original story's world map takes the lord to, not necessarily the one chosen here: in the original story, this number is often a stopover. For a new flow, switch to \"directly\", or untick \"World map\" for the whole project.",
+  "flow.worldMapOption": "World map between chapters",
+  "flow.worldMapOn": "Like the original game: the world map picks the next chapter.",
+  "flow.worldMapOff": "No world map (like FEBuilder's option): each chapter leads straight to the one chosen here, in the exported game too.",
+  "flow.makeDirect": "Go there directly",
+  "flow.noWorldMapNote": "Without the world map, this link goes straight to the chosen chapter. In the original story, check it is the real next chapter (not a world map stopover).",
+  "flow.chapterNumber": "Chapter {n}"
 }

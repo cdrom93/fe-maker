@@ -1003,9 +1003,9 @@
   "dlg.whoSpeaks": "Quién habla:",
   "dlg.typeLine": "Escriba la réplica… (Intro para añadirla, Mayús+Intro para nueva línea, línea vacía = nueva burbuja)",
   "dlg.addLine": "Añadir",
-  "ws.flow": "Encadenamientos",
-  "flow.title": "Encadenamiento de los capítulos",
-  "flow.hint": "Cada flecha va de un capítulo al que lo sigue, desde el prólogo. Haga clic en un capítulo para ver y cambiar adónde lleva. Los mapas opcionales (torre de Valni, ruinas de Lagdou) se abren desde el mapa del mundo: aparecen aparte.",
+  "ws.flow": "Campaña",
+  "flow.title": "La campaña",
+  "flow.hint": "Cada tarjeta es un capítulo, con su mapa. Las flechas indican adónde lleva su final, desde el prólogo. Haga clic en un capítulo para ver y cambiar adónde lleva. Los mapas opcionales (torre de Valni, ruinas de Lagdou) se abren desde el mapa del mundo: aparecen aparte.",
   "flow.kind.worldMap": "por el mapa del mundo",
   "flow.kind.direct": "directamente (sin mapa del mundo)",
   "flow.kind.noSave": "directamente, sin guardar",
@@ -1068,5 +1068,11 @@
   "dlg.addSceneMessage": "Diálogo de una escena",
   "field.canSeize": "Puede conquistar casillas",
   "field.canSeizeHint": "Comando «Conquistar» en la casilla que tomar. En el juego solo Eirika y Ephraim (líder de la ruta) pueden: la capacidad Señor no basta",
-  "flow.worldMapWarning": "Por el mapa del mundo, el juego va al capítulo del lugar adonde el mapa del mundo de la historia original lleva al señor, no necesariamente al elegido aquí. Para un nuevo encadenamiento, elija «directamente». (Las pruebas que empiezan en el mapa siempre van directamente.)"
+  "flow.worldMapWarning": "Por el mapa del mundo, el juego va al capítulo del lugar adonde el mapa del mundo de la historia original lleva al señor, no necesariamente al elegido aquí: en la historia original, este número suele ser un lugar de paso. Para un nuevo encadenamiento, pase a «directamente», o desmarque «Mapa del mundo» para todo el proyecto.",
+  "flow.worldMapOption": "Mapa del mundo entre capítulos",
+  "flow.worldMapOn": "Como el juego original: el mapa del mundo elige el capítulo siguiente.",
+  "flow.worldMapOff": "Sin mapa del mundo (como la opción de FEBuilder): cada capítulo lleva directamente al elegido aquí, también en el juego exportado.",
+  "flow.makeDirect": "Encadenar directamente",
+  "flow.noWorldMapNote": "Sin mapa del mundo, este enlace va directamente al capítulo elegido. En la historia original, compruebe que es el verdadero capítulo siguiente (no un lugar de paso del mapa del mundo).",
+  "flow.chapterNumber": "Capítulo {n}"
 }

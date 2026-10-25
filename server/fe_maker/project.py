@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import builder, ferepo, ups
 from .decomp.gamedata import DecompData
-from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks
+from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .paths import DECOMP_DIR
 from .validation import Problem, validate
 
@@ -156,6 +156,16 @@ class Project:
         self.meta["testOptions"] = {"start": start, "simplePrologue": simple}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    @property
+    def world_map(self) -> bool:
+        """False: the game goes from chapter to chapter without the world map (ticket 39), in the exported
+        patch too: MNCH / MoveToChapter go straight to the chapter they name."""
+        return bool(self.meta.get("worldMap", True))
+
+    def set_world_map(self, on: bool) -> None:
+        self.meta["worldMap"] = bool(on)
+        (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
     def update_credits(self) -> None:
         """CREDITS.txt lists the community resources the project uses (imported from FE-Repo), after
         what the user wrote."""
@@ -181,6 +191,8 @@ class Project:
         data.apply_dialogues(self.load("dialogues"))
         data.apply_portraits(self.load("portraits"), self.root / "assets")
         files = data.changed_files()
+        if not self.world_map:
+            files = without_world_map(decomp_dir, files)
         if for_test:
             files = apply_test_tweaks(decomp_dir, self.test_options, files)
         overlay = self.root / "build" / "overlay"

@@ -1,20 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
-  import { api } from '../lib/api'
+  import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
   import type { ChapterInfo, ChapterLink, DialoguesData, EventCommand } from '../lib/types'
   import Mention from './Mention.svelte'
 
-  // How chapters follow each other (ticket 31): each chapter's scripts end with a command that starts
-  // the next one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
+  // The campaign (tickets 31, 39; interface mockups of 25/10/2026): chapters as cards with their map,
+  // and how each one leads to the next. Each chapter's scripts end with a command that starts the next
+  // one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
   let { list }: { list: EditableList<DialoguesData> } = $props()
 
-  const NODE_W = 190
-  const NODE_H = 38
-  const ROW = 74
-  const COL = 220
+  const NODE_W = 200
+  const NODE_H = 164
+  const ROW = 190
+  const COL = 270
   const PAD = 24
   const END = -1 // the game's ending, drawn as a last node
   /** commands offered for a link, by kind */
@@ -28,14 +29,30 @@
   let toChapter = $state<string[]>([])
   let selected = $state<number | null>(0)
   let error = $state('')
+  /** false: the project goes from chapter to chapter without the world map (ticket 39) */
+  let worldMap = $state(true)
 
   onMount(async () => {
-    const [all, info] = await Promise.all([api.chapters(), api.chapterLinks()])
+    // an older server has no world map option: the world map stays
+    const [all, info, wm] = await Promise.all([api.chapters(), api.chapterLinks(), api.worldMap().catch(() => ({ worldMap: true }))])
     chapters = all
     original = info.links
     kinds = info.kinds
     toChapter = info.toChapter
+    worldMap = wm.worldMap
   })
+
+  async function setWorldMap(on: boolean) {
+    error = ''
+    try {
+      worldMap = (await api.setWorldMap(on)).worldMap
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
+  /** How a link really goes: without the world map, MNCH goes straight to its chapter. */
+  const shownKind = (l: ChapterLink) => (!worldMap && l.kind === 'worldMap' ? 'direct' : l.kind)
 
   $effect(() => {
     appContext.detail = selected !== null && selected >= 0 ? title(selected) : ''
@@ -97,12 +114,13 @@
     if (depth.has(END)) depth.set(END, Math.max(...depth.values()) + 1)
     const rows = new Map<number, number[]>()
     for (const n of order) rows.set(depth.get(n)!, [...(rows.get(depth.get(n)!) ?? []), n])
+    // left to right, like the mockup's campaign: one column per step, branches stacked
     const widest = Math.max(1, ...[...rows.values()].map((r) => r.length))
-    const width = widest * COL + PAD * 2
+    const height = widest * ROW + PAD * 2
     const pos = new Map<number, { x: number; y: number }>()
     for (const [d, r] of rows) {
-      const left = (width - r.length * COL) / 2
-      r.forEach((n, i) => pos.set(n, { x: left + i * COL + (COL - NODE_W) / 2, y: PAD + d * ROW }))
+      const top = PAD
+      r.forEach((n, i) => pos.set(n, { x: PAD + d * COL, y: top + i * ROW + (ROW - NODE_H) / 2 }))
     }
     const edges: { from: number; to: number; link: ChapterLink }[] = []
     for (const n of order) {
@@ -113,21 +131,21 @@
       }
     }
     const unreached = chapters.filter((c) => c.title && !depth.has(c.index)).map((c) => c.index)
-    return { pos, edges, width, height: PAD * 2 + (rows.size ? Math.max(...rows.keys()) + 1 : 1) * ROW, unreached }
+    return { pos, edges, width: PAD * 2 + (rows.size ? Math.max(...rows.keys()) + 1 : 1) * COL, height, unreached }
   })
 
   function edgePath(from: { x: number; y: number }, to: { x: number; y: number }): string {
-    const x1 = from.x + NODE_W / 2
-    const y1 = from.y + NODE_H
-    const x2 = to.x + NODE_W / 2
-    const y2 = to.y
-    if (y2 > y1) {
-      const m = (y1 + y2) / 2
-      return `M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2}`
+    const x1 = from.x + NODE_W
+    const y1 = from.y + NODE_H / 2
+    const x2 = to.x
+    const y2 = to.y + NODE_H / 2
+    if (x2 > x1) {
+      const m = (x1 + x2) / 2
+      return `M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`
     }
-    // back to an earlier chapter: around the right side of the boxes
-    const side = Math.max(from.x, to.x) + NODE_W + 30
-    return `M${from.x + NODE_W},${from.y + NODE_H / 2} C${side},${from.y + NODE_H / 2} ${side},${to.y + NODE_H / 2} ${to.x + NODE_W},${to.y + NODE_H / 2}`
+    // back to an earlier chapter: around the bottom of the cards
+    const side = Math.max(from.y, to.y) + NODE_H + 30
+    return `M${from.x + NODE_W / 2},${from.y + NODE_H} C${from.x + NODE_W / 2},${side} ${to.x + NODE_W / 2},${side} ${to.x + NODE_W / 2},${to.y + NODE_H}`
   }
 
   const incoming = $derived(selected === null ? [] : links.flatMap((ls, i) => ls.filter((l) => (l.kind === 'ending' ? END : l.to) === selected).map((l) => ({ from: i, link: l }))))
@@ -159,39 +177,51 @@
 
 <div class="flow">
   <section class="panel graph-panel">
-    <h2>{t('flow.title')}</h2>
-    <p class="muted small">{t('flow.hint')}</p>
+    <div class="head">
+      <div>
+        <h2>{t('flow.title')}</h2>
+        <p class="muted small">{t('flow.hint')}</p>
+      </div>
+      <label class="switch-row">
+        <input type="checkbox" checked={worldMap} onchange={(e) => setWorldMap((e.target as HTMLInputElement).checked)} />
+        <span><strong>{t('flow.worldMapOption')}</strong><br /><span class="tiny">{worldMap ? t('flow.worldMapOn') : t('flow.worldMapOff')}</span></span>
+      </label>
+    </div>
     <div class="legend small">
-      <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge worldMap" /></svg> {t('flow.kind.worldMap')}</span>
+      {#if worldMap}<span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge worldMap" /></svg> {t('flow.kind.worldMap')}</span>{/if}
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge direct" /></svg> {t('flow.kind.direct')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge noSave" /></svg> {t('flow.kind.noSave')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge other" /></svg> {t('flow.otherScript')}</span>
     </div>
     <div class="graph-scroll">
       {#if chapters.length}
-        <svg width={graph.width} height={graph.height} role="img" aria-label={t('flow.title')}>
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
-            </marker>
-          </defs>
-          {#each graph.edges as e, k (k)}
-            <path d={edgePath(graph.pos.get(e.from)!, graph.pos.get(e.to)!)} marker-end="url(#arrow)"
-                  class="edge {e.link.ending ? e.link.kind : 'other'}" class:lit={selected === e.from || selected === e.to}>
-              <title>{title(e.from)} → {title(e.to)} · {t(`flow.kind.${e.link.kind}`)} · {e.link.script}</title>
-            </path>
-          {/each}
+        <div class="graph" style="width: {graph.width + NODE_W / 2}px; height: {graph.height + NODE_H}px">
+          <svg width={graph.width + NODE_W / 2} height={graph.height + NODE_H} aria-hidden="true">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+              </marker>
+            </defs>
+            {#each graph.edges as e, k (k)}
+              <path d={edgePath(graph.pos.get(e.from)!, graph.pos.get(e.to)!)} marker-end="url(#arrow)"
+                    class="edge {e.link.ending ? shownKind(e.link) : 'other'}" class:lit={selected === e.from || selected === e.to}>
+                <title>{title(e.from)} → {title(e.to)} · {t(`flow.kind.${shownKind(e.link)}`)} · {e.link.script}</title>
+              </path>
+            {/each}
+          </svg>
           {#each [...graph.pos.entries()] as [n, p] (n)}
-            <g class="node" class:active={selected === n} class:end={n === END} transform="translate({p.x},{p.y})" role="button" tabindex="0"
-               onclick={() => (selected = n)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selected = n }}>
-              <rect width={NODE_W} height={NODE_H} rx="8" />
-              <text x={NODE_W / 2} y={NODE_H / 2 + 1} dominant-baseline="middle" text-anchor="middle">
-                {n === END ? '🏁 ' : ''}{title(n).length > 26 ? `${title(n).slice(0, 25)}…` : title(n)}
-              </text>
-              {#if n !== END}<text class="index" x="6" y="11">{n}</text>{/if}
-            </g>
+            <button class="card" class:active={selected === n} class:end={n === END} style="left: {p.x}px; top: {p.y}px; width: {NODE_W}px; height: {n === END ? 56 : NODE_H}px"
+                    aria-pressed={selected === n} onclick={() => (selected = n)}>
+              {#if n === END}
+                <span class="card-title">🏁 {title(n)}</span>
+              {:else}
+                <span class="thumb"><img class="pixel" src={chapterMapUrl(n)} alt="" loading="lazy" /></span>
+                <span class="card-num">{t('flow.chapterNumber', { n })}</span>
+                <span class="card-title">{title(n)}</span>
+              {/if}
+            </button>
           {/each}
-        </svg>
+        </div>
       {:else}
         <p class="muted">…</p>
       {/if}
@@ -210,6 +240,7 @@
   {#if selected !== null && selected !== END && chapters[selected]}
     {@const mine = links[selected] ?? []}
     <section class="panel detail">
+      <img class="pixel detail-map" src={chapterMapUrl(selected)} alt="" />
       <h3>{title(selected)} <span class="muted tiny">#{selected}</span></h3>
       <p class="small"><Mention kind="chapters" id={String(selected)}>{t('dlg.openChapter')}</Mention> · <Mention kind="dialogues" id={String(selected)}>💬 {t('chapter.editDialogues')}</Mention></p>
       <h4>{t('flow.next')}</h4>
@@ -221,7 +252,7 @@
             <label>
               <span class="tiny">{t('flow.how')}</span>
               <select value={kindOp(l)} onchange={(e) => setLink(l, { op: (e.target as HTMLSelectElement).value })}>
-                {#each OPS as o (o.op)}<option value={o.op}>{t(`flow.kind.${o.kind}`)}</option>{/each}
+                {#each OPS as o (o.op)}{#if worldMap || o.kind !== 'worldMap' || l.kind === 'worldMap'}<option value={o.op}>{t(`flow.kind.${!worldMap && o.kind === 'worldMap' ? 'direct' : o.kind}`)}</option>{/if}{/each}
                 {#if !OPS.some((o) => o.kind === l.kind)}<option value={l.op}>{t(`flow.kind.${l.kind}`)}</option>{/if}
               </select>
             </label>
@@ -235,7 +266,12 @@
               <button class="link-button" onclick={() => (selected = l.to)} title={t('flow.goTo')}>→ {title(l.to)}</button>
             {/if}
           </div>
-          {#if l.kind === 'worldMap'}<p class="tiny warn">{t('flow.worldMapWarning')}</p>{/if}
+          {#if l.kind === 'worldMap' && worldMap}
+            <p class="tiny warn">{t('flow.worldMapWarning')}</p>
+            <button class="small" onclick={() => setLink(l, { op: 'MNC2' })}>{t('flow.makeDirect')}</button>
+          {:else if l.kind === 'worldMap'}
+            <p class="tiny muted">{t('flow.noWorldMapNote')}</p>
+          {/if}
         </div>
       {/each}
       {#if error}<p class="bad small">{error}</p>{/if}
@@ -271,13 +307,21 @@
   .edge.ending { stroke: var(--warn); }
   .edge.other { stroke-dasharray: 3 4; opacity: 0.5; }
   .edge.lit { stroke-width: 3; opacity: 1; }
-  .node { cursor: pointer; }
-  .node rect { fill: var(--panel); stroke: var(--border); stroke-width: 1.5; }
-  .node:hover rect, .node:focus-visible rect { stroke: var(--accent); }
-  .node.active rect { stroke: var(--accent); stroke-width: 3; fill: var(--accent-soft); }
-  .node.end rect { stroke: var(--warn); }
-  .node text { fill: var(--text); font-size: 12px; pointer-events: none; }
-  .node text.index { fill: var(--muted); font-size: 9px; }
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; align-items: flex-start; }
+  .head > div { flex: 1 1 320px; }
+  .switch-row { flex-direction: row; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); color: var(--text); max-width: 340px; cursor: pointer; }
+  .switch-row input { width: 1.2rem; height: 1.2rem; flex: none; }
+  .graph { position: relative; }
+  .graph svg { position: absolute; inset: 0; }
+  .card { position: absolute; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; text-align: left; border: 3px solid var(--border); border-radius: var(--radius-big); background: var(--panel); overflow: hidden; }
+  .card:hover:not(.active) { border-color: var(--accent); }
+  .card.active { border-color: var(--accent); box-shadow: 0 6px 18px rgb(44 91 166 / 0.25); }
+  .card.end { border-color: var(--warn); justify-content: center; }
+  .thumb { display: block; height: 92px; border-radius: 8px; overflow: hidden; background: var(--panel-2); flex: none; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-num { font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-title { font-size: 0.9rem; font-weight: 800; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+  .detail-map { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; background: var(--panel-2); margin-bottom: 0.5rem; }
   .unreached { margin-top: 0.5rem; }
   .unreached summary { cursor: pointer; }
   .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
