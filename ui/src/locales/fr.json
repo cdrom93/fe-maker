@@ -1068,11 +1068,11 @@
   "dlg.addSceneMessage": "Dialogue d'une scène",
   "field.canSeize": "Peut s'emparer des cases",
   "field.canSeizeHint": "Commande « S'emparer » sur la case à prendre. Dans le jeu, seuls Eirika et Éphraïm (chef de la route) le peuvent : la capacité Seigneur ne suffit pas",
-  "flow.worldMapWarning": "Par la carte du monde, le jeu va au chapitre du lieu où la carte du monde de l'histoire d'origine amène le seigneur, pas forcément à celui choisi ici : dans l'histoire d'origine, ce numéro est souvent un lieu de passage. Pour un nouvel enchaînement, passez en « directement », ou décochez « Carte du monde » pour tout le projet.",
+  "flow.worldMapWarning": "Par la carte du monde, le jeu va au chapitre du lieu où la carte du monde de l'histoire d'origine amène le seigneur, pas forcément à celui choisi ici : dans l'histoire d'origine, ce numéro est souvent un lieu de passage. Pour un nouvel enchaînement, décochez « Carte du monde » pour tout le projet : un lien « directement » vers le chapitre 2 ou plus, avec la carte du monde gardée, reste sur un écran noir (le jeu croit à une escarmouche).",
   "flow.worldMapOption": "Carte du monde entre les chapitres",
   "flow.worldMapOn": "Comme le jeu d'origine : la carte du monde choisit le chapitre suivant.",
   "flow.worldMapOff": "Sans carte du monde (comme l'option de FEBuilder) : chaque chapitre mène directement à celui choisi ici, dans le jeu exporté aussi.",
-  "flow.makeDirect": "Enchaîner directement",
+  "flow.makeDirect": "Enchaîner sans carte du monde",
   "flow.noWorldMapNote": "Sans carte du monde, ce lien va directement au chapitre choisi. Dans l'histoire d'origine, vérifiez que c'est le vrai chapitre suivant (pas un lieu de passage de la carte du monde).",
   "flow.chapterNumber": "Chapitre {n}"
 }

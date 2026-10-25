@@ -1068,11 +1068,11 @@
   "dlg.addSceneMessage": "Dialogo di una scena",
   "field.canSeize": "Può conquistare le caselle",
   "field.canSeizeHint": "Comando «Conquista» sulla casella da prendere. Nel gioco solo Eirika ed Ephraim (capo del percorso) possono: l'abilità Signore non basta",
-  "flow.worldMapWarning": "Attraverso la mappa del mondo, il gioco va al capitolo del luogo dove la mappa del mondo della storia originale porta il signore, non per forza a quello scelto qui: nella storia originale, questo numero è spesso un luogo di passaggio. Per una nuova concatenazione, passate a «direttamente», o togliete la spunta a «Mappa del mondo» per tutto il progetto.",
+  "flow.worldMapWarning": "Attraverso la mappa del mondo, il gioco va al capitolo del luogo dove la mappa del mondo della storia originale porta il signore, non per forza a quello scelto qui: nella storia originale, questo numero è spesso un luogo di passaggio. Per una nuova concatenazione, togliete la spunta a «Mappa del mondo» per tutto il progetto: un collegamento «direttamente» al capitolo 2 o successivo, con la mappa del mondo, resta su uno schermo nero (il gioco crede a una schermaglia).",
   "flow.worldMapOption": "Mappa del mondo tra i capitoli",
   "flow.worldMapOn": "Come il gioco originale: la mappa del mondo sceglie il capitolo seguente.",
   "flow.worldMapOff": "Senza mappa del mondo (come l'opzione di FEBuilder): ogni capitolo porta direttamente a quello scelto qui, anche nel gioco esportato.",
-  "flow.makeDirect": "Concatenare direttamente",
+  "flow.makeDirect": "Concatenare senza mappa del mondo",
   "flow.noWorldMapNote": "Senza mappa del mondo, questo collegamento va direttamente al capitolo scelto. Nella storia originale, verificate che sia il vero capitolo seguente (non un luogo di passaggio della mappa del mondo).",
   "flow.chapterNumber": "Capitolo {n}"
 }

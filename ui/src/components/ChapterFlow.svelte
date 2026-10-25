@@ -268,7 +268,8 @@
           </div>
           {#if l.kind === 'worldMap' && worldMap}
             <p class="tiny warn">{t('flow.worldMapWarning')}</p>
-            <button class="small" onclick={() => setLink(l, { op: 'MNC2' })}>{t('flow.makeDirect')}</button>
+            <!-- a direct link to chapter 2 or later needs the whole project without the world map (ticket 39) -->
+            <button class="small" onclick={() => setWorldMap(false)}>{t('flow.makeDirect')}</button>
           {:else if l.kind === 'worldMap'}
             <p class="tiny muted">{t('flow.noWorldMapNote')}</p>
           {/if}

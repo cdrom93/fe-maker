@@ -1068,11 +1068,11 @@
   "dlg.addSceneMessage": "Diálogo de una escena",
   "field.canSeize": "Puede conquistar casillas",
   "field.canSeizeHint": "Comando «Conquistar» en la casilla que tomar. En el juego solo Eirika y Ephraim (líder de la ruta) pueden: la capacidad Señor no basta",
-  "flow.worldMapWarning": "Por el mapa del mundo, el juego va al capítulo del lugar adonde el mapa del mundo de la historia original lleva al señor, no necesariamente al elegido aquí: en la historia original, este número suele ser un lugar de paso. Para un nuevo encadenamiento, pase a «directamente», o desmarque «Mapa del mundo» para todo el proyecto.",
+  "flow.worldMapWarning": "Por el mapa del mundo, el juego va al capítulo del lugar adonde el mapa del mundo de la historia original lleva al señor, no necesariamente al elegido aquí: en la historia original, este número suele ser un lugar de paso. Para un nuevo encadenamiento, desmarque «Mapa del mundo» para todo el proyecto: un enlace «directamente» al capítulo 2 o posterior, con el mapa del mundo, se queda en pantalla negra (el juego cree que es una escaramuza).",
   "flow.worldMapOption": "Mapa del mundo entre capítulos",
   "flow.worldMapOn": "Como el juego original: el mapa del mundo elige el capítulo siguiente.",
   "flow.worldMapOff": "Sin mapa del mundo (como la opción de FEBuilder): cada capítulo lleva directamente al elegido aquí, también en el juego exportado.",
-  "flow.makeDirect": "Encadenar directamente",
+  "flow.makeDirect": "Encadenar sin mapa del mundo",
   "flow.noWorldMapNote": "Sin mapa del mundo, este enlace va directamente al capítulo elegido. En la historia original, compruebe que es el verdadero capítulo siguiente (no un lugar de paso del mapa del mundo).",
   "flow.chapterNumber": "Capítulo {n}"
 }

@@ -1068,11 +1068,11 @@
   "dlg.addSceneMessage": "Dialogue of a scene",
   "field.canSeize": "Can seize",
   "field.canSeizeHint": "\"Seize\" command on the tile to take. In the game only Eirika and Ephraim (the route's leader) can: the Lord ability is not enough",
-  "flow.worldMapWarning": "Through the world map, the game goes to the chapter of the place the original story's world map takes the lord to, not necessarily the one chosen here: in the original story, this number is often a stopover. For a new flow, switch to \"directly\", or untick \"World map\" for the whole project.",
+  "flow.worldMapWarning": "Through the world map, the game goes to the chapter of the place the original story's world map takes the lord to, not necessarily the one chosen here: in the original story, this number is often a stopover. For a new flow, untick \"World map\" for the whole project: a \"directly\" link to chapter 2 or later, with the world map kept, stays on a black screen (the game takes it for a skirmish).",
   "flow.worldMapOption": "World map between chapters",
   "flow.worldMapOn": "Like the original game: the world map picks the next chapter.",
   "flow.worldMapOff": "No world map (like FEBuilder's option): each chapter leads straight to the one chosen here, in the exported game too.",
-  "flow.makeDirect": "Go there directly",
+  "flow.makeDirect": "Go on without the world map",
   "flow.noWorldMapNote": "Without the world map, this link goes straight to the chosen chapter. In the original story, check it is the real next chapter (not a world map stopover).",
   "flow.chapterNumber": "Chapter {n}"
 }

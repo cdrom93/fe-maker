@@ -10,6 +10,12 @@ MoveToChapter(n) is another name for MNCH(n) (chapter 1).
 The argument is the chapter's index (its place in the chapter table, as FE Maker numbers chapters).
 A few scripts use MNCH(-1) / MNCH(0xffff) to go back to the world map without a chapter.
 
+Without the world map (project option, tweaks.without_world_map, ticket 39): MNCH becomes MNC2 and every chapter
+is a story chapter. Through the world map, the next chapter is the one of the place the lord stands on, so
+MNCH's argument is only a hint (chapter 1 -> 56, Castle Frelia, a stopover). And a chapter from 2 on whose world
+map place was never reached is taken for a skirmish (GetBattleMapKind) and runs the skirmish opening, which
+waits for the world map: a black screen. See docs/audit-decomp.md, item 57.
+
 The route split (chapter 8) is a menu that runs one of two scripts, each with its MNCH. Optional
 skirmish maps (Tower of Valni, Lagdou Ruins) are reached from the world map, not from these commands.
 """
