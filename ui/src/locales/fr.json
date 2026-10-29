@@ -1152,5 +1152,6 @@
   "ws.fromStart": "Tester de nouveau depuis le début",
   "flow.todo": "À faire pour ce projet",
   "flow.todoHint": "{errors} erreur(s) à corriger avant de compiler, {warnings} avertissement(s) à vérifier. Cliquez sur un nom pour ouvrir sa fiche.",
-  "flow.todoNone": "Rien à corriger : le projet peut être compilé et testé."
+  "flow.todoNone": "Rien à corriger : le projet peut être compilé et testé.",
+  "maps.terrainEffects": "Esquive +{avoid} · Déf. +{defense} · Rés. +{resistance} · Déplacement : à pied {foot}, à cheval {horse}"
 }

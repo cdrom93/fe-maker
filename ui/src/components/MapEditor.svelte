@@ -427,6 +427,13 @@
     id in TERRAIN_COLORS ? `rgb(${TERRAIN_COLORS[id]} / ${alpha})` : `hsl(${(id * 47) % 360} 75% 50% / ${alpha})`
   // Clear names from the locales: the in-game ones are short and ambiguous (two "Wall", "Mntn").
   const terrainName = (id: number) => t(`terrain.${id}`)
+  /** what a terrain does in battle and to movement (from the game's tables), '' with an older server */
+  function terrainEffects(id: number): string {
+    const e = layout?.terrainEffects
+    if (!e) return ''
+    const cost = (c: number) => (c < 0 ? '✖' : String(c))
+    return t('maps.terrainEffects', { avoid: e.avoid[id], defense: e.defense[id], resistance: e.resistance[id], foot: cost(e.foot[id]), horse: cost(e.horse[id]) })
+  }
 
   function drawTile(ctx: CanvasRenderingContext2D, m: number, x: number, y: number, size: number) {
     if (!sheet || !layout) return
@@ -1252,6 +1259,7 @@
             <p class="muted small status">
               {#if hover}
                 {hover.x}, {hover.y} · {terrainName(layout.terrains[shownTile(hover.x, hover.y)])} <span class="tiny">#{shownTile(hover.x, hover.y)}</span>
+                <span class="tiny muted">{terrainEffects(layout.terrains[shownTile(hover.x, hover.y)])}</span>
                 {#each (changes ?? []).filter((c) => hover && hover.x >= c.x && hover.y >= c.y && hover.x < c.x + c.w && hover.y < c.y + c.h) as c (c.id)}
                   · <span class="change-tag">{t('maps.change', { id: c.id })}</span>
                 {/each}
@@ -1297,6 +1305,7 @@
                   <div class="muted tiny">
                     {t('maps.tileNumber', { n: brush })}{#if tilesetEdits?.metatiles[String(brush)]} · {t('maps.addedTile')}{/if}{#if layout.terrainNames[layout.terrains[brush]]} · {t('maps.gameName', { name: layout.terrainNames[layout.terrains[brush]] })}{/if}
                   </div>
+                  {#if terrainEffects(layout.terrains[brush])}<div class="muted tiny">{terrainEffects(layout.terrains[brush])}</div>{/if}
                 {/if}
               </div>
             </div>

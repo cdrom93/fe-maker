@@ -1152,5 +1152,6 @@
   "ws.fromStart": "Volver a probar desde el principio",
   "flow.todo": "Pendiente en este proyecto",
   "flow.todoHint": "{errors} error(es) que corregir antes de compilar, {warnings} aviso(s) que revisar. Haz clic en un nombre para abrir su ficha.",
-  "flow.todoNone": "Nada que corregir: el proyecto se puede compilar y probar."
+  "flow.todoNone": "Nada que corregir: el proyecto se puede compilar y probar.",
+  "maps.terrainEffects": "Evasión +{avoid} · Def. +{defense} · Res. +{resistance} · Movimiento: a pie {foot}, a caballo {horse}"
 }

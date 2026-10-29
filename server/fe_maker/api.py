@@ -399,6 +399,7 @@ def get_map(layout_id: str, base: str | None = None):
         "duplicates": maps.duplicate_metatiles(assets),
         "terrainNames": [texts.get_name(t) if t in texts.messages else "" for t in maps.terrain_text_ids(DECOMP_DIR)],
         "columns": maps.TILESET_COLUMNS,
+        "terrainEffects": maps.terrain_effects(DECOMP_DIR),
         # Palettes of the tileset in the game, and the map's own (ticket 16)
         "palette": maps.palette_symbol(DECOMP_DIR, assets.palette),
         "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],

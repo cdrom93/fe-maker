@@ -97,3 +97,19 @@ def test_impassable_terrain_is_reported_only_when_new(tmp_path, decomp_dir, monk
     _validate_chapter_maps(problems, d, {"unitGroups": {"UnitDef_TestChapter": moved}}, {"layouts": {}},
                            d.export_characters(), classes)
     assert [(p.id, p.code) for p in problems] == [("UnitDef_TestChapter#1", "unitOutOfMap")]
+
+
+def test_terrain_effects(tmp_path):
+    header = tmp_path / maps.TERRAINS_HEADER
+    header.parent.mkdir(parents=True)
+    header.write_text("enum {\n    TERRAIN_PLAINS = 0x01,\n    TERRAIN_FOREST = 0x0C,\n    TERRAIN_COUNT = 0x41,\n};\n")
+    data = tmp_path / maps.TERRAIN_DATA_FILE
+    data.parent.mkdir(parents=True)
+    data.write_text(
+        "CONST_DATA s8 TerrainTable_MovCost_CommonT1Normal[] = {\n    [TERRAIN_PLAINS] = 1,\n    [TERRAIN_FOREST] = 2,\n};\n"
+        "CONST_DATA s8 TerrainTable_MovCost_HorseT1Normal[] = {\n    [TERRAIN_PLAINS] = 1,\n    [TERRAIN_FOREST] = 3,\n};\n"
+        "CONST_DATA s8 TerrainTable_Avo_Common[] = {\n    [TERRAIN_FOREST] = 20,\n};\n"
+        "CONST_DATA s8 TerrainTable_Def_Common[] = {\n    [TERRAIN_FOREST] = 1,\n};\n")
+    effects = maps.terrain_effects(tmp_path)
+    assert (effects["avoid"][0x0C], effects["defense"][0x0C], effects["resistance"][0x0C]) == (20, 1, 0)
+    assert (effects["foot"][0x0C], effects["horse"][0x0C], effects["foot"][0]) == (2, 3, -1)

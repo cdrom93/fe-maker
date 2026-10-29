@@ -1152,5 +1152,6 @@
   "ws.fromStart": "Provare di nuovo dall'inizio",
   "flow.todo": "Da fare per questo progetto",
   "flow.todoHint": "{errors} errore/i da correggere prima di compilare, {warnings} avviso/i da controllare. Clicca su un nome per aprirne la scheda.",
-  "flow.todoNone": "Niente da correggere: il progetto può essere compilato e provato."
+  "flow.todoNone": "Niente da correggere: il progetto può essere compilato e provato.",
+  "maps.terrainEffects": "Schivata +{avoid} · Dif. +{defense} · Res. +{resistance} · Movimento: a piedi {foot}, a cavallo {horse}"
 }

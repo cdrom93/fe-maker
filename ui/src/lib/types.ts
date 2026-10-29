@@ -193,6 +193,8 @@ export interface MapLayout {
   duplicates: boolean[]
   /** in-game terrain names, by terrain id */
   terrainNames: string[]
+  /** per terrain: avoid, defense, resistance bonuses, cost on foot and on horse (-1: impassable); older servers: none */
+  terrainEffects?: Record<'avoid' | 'defense' | 'resistance' | 'foot' | 'horse', number[]>
   /** metatiles per row of the tileset sheet */
   columns: number
   /** original map changes; null when the map has no change layer */

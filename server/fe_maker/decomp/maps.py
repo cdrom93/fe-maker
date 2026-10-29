@@ -474,6 +474,28 @@ def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict],
 # ---------- movement ----------
 
 @lru_cache(maxsize=4)
+def terrain_effects(decomp_dir: Path) -> dict[str, list[int]]:
+    """Avoid, defense and resistance bonuses per terrain (the tables most classes use), and the cost of
+    moving on foot and on horse (-1: impassable), for the map editor."""
+    constants = {name: int(value, 0) for name, value in
+                 re.findall(r"^\s*(TERRAIN_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", _read(decomp_dir, TERRAINS_HEADER), re.MULTILINE)}
+    count = constants.get("TERRAIN_COUNT", 0x41)
+    source = _read(decomp_dir, TERRAIN_DATA_FILE)
+    result = {}
+    for key, table in (("avoid", "Avo"), ("defense", "Def"), ("resistance", "Res")):
+        values = [0] * count
+        m = re.search(rf"TerrainTable_{table}_Common\[\]\s*=\s*\{{(.*?)\}};", source, re.DOTALL)
+        for terrain, value in re.findall(r"\[(TERRAIN_\w+)\]\s*=\s*(-?\d+)", m.group(1) if m else ""):
+            if constants.get(terrain, count) < count:
+                values[constants[terrain]] = int(value)
+        result[key] = values
+    costs = movement_costs(decomp_dir)
+    result["foot"] = costs.get("CommonT1", [-1] * count)
+    result["horse"] = costs.get("HorseT1", [-1] * count)
+    return result
+
+
+@lru_cache(maxsize=4)
 def movement_costs(decomp_dir: Path) -> dict[str, list[int]]:
     """Movement family (Foot... as in class data) -> cost per terrain in normal weather (-1: impassable)."""
     constants = {name: int(value, 0) for name, value in

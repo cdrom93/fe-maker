@@ -1152,5 +1152,6 @@
   "ws.fromStart": "Test from the start again",
   "flow.todo": "To do for this project",
   "flow.todoHint": "{errors} error(s) to fix before building, {warnings} warning(s) to check. Click a name to open its sheet.",
-  "flow.todoNone": "Nothing to fix: the project can be built and tested."
+  "flow.todoNone": "Nothing to fix: the project can be built and tested.",
+  "maps.terrainEffects": "Avoid +{avoid} · Def +{defense} · Res +{resistance} · Move cost: on foot {foot}, on horse {horse}"
 }
