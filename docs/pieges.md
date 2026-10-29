@@ -1,0 +1,58 @@
+# Pièges déjà rencontrés
+
+Sortis de CLAUDE.md le 30/10/2026 pour ne pas les charger à chaque session. **Lire la section du thème
+avant d'y toucher** (`grep -n '^## ' docs/pieges.md`). Écrits en anglais comme le code ; ajouter un nouveau
+piège dans sa section.
+
+## Build et décomp
+
+- The decomp checkout must use LF line endings (`core.autocrlf=false`, `core.eol=lf`), or the Linux build breaks.
+- Text compression packs 2 bytes per symbol: odd-length names need `[.]` padding (`name_message`).
+- C code FE Maker writes into the decomp: no `static const` tables in a function of a file whose `.rodata` the link script discards (`bmcontainer.o`, others): the link fails with "defined in discarded section `.rodata`". Write comparisons; compile with `tests/local` before telling the user it works.
+- Docker fails to start when CPU virtualization is off in the BIOS (happened several times on the user's PC).
+- C-SkillSys prototype (ticket 27, stopped 24/10/2026, removed from the repo 29/10/2026, still in git history): it rebuilt every game text from its own copy and replaced item/spell tables, so it would erase FE Maker's edits: see `docs/separation-force-magie.md` before going further. Builds also output `fireemblem8.elf`.
+
+## Données du jeu (personnages, classes, objets, textes)
+
+- Unit definitions set each unit's class in every chapter: a character class change must retarget unit defs. The character sheet is the only source of a named character's class: chapter edits never write `classIndex` for `CHARACTER_` units (class 0 = the character's class when a unit switches to a named character); only generic units (raw ids 0x80...) get a class per chapter.
+- Weapon ranks a class cannot animate crash the battle animation (validation `noBattleAnimation`).
+- Weapon locks: generic CA/IA_LOCK 1,2,4,5,6,7 are allocated automatically from items' `reservedFor`; LOCK_3 means monster weapon.
+- Several chapters share an internal id: key chapters by index.
+- An item reservation equal to the original one is never rewritten (the original Mani Katti is reserved for nobody; an edited empty reservation means unrestricted).
+- The game takes the first matching entry of its quote tables (`GetBattleQuoteEntry`, `GetDefeatTalkEntry`): a new entry must go before the game's entries it would lose to (`quotes._battle_position`). Supports: the "Support" command appears only when the points sit exactly at 80 / 160 / 240; a pair starting at 81+ skips its C conversation (`supports.skipped_levels`).
+- Text byte counts (padding to even runs) use `texts.text_size`: an accented letter is one byte in the game, not its UTF-8 length.
+- `assets.portrait_names` (and other readers) are `lru_cache`d: copy the list before adding to it (`list(...)`), or every later call sees the additions.
+- `validation.weapon_problem` mirrors `CanUnitUseWeapon`; unusable weapons are reported only when the project changed something (`_validate_unit_weapons`), on the edited unit or once on the changed sheet.
+- A character's own battle palette (`gAnimCharaPalConfig`, Seth as a Paladin) is drawn over whatever animation his class plays: imported animations skip it (`banim_import.without_unique_palettes`, in `banim-ekrmain.c`). Battle animation playtests: the right side's animation index is `gBanimIdx` + 2 (16 bits); Seth attacks with his first weapon, a sword.
+
+## Cartes
+
+- Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.
+- Map layouts are keyed by layout id (file stem): several chapters can share one, so painting it changes all of them (the UI says so). Map change sets are keyed by layout id too (one per layout).
+- Map checks against units (`_validate_chapter_maps`) only report what the project changed: the original game has units outside their map and under roofs removed by map changes.
+- Map tile edits proposed by a mirror/turn are not saved until the user creates them (`pendingTiles` in `MapEditor.svelte`); removing an added metatile also drops the 8x8 tiles only it used (`ui/src/lib/tileEdits.ts`).
+- A broken snag or wall, an opened door or chest, a visited village apply the change holding the object's own cell (`GetMapChangeIdAt`): a manual change moved off that cell never shows (validation `manualChangeOffObject`).
+- Map objects: only objects that are new on the painted map get automatic changes and events; original objects keep their original behavior (some are decoration without event) unless the project sets them. A change only counts for an object if it puts it in its used state (`USED_TERRAIN`): a village painted inside a brigand-ruin rectangle would else ruin the wrong village.
+- The user's server may be older than `ui/dist` (it serves the rebuilt UI until they restart it): UI code reading a new API field must fall back to the old answer. Ticket 22's "used tiles" check read `originalTileset`, which the old server did not send, so every added tile looked unused and a used one got removed. Map cells on a removed added tile are now a validation warning (`missingTile`).
+- A village is destroyed through the change holding its roof (one cell above the gate), and the engine keeps the last change holding a cell: new villages get a ruined-village change written before all the other changes (`mapobjects.ruin_change`, `obj["ruin"]`), so the gate's last change stays the closed village. Playtests that end the turn must open the map menu on an empty cell (`game.units()` positions), and an enemy boss dying on a counter ends the prologue before other enemies act.
+
+## Événements et enchaînement des chapitres
+
+- Opening scenes often load units on other maps (cutscenes): `chapter_unit_groups` marks groups loaded before the last `LOMA` as "cutscene"; editing them does not change the battle.
+- Test builds' simplified prologue skips the scene that gives Eirika the Rapier: she has no weapon unless the project gives her one (story-tied, left as is; told the user 24/10/2026).
+- Changing where a chapter leads works in game (playtest); the prologue sent straight to chapter 2 showed its title, then stayed black (24/10/2026): the game took chapter 2 for a skirmish (ticket 39, see the world map pitfall below and docs/audit-decomp.md item 57); fixed when the project goes without the world map.
+- Event scripts can use messages made by the project: quotes of kind "scene" with a "key", referenced as "new:<key>" (`dialogues.SCENE_MESSAGE`); `apply_dialogues` adds them and rewrites the arguments. A rewritten opening scene must bring the army back with `LOAD2` on the chapter's players group (`ScriptEditor.simpleScene`).
+- MNCH / MoveToChapter go to the chapter of the lord's world map node, not to their argument: test builds started on the map, and projects with the "world map" option off (`Project.world_map`, `fe-maker.json` "worldMap", exported patch too, ticket 39), redefine MNCH as MNC2 (`tweaks.without_world_map`). The original story's MNCH arguments are often stopover chapters (chapter 1 -> Castle Frelia, 56). Without the world map, `GetBattleMapKind` must return STORY too: it takes any chapter from 2 on whose world map place was never reached for a skirmish and runs the skirmish opening (black screen, ticket 39). To debug a stuck playtest, list the live procs and the event engine's current command (sProcArray at the start of proc.o's EWRAM, 0x6C per proc). The "Story flow" tab is now the "Campaign" page (`ChapterFlow.svelte`, tab id still `flow`). A character's new portrait follows them in dialogues (`DecompData._follow_portraits`, and `/api/dialogues/faces` for the preview).
+
+## Tests en jeu (playtest)
+
+- In playtests, wait for animations before reading the screen (`press` waits 20 frames; a move takes ~40), pick menu entries by their position (menus differ with the situation: Attack only when an enemy is in range), and remember Canto (Seth can move again after an action).
+- Playtest harness: a chapter's turn/phase say "player" while its opening scene still runs; tapping A after it selects units. Wait for the scene to end before acting (`tests/local/test_playtest.py` shows how).
+
+## Outils et interface
+
+- Bash heredocs passed through the tool break on some quote/backslash mixes ("unexpected EOF") and can mangle `\b`, `\n` or `\x00` in Python sources (real newlines, NUL bytes): write patch scripts with the Write tool and edit regex code with the Edit tool.
+- PowerShell eats backticks in inline scripts: edit files with the Edit tool or Python, not PowerShell strings.
+- Editors loaded asynchronously (chapters, maps) must read `nav.focus` once their list is loaded: `followFocus` alone misses a link that mounted the tab.
+- Show validation problems with `problemText(p)` (`ui/src/lib/i18n.svelte.ts`), not `t('problem.' + code)`: it turns `terrain`, `object` and `wtype` parameters into names.
+- Svelte `$derived` lists already hold a record right after `list.update` adds it: take its index before saving ("Add a change" opened nothing because of this).

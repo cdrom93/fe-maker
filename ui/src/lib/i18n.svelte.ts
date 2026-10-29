@@ -1,16 +1,14 @@
 import fr from '../locales/fr.json'
 import en from '../locales/en.json'
-import es from '../locales/es.json'
-import it from '../locales/it.json'
 
-const dictionaries: Record<string, Record<string, string>> = { fr, en, es, it }
+// Spanish and Italian (locales/es.json, it.json) are set aside until a more complete version: they are frozen,
+// not loaded, and new strings go only into French and English.
+const dictionaries: Record<string, Record<string, string>> = { fr, en }
 
 /** Interface languages, with their own name (shown in the language picker). */
 export const LANGUAGES = [
   { code: 'fr', name: 'Français' },
   { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'it', name: 'Italiano' },
 ] as const
 export type Lang = (typeof LANGUAGES)[number]['code']
 

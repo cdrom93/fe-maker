@@ -36,7 +36,8 @@
   async function refresh() {
     try {
       status = await api.status()
-      i18n.lang = status.language
+      // a language set aside since (Spanish, Italian) falls back to French
+      i18n.lang = LANGUAGES.some((l) => l.code === status!.language) ? (status.language as Lang) : 'fr'
     } catch (e) {
       loadError = String(e)
     }

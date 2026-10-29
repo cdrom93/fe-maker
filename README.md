@@ -17,7 +17,7 @@
 | 🎨 Ressources | Import et ajout de portraits, bibliothèque FE-Repo (portraits, animations de combat), crédits automatiques | Portrait import and new portraits, FE-Repo library (portraits, battle animations), automatic credits |
 | ▶️ Tester | Bouton « Tester » (depuis le début ou un chapitre choisi), export en patch .ups | "Test" button (from the start or a chosen chapter), .ups patch export |
 
-Interface en français, anglais, espagnol et italien. / *Interface in French, English, Spanish and Italian.*
+Interface en français et en anglais (espagnol et italien plus tard). / *Interface in French and English (Spanish and Italian later).*
 
 ## Avertissement / Disclaimer
 

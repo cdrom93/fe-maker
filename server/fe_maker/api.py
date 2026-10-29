@@ -50,7 +50,7 @@ from .project import ANIMATIONS_DIR, DATA_FILES, PORTRAITS_DIR, Project, Project
 from .rom import InvalidRomError
 from .tickets import TicketError, TicketStore
 
-LANGUAGES = ("fr", "en", "es", "it")  # ui/src/locales
+LANGUAGES = ("fr", "en")  # ui/src/locales (es.json and it.json are set aside for a later version)
 
 app = FastAPI(title="FE Maker")
 
