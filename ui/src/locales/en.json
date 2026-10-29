@@ -1149,5 +1149,8 @@
   "flow.testHint": "Builds and starts the game right on this chapter (without the chapters before: the army is the one the chapter loads itself).",
   "ws.fromChapter": "from chapter #{n}",
   "ws.fromChapterHint": "\"Test\" starts on this chapter (chosen in the Campaign page)",
-  "ws.fromStart": "Test from the start again"
+  "ws.fromStart": "Test from the start again",
+  "flow.todo": "To do for this project",
+  "flow.todoHint": "{errors} error(s) to fix before building, {warnings} warning(s) to check. Click a name to open its sheet.",
+  "flow.todoNone": "Nothing to fix: the project can be built and tested."
 }

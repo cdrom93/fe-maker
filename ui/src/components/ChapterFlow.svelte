@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, type Snippet } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -11,10 +11,13 @@
   // and how each one leads to the next. Each chapter's scripts end with a command that starts the next
   // one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
   // chapterList: the project's chapter edits (objectives, unit groups), shown over the game's in the sheet
-  let { list, chapterList, ontest }: {
+  let { list, chapterList, ontest, todo, todoCount }: {
     list: EditableList<DialoguesData>; chapterList: EditableList<ChaptersData>
     /** "Test this chapter": a test build that starts on it */
     ontest: (index: number) => void
+    /** the project's problems, as listed under the header ("To do for this project") */
+    todo?: Snippet
+    todoCount?: { errors: number; warnings: number }
   } = $props()
 
   const NODE_W = 200
@@ -282,6 +285,17 @@
         <p class="muted">…</p>
       {/if}
     </div>
+    {#if todo && todoCount}
+      <div class="todo">
+        <h4>{t('flow.todo')}</h4>
+        {#if todoCount.errors || todoCount.warnings}
+          <p class="muted tiny">{t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })}</p>
+          {@render todo()}
+        {:else}
+          <p class="muted small">✅ {t('flow.todoNone')}</p>
+        {/if}
+      </div>
+    {/if}
     {#if graph.unreached.length}
       <details class="unreached">
         <summary class="small">{t('flow.unreached', { n: graph.unreached.length })}</summary>
@@ -402,6 +416,8 @@
   .thumb { display: block; height: 92px; border-radius: 8px; overflow: hidden; background: var(--panel-2); flex: none; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .card-num { font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .todo { margin-top: 1rem; }
+  .todo h4 { margin: 0 0 0.3rem; }
   .card-sum { display: flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
   .card-goal { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
   .mini { padding: 0 0.4rem; border-radius: 999px; }

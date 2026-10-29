@@ -206,22 +206,26 @@
   </div>
 </div>
 
+{#snippet problemList()}
+  <ul class="problems">
+    {#each [...errors, ...warnings] as p, i (i)}
+      {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && p.kind !== 'dialogues' && !!p.id}
+      {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
+      <li class={p.severity}>
+        <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
+        — {problemText(p)}
+      </li>
+    {/each}
+  </ul>
+{/snippet}
+
 {#if errors.length || warnings.length}
   <details class="summary">
     <summary>
       {#if errors.length}<span class="bad">{t('ws.problems', { n: errors.length })}</span>{/if}
       {#if warnings.length}<span class="warn">{t('ws.warnings', { n: warnings.length })}</span>{/if}
     </summary>
-    <ul class="problems">
-      {#each [...errors, ...warnings] as p, i (i)}
-        {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && p.kind !== 'dialogues' && !!p.id}
-        {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
-        <li class={p.severity}>
-          <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
-          — {problemText(p)}
-        </li>
-      {/each}
-    </ul>
+    {@render problemList()}
   </details>
 {/if}
 
@@ -246,7 +250,7 @@
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else if tab === 'flow'}
-    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} />
+    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else}

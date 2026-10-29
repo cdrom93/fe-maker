@@ -1149,5 +1149,8 @@
   "flow.testHint": "Compila e avvia il gioco direttamente su questo capitolo (senza i capitoli precedenti: l'esercito è quello che il capitolo carica da sé).",
   "ws.fromChapter": "dal capitolo n. {n}",
   "ws.fromChapterHint": "«Prova» parte da questo capitolo (scelto nella pagina Campagna)",
-  "ws.fromStart": "Provare di nuovo dall'inizio"
+  "ws.fromStart": "Provare di nuovo dall'inizio",
+  "flow.todo": "Da fare per questo progetto",
+  "flow.todoHint": "{errors} errore/i da correggere prima di compilare, {warnings} avviso/i da controllare. Clicca su un nome per aprirne la scheda.",
+  "flow.todoNone": "Niente da correggere: il progetto può essere compilato e provato."
 }

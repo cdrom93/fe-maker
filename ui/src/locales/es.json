@@ -1149,5 +1149,8 @@
   "flow.testHint": "Compila y abre el juego directamente en este capítulo (sin los capítulos anteriores: el ejército es el que carga el propio capítulo).",
   "ws.fromChapter": "desde el capítulo n.º {n}",
   "ws.fromChapterHint": "«Probar» empieza en este capítulo (elegido en la página Campaña)",
-  "ws.fromStart": "Volver a probar desde el principio"
+  "ws.fromStart": "Volver a probar desde el principio",
+  "flow.todo": "Pendiente en este proyecto",
+  "flow.todoHint": "{errors} error(es) que corregir antes de compilar, {warnings} aviso(s) que revisar. Haz clic en un nombre para abrir su ficha.",
+  "flow.todoNone": "Nada que corregir: el proyecto se puede compilar y probar."
 }

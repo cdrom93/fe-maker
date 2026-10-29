@@ -1149,5 +1149,8 @@
   "flow.testHint": "Compile et lance le jeu directement sur ce chapitre (sans les chapitres d'avant : l'armée est celle que le chapitre charge lui-même).",
   "ws.fromChapter": "à partir du chapitre n° {n}",
   "ws.fromChapterHint": "« Tester » démarre sur ce chapitre (choisi dans la page Campagne)",
-  "ws.fromStart": "Tester de nouveau depuis le début"
+  "ws.fromStart": "Tester de nouveau depuis le début",
+  "flow.todo": "À faire pour ce projet",
+  "flow.todoHint": "{errors} erreur(s) à corriger avant de compiler, {warnings} avertissement(s) à vérifier. Cliquez sur un nom pour ouvrir sa fiche.",
+  "flow.todoNone": "Rien à corriger : le projet peut être compilé et testé."
 }
