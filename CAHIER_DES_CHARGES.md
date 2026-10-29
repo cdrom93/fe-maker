@@ -201,7 +201,7 @@ fe-maker/
 ### Phase 5 — Bibliothèque de ressources communautaires
 **État (30/10/2026)** — le détail daté est dans `docs/journal.md`.
 - **Portraits** : remplacer un portrait du jeu ou en ajouter (n° 173 et suivants) ; planche 128 × 112, bouche et yeux trouvés tout seuls ; navigateur FE-Repo (dossiers, filtre F2E, crédits écrits dans le CREDITS.txt du projet).
-- **Animations de combat** (ticket 44) : la fiche de classe joue les 201 animations du jeu ; bibliothèque FE-Repo (aperçu, armes, auteurs) ; import d'une animation pour une arme d'une classe, vérifié en jeu, couleurs des autres camps. Limites : 54 animations en plus de celles du jeu, environ 620 Ko.
+- **Animations de combat** (ticket 44) : la fiche de classe joue les 201 animations du jeu ; bibliothèque FE-Repo (aperçu, armes, auteurs) ; filtre par arme (ticket 47) ; import d'une animation pour une arme d'une classe, vérifié en jeu, couleurs des autres camps, boucles des sorts (« L » de FEditor, ticket 46). Limites : 54 animations en plus de celles du jeu, environ 620 Ko.
 - **Reste** : nouvelles classes complètes (ticket 44, étape 4, avec l'accord de l'utilisateur), sprites de carte, icônes et cartes dans le même navigateur.
 - Navigateur intégré de FE-Repo (portraits, animations de combat, sprites de carte, icônes, cartes, tilesets, décors) avec aperçus.
 - Exploiter `file_urls.json` du dépôt FE-Repo comme index si le format s'y prête.

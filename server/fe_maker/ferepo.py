@@ -32,6 +32,7 @@ PORTRAITS = "Portrait Repository"
 ANIMATIONS = "Battle Animations"   # listed as folders (GitHub "tree" URLs), one per animation
 TREE_PREFIX = "https://github.com/Klokinator/FE-Repo/tree/main/"
 API_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/contents/"
+TREES_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/git/trees/"
 
 _NAME_RE = re.compile(r"^(?P<name>.*?)\s*(?:\{(?P<authors>[^}]*)\})?\s*(?P<tags>(?:\[[^\]]*\]\s*)*)$")
 
@@ -56,7 +57,7 @@ def _ssl_context() -> ssl.SSLContext:
 
 
 def _download(url: str, limit: int) -> bytes:
-    if not url.startswith((URL_PREFIX, API_PREFIX)) and url != INDEX_URL:
+    if not url.startswith((URL_PREFIX, API_PREFIX, TREES_PREFIX)) and url != INDEX_URL:
         raise FeRepoError("notFeRepo")
     request = urllib.request.Request(url, headers={"User-Agent": "FE-Maker"})
     try:
@@ -102,9 +103,10 @@ def describe(url: str) -> dict:
 
 
 def search(index: dict[str, list[str]], category: str, query: str = "", limit: int = 120, folder: str = "",
-           offset: int = 0, f2e_only: bool = False) -> tuple[list[dict], int]:
+           offset: int = 0, f2e_only: bool = False, keep=None) -> tuple[list[dict], int]:
     """PNG files of a category whose name, folder or authors contain all the words of the query; `folder`:
-    only that folder (and its subfolders); `f2e_only`: only files free to edit. One page from `offset`."""
+    only that folder (and its subfolders); `f2e_only`: only files free to edit; `keep(url)`: other filter. One page
+    from `offset`."""
     words = [w for w in _fold(query).split() if w]
     found = []
     for url in index.get(category, []):
@@ -114,6 +116,8 @@ def search(index: dict[str, list[str]], category: str, query: str = "", limit: i
         if folder and entry["folder"] != folder and not entry["folder"].startswith(folder + "/"):
             continue
         if f2e_only and entry["license"] != "F2E":
+            continue
+        if keep is not None and not keep(url):
             continue
         text = _fold(f"{entry['name']} {entry['folder']} {' '.join(entry['authors'])}")
         if all(w in text for w in words):
@@ -183,6 +187,65 @@ def folder_files(url: str) -> list[dict]:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(files), encoding="utf-8")
     return files
+
+
+# Weapon type of an animation's weapon folder ("1. Sword (Alt Crit)", "6. Magic", "7. Staff"...), first match wins;
+# mirrored by FOLDER_WTYPES in AnimationLibrary.svelte.
+WEAPON_TYPES = [(r"staff|staves", "staff"), (r"light", "light"), (r"dark|flux", "dark"), (r"magic|anima|tome", "anima"),
+                (r"axe", "axe"), (r"bow|arrow", "bow"), (r"lance|spear|javelin", "lance"), (r"sword|blade|knife", "sword"),
+                (r"unarmed|item|refresh|dance|play", "item")]
+
+
+def weapon_type(name: str) -> str | None:
+    return next((wtype for pattern, wtype in WEAPON_TYPES if re.search(pattern, name, re.IGNORECASE)), None)
+
+
+def _fresh_json(path: Path):
+    if path.is_file() and time.time() - path.stat().st_mtime < INDEX_MAX_AGE:
+        return json.loads(path.read_text(encoding="utf-8"))
+    return None
+
+
+def animation_weapons(folder: str) -> dict[str, list[str]]:
+    """Weapons of every animation of a top folder of the battle animations ("Infantry - (Swd) Myrms..."), by the
+    animation's repository path: its weapon subfolders, else its scripts' names (ticket 47). The index does not
+    list them: one request to GitHub's tree API per top folder (a few MB), cached for a week."""
+    path = cache_dir() / "weapons" / (hashlib.sha1(folder.encode("utf-8")).hexdigest() + ".json")
+    cached = _fresh_json(path)
+    if cached is not None:
+        return cached
+    tops_path = cache_dir() / "weapons" / "tops.json"
+    tops = _fresh_json(tops_path)
+    try:
+        if tops is None:
+            listing = json.loads(_download(API_PREFIX + urllib.parse.quote(ANIMATIONS) + "?ref=main", MAX_FILE_BYTES))
+            tops = {f["name"]: f["sha"] for f in listing if f["type"] == "dir"}
+            tops_path.parent.mkdir(parents=True, exist_ok=True)
+            tops_path.write_text(json.dumps(tops), encoding="utf-8")
+        if folder not in tops:
+            return {}
+        tree = json.loads(_download(TREES_PREFIX + tops[folder] + "?recursive=1", 64 * 1024 * 1024))["tree"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise FeRepoError("unreachable") from e
+    folders: dict[str, list[str]] = {}
+    scripts: dict[str, list[str]] = {}
+    for entry in tree:
+        parts = entry["path"].split("/")
+        if len(parts) != 2:
+            continue
+        key = f"{ANIMATIONS}/{folder}/{parts[0]}"
+        if entry["type"] == "tree":
+            folders.setdefault(key, []).append(parts[1])
+        elif parts[1].lower().endswith(".txt") and not re.search(r"credit|readme|without_comment", parts[1], re.IGNORECASE):
+            scripts.setdefault(key, []).append(parts[1][:-4])
+    result = {key: folders.get(key) or scripts.get(key, []) for key in {*folders, *scripts}}
+    path.write_text(json.dumps(result), encoding="utf-8")
+    return result
+
+
+def animation_path(url: str) -> str:
+    """Repository path of an animation's folder ("Battle Animations/<top folder>/<animation>")."""
+    return urllib.parse.unquote(url[len(TREE_PREFIX):])
 
 
 def preview(files: list[dict]) -> str | None:

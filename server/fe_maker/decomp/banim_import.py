@@ -56,6 +56,7 @@ class Script:
 def parse_script(text: str) -> Script:
     script = Script()
     mode = None
+    loop_start = None
     for raw in text.splitlines():
         line = raw.split("#", 1)[0].strip()
         if not line:
@@ -77,9 +78,19 @@ def parse_script(text: str) -> Script:
             if name not in script.files:
                 script.files.append(name)
             continue
+        if line.upper() == "L":
+            # Loop start (magic: the cast frames repeat until the spell ends). The loop end is the next C01, which
+            # gets the number of script words to jump back in its second byte, as FEditor writes it (3 per frame).
+            loop_start = len(script.modes[mode])
+            continue
         m = _COMMAND_RE.match(line)
         if m:
-            script.modes[mode].append(("code", int(m.group(1), 16)))
+            code = int(m.group(1), 16)
+            if code == 0x01 and loop_start is not None:
+                words = sum(3 if step[0] == "frame" else 1 for step in script.modes[mode][loop_start:])
+                code |= words << 8
+                loop_start = None
+            script.modes[mode].append(("code", code))
             continue
         raise ImportError_("badScriptLine", raw.strip())
     for copy, source in COPIED_MODES.items():

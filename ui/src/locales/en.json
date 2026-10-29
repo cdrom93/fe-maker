@@ -1153,5 +1153,8 @@
   "flow.todo": "To do for this project",
   "flow.todoHint": "{errors} error(s) to fix before building, {warnings} warning(s) to check. Click a name to open its sheet.",
   "flow.todoNone": "Nothing to fix: the project can be built and tested.",
-  "maps.terrainEffects": "Avoid +{avoid} · Def +{defense} · Res +{resistance} · Move cost: on foot {foot}, on horse {horse}"
+  "maps.terrainEffects": "Avoid +{avoid} · Def +{defense} · Res +{resistance} · Move cost: on foot {foot}, on horse {horse}",
+  "banim.allWeapons": "All weapons",
+  "banim.weaponFilter": "Weapon",
+  "banim.weaponFilterHint": "The first time, FE Maker asks GitHub for the weapons of each folder: a few seconds per folder (a minute or two for \"All folders\"), then it is kept for a week."
 }

@@ -350,3 +350,20 @@ def test_test_this_chapter(tmp_path):
         game.screenshot().save(tmp_path / "ch2.png")
         print("screenshot:", tmp_path / "ch2.png", "units", game.units())
         assert ok
+
+
+def test_test_chapter_one_army(tmp_path):
+    """Ticket 45: chapter 1 does not load its army (the game moves the prologue's army onto its places): the test
+    build loads the chapter's own player units, Eirika and Seth are on the map."""
+    project = Project.create(tmp_path / "ch1", "Ch1")
+    project.set_test_options({"start": "map", "chapter": 1})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        ok = game.wait_until(lambda: game.chapter() == 1 and game.turn() == 1 and game.units("Red"),
+                             seconds=300, step=30, tap="A")
+        game.run(600)
+        game.screenshot().save(tmp_path / "ch1.png")
+        blue = game.units("Blue")
+        print("screenshot:", tmp_path / "ch1.png", "blue", blue)
+        assert ok
+        assert {1, 2} <= {u["character"] for u in blue if u["x"] >= 0}

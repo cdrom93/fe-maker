@@ -1153,5 +1153,8 @@
   "flow.todo": "À faire pour ce projet",
   "flow.todoHint": "{errors} erreur(s) à corriger avant de compiler, {warnings} avertissement(s) à vérifier. Cliquez sur un nom pour ouvrir sa fiche.",
   "flow.todoNone": "Rien à corriger : le projet peut être compilé et testé.",
-  "maps.terrainEffects": "Esquive +{avoid} · Déf. +{defense} · Rés. +{resistance} · Déplacement : à pied {foot}, à cheval {horse}"
+  "maps.terrainEffects": "Esquive +{avoid} · Déf. +{defense} · Rés. +{resistance} · Déplacement : à pied {foot}, à cheval {horse}",
+  "banim.allWeapons": "Toutes les armes",
+  "banim.weaponFilter": "Arme",
+  "banim.weaponFilterHint": "La première fois, FE Maker demande à GitHub les armes de chaque dossier : quelques secondes par dossier (une minute ou deux pour « Tous les dossiers »), puis c'est gardé une semaine."
 }

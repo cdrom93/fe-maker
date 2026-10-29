@@ -52,6 +52,9 @@
   let query = $state('')
   let folder = $state('')
   let f2eOnly = $state(false)
+  // weapon filter (ticket 47): the first time, the server asks GitHub for the weapons of each folder
+  let weaponFilter = $state('')
+  const FILTER_WTYPES = ['sword', 'lance', 'axe', 'bow', 'anima', 'light', 'dark', 'staff', 'item']
   let entries = $state<FeRepoEntry[]>([])
   let folders = $state<{ name: string; count: number }[]>([])
   let total = $state(0)
@@ -70,7 +73,7 @@
     loading = true
     error = ''
     try {
-      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, offset: more ? entries.length : 0 })
+      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -110,6 +113,10 @@
       <option value="">{t('ferepo.allFolders')}</option>
       {#each folders as f (f.name)}<option value={f.name}>{f.name} ({f.count})</option>{/each}
     </select>
+    <select bind:value={weaponFilter} onchange={() => run()} aria-label={t('banim.weaponFilter')} title={t('banim.weaponFilterHint')}>
+      <option value="">{t('banim.allWeapons')}</option>
+      {#each FILTER_WTYPES as wt (wt)}<option value={wt}>{t(`wtype.${wt}`)}</option>{/each}
+    </select>
     <input bind:value={query} oninput={typed} placeholder={t('ferepo.search')} />
     <label class="small f2e"><input type="checkbox" bind:checked={f2eOnly} onchange={() => run()} /> {t('ferepo.f2eOnly')}</label>
     {#if initial && query !== initial}
@@ -117,13 +124,14 @@
     {/if}
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
+  {#if loading && weaponFilter}<p class="muted small">{t('banim.weaponFilterHint')}</p>{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}
         <li>
           <button class:active={picked?.url === e.url} onclick={() => pick(e)}>
             <span>{e.name}</span>
-            <span class="muted tiny">{e.folder}{#if e.license === 'F2E'} · F2E{/if}</span>
+            <span class="muted tiny">{e.folder}{#if e.license === 'F2E'} · F2E{/if}{#if e.weapons?.length} · {e.weapons.map((w) => t(`wtype.${w}`)).join(', ')}{/if}</span>
           </button>
         </li>
       {/each}

@@ -117,3 +117,15 @@ def test_other_armies_recoloured():
     image.putpalette([c for rgb in player for c in rgb] + [0] * 720)
     data = bi.palette_bytes(image, {"ally": [10, 200, 10] * 16})
     assert len(data) == 128 and data[64:66] == struct.pack("<H", (10 >> 3) | (200 >> 3) << 5 | (10 >> 3) << 10)
+
+
+def test_feditor_loop_marker():
+    """Ticket 46: "L" starts a loop (magic cast frames), the next C01 jumps back over it, as FEditor writes it."""
+    from fe_maker.decomp import banim_import as bi
+
+    modes = [n for n in range(1, 13) if n not in (2, 4)]
+    script = "".join(f"/// - Mode {n}\n2 p- A.png\nL   #LOOPSTART {{\n2 p- B.png\nC1B\n2 p- A.png\nC01  #LOOPEND }}\n~~~\n"
+                     for n in modes)
+    parsed = bi.parse_script(script)
+    assert parsed.modes[1] == [("frame", 2, "A.png"), ("frame", 2, "B.png"), ("code", 0x1B), ("frame", 2, "A.png"),
+                               ("code", 0x701)]

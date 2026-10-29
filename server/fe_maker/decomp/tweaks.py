@@ -52,7 +52,8 @@ _GAME_CONTROL_RE = re.compile(
 _QUICK_START_DECL = (
     "/* FE Maker: quick start for test builds */\n"
     "void WriteNewGameSave(int index, int isDifficult, int mode, int isTutorial);\n"
-    "void FEMaker_QuickStartOnMap(ProcPtr proc);\n\n"
+    "void FEMaker_QuickStartOnMap(ProcPtr proc);\n"
+    "const void * GetChapterAllyUnitDataPointer(void);\n\n"
 )
 
 # Same steps as choosing "New Game" then "Normal" in the save menu (see
@@ -97,8 +98,12 @@ def start_on_map(source: str, chapter: int = 0) -> str:
     out = source[: m.start(1)] + _QUICK_START_DECL + source[m.start(1): m.end(1)] + insert + source[m.end(1):]
     definition = _QUICK_START_DEF
     if chapter:
+        # The chapter's own player units are loaded as the army: a chapter like chapter 1 does not load them, the
+        # game moves the army of the chapters before onto their places (ticket 45). Event loads reuse a unit already
+        # there, so chapters that load them themselves get no duplicates.
         definition = definition.replace("    WriteNewGameSave(0, 0, 1, 1);\n", "    WriteNewGameSave(0, 0, 1, 1);\n"
-                                        f"    gPlaySt.chapterIndex = {int(chapter)}; /* FE Maker: test this chapter */\n")
+                                        f"    gPlaySt.chapterIndex = {int(chapter)}; /* FE Maker: test this chapter */\n"
+                                        "    LoadUnits(GetChapterAllyUnitDataPointer()); /* FE Maker: its army */\n")
     return out.rstrip("\n") + "\n" + definition
 
 

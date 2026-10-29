@@ -124,3 +124,35 @@ def test_animations_are_folders(tmp_path, monkeypatch):
     assert ferepo.folder_files(ANIMATION_URLS[0]) == files and len(asked) == 1     # cached
     with pytest.raises(ferepo.FeRepoError, match="notFeRepo"):
         ferepo.folder_files("https://example.com/tree/x")
+
+
+def test_animation_weapons(tmp_path, monkeypatch):
+    """Ticket 47: weapons of the animations of a top folder, from one tree request, to filter the library."""
+    monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
+    asked = []
+    tree = {"truncated": False, "tree": [
+        {"path": "Blade Dancer {Alice} [F2E]", "type": "tree"},
+        {"path": "Blade Dancer {Alice} [F2E]/1. Sword (Alt Crit)", "type": "tree"},
+        {"path": "Blade Dancer {Alice} [F2E]/8. Unarmed", "type": "tree"},
+        {"path": "Blade Dancer {Alice} [F2E]/1. Sword/Sword.txt", "type": "blob"},
+        {"path": "Old Mage/Magic.txt", "type": "blob"},
+        {"path": "Old Mage/Magic_without_comment.txt", "type": "blob"},
+        {"path": "Old Mage/CREDITS.txt", "type": "blob"},
+    ]}
+
+    def download(url, limit):
+        asked.append(url)
+        if url.startswith(ferepo.TREES_PREFIX):
+            return json.dumps(tree).encode()
+        return json.dumps([{"name": "Infantry - (Swd) Myrms", "type": "dir", "sha": "abc"}]).encode()
+
+    monkeypatch.setattr(ferepo, "_download", download)
+    weapons = ferepo.animation_weapons("Infantry - (Swd) Myrms")
+    top = "Battle Animations/Infantry - (Swd) Myrms/"
+    assert weapons == {top + "Blade Dancer {Alice} [F2E]": ["1. Sword (Alt Crit)", "8. Unarmed"],
+                       top + "Old Mage": ["Magic"]}
+    assert asked[1] == ferepo.TREES_PREFIX + "abc?recursive=1"
+    assert ferepo.animation_weapons("Infantry - (Swd) Myrms") == weapons and len(asked) == 2   # cached
+    assert ferepo.animation_path(ANIMATION_URLS[0]) in weapons
+    assert [ferepo.weapon_type(w) for w in ("1. Sword (Alt Crit)", "8. Unarmed", "6. Magic", "7. Staff")] == \
+        ["sword", "item", "anima", "staff"]

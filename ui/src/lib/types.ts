@@ -513,6 +513,8 @@ export interface FeRepoEntry {
   authors: string[]
   /** F2E: free to use and edit; F2U: free to use, not to edit */
   license: 'F2E' | 'F2U'
+  /** battle animations filtered by weapon: the weapon types it has (ticket 47) */
+  weapons?: string[]
 }
 
 export interface PortraitInfo {
