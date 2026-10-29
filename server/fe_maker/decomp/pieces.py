@@ -48,6 +48,12 @@ def _components(width: int, height: int, cells: list[int], terrain: bytes) -> li
     return found
 
 
+def one_building(terrains: list[int]) -> bool:
+    """A single key cell with its roof or walls: two villages side by side or a row of shops are not offered
+    (ticket 41), nor a key cell alone (a cut piece, like a fort one tile wide)."""
+    return sum(t in KEY_TERRAINS for t in terrains) == 1 and any(t in PART_TERRAINS for t in terrains)
+
+
 @lru_cache(maxsize=16)
 def pieces(decomp_dir: Path, config: Path) -> tuple[dict, ...]:
     """Buildings of the original maps drawn with this tile config: {"kind", "rows", "uses", "maps"}."""
@@ -62,7 +68,7 @@ def pieces(decomp_dir: Path, config: Path) -> tuple[dict, ...]:
         for group in _components(width, height, cells, terrain):
             keys = [KEY_TERRAINS[terrain[cells[y * width + x]]] for x, y in group
                     if terrain[cells[y * width + x]] in KEY_TERRAINS]
-            if not keys or len(group) < 2:
+            if not one_building([terrain[cells[y * width + x]] for x, y in group]):
                 continue
             xs, ys = [x for x, _ in group], [y for _, y in group]
             x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)

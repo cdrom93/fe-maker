@@ -1,4 +1,4 @@
-from fe_maker.decomp.pieces import _components
+from fe_maker.decomp.pieces import _components, one_building
 
 
 def test_buildings_are_groups_of_touching_building_cells():
@@ -11,3 +11,11 @@ def test_buildings_are_groups_of_touching_building_cells():
     ]
     groups = sorted(_components(5, 3, cells, terrain), key=min)
     assert groups == [{(0, 0), (1, 0), (0, 1), (1, 1)}, {(3, 0), (4, 0), (3, 1), (4, 1)}]
+
+
+def test_only_whole_single_buildings():
+    assert one_building([0x2E, 0x2E, 0x2E, 0x2E, 0x03, 0x2E])            # a village
+    assert one_building([0x2C, 0x2C, 0x23])                              # a castle gate in its walls
+    assert not one_building([0x2E, 0x03, 0x2E, 0x2E, 0x03, 0x2E])        # two villages side by side
+    assert not one_building([0x07, 0x05])                                # a shop next to a house
+    assert not one_building([0x0A, 0x0A])                                # a fort without its walls

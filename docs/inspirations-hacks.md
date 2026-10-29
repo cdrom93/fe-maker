@@ -10,6 +10,20 @@ Sources : [Vision Quest](https://feuniverse.us/t/fe8-complete-fire-emblem-vision
 Andaron Saga et Rebellion Saga n'ont pas de page FEU (hacks retirés) : seulement des avis de joueurs (beaucoup de contenu,
 succès RetroAchievements, musique soignée) ; rien de précis à reprendre.
 
+## À étudier en détail plus tard (demande de l'utilisateur, 30/10/2026)
+
+Les hacks qui lui ont plu, à reprendre un par un pour s'en inspirer plus finement (déroulé des chapitres, cartes,
+interface, équilibrage), pas seulement leurs mécaniques. L'utilisateur peut fournir le .gba ou le .ups de chacun
+(le jouer par playtest ou en lire les données).
+
+| Hack | Page | Note |
+|---|---|---|
+| Fire Emblem: Vision Quest (Pushwall) | https://feuniverse.us/t/fe8-complete-fire-emblem-vision-quest-v3-by-pushwall-1-oct-22/3815 | Complet |
+| Code of the Burger King | https://feuniverse.us/t/fe8-fire-emblem-code-of-the-burger-king-main-campaign-complete/13690 | Campagne principale complète |
+| The Morrow's Golden Country | https://feuniverse.us/t/fe8-fire-emblem-the-morrows-golden-country-complete/16284 | Complet |
+| Andaron Saga | pas de page FEU (retiré) | demander le .ups à l'utilisateur |
+| Rebellion Saga | pas de page FEU (retiré) | demander le .ups à l'utilisateur |
+
 ## Ce qui revient dans ces hacks
 
 | Mécanique | Vu dans | Ce qu'il faudrait | Difficulté |

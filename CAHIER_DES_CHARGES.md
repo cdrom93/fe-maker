@@ -211,7 +211,7 @@ fe-maker/
 
 ### Phase 6 — Édition avancée et moteur
 - Étudié le 24/10/2026 (ticket 32) : liste des patchs de confort de FEBuilder à proposer, par priorité, avec la façon de les faire sur la décomp (`docs/patchs-qol.md`). Ticket 27 : séparation force / magie, plan dans `docs/separation-force-magie.md` (environ 80 endroits du moteur, format de sauvegarde à agrandir ; C-SkillSys ne se branche pas sur la décomp). Piste retenue : reprendre le code C du C-SkillSys (MIT) directement dans la décomp ; à lancer avec l'accord de l'utilisateur.
-- Mécaniques des hacks aimés par l'utilisateur (ticket 43, `docs/inspirations-hacks.md`) : brouillard de guerre fait ; à suivre : objectif « s'échapper », chapitres annexes à condition (avec les routes de la page Campagne), patchs à cocher (Locktouch, Pousser, échanges FE5), puis talents, arts de combat et reclassement avec la séparation force / magie.
+- Mécaniques des hacks aimés par l'utilisateur (ticket 43, `docs/inspirations-hacks.md`) : brouillard de guerre fait ; à suivre : objectif « s'échapper », chapitres annexes à condition (avec les routes de la page Campagne), patchs à cocher (Locktouch, Pousser, échanges FE5), puis talents, arts de combat et reclassement avec la séparation force / magie. Plus tard : étude détaillée de chacun de ces hacks (liste et liens dans `docs/inspirations-hacks.md`).
 - « Mode expert » : accès au code C de la décomp depuis l'outil, système de modules/patchs moteur réutilisables (ex. compétences, nouvelles mécaniques).
 - Partage de modules entre utilisateurs.
 

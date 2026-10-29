@@ -35,3 +35,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : ménage de la doc (cahier allégé, ce journal, pièges dans `docs/pieges.md`, README en tableau) ; interface en français et en anglais seulement, espagnol et italien mis de côté.
 - 30/10/2026 : ticket 45, « Tester ce chapitre » charge les unités de départ du chapitre (le chapitre 1 n'en charge pas : il déplace l'armée des chapitres d'avant), vérifié en jeu aux chapitres 1 et 2 ; ticket 46, boucle « L » des scripts FEditor (sorts des mages) ; ticket 47, filtre par arme dans la bibliothèque d'animations.
 - 30/10/2026 : tickets idées 6, 27, 42, 43 et 47 reportés dans le cahier des charges (ou déjà faits) et fermés à la demande de l'utilisateur.
+- 30/10/2026 : « Bâtiments entiers » ne propose plus que des bâtiments seuls avec leur toit ou leurs murs (plus de villages collés, de rangées de boutiques, de fort sans murs) ; liste des hacks à étudier en détail notée.
