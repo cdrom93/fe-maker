@@ -28,8 +28,10 @@ DATA_FILES = {
     "maps": "export_maps",
     "dialogues": "export_dialogues",
     "portraits": "export_portraits",
+    "animations": "export_animations",
 }
 PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's assets folder
+ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
 DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
 FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
@@ -136,7 +138,8 @@ class Project:
         return validate(self.load("characters"), self.load("items"), DecompData(self.decomp_dir),
                         classes=self.load("classes"), combat=self.load("combat"), chapters=self.load("chapters"),
                         maps=self.load("maps"), dialogues=self.load("dialogues"),
-                        portraits=self.load("portraits"), assets_dir=self.root / "assets")
+                        portraits=self.load("portraits"), assets_dir=self.root / "assets",
+                        animations=self.load("animations"))
 
     # ---------- build ----------
 
@@ -173,6 +176,8 @@ class Project:
         text = path.read_text(encoding="utf-8") if path.is_file() else CREDITS_HEADER
         mine = text.split(RESOURCES_HEADER)[0].rstrip("\n") + "\n"
         sources = [e["source"] for e in self.load("portraits").values() if isinstance(e, dict) and e.get("source")]
+        sources += [e["source"] for e in self.load("animations").get("animations", {}).values()
+                    if isinstance(e, dict) and e.get("source")]
         lines = sorted({ferepo.credit_line(s) for s in sources})
         if lines:
             mine += "\n" + RESOURCES_HEADER + "".join(f"{line}\n" for line in lines)
@@ -190,6 +195,7 @@ class Project:
         data.apply_maps(self.load("maps"))
         data.apply_dialogues(self.load("dialogues"))
         data.apply_portraits(self.load("portraits"), self.root / "assets")
+        data.apply_animations(self.load("animations"), self.root / "assets")
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)

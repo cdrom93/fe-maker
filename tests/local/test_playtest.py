@@ -279,3 +279,61 @@ def test_fog_of_war(tmp_path):
         game.screenshot().save(tmp_path / "fog.png")
         print("screenshot:", tmp_path / "fog.png")
         assert game.read("gPlaySt", 0x0D) == 4   # chapterVisionRange
+
+
+def test_imported_battle_animation(tmp_path):
+    """Ticket 44: a battle animation converted from FEditor's format (here one of the game's, exported then
+    imported back) is added after the game's and played when Seth (Paladin) attacks with his sword."""
+    import shutil
+
+    from fe_maker.decomp import banim, banim_import
+
+    project = Project.create(tmp_path / "banim", "Banim")
+    decomp = project.decomp_dir
+    entry = next(e for e in project_classes(decomp) if e.fields["number"] == "CLASS_PALADIN")
+    conf = entry.fields["pBattleAnimDef"].lstrip("&").strip()
+    number = next(d["number"] for d in banim.configs(decomp)[conf] if d["weapon"] == "ITYPE_SWORD")
+    symbol = next(a.symbol for a in banim.table(decomp) if a.number == number)
+    script, frames = banim_import.export_feditor(decomp, symbol)
+    converted = banim_import.convert(banim_import.symbol_of("1"), script, frames)
+    folder = project.root / "assets" / "animations" / "1"
+    shutil.rmtree(folder, ignore_errors=True)
+    for rel, content in banim_import.stored_files(banim_import.symbol_of("1"), converted).items():
+        path = folder / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content) if isinstance(content, bytes) else path.write_text(content, encoding="utf-8", newline="\n")
+    project.save("animations", {"animations": {"1": {"name": "Paladin (round trip)", "frames": converted.frames,
+                                                     "sheets": len(converted.sheets)}},
+                                "classes": {"CLASS_PALADIN": {"sword": "new:1"}}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    new_index = len(banim.table(decomp))   # numbers start at 1, indexes at 0
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(210)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        # The simplified prologue puts an enemy right next to Seth: he attacks without moving.
+        enemy = next(u for u in game.units("Red") if abs(u["x"] - seth["x"]) + abs(u["y"] - seth["y"]) == 1)
+        game.move_cursor(seth["x"], seth["y"])
+        game.press("A")
+        game.press("A", wait=60)
+        game.press("A", wait=30)      # Attack
+        game.press("A", wait=30)      # his first weapon, a sword
+        game.press("A", wait=30)      # the target
+        game.press("A", wait=30)      # the forecast
+        seen = game.wait_until(lambda: game.read("gBanimIdx", 2, width=16) == new_index
+                               or game.read("gBanimIdx", 0, width=16) == new_index, seconds=20, step=5)
+        game.run(120)
+        game.screenshot().save(tmp_path / "battle.png")
+        print("screenshot:", tmp_path / "battle.png")
+        assert seen
+        # The battle ends and the game goes on: the enemy loses HP or dies.
+        assert game.wait_until(lambda: all(u["hp"] < enemy["hp"] for u in game.units("Red")
+                                           if (u["x"], u["y"]) == (enemy["x"], enemy["y"]))
+                               and game.phase() == "player", seconds=60, step=20)
+
+
+def project_classes(decomp):
+    from fe_maker.decomp.gamedata import DecompData
+
+    return DecompData(decomp).classes.entries

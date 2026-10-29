@@ -157,7 +157,7 @@ def fetch(url: str) -> bytes:
 
 
 def credit_line(source: dict) -> str:
-    authors = ", ".join(source.get("authors") or []) or "unknown author"
+    authors = ", ".join(source.get("authors") or []) or source.get("credits") or "unknown author"
     return f"- {source.get('name', '?')} by {authors} ({source.get('license', 'F2U')}), FE-Repo: {source.get('url', '')}"
 
 
@@ -173,8 +173,10 @@ def folder_files(url: str) -> list[dict]:
     data = _download(API_PREFIX + urllib.parse.quote(repo_path) + "?ref=main", MAX_FILE_BYTES)
     try:
         listing = json.loads(data)
+        # GitHub leaves some characters of its download URLs unencoded (spaces): build them again.
         files = [{"name": f["name"], "type": f["type"], "size": f.get("size", 0),
-                  "url": f.get("download_url") or (TREE_PREFIX + urllib.parse.quote(repo_path + "/" + f["name"]))}
+                  "url": (URL_PREFIX + "main/" if f["type"] == "file" else TREE_PREFIX)
+                  + urllib.parse.quote(repo_path + "/" + f["name"])}
                  for f in listing]
     except (ValueError, KeyError, TypeError) as e:
         raise FeRepoError("unreachable") from e
@@ -190,3 +192,21 @@ def preview(files: list[dict]) -> str | None:
         if found:
             return found[0]
     return None
+
+
+def fetch_text(url: str) -> str:
+    """A text file of the repository (an animation's script), 1 MB at most, not cached."""
+    if not url.startswith(URL_PREFIX) or not url.lower().endswith(".txt"):
+        raise FeRepoError("notFeRepo")
+    return _download(url, 1024 * 1024).decode("utf-8", errors="replace")
+
+
+def folder_credits(url: str) -> str:
+    """The CREDITS.txt of an animation's folder on one line (its authors when the folder name has none)."""
+    try:
+        found = [f for f in folder_files(url) if f["type"] == "file" and f["name"].lower() == "credits.txt"]
+        text = fetch_text(found[0]["url"]) if found else ""
+    except FeRepoError:
+        return ""
+    lines = [line.strip() for line in text.splitlines() if line.strip() and not re.fullmatch(r"F2[UE](/F2[UE])?", line.strip())]
+    return " · ".join(lines)[:300]

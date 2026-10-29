@@ -197,7 +197,7 @@
         <p class="muted small">{t('class.weaponRanksHint')}</p>
       </section>
 
-      <BattleAnimation classId={cl.id} className={cl.name} {items} />
+      <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} />
 
       <AbilitiesPanel abilities={cl.abilities} fromClass={[]} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 

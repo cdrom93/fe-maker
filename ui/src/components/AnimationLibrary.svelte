@@ -1,12 +1,53 @@
 <script lang="ts">
   // Battle animations of FE-Repo (ticket 44, server: ferepo.py): browse by kind of class, search; choosing
-  // one shows its preview, its weapons, authors and license. Importing them into the game comes later.
+  // one shows its preview, its weapons, authors and license; a weapon's animation can be given to the class
+  // (downloaded, converted and kept in the project).
   import { untrack } from 'svelte'
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import type { FeRepoAnimation, FeRepoEntry } from '../lib/types'
 
-  let { initial = '' }: { /** a suggested search (the class's name) */ initial?: string } = $props()
+  let { initial = '', classId, wtypes, onimported }: {
+    /** a suggested search (the class's name) */
+    initial?: string
+    classId: string
+    /** weapon types the animation can be given for */
+    wtypes: string[]
+    onimported: () => void
+  } = $props()
+
+  /** FEditor's numbered weapon folders ("1. Sword", "6. Magic") -> weapon type. */
+  const FOLDER_WTYPES: [RegExp, string][] = [
+    [/staff|staves/i, 'staff'], [/light/i, 'light'], [/dark|flux/i, 'dark'], [/magic|anima|tome/i, 'anima'],
+    [/hand ?axe|axe/i, 'axe'], [/bow|arrow/i, 'bow'], [/lance|spear|javelin/i, 'lance'], [/sword|blade|knife/i, 'sword'],
+    [/unarmed|item|refresh|dance|play/i, 'item'],
+  ]
+  function guessWtype(folderName: string): string {
+    const found = FOLDER_WTYPES.find(([re]) => re.test(folderName))?.[1]
+    return found && wtypes.includes(found) ? found : wtypes[0] ?? 'sword'
+  }
+  let chosenWtype = $state<Record<string, string>>({})
+  let importing = $state('')
+  let importError = $state('')
+  let imported = $state('')
+
+  async function importWeapon(weapon: string) {
+    if (!detail || !picked) return
+    const folderUrl = detail.files.find((f) => f.type === 'dir' && f.name === weapon)?.url
+    if (!folderUrl) return
+    importing = weapon
+    importError = ''
+    imported = ''
+    try {
+      await api.importAnimation({ url: folderUrl, animation: picked.url, classId, wtype: chosenWtype[weapon] ?? guessWtype(weapon) })
+      imported = weapon
+      onimported()
+    } catch (e) {
+      importError = e instanceof ApiError ? t(`banim.import.error.${e.detail.split(':')[0]}`) : String(e)
+    } finally {
+      importing = ''
+    }
+  }
 
   let query = $state('')
   let folder = $state('')
@@ -103,10 +144,26 @@
         {:else}
           <p class="muted small">{t('banim.lib.noPreview')}</p>
         {/if}
-        {#if detail?.weapons.length}<p class="small">{t('banim.lib.weapons')} : {detail.weapons.join(', ')}</p>{/if}
+        {#if detail?.weapons.length}
+          <div class="weapons">
+            {#each detail.weapons as w (w)}
+              <div class="weapon">
+                <span class="small">{w}</span>
+                <select value={chosenWtype[w] ?? guessWtype(w)} onchange={(e) => (chosenWtype[w] = (e.target as HTMLSelectElement).value)} aria-label={t('banim.weapon')}>
+                  {#each wtypes as wt (wt)}<option value={wt}>{t(`wtype.${wt}`)}</option>{/each}
+                </select>
+                <button class="play" disabled={!!importing} onclick={() => importWeapon(w)}>
+                  {importing === w ? t('banim.import.busy') : t('banim.import.use')}
+                </button>
+              </div>
+            {/each}
+          </div>
+          {#if importError}<p class="bad small">{importError}</p>{/if}
+          {#if imported}<p class="good small">✓ {t('banim.import.done', { weapon: imported })}</p>{/if}
+        {/if}
         <p class="small">{t('banim.lib.authors')} : {picked.authors.join(', ') || t('banim.lib.seeCredits')} · {picked.license}</p>
         <a class="small" href={picked.url} target="_blank" rel="noreferrer">{t('banim.lib.open')} ↗</a>
-        <p class="muted tiny">{t('banim.lib.importLater')}</p>
+        <p class="muted tiny">{t('banim.import.hint')}</p>
       {:else}
         <p class="muted small">{t('banim.lib.pick')}</p>
       {/if}
@@ -128,5 +185,9 @@
   .preview img { image-rendering: pixelated; max-width: 100%; align-self: flex-start; background: var(--accent-soft); border-radius: var(--radius); }
   .small { font-size: 0.8rem; margin: 0; }
   .bad { color: var(--bad); }
+  .good { color: var(--good-text); }
+  .weapons { display: flex; flex-direction: column; gap: 0.35rem; }
+  .weapon { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+  .weapon .small { min-width: 6rem; font-weight: 700; }
   @media (max-width: 700px) { .columns { grid-template-columns: 1fr; } }
 </style>

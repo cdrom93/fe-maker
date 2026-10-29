@@ -34,6 +34,7 @@ et l'ajouter au projet d'un clic.
 ## Avancement
 
 - 29/10/2026 : étapes 1 (animations du jeu jouées dans la fiche de classe, `banim.py`) et 2 (bibliothèque FE-Repo, aperçu à la demande) faites. Les dossiers du FE-Repo contiennent un aperçu `.gif`, un sous-dossier par arme avec les planches PNG et le script (`.txt` FEBuilder, ou `Frame Data.dmp` + `.bin` de FEditor).
+- 29/10/2026, plus tard : étape 3 faite (import d'une animation du FE-Repo pour une arme d'une classe, vérifié en jeu). Reste l'étape 4.
 
 ## Proposition
 

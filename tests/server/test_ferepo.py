@@ -109,7 +109,7 @@ def test_animations_are_folders(tmp_path, monkeypatch):
 
     asked = []
     listing = [{"name": "1. Sword", "type": "dir"},
-               {"name": "Sword.gif", "type": "file", "size": 9, "download_url": BASE + "Battle%20Animations/x/Sword.gif"}]
+               {"name": "Sword.gif", "type": "file", "size": 9}]
 
     def download(url, limit):
         asked.append(url)
@@ -119,7 +119,8 @@ def test_animations_are_folders(tmp_path, monkeypatch):
     files = ferepo.folder_files(ANIMATION_URLS[0])
     assert asked[0].startswith(ferepo.API_PREFIX + "Battle%20Animations/")
     assert files[0]["type"] == "dir" and files[0]["url"].startswith(TREE)
-    assert ferepo.preview(files) == BASE + "Battle%20Animations/x/Sword.gif"
+    folder = "Battle%20Animations/Infantry%20-%20%28Swd%29%20Myrms/Blade%20Dancer%20%7BAlice%7D%20%5BF2E%5D"
+    assert ferepo.preview(files) == ferepo.URL_PREFIX + "main/" + folder + "/Sword.gif"
     assert ferepo.folder_files(ANIMATION_URLS[0]) == files and len(asked) == 1     # cached
     with pytest.raises(ferepo.FeRepoError, match="notFeRepo"):
         ferepo.folder_files("https://example.com/tree/x")

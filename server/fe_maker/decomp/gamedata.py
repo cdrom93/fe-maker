@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 
 from . import (
+    banim,
+    banim_import,
     combat,
     convoy,
     dialogues,
@@ -211,6 +213,7 @@ class DecompData:
         self.support_source: str | None = None
         self.support_talks: str | None = None
         self.new_support_blocks: list[str] = []
+        self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -605,6 +608,70 @@ class DecompData:
             self.event_sources[rel] = source[:declaration] + scripts + source[declaration:start] + body + source[end:]
 
     # ---------- dialogues ----------
+
+    @staticmethod
+    def export_animations() -> dict:
+        """Project battle animations (ticket 44): "animations" {key: imported animation, its files in the
+        project's assets/animations/<key>/}, "classes" {class id: {weapon type: game animation number or
+        "new:<key>"}} (the class's animation for that weapon, replaced or added)."""
+        return {"animations": {}, "classes": {}}
+
+    def apply_animations(self, data: dict, assets_dir: Path) -> None:
+        """Imported animations added after the game's (table, sheets, scripts), and the classes' changed
+        animations written as new settings arrays (banim_import.py)."""
+        imported = data.get("animations", {})
+        overrides = {k: v for k, v in data.get("classes", {}).items() if v}
+        if not imported and not overrides:
+            return
+        keys = sorted(imported, key=lambda k: int(k))
+        first = len(banim.table(self.decomp_dir)) + 1
+        numbers = {f"new:{k}": first + i for i, k in enumerate(keys)}
+        added = []
+        for key in keys:
+            symbol = banim_import.symbol_of(key)
+            folder = assets_dir / "animations" / key
+            files = [f for f in folder.rglob("*") if f.is_file()]
+            if not files:
+                raise GameDataError(f"Animation {key}: its files are missing from the project")
+            for f in files:
+                rel = f.relative_to(folder).as_posix()
+                self.asset_files[rel] = f.read_text(encoding="utf-8") if rel.endswith(".s") else f.read_bytes()
+            added.append((symbol, sum(1 for f in files if "_sheet_" in f.name)))
+        if added:
+            names = (banim_import.TABLE_FILE, banim_import.POINTERS_FILE, banim_import.SHEETS_INCLUDE,
+                     banim_import.LINKER_SCRIPT)
+            try:
+                self.asset_files.update(banim_import.register({n: self._read(n) for n in names}, added, first))
+                self.asset_files[banim_import.MAIN_FILE] = banim_import.without_unique_palettes(
+                    self._read(banim_import.MAIN_FILE), first - 1)
+            except banim_import.ImportError_ as e:
+                raise GameDataError(f"Battle animations: {e.args[0]}") from e
+        if not overrides:
+            return
+        confs = banim.configs(self.decomp_dir)
+        entries = {e.fields["number"]: e for e in self.classes.entries}
+        defs_by_class = {}
+        for class_id, weapons in overrides.items():
+            entry = entries.get(class_id)
+            if entry is None:
+                raise GameDataError(f"Unknown class {class_id}")
+            defs = [dict(d) for d in confs.get(entry.fields.get("pBattleAnimDef", "").lstrip("&").strip(), [])]
+            for wtype, anim in weapons.items():
+                number = numbers.get(anim) if isinstance(anim, str) else int(anim)
+                weapon = WEAPON_TYPES_REV.get(wtype)
+                if number is None or weapon is None:
+                    raise GameDataError(f"{class_id}: unknown animation {anim} for {wtype}")
+                same = [d for d in defs if d["weapon"] == weapon]
+                for d in same:
+                    d["number"] = number
+                if not same:
+                    defs.append({"weapon": weapon, "number": number})
+            defs_by_class[class_id] = defs
+        source, arrays = banim_import.class_configs(self._read(banim_import.CONF_FILE), defs_by_class)
+        self.asset_files[banim_import.CONF_FILE] = source
+        for class_id, name in arrays.items():
+            entries[class_id].fields["pBattleAnimDef"] = name
+        self.new_anim_confs = sorted(arrays.values())
 
     @staticmethod
     def export_portraits() -> dict:
@@ -1525,6 +1592,10 @@ class DecompData:
             externs = "".join(f"extern CONST_DATA struct SupportData {n};\n" for n in self.new_support_blocks)
             include = '#include "bmreliance.h"\n'
             out[CHARACTERS_FILE] = out[CHARACTERS_FILE].replace(include, include + externs, 1)
+        if self.new_anim_confs:   # AnimConf arrays FE Maker adds are not declared in ekrbattle.h
+            externs = "".join(f"extern CONST_DATA struct BattleAnimDef {n}[];\n" for n in self.new_anim_confs)
+            include = '#include "ekrbattle.h"\n'
+            out[CLASSES_FILE] = out[CLASSES_FILE].replace(include, include + externs, 1)
         if self.support_source is not None:
             out[supports.SUPPORTS_FILE] = self.support_source
         if self.support_talks is not None:

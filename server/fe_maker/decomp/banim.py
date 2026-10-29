@@ -168,3 +168,9 @@ def mode_strip(decomp_dir: Path, symbol: str, mode: str, which: int = 0) -> tupl
 def modes_of(decomp_dir: Path, symbol: str) -> list[str]:
     found = motion(decomp_dir, symbol).modes
     return [m for m in MODES if found.get(m)]
+
+
+def clear_caches() -> None:
+    """After a project's animation was imported or removed (its folder may be reused)."""
+    for cached in (motion, _sheet, mode_strip):
+        cached.cache_clear()

@@ -99,8 +99,12 @@ def _duplicates(problems, kind, records):
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
              chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None,
-             portraits: dict | None = None, assets_dir=None) -> list[Problem]:
+             portraits: dict | None = None, assets_dir=None, animations: dict | None = None) -> list[Problem]:
     global _font
+    # Weapon types the project gave a class an animation for (ticket 44) count as animated.
+    for class_id, weapons in ((animations or {}).get("classes") or {}).items():
+        known = decomp.animated_weapons.get(class_id, [])
+        decomp.animated_weapons[class_id] = known + [w for w in weapons if w not in known]
     _font = fonts.widths(decomp.decomp_dir)
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}

@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import base64
 import dataclasses
+import io
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import threading
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -22,6 +26,7 @@ from .builder import BuildError
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
     banim,
+    banim_import,
     convoy,
     dialogues,
     events,
@@ -41,7 +46,7 @@ from .decomp.assets import face_preview, item_icon_preview, portrait_names, port
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
 from .paths import DECOMP_DIR, REPO_ROOT
-from .project import DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
+from .project import ANIMATIONS_DIR, DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
 from .rom import InvalidRomError
 from .tickets import TicketError, TicketStore
 
@@ -759,22 +764,66 @@ def map_sprite(class_id: str, side: str = "player", trim: bool = False):
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
+def _project_animations() -> dict:
+    return state.project.load("animations") if state.project else {"animations": {}, "classes": {}}
+
+
+def _animation_source(ref: str) -> tuple[Path, str]:
+    """(base folder, symbol) of an animation: a game animation's number, or "new-<key>" for one the project
+    imported (its decomp files are kept in the project's assets/animations/<key>/)."""
+    if ref.startswith("new-"):
+        key = ref[4:]
+        if not state.project or key not in _project_animations().get("animations", {}):
+            raise HTTPException(404)
+        return state.project.root / "assets" / ANIMATIONS_DIR / key, banim_import.symbol_of(key)
+    try:
+        number = int(ref)
+    except ValueError:
+        raise HTTPException(404)
+    anim = next((a for a in banim.table(DECOMP_DIR) if a.number == number), None)
+    if anim is None:
+        raise HTTPException(404)
+    return DECOMP_DIR, anim.symbol
+
+
 @app.get("/api/classes/{class_id}/animations")
 def class_animations(class_id: str):
-    """The class's battle animations, by weapon type or item (ticket 44)."""
+    """The class's battle animations, by weapon type or item (ticket 44), with the project's changes: an
+    animation imported for a weapon type ("ref" "new-<key>") or another game animation."""
     entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
     if entry is None:
         raise HTTPException(404)
     conf = entry.fields.get("pBattleAnimDef", "").lstrip("&").strip()
     animations = {a.number: a for a in banim.table(DECOMP_DIR)}
+    project = _project_animations()
+    imported = project.get("animations", {})
+    changed = project.get("classes", {}).get(class_id, {})
+    left = dict(changed)
+
+    def describe(wtype, item_id, anim) -> dict | None:
+        if isinstance(anim, str) and anim.startswith("new:") and anim[4:] in imported:
+            key = anim[4:]
+            base, symbol = state.project.root / "assets" / ANIMATIONS_DIR / key, banim_import.symbol_of(key)
+            return {"wtype": wtype, "item": item_id, "ref": f"new-{key}", "number": None,
+                    "name": imported[key].get("name", key), "imported": True, "modes": banim.modes_of(base, symbol)}
+        game = animations.get(anim) if isinstance(anim, int) else None
+        if game is None:
+            return None
+        return {"wtype": wtype, "item": item_id, "ref": str(game.number), "number": game.number, "name": game.name,
+                "imported": False, "modes": banim.modes_of(DECOMP_DIR, game.symbol)}
+
     result = []
     for d in banim.configs(DECOMP_DIR).get(conf, []):
-        anim = animations.get(d["number"])
-        if anim:
-            weapon = d["weapon"]
-            result.append({"wtype": WEAPON_TYPES.get(weapon), "item": None if weapon in WEAPON_TYPES else weapon,
-                           "number": anim.number, "name": anim.name,
-                           "modes": banim.modes_of(DECOMP_DIR, anim.symbol)})
+        weapon = d["weapon"]
+        wtype = WEAPON_TYPES.get(weapon)
+        anim = left.pop(wtype, d["number"]) if wtype else d["number"]
+        found = describe(wtype, None if weapon in WEAPON_TYPES else weapon, anim)
+        if found:
+            result.append({**found, "changed": bool(wtype) and wtype in changed})
+    for wtype, anim in left.items():   # weapon types the class had no animation for
+        found = describe(wtype, None, anim)
+        if found:
+            result.append({**found, "changed": True})
     return result
 
 
@@ -791,30 +840,141 @@ def animations():
     return [{"number": a.number, "name": a.name, "classes": users.get(a.number, [])} for a in banim.table(DECOMP_DIR)]
 
 
-def _animation(number: int) -> banim.Animation:
-    anim = next((a for a in banim.table(DECOMP_DIR) if a.number == number), None)
-    if anim is None:
-        raise HTTPException(404)
-    return anim
-
-
-@app.get("/api/animations/{number}/{mode}.json")
-def animation_mode(number: int, mode: str, palette: int = 0):
+@app.get("/api/animations/{ref}/{mode}.json")
+def animation_mode(ref: str, mode: str, palette: int = 0):
+    base, symbol = _animation_source(ref)
     try:
-        _png, info = banim.mode_strip(DECOMP_DIR, _animation(number).symbol, mode, palette)
+        _png, info = banim.mode_strip(base, symbol, mode, palette)
     except (KeyError, FileNotFoundError):
         raise HTTPException(404)
     return info
 
 
-@app.get("/api/animations/{number}/{mode}.png")
-def animation_strip(number: int, mode: str, palette: int = 0):
+@app.get("/api/animations/{ref}/{mode}.png")
+def animation_strip(ref: str, mode: str, palette: int = 0):
     """The mode's frames side by side; their durations come from the .json route."""
+    base, symbol = _animation_source(ref)
     try:
-        png, _info = banim.mode_strip(DECOMP_DIR, _animation(number).symbol, mode, palette)
+        png, _info = banim.mode_strip(base, symbol, mode, palette)
     except (KeyError, FileNotFoundError):
         raise HTTPException(404)
-    return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+class AnimationImportIn(BaseModel):
+    url: str                # FE-Repo folder of one weapon ("1. Sword"), holding the script and its frames
+    animation: str          # the animation's own folder (name, authors, license)
+    classId: str
+    wtype: str
+
+
+def _download_frames(files: list[dict], names: list[str]) -> dict[str, Image.Image]:
+    by_name = {f["name"].lower(): f for f in files if f["type"] == "file"}
+    missing = [n for n in names if n.lower() not in by_name]
+    if missing:
+        raise banim_import.ImportError_("missingFrames", ", ".join(missing[:5]))
+    with ThreadPoolExecutor(8) as pool:
+        data = list(pool.map(lambda n: ferepo.fetch(by_name[n.lower()]["url"]), names))
+    frames = {}
+    for name, raw in zip(names, data):
+        image = Image.open(io.BytesIO(raw))
+        image.load()
+        frames[name] = image
+    return frames
+
+
+@app.post("/api/animations/import")
+def import_animation(body: AnimationImportIn):
+    """Download a FE-Repo animation (one weapon), convert it to the decomp's format, keep it in the project and
+    give it to the class for that weapon type (ticket 44). The authors go to the project's CREDITS.txt."""
+    project = state.require_project()
+    if body.wtype not in WEAPON_TYPES.values():
+        raise HTTPException(400, "unknownWeaponType")
+    data = project.load("animations")
+    data.setdefault("animations", {})
+    data.setdefault("classes", {})
+    key = str(max((int(k) for k in data["animations"]), default=0) + 1)
+    try:
+        files = ferepo.folder_files(body.url)
+        scripts = [f for f in files if f["type"] == "file" and f["name"].lower().endswith(".txt")
+                   and f["name"].lower() not in ("readme.txt", "credits.txt")]
+        script_text = None
+        for f in sorted(scripts, key=lambda f: "without_comment" not in f["name"].lower()):
+            text = ferepo.fetch_text(f["url"])
+            if "/// - Mode" in text:
+                script_text = text
+                break
+        if script_text is None:
+            raise banim_import.ImportError_("noScript")
+        script = banim_import.parse_script(script_text)
+        frames = _download_frames(files, script.files)
+        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503 if str(e) in ("unreachable", "rateLimited") else 400, str(e)) from e
+    except banim_import.ImportError_ as e:
+        raise HTTPException(400, e.args[0]) from e
+    folder = project.root / "assets" / ANIMATIONS_DIR / key
+    if folder.exists():
+        shutil.rmtree(folder)
+    for rel, content in banim_import.stored_files(banim_import.symbol_of(key), converted).items():
+        path = folder / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, bytes):
+            path.write_bytes(content)
+        else:
+            path.write_text(content, encoding="utf-8", newline="\n")
+    source = ferepo.describe(body.animation)
+    if not source["authors"]:
+        source["credits"] = ferepo.folder_credits(body.animation)
+    weapon_folder = urllib.parse.unquote(body.url.rstrip("/")).split("/")[-1]
+    data["animations"][key] = {"name": source["name"], "weapon": weapon_folder, "frames": converted.frames,
+                               "sheets": len(converted.sheets), "source": source}
+    data["classes"].setdefault(body.classId, {})[body.wtype] = f"new:{key}"
+    problems = project.save("animations", data)
+    project.update_credits()
+    banim.clear_caches()
+    return {"key": key, "problems": [p.to_dict() for p in problems]}
+
+
+@app.delete("/api/animations/project/{key}")
+def remove_animation(key: str):
+    """Remove an imported animation: the classes using it get the game's animation back."""
+    project = state.require_project()
+    data = project.load("animations")
+    data.get("animations", {}).pop(key, None)
+    for weapons in data.get("classes", {}).values():
+        for wtype in [w for w, a in weapons.items() if a == f"new:{key}"]:
+            del weapons[wtype]
+    data["classes"] = {c: w for c, w in data.get("classes", {}).items() if w}
+    shutil.rmtree(project.root / "assets" / ANIMATIONS_DIR / key, ignore_errors=True)
+    problems = project.save("animations", data)
+    project.update_credits()
+    banim.clear_caches()
+    return {"problems": [p.to_dict() for p in problems]}
+
+
+class ClassAnimationIn(BaseModel):
+    wtype: str
+    animation: str | int | None    # a game animation's number, "new:<key>", or None: the game's own again
+
+
+@app.put("/api/classes/{class_id}/animations")
+def set_class_animation(class_id: str, body: ClassAnimationIn):
+    project = state.require_project()
+    data = project.load("animations")
+    weapons = data.setdefault("classes", {}).setdefault(class_id, {})
+    if body.animation is None:
+        weapons.pop(body.wtype, None)
+    else:
+        weapons[body.wtype] = body.animation
+    data["classes"] = {c: w for c, w in data["classes"].items() if w}
+    problems = project.save("animations", data)
+    return {"problems": [p.to_dict() for p in problems]}
+
+
+@app.get("/api/project/animations")
+def project_animations():
+    return _project_animations()
 
 
 @app.get("/api/assets/portrait/{portrait_id}")

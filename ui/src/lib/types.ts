@@ -561,9 +561,15 @@ export interface MapPiece {
 export interface ClassAnimation {
   wtype: string | null
   item: string | null
-  number: number
+  /** the game animation's number, or "new-<key>" for one the project imported */
+  ref: string
+  number: number | null
   name: string
   modes: string[]
+  /** imported in the project (FE-Repo) */
+  imported: boolean
+  /** changed by the project for this weapon type */
+  changed: boolean
 }
 
 /** A battle animation's folder in FE-Repo: its files, weapons (subfolders) and preview picture. */

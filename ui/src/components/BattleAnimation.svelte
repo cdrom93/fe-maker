@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { api, animationUrl } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import AnimationLibrary from './AnimationLibrary.svelte'
   import type { ClassAnimation, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
-  let { classId, className, items }: { classId: string; className: string; items: Item[] } = $props()
+  let { classId, className, items, wtypes }: { classId: string; className: string; items: Item[]; wtypes: string[] } = $props()
   let showLibrary = $state(false)
 
   const MODES = ['stand', 'attack_close', 'attack_close_critical', 'attack_range', 'attack_range_critical', 'dodge_close', 'attack_miss'] as const
@@ -20,14 +21,30 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let error = $state(false)
 
-  $effect(() => {
+  function reload() {
     const id = classId
-    animations = []
-    chosen = 0
     api.classAnimations(id).then((list) => {
       if (id === classId) animations = list
     }).catch(() => {})
+  }
+  $effect(() => {
+    void classId
+    animations = []
+    chosen = 0
+    untrack(reload)
   })
+
+  /** Back to the game's animation for this weapon type (an imported one stays in the project). */
+  async function restore(a: ClassAnimation) {
+    if (!a.wtype) return
+    await api.setClassAnimation(classId, a.wtype, null)
+    reload()
+  }
+  async function removeImported(a: ClassAnimation) {
+    if (!a.ref.startsWith('new-')) return
+    await api.removeAnimation(a.ref.slice(4))
+    reload()
+  }
 
   const anim = $derived(animations[chosen])
   const modes = $derived(anim ? MODES.filter((m) => anim.modes.includes(m)) : [])
@@ -37,12 +54,12 @@
     if (!anim) return
     const m = modes.includes(mode as (typeof MODES)[number]) ? mode : modes[0]
     if (!m) return
-    const number = anim.number
+    const number = anim.ref
     const pal = palette
     error = false
     Promise.all([api.animationMode(number, m, pal), loadImage(animationUrl(number, m, pal))])
       .then(([info, img]) => {
-        if (anim?.number === number && palette === pal) strip = { img, ...info }
+        if (anim?.ref === number && palette === pal) strip = { img, ...info }
       })
       .catch(() => (error = true))
   })
@@ -114,7 +131,9 @@
     <h3>{t('banim.title')}</h3>
     <div class="weapons" role="radiogroup" aria-label={t('banim.weapon')}>
       {#each animations as a, i (i)}
-        <button role="radio" aria-checked={chosen === i} class:active={chosen === i} onclick={() => (chosen = i)} title={a.name}>{weaponLabel(a)}</button>
+        <button role="radio" aria-checked={chosen === i} class:active={chosen === i} onclick={() => (chosen = i)} title={a.name}>
+          {weaponLabel(a)}{#if a.imported} ⭐{:else if a.changed} ✎{/if}
+        </button>
       {/each}
     </div>
     <div class="player">
@@ -143,9 +162,16 @@
         <button onclick={() => (playing = !playing)}>{playing ? `⏸ ${t('banim.pause')}` : `▶ ${t('banim.play')}`}</button>
       </div>
     </div>
+    {#if anim?.changed}
+      <p class="small">
+        {anim.imported ? t('banim.importedFrom', { name: anim.name }) : t('banim.changedTo', { name: anim.name })}
+        <button class="link" onclick={() => restore(anim)}>↺ {t('banim.restore')}</button>
+        {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
+      </p>
+    {/if}
     <p class="muted small">{t('banim.hint')}</p>
     <button class="library-toggle" onclick={() => (showLibrary = !showLibrary)}>📚 {t('banim.lib.title')}</button>
-    {#if showLibrary}<AnimationLibrary initial={className} />{/if}
+    {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={reload} />{/if}
   </section>
 {/if}
 
