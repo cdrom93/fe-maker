@@ -4,8 +4,20 @@
 
 *FE Maker is an open source editor to make tactics games on the Fire Emblem: The Sacred Stones (GBA) engine, designed to be as easy to use as an "RPG Maker". It is built on top of the [FE8 decompilation](https://github.com/FireEmblemUniverse/fireemblem8u).*
 
-> 🚧 En développement : personnages, objets (dont armes réservées), classes (avec leurs animations de combat, et import d'animations du FE-Repo), triangle des armes et efficacités, unités des chapitres (placement sur la carte, ajout et suppression, personnage, classe, niveau, inventaire, IA), objectifs, page Campagne (enchaînement des chapitres, option sans carte du monde), dialogues des chapitres (vue conversation) (mise en page automatique, accents), répliques de combat, soutiens, éditeur de cartes (peinture de tuiles, terrains, taille, changements de carte, villages, coffres et portes qui se règlent tout seuls, tuiles tournées, palettes et jeux de tuiles, aller-retour avec Tiled), import et ajout de portraits (FE-Repo compris), bouton « Tester » et export en patch .ups. Interface en français, anglais, espagnol et italien. Avancement détaillé : [cahier des charges](CAHIER_DES_CHARGES.md), section 4.
-> *In development: characters, items (including reserved weapons), classes (with their battle animations, and FE-Repo battle animation import), weapon triangle and effectiveness, chapter units (placement on the map, adding and deleting, character, class, level, items, AI), chapter objectives, Campaign page (story flow, no world map option), chapter dialogues (conversation view) (automatic layout, accented letters), battle quotes, supports, map editor (tile painting, terrains, size, map changes, villages, chests and doors that set themselves up, turned tiles, palettes and tile sheets, round trip with Tiled), portrait import and new portraits (FE-Repo included), "Test" button and .ups patch export. Interface in French, English, Spanish and Italian. Detailed progress: [specification](CAHIER_DES_CHARGES.md), section 4.*
+## Ce qu'on peut faire / What you can do
+
+🚧 En développement / *In development* — avancement détaillé : [cahier des charges](CAHIER_DES_CHARGES.md), section 4.
+
+| | Français | English |
+|---|---|---|
+| 🧙 Unités | Personnages, classes (animations de combat, import depuis le FE-Repo), objets et armes réservées, triangle des armes, efficacités | Characters, classes (battle animations, FE-Repo import), items and reserved weapons, weapon triangle, effectiveness |
+| 🗺️ Cartes | Peinture de tuiles, terrains et leurs effets, taille, bâtiments entiers, changements de carte, villages / coffres / portes automatiques, tuiles tournées, palettes et jeux de tuiles, brouillard de guerre, aller-retour avec Tiled | Tile painting, terrains and their effects, size, whole buildings, map changes, automatic villages / chests / doors, turned tiles, palettes and tile sheets, fog of war, round trip with Tiled |
+| ⚔️ Chapitres | Unités (placement, IA, inventaire, renforts), objectifs, page Campagne (enchaînement des chapitres, option sans carte du monde, liste « À faire ») | Units (placement, AI, items, reinforcements), objectives, Campaign page (story flow, no world map option, to-do list) |
+| 💬 Dialogues | Conversations (mise en page automatique, accents), scènes et éditeur d'événements visuel, répliques de combat, soutiens | Conversations (automatic layout, accented letters), scenes and visual event editor, battle quotes, supports |
+| 🎨 Ressources | Import et ajout de portraits, bibliothèque FE-Repo (portraits, animations de combat), crédits automatiques | Portrait import and new portraits, FE-Repo library (portraits, battle animations), automatic credits |
+| ▶️ Tester | Bouton « Tester » (depuis le début ou un chapitre choisi), export en patch .ups | "Test" button (from the start or a chosen chapter), .ups patch export |
+
+Interface en français, anglais, espagnol et italien. / *Interface in French, English, Spanish and Italian.*
 
 ## Avertissement / Disclaimer
 
