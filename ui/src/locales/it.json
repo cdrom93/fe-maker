@@ -1144,5 +1144,10 @@
   "banim.importedFrom": "Animazione importata: {name}.",
   "banim.changedTo": "Animazione del gioco scelta: {name}.",
   "banim.restore": "Tornare a quella del gioco",
-  "banim.removeImported": "Togliere dal progetto"
+  "banim.removeImported": "Togliere dal progetto",
+  "flow.test": "Provare questo capitolo",
+  "flow.testHint": "Compila e avvia il gioco direttamente su questo capitolo (senza i capitoli precedenti: l'esercito è quello che il capitolo carica da sé).",
+  "ws.fromChapter": "dal capitolo n. {n}",
+  "ws.fromChapterHint": "«Prova» parte da questo capitolo (scelto nella pagina Campagna)",
+  "ws.fromStart": "Provare di nuovo dall'inizio"
 }

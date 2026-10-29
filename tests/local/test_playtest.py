@@ -337,3 +337,16 @@ def project_classes(decomp):
     from fe_maker.decomp.gamedata import DecompData
 
     return DecompData(decomp).classes.entries
+
+
+def test_test_this_chapter(tmp_path):
+    """"Test this chapter": the test build starts on the chosen chapter's map (here chapter 2)."""
+    project = Project.create(tmp_path / "ch2", "Ch2")
+    project.set_test_options({"start": "map", "chapter": 2})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        ok = game.wait_until(lambda: game.chapter() == 2 and game.turn() == 1 and game.units(), seconds=300, step=30, tap="A")
+        game.run(300)
+        game.screenshot().save(tmp_path / "ch2.png")
+        print("screenshot:", tmp_path / "ch2.png", "units", game.units())
+        assert ok

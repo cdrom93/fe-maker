@@ -11,7 +11,11 @@
   // and how each one leads to the next. Each chapter's scripts end with a command that starts the next
   // one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
   // chapterList: the project's chapter edits (objectives, unit groups), shown over the game's in the sheet
-  let { list, chapterList }: { list: EditableList<DialoguesData>; chapterList: EditableList<ChaptersData> } = $props()
+  let { list, chapterList, ontest }: {
+    list: EditableList<DialoguesData>; chapterList: EditableList<ChaptersData>
+    /** "Test this chapter": a test build that starts on it */
+    ontest: (index: number) => void
+  } = $props()
 
   const NODE_W = 200
   const NODE_H = 164
@@ -303,6 +307,7 @@
         {/if}
       {/if}
       <div class="sheet-buttons">
+        <button class="play big" onclick={() => selected !== null && ontest(selected)} title={t('flow.testHint')}>▶ {t('flow.test')}</button>
         <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
         {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">🗺 {t('flow.openMap')}</span></Mention>{/if}
       </div>
@@ -394,6 +399,7 @@
   .chip.enemy { background: var(--bad-soft); color: var(--bad); }
   .scene { display: block; padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; font-size: 0.85rem; }
   .sheet-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.8rem; }
+  button.big { min-height: 40px; padding: 0 1rem; font-size: 0.95rem; }
   .big-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 0.9rem; border-radius: var(--radius); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
   .detail-map { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; background: var(--panel-2); margin-bottom: 0.5rem; }
   .unreached { margin-top: 0.5rem; }

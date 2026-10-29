@@ -487,6 +487,8 @@ export interface TestOptions {
   start: string
   /** prologue without its cutscene: units are simply on the map */
   simplePrologue: boolean
+  /** "Test this chapter": the chapter index the test starts on (0: the prologue) */
+  chapter: number
 }
 
 /** A portrait sheet imported in the project (server: decomp/portraits.py): mouth and eye frames

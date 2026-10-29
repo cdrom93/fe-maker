@@ -29,6 +29,7 @@
   let showKeys = $state(false)
   let start = $state('map')
   let simplePrologue = $state(true)
+  let testChapter = $state(0)
   let focus = $state<Focus | null>(null)
 
   $effect(() => {
@@ -112,6 +113,7 @@
     ])
     start = testOpts.start
     simplePrologue = testOpts.simplePrologue
+    testChapter = testOpts.chapter ?? 0
     reference = ref
     lists.characters.load(chars)
     lists.classes.load(cls)
@@ -139,6 +141,14 @@
   async function startBuild(launch: boolean) {
     await flushAll()
     build = { launch }
+  }
+
+  /** "Test this chapter" (Campaign page): the next tests start on that chapter's map. */
+  async function testFrom(index: number) {
+    const opts = await api.setTestOptions({ start: 'map', chapter: index })
+    start = opts.start
+    testChapter = opts.chapter ?? 0
+    await startBuild(true)
   }
 
   async function close() {
@@ -183,6 +193,13 @@
       <input type="checkbox" checked={simplePrologue} onchange={async (e) => (simplePrologue = (await api.setTestOptions({ simplePrologue: (e.target as HTMLInputElement).checked })).simplePrologue)} />
       {t('ws.simplePrologue')}
     </label>
+    {#if testChapter && start === 'map'}
+      <span class="from-chapter" title={t('ws.fromChapterHint')}>
+        {t('ws.fromChapter', { n: testChapter })}
+        <button class="link" aria-label={t('ws.fromStart')} title={t('ws.fromStart')}
+          onclick={async () => (testChapter = (await api.setTestOptions({ chapter: 0 })).chapter ?? 0)}>✕</button>
+      </span>
+    {/if}
     <button class="play" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
     <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
@@ -229,7 +246,7 @@
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else if tab === 'flow'}
-    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} />
+    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else}
@@ -250,6 +267,7 @@
   .title { display: flex; align-items: baseline; gap: 0.75rem; }
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
+  .from-chapter { font-size: 0.85rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0.2rem 0.6rem; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
   .summary { margin: 0 0 0.75rem; font-size: 0.9rem; }
   .summary summary { cursor: pointer; display: flex; gap: 1rem; }

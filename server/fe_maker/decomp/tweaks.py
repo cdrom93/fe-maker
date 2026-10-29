@@ -89,13 +89,17 @@ def skip_intro(source: str) -> str:
     return source[: m.end(1)] + insert + source[m.end(1):]
 
 
-def start_on_map(source: str) -> str:
-    """Boot straight onto the first chapter's map with a fresh normal-mode game
-    (the chapter's opening scene still plays: press Start to skip it)."""
+def start_on_map(source: str, chapter: int = 0) -> str:
+    """Boot straight onto the first chapter's map (or `chapter`'s, by index: "Test this chapter") with a fresh
+    normal-mode game (the chapter's opening scene still plays: press Start to skip it)."""
     m = _anchor(source)
     insert = "    PROC_CALL(FEMaker_QuickStartOnMap), /* FE Maker: start on map */\n"
     out = source[: m.start(1)] + _QUICK_START_DECL + source[m.start(1): m.end(1)] + insert + source[m.end(1):]
-    return out.rstrip("\n") + "\n" + _QUICK_START_DEF
+    definition = _QUICK_START_DEF
+    if chapter:
+        definition = definition.replace("    WriteNewGameSave(0, 0, 1, 1);\n", "    WriteNewGameSave(0, 0, 1, 1);\n"
+                                        f"    gPlaySt.chapterIndex = {int(chapter)}; /* FE Maker: test this chapter */\n")
+    return out.rstrip("\n") + "\n" + definition
 
 
 def simplify_prologue(script: str) -> str:
@@ -136,7 +140,8 @@ def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) ->
         source = files.get(GAME_CONTROL_FILE)
         if source is None:
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
-        files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else start_on_map(source)
+        files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else \
+            start_on_map(source, int(options.get("chapter") or 0))
     if start == "map":
         files = without_world_map(decomp_dir, files)
     if options.get("simplePrologue"):

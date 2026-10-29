@@ -32,7 +32,7 @@ DATA_FILES = {
 }
 PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's assets folder
 ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
-DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True}  # see decomp/tweaks.py
+DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True, "chapter": 0}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
 FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
 
@@ -156,7 +156,8 @@ class Project:
         if start not in START_MODES:
             raise ProjectError(f"Unknown start mode: {start}")
         simple = bool(options.get("simplePrologue", self.test_options["simplePrologue"]))
-        self.meta["testOptions"] = {"start": start, "simplePrologue": simple}
+        chapter = max(0, int(options.get("chapter", self.test_options["chapter"]) or 0))   # "Test this chapter"
+        self.meta["testOptions"] = {"start": start, "simplePrologue": simple, "chapter": chapter}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     @property

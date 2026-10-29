@@ -1144,5 +1144,10 @@
   "banim.importedFrom": "Imported animation: {name}.",
   "banim.changedTo": "Game animation chosen: {name}.",
   "banim.restore": "Back to the game's",
-  "banim.removeImported": "Remove from the project"
+  "banim.removeImported": "Remove from the project",
+  "flow.test": "Test this chapter",
+  "flow.testHint": "Builds and starts the game right on this chapter (without the chapters before: the army is the one the chapter loads itself).",
+  "ws.fromChapter": "from chapter #{n}",
+  "ws.fromChapterHint": "\"Test\" starts on this chapter (chosen in the Campaign page)",
+  "ws.fromStart": "Test from the start again"
 }

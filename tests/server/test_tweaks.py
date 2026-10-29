@@ -34,7 +34,7 @@ def test_tweaks_refuse_unknown_source():
 
 def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
-    assert project.test_options == {"start": "map", "simplePrologue": True}
+    assert project.test_options == {"start": "map", "simplePrologue": True, "chapter": 0}
 
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert "FEMaker_QuickStartOnMap" in (overlay / "src" / "gamecontrol.c").read_text(encoding="utf-8")
@@ -47,10 +47,15 @@ def test_start_mode_only_in_test_builds(tmp_path, decomp_dir):
 
     project.set_test_options({"start": "normal"})
     meta = json.loads((tmp_path / "p" / "fe-maker.json").read_text(encoding="utf-8"))
-    assert meta["testOptions"] == {"start": "normal", "simplePrologue": True}
+    assert meta["testOptions"] == {"start": "normal", "simplePrologue": True, "chapter": 0}
     overlay = project.generate_overlay(decomp_dir, for_test=True)
     assert not (overlay / "src" / "gamecontrol.c").exists()
 
+    # "Test this chapter": the quick start goes to that chapter
+    project.set_test_options({"start": "map", "chapter": 2})
+    source = (project.generate_overlay(decomp_dir, for_test=True) / "src" / "gamecontrol.c").read_text(encoding="utf-8")
+    assert "gPlaySt.chapterIndex = 2; /* FE Maker: test this chapter */" in source
+    project.set_test_options({"chapter": 0})
     with pytest.raises(ProjectError):
         project.set_test_options({"start": "nowhere"})
 
@@ -74,7 +79,7 @@ def test_no_world_map_option(tmp_path, decomp_dir):
 def test_old_skip_intro_option_is_migrated(tmp_path, decomp_dir):
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
     project.meta["testOptions"] = {"skipIntro": True}
-    assert project.test_options == {"start": "menu", "simplePrologue": True}
+    assert project.test_options == {"start": "menu", "simplePrologue": True, "chapter": 0}
 
 
 def test_simplified_prologue(tmp_path, decomp_dir):

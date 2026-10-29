@@ -1262,6 +1262,7 @@ def remove_portrait(portrait_id: int):
 class TestOptionsIn(BaseModel):
     start: str | None = None
     simplePrologue: bool | None = None
+    chapter: int | None = None
 
 
 @app.get("/api/project/test-options")
