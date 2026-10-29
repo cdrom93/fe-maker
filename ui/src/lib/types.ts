@@ -556,3 +556,19 @@ export interface MapPiece {
   uses: number
   maps: string[]
 }
+
+/** A class's battle animation for a weapon type or an item (ticket 44). */
+export interface ClassAnimation {
+  wtype: string | null
+  item: string | null
+  number: number
+  name: string
+  modes: string[]
+}
+
+/** A battle animation's folder in FE-Repo: its files, weapons (subfolders) and preview picture. */
+export interface FeRepoAnimation extends FeRepoEntry {
+  files: { name: string; type: 'file' | 'dir'; url: string; size: number }[]
+  weapons: string[]
+  preview: string | null
+}

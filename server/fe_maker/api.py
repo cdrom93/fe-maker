@@ -21,6 +21,7 @@ from . import emulator, ferepo
 from .builder import BuildError
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
+    banim,
     convoy,
     dialogues,
     events,
@@ -758,6 +759,64 @@ def map_sprite(class_id: str, side: str = "player", trim: bool = False):
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
+@app.get("/api/classes/{class_id}/animations")
+def class_animations(class_id: str):
+    """The class's battle animations, by weapon type or item (ticket 44)."""
+    entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
+    if entry is None:
+        raise HTTPException(404)
+    conf = entry.fields.get("pBattleAnimDef", "").lstrip("&").strip()
+    animations = {a.number: a for a in banim.table(DECOMP_DIR)}
+    result = []
+    for d in banim.configs(DECOMP_DIR).get(conf, []):
+        anim = animations.get(d["number"])
+        if anim:
+            weapon = d["weapon"]
+            result.append({"wtype": WEAPON_TYPES.get(weapon), "item": None if weapon in WEAPON_TYPES else weapon,
+                           "number": anim.number, "name": anim.name,
+                           "modes": banim.modes_of(DECOMP_DIR, anim.symbol)})
+    return result
+
+
+@app.get("/api/animations")
+def animations():
+    """Every battle animation of the game: number, name ("lorm_sp1") and the classes using it."""
+    users: dict[int, list[str]] = {}
+    confs = banim.configs(DECOMP_DIR)
+    for e in state.get_decomp().classes.entries:
+        for d in confs.get(e.fields.get("pBattleAnimDef", "").lstrip("&").strip(), []):
+            users.setdefault(d["number"], [])
+            if e.fields["number"] not in users[d["number"]]:
+                users[d["number"]].append(e.fields["number"])
+    return [{"number": a.number, "name": a.name, "classes": users.get(a.number, [])} for a in banim.table(DECOMP_DIR)]
+
+
+def _animation(number: int) -> banim.Animation:
+    anim = next((a for a in banim.table(DECOMP_DIR) if a.number == number), None)
+    if anim is None:
+        raise HTTPException(404)
+    return anim
+
+
+@app.get("/api/animations/{number}/{mode}.json")
+def animation_mode(number: int, mode: str, palette: int = 0):
+    try:
+        _png, info = banim.mode_strip(DECOMP_DIR, _animation(number).symbol, mode, palette)
+    except (KeyError, FileNotFoundError):
+        raise HTTPException(404)
+    return info
+
+
+@app.get("/api/animations/{number}/{mode}.png")
+def animation_strip(number: int, mode: str, palette: int = 0):
+    """The mode's frames side by side; their durations come from the .json route."""
+    try:
+        png, _info = banim.mode_strip(DECOMP_DIR, _animation(number).symbol, mode, palette)
+    except (KeyError, FileNotFoundError):
+        raise HTTPException(404)
+    return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
 @app.get("/api/assets/portrait/{portrait_id}")
 def portrait(portrait_id: int, face: bool = False, smile: bool = False, eyes: str | None = None):
     """Small portrait (menus), or the big one shown in dialogues with `face` (the project's imported
@@ -965,7 +1024,36 @@ def ferepo_image(url: str):
         data = ferepo.fetch(url)
     except ferepo.FeRepoError as e:
         raise HTTPException(400, str(e)) from e
-    return Response(data, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
+    kind = "image/gif" if data.startswith(b"GIF8") else "image/png"
+    return Response(data, media_type=kind, headers={"Cache-Control": "max-age=86400"})
+
+
+@app.get("/api/ferepo/animations")
+def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+    """Battle animations of the FE-Repo (one folder each), searched like the portraits (ticket 44)."""
+    try:
+        index, when = ferepo.load_index(refresh)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503, str(e)) from e
+    entries, total = ferepo.search(index, ferepo.ANIMATIONS, q, limit=60, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ANIMATIONS)}
+
+
+@app.get("/api/ferepo/animation")
+def ferepo_animation(url: str):
+    """An animation's folder: its files, its weapons (subfolders) and its preview picture."""
+    try:
+        files = ferepo.folder_files(url)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503 if str(e) == "unreachable" else 400, str(e)) from e
+    shown = ferepo.preview(files)
+    weapons = [f for f in files if f["type"] == "dir"]
+    if shown is None and weapons:   # no picture at the top: the first weapon's folder
+        try:
+            shown = ferepo.preview(ferepo.folder_files(weapons[0]["url"]))
+        except ferepo.FeRepoError:
+            pass
+    return {"files": files, "weapons": [w["name"] for w in weapons], "preview": shown, **ferepo.describe(url)}
 
 
 @app.delete("/api/portraits/{portrait_id}")

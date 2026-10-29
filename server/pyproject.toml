@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",
     "pillow>=10",
+    "certifi>=2023",
 ]
 
 [project.optional-dependencies]

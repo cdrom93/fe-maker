@@ -15,7 +15,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import ssl
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -27,6 +29,9 @@ URL_PREFIX = "https://raw.githubusercontent.com/Klokinator/FE-Repo/"
 INDEX_MAX_AGE = 7 * 24 * 3600   # seconds before the index is downloaded again
 MAX_FILE_BYTES = 2 * 1024 * 1024
 PORTRAITS = "Portrait Repository"
+ANIMATIONS = "Battle Animations"   # listed as folders (GitHub "tree" URLs), one per animation
+TREE_PREFIX = "https://github.com/Klokinator/FE-Repo/tree/main/"
+API_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/contents/"
 
 _NAME_RE = re.compile(r"^(?P<name>.*?)\s*(?:\{(?P<authors>[^}]*)\})?\s*(?P<tags>(?:\[[^\]]*\]\s*)*)$")
 
@@ -39,13 +44,27 @@ def cache_dir() -> Path:
     return config_dir() / "ferepo"
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """certifi's certificates: Windows' own store lacked an intermediate certificate of api.github.com
+    on the user's PC (29/10/2026)."""
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 def _download(url: str, limit: int) -> bytes:
-    if not url.startswith(URL_PREFIX) and url != INDEX_URL:
+    if not url.startswith((URL_PREFIX, API_PREFIX)) and url != INDEX_URL:
         raise FeRepoError("notFeRepo")
     request = urllib.request.Request(url, headers={"User-Agent": "FE-Maker"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30, context=_ssl_context()) as response:
             data = response.read(limit + 1)
+    except urllib.error.HTTPError as e:
+        # GitHub's API answers 403 once the 60 requests an hour without an account are used
+        raise FeRepoError("rateLimited" if e.code in (403, 429) else "unreachable") from e
     except OSError as e:
         raise FeRepoError("unreachable") from e
     if len(data) > limit:
@@ -89,7 +108,7 @@ def search(index: dict[str, list[str]], category: str, query: str = "", limit: i
     words = [w for w in _fold(query).split() if w]
     found = []
     for url in index.get(category, []):
-        if not url.lower().endswith(".png"):
+        if not (url.startswith(TREE_PREFIX) if category == ANIMATIONS else url.lower().endswith(".png")):
             continue
         entry = describe(url)
         if folder and entry["folder"] != folder and not entry["folder"].startswith(folder + "/"):
@@ -109,7 +128,7 @@ def folders(index: dict[str, list[str]], category: str) -> list[dict]:
     """Top folders of a category (games, artists, generic portraits...) with their PNG count, to browse."""
     count: dict[str, int] = {}
     for url in index.get(category, []):
-        if url.lower().endswith(".png"):
+        if url.lower().endswith(".png") or (category == ANIMATIONS and url.startswith(TREE_PREFIX)):
             top = describe(url)["folder"].split("/")[0]
             count[top] = count.get(top, 0) + 1
     return [{"name": name, "count": n} for name, n in sorted(count.items(), key=lambda kv: kv[0].lower()) if name]
@@ -122,14 +141,15 @@ def _fold(text: str) -> str:
 
 
 def fetch(url: str) -> bytes:
-    """A file of the repository (PNG only, 2 MB at most), cached."""
-    if not url.startswith(URL_PREFIX) or not url.lower().endswith(".png"):
+    """A picture of the repository (PNG, or GIF for the animations' previews; 2 MB at most), cached."""
+    ext = url.lower().rsplit(".", 1)[-1]
+    if not url.startswith(URL_PREFIX) or ext not in ("png", "gif"):
         raise FeRepoError("notFeRepo")
-    path = cache_dir() / "files" / (hashlib.sha1(url.encode("utf-8")).hexdigest() + ".png")
+    path = cache_dir() / "files" / (hashlib.sha1(url.encode("utf-8")).hexdigest() + "." + ext)
     if path.is_file():
         return path.read_bytes()
     data = _download(url, MAX_FILE_BYTES)
-    if not data.startswith(b"\x89PNG"):
+    if not data.startswith(b"\x89PNG" if ext == "png" else b"GIF8"):
         raise FeRepoError("notAnImage")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -139,3 +159,34 @@ def fetch(url: str) -> bytes:
 def credit_line(source: dict) -> str:
     authors = ", ".join(source.get("authors") or []) or "unknown author"
     return f"- {source.get('name', '?')} by {authors} ({source.get('license', 'F2U')}), FE-Repo: {source.get('url', '')}"
+
+
+def folder_files(url: str) -> list[dict]:
+    """Files and subfolders of an animation's folder ({"name", "type": "file" | "dir", "url", "size"}),
+    asked to GitHub's API once (60 requests an hour without an account) and cached."""
+    if not url.startswith(TREE_PREFIX):
+        raise FeRepoError("notFeRepo")
+    path = cache_dir() / "folders" / (hashlib.sha1(url.encode("utf-8")).hexdigest() + ".json")
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    repo_path = urllib.parse.unquote(url[len(TREE_PREFIX):])
+    data = _download(API_PREFIX + urllib.parse.quote(repo_path) + "?ref=main", MAX_FILE_BYTES)
+    try:
+        listing = json.loads(data)
+        files = [{"name": f["name"], "type": f["type"], "size": f.get("size", 0),
+                  "url": f.get("download_url") or (TREE_PREFIX + urllib.parse.quote(repo_path + "/" + f["name"]))}
+                 for f in listing]
+    except (ValueError, KeyError, TypeError) as e:
+        raise FeRepoError("unreachable") from e
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(files), encoding="utf-8")
+    return files
+
+
+def preview(files: list[dict]) -> str | None:
+    """The picture showing an animation: its GIF if the folder has one, else its first PNG."""
+    for ext in (".gif", ".png"):
+        found = sorted(f["url"] for f in files if f["type"] == "file" and f["name"].lower().endswith(ext))
+        if found:
+            return found[0]
+    return None

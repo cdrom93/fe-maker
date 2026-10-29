@@ -31,6 +31,10 @@ et l'ajouter au projet d'un clic.
    sprite de carte (FE-Repo « Map Sprites ») et la carte de classe importés. Les nouvelles classes demandent aussi
    d'agrandir les tables du jeu (classes, sprites de carte) : à vérifier dans la décomp.
 
+## Avancement
+
+- 29/10/2026 : étapes 1 (animations du jeu jouées dans la fiche de classe, `banim.py`) et 2 (bibliothèque FE-Repo, aperçu à la demande) faites. Les dossiers du FE-Repo contiennent un aperçu `.gif`, un sous-dossier par arme avec les planches PNG et le script (`.txt` FEBuilder, ou `Frame Data.dmp` + `.bin` de FEditor).
+
 ## Proposition
 
 Commencer par 1 (voir les animations du jeu dans l'onglet Classes) et 2 (parcourir le FE-Repo), qui ne touchent pas à la

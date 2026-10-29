@@ -4,6 +4,7 @@
   import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
+  import BattleAnimation from './BattleAnimation.svelte'
   import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
@@ -195,6 +196,8 @@
         </div>
         <p class="muted small">{t('class.weaponRanksHint')}</p>
       </section>
+
+      <BattleAnimation classId={cl.id} className={cl.name} {items} />
 
       <AbilitiesPanel abilities={cl.abilities} fromClass={[]} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 

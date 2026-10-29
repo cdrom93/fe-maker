@@ -1,5 +1,5 @@
 import { portraitVersion } from './portraits.svelte'
-import type { BuildStatus, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits'
 
@@ -74,6 +74,11 @@ export const api = {
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+      'GET', `/api/ferepo/animations?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoAnimation: (url: string) => request<FeRepoAnimation>('GET', `/api/ferepo/animation?url=${encodeURIComponent(url)}`),
   removePortrait: (id: number) => request<{ problems: Problem[] }>('DELETE', `/api/portraits/${id}`),
   eventsReference: () => request<EventsReference>('GET', '/api/events/reference'),
   chapterLinks: () => request<ChapterLinks>('GET', '/api/chapters/links'),
@@ -86,6 +91,9 @@ export const api = {
     request<MapLayout>('GET', `/api/maps/${id}${base ? `?base=${encodeURIComponent(base)}` : ''}`),
   convertMap: (id: string, body: { rows: number[][]; changes: MapChange[] | null; base: string | null; to: string; edits: TilesetEdits | null }) =>
     request<{ rows: number[][]; changes: MapChange[]; missingTerrains: number[] }>('POST', `/api/maps/${id}/convert`, body),
+  classAnimations: (classId: string) => request<ClassAnimation[]>('GET', `/api/classes/${classId}/animations`),
+  animationMode: (number: number, mode: string, palette = 0) =>
+    request<{ durations: number[]; width: number; height: number }>('GET', `/api/animations/${number}/${mode}.json?palette=${palette}`),
   mapPieces: (id: string, base: string | null = null) =>
     request<{ pieces: MapPiece[] }>('GET', `/api/maps/${id}/pieces${base ? `?base=${encodeURIComponent(base)}` : ''}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>
@@ -118,6 +126,7 @@ export const api = {
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
 /** `version` changes when the project's painted layout changes (the image is not cached then). */
 export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${index}/map.png${version ? `?v=${version}` : ''}`
+export const animationUrl = (number: number, mode: string, palette = 0) => `/api/animations/${number}/${mode}.png?palette=${palette}`
 export const mapTilesetUrl = (id: string, base: string | null = null) =>
   `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>

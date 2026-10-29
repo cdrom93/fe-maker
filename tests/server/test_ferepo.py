@@ -89,3 +89,37 @@ def test_browse_by_folder_and_license():
     assert total == 1 and found[0]["name"] == "Villager Élodie"
     assert ferepo.search(index, ferepo.PORTRAITS, "", f2e_only=True)[0][0]["name"] == "Amelia (Knight)"
     assert ferepo.search(index, ferepo.PORTRAITS, "", offset=1)[0][0]["name"] == "Villager Élodie"
+
+
+TREE = ferepo.TREE_PREFIX
+# Fictional animation folders, listed as GitHub "tree" URLs like the real index.
+ANIMATION_URLS = [
+    TREE + "Battle%20Animations%2FInfantry%20-%20(Swd)%20Myrms%2FBlade%20Dancer%20%7BAlice%7D%20%5BF2E%5D",
+    TREE + "Battle%20Animations%2FMagi%20-%20Dark-Type%2FDruid%20%7BBob%7D",
+]
+
+
+def test_animations_are_folders(tmp_path, monkeypatch):
+    monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
+    index = {ferepo.ANIMATIONS: ANIMATION_URLS}
+    found, total = ferepo.search(index, ferepo.ANIMATIONS, "dancer")
+    assert total == 1 and found[0]["name"] == "Blade Dancer" and found[0]["authors"] == ["Alice"]
+    assert found[0]["license"] == "F2E" and found[0]["folder"] == "Infantry - (Swd) Myrms"
+    assert [f["name"] for f in ferepo.folders(index, ferepo.ANIMATIONS)] == ["Infantry - (Swd) Myrms", "Magi - Dark-Type"]
+
+    asked = []
+    listing = [{"name": "1. Sword", "type": "dir"},
+               {"name": "Sword.gif", "type": "file", "size": 9, "download_url": BASE + "Battle%20Animations/x/Sword.gif"}]
+
+    def download(url, limit):
+        asked.append(url)
+        return json.dumps(listing).encode()
+
+    monkeypatch.setattr(ferepo, "_download", download)
+    files = ferepo.folder_files(ANIMATION_URLS[0])
+    assert asked[0].startswith(ferepo.API_PREFIX + "Battle%20Animations/")
+    assert files[0]["type"] == "dir" and files[0]["url"].startswith(TREE)
+    assert ferepo.preview(files) == BASE + "Battle%20Animations/x/Sword.gif"
+    assert ferepo.folder_files(ANIMATION_URLS[0]) == files and len(asked) == 1     # cached
+    with pytest.raises(ferepo.FeRepoError, match="notFeRepo"):
+        ferepo.folder_files("https://example.com/tree/x")
