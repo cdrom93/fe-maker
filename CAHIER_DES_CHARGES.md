@@ -210,7 +210,8 @@ fe-maker/
 - Musique (FE-Repo-Music) : à étudier, format plus complexe.
 
 ### Phase 6 — Édition avancée et moteur
-- Étudié le 24/10/2026 (ticket 32) : liste des patchs de confort de FEBuilder à proposer, par priorité, avec la façon de les faire sur la décomp (`docs/patchs-qol.md`). Ticket 27 : séparation force / magie, plan dans `docs/separation-force-magie.md` (environ 80 endroits du moteur, format de sauvegarde à agrandir ; C-SkillSys ne se branche pas sur la décomp). Pas commencé.
+- Étudié le 24/10/2026 (ticket 32) : liste des patchs de confort de FEBuilder à proposer, par priorité, avec la façon de les faire sur la décomp (`docs/patchs-qol.md`). Ticket 27 : séparation force / magie, plan dans `docs/separation-force-magie.md` (environ 80 endroits du moteur, format de sauvegarde à agrandir ; C-SkillSys ne se branche pas sur la décomp). Piste retenue : reprendre le code C du C-SkillSys (MIT) directement dans la décomp ; à lancer avec l'accord de l'utilisateur.
+- Mécaniques des hacks aimés par l'utilisateur (ticket 43, `docs/inspirations-hacks.md`) : brouillard de guerre fait ; à suivre : objectif « s'échapper », chapitres annexes à condition (avec les routes de la page Campagne), patchs à cocher (Locktouch, Pousser, échanges FE5), puis talents, arts de combat et reclassement avec la séparation force / magie.
 - « Mode expert » : accès au code C de la décomp depuis l'outil, système de modules/patchs moteur réutilisables (ex. compétences, nouvelles mécaniques).
 - Partage de modules entre utilisateurs.
 
@@ -236,7 +237,7 @@ Choix de l'utilisateur (25/10/2026) :
 - **Conversations** : la scène sur une frise (direction B).
 - **Thème** (fait le 25/10/2026) : l'appli entière prend l'apparence des maquettes : fond clair chaud, barre du haut sombre, police Nunito (OFL, fournie avec l'appli), gros boutons arrondis, onglets en pastilles, bouton « Tester » vert. La disposition des écrans ne change pas encore : chaque écran rejoindra sa maquette quand il sera refait.
 - **Fait** : page Campagne (graphe des chapitres de gauche à droite, fiche du chapitre, option « Carte du monde entre les chapitres », objectif et unités sur les cartes, liste « À faire pour ce projet », « ▶ Tester ce chapitre ») ; effets du terrain dans l'éditeur de carte.
-- **Reste, dans l'ordre** : embranchements de routes dans le graphe ; carte : portée et zone de danger, historique visible des annulations.
+- **Reste, dans l'ordre** : embranchements de routes dans le graphe ; carte : portée et zone de danger, historique visible des annulations ; onglet Chapitres refait (ticket 6) : unités aux couleurs de leur camp (bleu alliés, rouge ennemis, vert autres), présentées dans l'ordre placement des alliés, ennemis de départ, unités vertes, puis les renforts rangés par tour d'arrivée ; le but est d'y voir clair et de rendre la création d'un chapitre simple.
 - **Déclencheurs** : les phrases (direction A) suivent la structure du jeu (listes d'événements du chapitre : tours, conversations, cases, zones et drapeaux, puis un script) ; à confirmer.
 
 ### Phase 7 — Version PC (à redéfinir)
