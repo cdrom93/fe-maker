@@ -96,6 +96,8 @@ export interface ChapterInfo {
   events: string | null
   /** the convoy can be used in this chapter, in the game */
   convoy: boolean
+  /** fog of war in the game: the units' vision range, 0 for none */
+  fog: number
 }
 
 export interface MapUnit {
@@ -128,6 +130,8 @@ export interface ChaptersData {
   objectives?: Record<string, ObjectiveEdit>
   /** convoy available or not, by chapter index, once changed from the game (server: convoy.py) */
   convoy?: Record<string, boolean>
+  /** fog of war (vision range, 0: none), by chapter index, once changed from the game */
+  fog?: Record<string, number>
 }
 
 export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'area' | 'special'

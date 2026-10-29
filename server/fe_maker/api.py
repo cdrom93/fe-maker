@@ -286,6 +286,7 @@ def list_chapters():
             "map": layout,
             "events": _event_symbol(ch),
             "convoy": convoy.has_convoy(i),   # in the game (ticket 29)
+            "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
         })
     return result
 

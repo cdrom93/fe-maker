@@ -1096,5 +1096,9 @@
   "maps.piece.fort": "Forte",
   "maps.piece.church": "Chiesa",
   "maps.piece.inn": "Locanda",
-  "maps.piece.gate": "Porta"
+  "maps.piece.gate": "Porta",
+  "chapter.fog": "Nebbia di guerra",
+  "chapter.fogRange": "Raggio visivo",
+  "chapter.fogRangeN": "vede a {n} caselle",
+  "chapter.fogHint": "Le unità vedono solo qualche casella intorno a sé (ladri e torce vedono più lontano)."
 }

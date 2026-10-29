@@ -64,6 +64,20 @@
       else c.convoy[key] = on
     })
   }
+  const fogEdit = $derived(chapter ? list.records[0]?.fog?.[String(chapter.index)] : undefined)
+  const fog = $derived(fogEdit ?? chapter?.fog ?? 0)
+
+  /** Fog of war: the units' vision range (0: no fog); the game's value is not stored. */
+  function setFog(level: number) {
+    if (!chapter) return
+    const key = String(chapter.index)
+    const same = level === chapter.fog
+    list.update(0, (c) => {
+      c.fog ??= {}
+      if (same) delete c.fog[key]
+      else c.fog[key] = level
+    })
+  }
   // The map image changes with the project's painting of this chapter's layout.
   const mapVersion = $derived.by(() => {
     const rows = chapter?.map ? maps?.layouts?.[chapter.map]?.rows : undefined
@@ -385,6 +399,16 @@
           <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
           📦 {t('chapter.convoy')}
           {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+        <label class="check small convoy" title={t('chapter.fogHint')}>
+          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
+          🌫 {t('chapter.fog')}
+          {#if fog > 0}
+            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
+            </select>
+          {/if}
+          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
         </label>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}

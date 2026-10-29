@@ -361,7 +361,8 @@ class DecompData:
         """Project chapter data. Unit groups and objectives (by chapter index) are stored
         only once edited (see units.py and objectives.py). New groups (reinforcements):
         "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups".
-        "convoy" {chapter index: bool}: convoy available, once changed (convoy.py)."""
+        "convoy" {chapter index: bool}: convoy available, once changed (convoy.py).
+        "fog" {chapter index: vision range}: fog of war (0: none), once changed."""
         return {"unitGroups": {}, "objectives": {}}
 
     def apply_chapters(self, chapters: dict) -> None:
@@ -375,6 +376,12 @@ class DecompData:
                 self._add_reinforcements(name, meta, group_units)
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
+        # Fog of war: the units' vision range, 0 for none (chapter settings' initialFogLevel, ticket 43)
+        fog = {int(k): int(v) for k, v in chapters.get("fog", {}).items()}
+        if fog:
+            self._load_chapter_events()
+            for index, level in fog.items():
+                self.chapter_settings["chapters"][index]["initialFogLevel"] = max(0, min(level, 15))
         # Chapters with or without convoy, changed from the game's rule (ticket 29)
         edited = {int(k): bool(v) for k, v in chapters.get("convoy", {}).items()}
         if any(convoy.has_convoy(k) != v for k, v in edited.items()):

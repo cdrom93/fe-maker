@@ -264,3 +264,18 @@ def test_chapter_one_straight_to_chapter_two(tmp_path):
             _end_turn(game)
         assert game.wait_until(lambda: game.chapter() == 2 and game.turn() == 1 and game.phase() == "player",
                                seconds=300, step=30, tap="A")
+
+
+def test_fog_of_war(tmp_path):
+    project = Project.create(tmp_path / "fog", "Fog")
+    chapters = project.load("chapters")
+    chapters["fog"] = {"0": 4}
+    project.save("chapters", chapters)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        game.screenshot().save(tmp_path / "fog.png")
+        print("screenshot:", tmp_path / "fog.png")
+        assert game.read("gPlaySt", 0x0D) == 4   # chapterVisionRange
