@@ -1081,5 +1081,20 @@
   "flow.enemies": "{n} enemigos",
   "flow.scenes": "Escenas",
   "flow.openMap": "Abrir el mapa",
-  "problem.manualChangeOffObject": "cambio {id} hecho a mano para un objeto: ya no contiene la casilla del objeto (tronco, muro, puerta, cofre, aldea), el juego nunca lo aplicará. Amplíelo hasta esa casilla"
+  "problem.manualChangeOffObject": "cambio {id} hecho a mano para un objeto: ya no contiene la casilla del objeto (tronco, muro, puerta, cofre, aldea), el juego nunca lo aplicará. Amplíelo hasta esa casilla",
+  "chapter.duplicateGroup": "Duplicar este grupo",
+  "chapter.duplicateGroupHint": "Nuevos refuerzos con las mismas unidades en los mismos lugares, un turno después (para modificar luego).",
+  "maps.pieces": "Edificios enteros ({n})",
+  "maps.pieceHint": "{kind}, tomado de: {maps}. Haga clic y póngalo en el mapa.",
+  "maps.piecesHint": "Aldeas, castillos, tiendas… tal como el juego los dibuja en sus mapas con este juego de casillas. Un clic lo toma como bloque; las aldeas y tiendas puestas funcionan solas.",
+  "maps.piece.village": "Aldea",
+  "maps.piece.house": "Casa",
+  "maps.piece.armory": "Armería",
+  "maps.piece.vendor": "Tienda",
+  "maps.piece.arena": "Arena",
+  "maps.piece.castle": "Castillo",
+  "maps.piece.fort": "Fuerte",
+  "maps.piece.church": "Iglesia",
+  "maps.piece.inn": "Posada",
+  "maps.piece.gate": "Puerta"
 }

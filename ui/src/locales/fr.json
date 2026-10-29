@@ -1081,5 +1081,20 @@
   "flow.enemies": "{n} ennemis",
   "flow.scenes": "Scènes",
   "flow.openMap": "Ouvrir la carte",
-  "problem.manualChangeOffObject": "changement {id} fait à la main pour un objet : il ne contient plus la case de l'objet (tronc, mur, porte, coffre, village), le jeu ne l'appliquera jamais. Élargissez-le jusqu'à cette case"
+  "problem.manualChangeOffObject": "changement {id} fait à la main pour un objet : il ne contient plus la case de l'objet (tronc, mur, porte, coffre, village), le jeu ne l'appliquera jamais. Élargissez-le jusqu'à cette case",
+  "chapter.duplicateGroup": "Dupliquer ce groupe",
+  "chapter.duplicateGroupHint": "Nouveaux renforts avec les mêmes unités aux mêmes places, un tour plus tard (à modifier ensuite).",
+  "maps.pieces": "Bâtiments entiers ({n})",
+  "maps.pieceHint": "{kind}, pris sur : {maps}. Cliquez puis posez-le sur la carte.",
+  "maps.piecesHint": "Villages, châteaux, magasins… tels que le jeu les dessine sur ses cartes avec ce jeu de tuiles. Un clic les prend comme bloc ; les villages et magasins posés fonctionnent tout seuls.",
+  "maps.piece.village": "Village",
+  "maps.piece.house": "Maison",
+  "maps.piece.armory": "Armurerie",
+  "maps.piece.vendor": "Magasin",
+  "maps.piece.arena": "Arène",
+  "maps.piece.castle": "Château",
+  "maps.piece.fort": "Fort",
+  "maps.piece.church": "Église",
+  "maps.piece.inn": "Auberge",
+  "maps.piece.gate": "Porte"
 }

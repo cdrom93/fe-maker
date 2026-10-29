@@ -20,7 +20,22 @@ from pydantic import BaseModel
 from . import emulator, ferepo
 from .builder import BuildError
 from .config import Settings, default_projects_dir, find_tiled
-from .decomp import convoy, dialogues, events, fonts, mapobjects, maps, portraits, quotes, story, supports, tiled, tileedit, units
+from .decomp import (
+    convoy,
+    dialogues,
+    events,
+    fonts,
+    mapobjects,
+    maps,
+    pieces,
+    portraits,
+    quotes,
+    story,
+    supports,
+    tiled,
+    tileedit,
+    units,
+)
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
@@ -468,6 +483,13 @@ def map_tileset(layout_id: str, palette: str | None = None, base: str | None = N
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
+@app.get("/api/maps/{layout_id}/pieces")
+def map_pieces(layout_id: str, base: str | None = None):
+    """Whole buildings (villages, castles...) of the game's maps drawn with this map's tile sheet (ticket 41)."""
+    _layout(layout_id)
+    return {"pieces": list(pieces.pieces(DECOMP_DIR, maps.layout_assets(DECOMP_DIR, layout_id, base).config))}
+
+
 class TiledExportIn(BaseModel):
     rows: list[list[int]]
     changes: list[dict] | None = None   # None: the original change set
@@ -683,9 +705,15 @@ def chapter_units(index: int):
     # Groups edited in the project replace the original ones.
     edited = state.project.load("chapters").get("unitGroups", {}) if state.project else {}
     try:
-        width, height, _cells = maps.read_layout(maps.chapter_map_assets(DECOMP_DIR, ch).layout)
+        layout_path = maps.chapter_map_assets(DECOMP_DIR, ch).layout
+        width, height, _cells = maps.read_layout(layout_path)
     except maps.MapError:
         width = height = 0
+    else:
+        # A painted map may have another size (ticket 40: the picture was squeezed into the old grid).
+        painted = (state.project.load("maps").get("layouts", {}).get(layout_path.stem) if state.project else None)
+        if painted and painted.get("rows"):
+            width, height = len(painted["rows"][0]), len(painted["rows"])
 
     def group_units(name: str) -> list[dict]:
         if name in edited:

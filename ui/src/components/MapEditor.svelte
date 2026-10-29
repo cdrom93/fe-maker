@@ -13,6 +13,21 @@
     draw(params)
     return { update: draw }
   }
+
+  /** A whole block of tiles (a building of the game, ticket 41), one 16 px tile per cell. */
+  export function drawPiece(canvas: HTMLCanvasElement, params: { rows: number[][]; sheet: HTMLImageElement; layout: MapLayout }) {
+    function draw(p: typeof params) {
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.imageSmoothingEnabled = false
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      p.rows.forEach((row, y) => row.forEach((m, x) => {
+        ctx.drawImage(p.sheet, (m % p.layout.columns) * 16, Math.floor(m / p.layout.columns) * 16, 16, 16, x * 16, y * 16, 16, 16)
+      }))
+    }
+    draw(params)
+    return { update: draw }
+  }
 </script>
 
 <script lang="ts">
@@ -23,7 +38,7 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { addedTileUsage, keepUsed, withoutMetatiles } from '../lib/tileEdits'
-  import type { ChapterInfo, Item, MapChange, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
+  import type { ChapterInfo, Item, MapChange, MapPiece, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
   import Mention from './Mention.svelte'
   import ItemPicker from './ItemPicker.svelte'
   import NumberField from './NumberField.svelte'
@@ -186,6 +201,18 @@
   const palCell = $derived(paletteMode === 'sheet' ? TILE : PALETTE_CELL)
   const palTiles = $derived(paletteMode === 'sheet' && layout ? [...layout.terrains.keys()] : paletteTiles)
   const allTerrains = $derived(layout ? [...new Set(layout.terrains.filter((_, m) => !layout!.duplicates[m]))].sort((a, b) => a - b) : [])
+
+  // Whole buildings of the game's maps drawn with the same tile sheet (ticket 41).
+  let pieces = $state<MapPiece[]>([])
+  $effect(() => {
+    const id = info?.id
+    const base = chosenBase
+    pieces = []
+    if (!id) return
+    api.mapPieces(id, base).then((r) => {
+      if (info?.id === id && chosenBase === base) pieces = r.pieces
+    }).catch(() => {})
+  })
 
   const nav = useNavigator()
   followFocus('maps', nav, () => maps.map((m) => m.id), (i) => load(i))
@@ -1329,6 +1356,21 @@
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
+            {#if pieces.length}
+              <details class="pieces-panel">
+                <summary class="small">🏘 {t('maps.pieces', { n: pieces.length })}</summary>
+                <div class="pieces">
+                  {#each pieces as piece, k (k)}
+                    <button class="piece" class:active={stamp === piece.rows} title={t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') })}
+                      onclick={() => { stamp = piece.rows; palettePicked = null; pendingTiles = null; if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen' }}>
+                      <canvas width={piece.rows[0].length * 16} height={piece.rows.length * 16} use:drawPiece={{ rows: piece.rows, sheet, layout }}></canvas>
+                      <span class="tiny">{t(`maps.piece.${piece.kind}`)}</span>
+                    </button>
+                  {/each}
+                </div>
+                <p class="muted tiny">{t('maps.piecesHint')}</p>
+              </details>
+            {/if}
             <label>
               <span>{t('maps.terrainFilter')}</span>
               <select value={terrainFilter ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; terrainFilter = v === '' ? null : Number(v) }}>
@@ -1549,6 +1591,10 @@
   .palette-panel h3 { margin: 0; }
   .brush { display: flex; align-items: center; gap: 0.6rem; }
   .brush canvas { border: 1px solid var(--border); image-rendering: pixelated; }
+  .pieces { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; max-height: 260px; overflow: auto; }
+  .piece { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.3rem; }
+  .piece.active { outline: 2px solid var(--accent); }
+  .piece canvas { image-rendering: pixelated; width: auto; height: auto; max-width: 96px; }
   .palette-scroll { overflow: auto; max-width: 100%; max-height: calc(100vh - 420px); border: 1px solid var(--border); border-radius: 6px; width: fit-content; }
   .palette-scroll canvas { display: block; cursor: pointer; image-rendering: pixelated; }
   @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }

@@ -105,6 +105,31 @@
     picked = { group: name, index: 0 }
   }
 
+  /** A copy of a group as new reinforcements (ticket 42): same units and places, one turn later. */
+  function duplicateGroup(source: string) {
+    if (!chapter) return
+    const taken = new Set(Object.keys(list.records[0]?.newGroups ?? {}))
+    let n = 0
+    while (taken.has(`UnitDef_FEM_${chapter.index}_${n}`)) n++
+    const name = `UnitDef_FEM_${chapter.index}_${n}`
+    const units = unitsOf(source).map(
+      (u) => ({ ...(structuredClone($state.snapshot(u)) as MapUnit), slot: null, copyOf: null, fixedPath: false }),
+    )
+    const from = groups.find((g) => g.name === source)
+    const fromNew = list.records[0]?.newGroups?.[source]
+    const phase: NewGroup['phase'] = fromNew?.phase ?? (units.length && units.every((u) => u.side === 'ally') ? 'ally' : 'enemy')
+    const turn = Math.min(99, (fromNew?.turn ?? (from?.origin === 'turn' ? from.turn ?? 1 : 1)) + 1)
+    const index = chapter.index
+    list.update(0, (c) => {
+      c.newGroups ??= {}
+      c.newGroups[name] = { chapter: index, turn, phase }
+      c.unitGroups[name] = units
+    })
+    hidden[name] = false
+    openGroup = name
+    picked = null
+  }
+
   function editNewGroup(name: string, change: Partial<NewGroup>) {
     list.update(0, (c) => {
       if (c.newGroups?.[name]) Object.assign(c.newGroups[name], change)
@@ -403,6 +428,9 @@
                 </div>
                 <p class="muted small">{t('chapter.newGroupHint')}</p>
               {/if}
+              {#if !cutsceneGroups.some((g) => g.name === og) && unitsOf(og).length}
+                <button class="dup" title={t('chapter.duplicateGroupHint')} onclick={() => duplicateGroup(og)}>⧉ {t('chapter.duplicateGroup')}</button>
+              {/if}
               <table>
                 <thead>
                   <tr><th></th><th>{t('chapter.character')}</th><th>{t('field.class')}</th><th>{t('chapter.levelShort')}</th><th>{t('chapter.positionShort')}</th><th>{t('ai.preset')}</th></tr>
@@ -611,6 +639,7 @@
   .warn { color: var(--warn); }
   .bad { color: var(--bad); }
   .open { font-size: 1rem; }
+  .dup { margin-bottom: 0.5rem; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1rem; align-items: start; }
   .map-panel { overflow: auto; max-height: calc(100vh - 260px); padding: 0.5rem; }
   .map { position: relative; background-size: 100% 100%; image-rendering: pixelated; }

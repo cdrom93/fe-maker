@@ -1081,5 +1081,20 @@
   "flow.enemies": "{n} enemies",
   "flow.scenes": "Scenes",
   "flow.openMap": "Open the map",
-  "problem.manualChangeOffObject": "change {id} drawn by hand for an object: it no longer holds the object's cell (snag, wall, door, chest, village), so the game will never apply it. Enlarge it to that cell"
+  "problem.manualChangeOffObject": "change {id} drawn by hand for an object: it no longer holds the object's cell (snag, wall, door, chest, village), so the game will never apply it. Enlarge it to that cell",
+  "chapter.duplicateGroup": "Duplicate this group",
+  "chapter.duplicateGroupHint": "New reinforcements with the same units in the same places, one turn later (to change afterwards).",
+  "maps.pieces": "Whole buildings ({n})",
+  "maps.pieceHint": "{kind}, taken from: {maps}. Click, then put it on the map.",
+  "maps.piecesHint": "Villages, castles, shops… as the game draws them on its maps with this tile sheet. A click takes one as a block; villages and shops you put down work by themselves.",
+  "maps.piece.village": "Village",
+  "maps.piece.house": "House",
+  "maps.piece.armory": "Armory",
+  "maps.piece.vendor": "Shop",
+  "maps.piece.arena": "Arena",
+  "maps.piece.castle": "Castle",
+  "maps.piece.fort": "Fort",
+  "maps.piece.church": "Church",
+  "maps.piece.inn": "Inn",
+  "maps.piece.gate": "Gate"
 }

@@ -1081,5 +1081,20 @@
   "flow.enemies": "{n} nemici",
   "flow.scenes": "Scene",
   "flow.openMap": "Aprire la mappa",
-  "problem.manualChangeOffObject": "cambio {id} fatto a mano per un oggetto: non contiene più la casella dell'oggetto (tronco, muro, porta, forziere, villaggio), il gioco non lo applicherà mai. Allargatelo fino a quella casella"
+  "problem.manualChangeOffObject": "cambio {id} fatto a mano per un oggetto: non contiene più la casella dell'oggetto (tronco, muro, porta, forziere, villaggio), il gioco non lo applicherà mai. Allargatelo fino a quella casella",
+  "chapter.duplicateGroup": "Duplicare questo gruppo",
+  "chapter.duplicateGroupHint": "Nuovi rinforzi con le stesse unità negli stessi posti, un turno dopo (da modificare poi).",
+  "maps.pieces": "Edifici interi ({n})",
+  "maps.pieceHint": "{kind}, preso da: {maps}. Cliccate e mettetelo sulla mappa.",
+  "maps.piecesHint": "Villaggi, castelli, negozi… come il gioco li disegna sulle sue mappe con questo set di caselle. Un clic lo prende come blocco; villaggi e negozi messi funzionano da soli.",
+  "maps.piece.village": "Villaggio",
+  "maps.piece.house": "Casa",
+  "maps.piece.armory": "Armeria",
+  "maps.piece.vendor": "Negozio",
+  "maps.piece.arena": "Arena",
+  "maps.piece.castle": "Castello",
+  "maps.piece.fort": "Forte",
+  "maps.piece.church": "Chiesa",
+  "maps.piece.inn": "Locanda",
+  "maps.piece.gate": "Porta"
 }

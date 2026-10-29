@@ -544,3 +544,11 @@ export interface TiledMap {
   changes: (MapChange & { name: string })[]
   properties: Record<string, string>
 }
+
+/** A whole building of the game's maps (ticket 41): a block painted in one click. */
+export interface MapPiece {
+  kind: 'village' | 'house' | 'armory' | 'vendor' | 'arena' | 'castle' | 'fort' | 'church' | 'inn' | 'gate'
+  rows: number[][]
+  uses: number
+  maps: string[]
+}
