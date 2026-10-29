@@ -102,3 +102,18 @@ def test_animations_registered_after_the_game():
                                                                        {"weapon": "ITEM_SWORD_KILLER", "number": 3}]})
     assert names == {"CLASS_MYRMIDON": "AnimConf_FEM_MYRMIDON"}
     assert ".wtype = 0x0100 | ITYPE_SWORD,\n        .index = 0x00CA," in source and ".wtype = ITEM_SWORD_KILLER," in source
+
+
+def test_other_armies_recoloured():
+    from fe_maker.decomp import banim_import as bi
+
+    player = [(0, 0, 0), (82, 131, 255), (180, 213, 246), (200, 50, 50)] + [(0, 0, 0)] * 12
+    enemy = bi.recolour(player, "enemy")
+    assert enemy[1][0] > 200 and enemy[1][2] < 100       # the strong blue turns red
+    assert enemy[2] == player[2] and enemy[3] == player[3]   # light blue (metal) and other colours stay
+    other = bi.recolour(player, "other")
+    assert max(other[1]) - min(other[1]) < 60            # greyed
+    image = Image.new("P", (8, 8))
+    image.putpalette([c for rgb in player for c in rgb] + [0] * 720)
+    data = bi.palette_bytes(image, {"ally": [10, 200, 10] * 16})
+    assert len(data) == 128 and data[64:66] == struct.pack("<H", (10 >> 3) | (200 >> 3) << 5 | (10 >> 3) << 10)

@@ -201,12 +201,49 @@ class _Sheet:
         return out.getvalue()
 
 
-def palette_bytes(image: Image.Image) -> bytes:
-    """The frame's 16 colours as 4 GBA palettes (player, enemy, ally, other), BGR555."""
-    rgb = (image.getpalette() or [])[:48]
-    rgb += [0] * (48 - len(rgb))
-    colours = [(rgb[i] >> 3) | (rgb[i + 1] >> 3) << 5 | (rgb[i + 2] >> 3) << 10 for i in range(0, 48, 3)]
-    return struct.pack("<16H", *colours) * 4
+FACTIONS = ("player", "enemy", "ally", "other")
+# The game recolours the player's blue parts (armour, cloth) for the other armies: red for enemies, green for
+# allies, grey for the fourth palette (src/banim_data.c's palettes). Hue in degrees, None: greyed.
+FACTION_HUES = {"enemy": 0, "ally": 120, "other": None}
+
+
+def _rgb16(rgb: list[int]) -> list[tuple[int, int, int]]:
+    rgb = (rgb or [])[:48]
+    rgb = rgb + [0] * (48 - len(rgb))
+    return [tuple(rgb[i:i + 3]) for i in range(0, 48, 3)]
+
+
+def recolour(colours: list[tuple[int, int, int]], faction: str) -> list[tuple[int, int, int]]:
+    """The player's palette for another army: strong blues (hue 190-250 degrees, saturated, not too light:
+    the army's colour, not metal or skies) turned red, green or grey, keeping their lightness. Colour 0
+    (transparent) and the others are left as they are."""
+    import colorsys
+
+    target = FACTION_HUES[faction]
+    out = []
+    for k, (r, g, b) in enumerate(colours):
+        h, light, sat = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+        if k == 0 or sat < 0.4 or light > 0.8 or not 190 <= h * 360 <= 250:
+            out.append((r, g, b))
+            continue
+        if target is None:
+            nr, ng, nb = colorsys.hls_to_rgb(h, light, sat * 0.15)
+        else:
+            nr, ng, nb = colorsys.hls_to_rgb(target / 360, light, sat)
+        out.append((round(nr * 255), round(ng * 255), round(nb * 255)))
+    return out
+
+
+def palette_bytes(image: Image.Image, others: dict[str, list[int]] | None = None) -> bytes:
+    """The 4 GBA palettes (player, enemy, ally, other) in BGR555: the frame's colours, and for the other
+    armies the palettes the animation's authors made (`others`: faction -> RGB list), else recoloured ones."""
+    player = _rgb16(image.getpalette() or [])
+    data = b""
+    for faction in FACTIONS:
+        colours = player if faction == "player" else (
+            _rgb16(others[faction]) if others and others.get(faction) else recolour(player, faction))
+        data += struct.pack("<16H", *[(r >> 3) | (g >> 3) << 5 | (b >> 3) << 10 for r, g, b in colours])
+    return data
 
 
 @dataclass
@@ -218,8 +255,10 @@ class Converted:
     oam_bytes: int
 
 
-def convert(symbol: str, script_text: str, frames: dict[str, Image.Image]) -> Converted:
-    """`frames`: frame file name (as the script writes it) -> its image."""
+def convert(symbol: str, script_text: str, frames: dict[str, Image.Image],
+            palettes: dict[str, list[int]] | None = None) -> Converted:
+    """`frames`: frame file name (as the script writes it) -> its image; `palettes`: the authors' palettes
+    for the other armies, if any (faction -> RGB list)."""
     script = parse_script(script_text)
     by_name = {k.lower(): v for k, v in frames.items()}
     missing = [f for f in script.files if f.lower() not in by_name]
@@ -275,7 +314,7 @@ def convert(symbol: str, script_text: str, frames: dict[str, Image.Image]) -> Co
     lines += [f"\t.word {symbol}_mode_{mode} - {symbol}_script" for mode in MODE_NAMES]
     lines += ["\t.word 0"] * 12
     palette = (first.getpalette() or [])[:48]
-    return Converted("\n".join(lines) + "\n", [s.png(palette) for s in sheets], palette_bytes(first),
+    return Converted("\n".join(lines) + "\n", [s.png(palette) for s in sheets], palette_bytes(first, palettes),
                      len(script.files), oam_bytes)
 
 

@@ -883,6 +883,33 @@ def _download_frames(files: list[dict], names: list[str]) -> dict[str, Image.Ima
     return frames
 
 
+# Palette pictures some FE-Repo animations come with ("Enemy Unit.png", "Green Unit.png"...).
+_FACTION_FILES = {"enemy": ("enemy", "red"), "ally": ("green", "ally", "npc"), "other": ("purple", "other", "4th")}
+
+
+def _faction_palettes(*folders: str) -> dict[str, list[int]]:
+    """The animation's own palettes for the other armies, read from the palette pictures of its folders."""
+    found: dict[str, list[int]] = {}
+    for folder in folders:
+        try:
+            files = ferepo.folder_files(folder)
+        except ferepo.FeRepoError:
+            continue
+        for f in files:
+            name = f["name"].lower()
+            if f["type"] != "file" or not name.endswith(".png") or name[:1].isdigit() and "_" in name:
+                continue
+            for faction, words in _FACTION_FILES.items():
+                if faction not in found and any(w in name for w in words):
+                    try:
+                        image = Image.open(io.BytesIO(ferepo.fetch(f["url"])))
+                    except (ferepo.FeRepoError, OSError):
+                        continue
+                    if image.mode == "P" and image.getpalette():
+                        found[faction] = image.getpalette()[:48]
+    return found
+
+
 @app.post("/api/animations/import")
 def import_animation(body: AnimationImportIn):
     """Download a FE-Repo animation (one weapon), convert it to the decomp's format, keep it in the project and
@@ -908,7 +935,8 @@ def import_animation(body: AnimationImportIn):
             raise banim_import.ImportError_("noScript")
         script = banim_import.parse_script(script_text)
         frames = _download_frames(files, script.files)
-        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames)
+        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames,
+                                         _faction_palettes(body.animation, body.url))
     except ferepo.FeRepoError as e:
         raise HTTPException(503 if str(e) in ("unreachable", "rateLimited") else 400, str(e)) from e
     except banim_import.ImportError_ as e:
