@@ -297,6 +297,30 @@ def list_chapters():
     return result
 
 
+@app.get("/api/chapters/overview")
+def chapters_overview():
+    """Every chapter's original objective and unit groups (sides only), for the Campaign graph's cards in one
+    request; the page applies the project's edits as for the selected chapter's sheet."""
+    d = state.get_decomp()
+    groups = units.read_unit_groups(DECOMP_DIR)
+    result = {}
+    for i, ch in enumerate(maps.chapter_settings(DECOMP_DIR)):
+        symbol = _event_symbol(ch)
+        if not symbol:
+            continue
+        try:
+            objective = d.read_objective(i)
+        except Exception:
+            objective = None
+        result[i] = {
+            "objective": objective,
+            "groups": [{"name": g["name"], "origin": g.get("origin"),
+                        "units": [{"side": u.get("side")} for u in (groups[g["name"]].units if g["name"] in groups else [])]}
+                       for g in units.chapter_unit_groups(DECOMP_DIR, symbol)],
+        }
+    return result
+
+
 @app.get("/api/chapters/links")
 def chapter_links():
     """For each chapter (by index), the event commands that start another chapter (story.py), the

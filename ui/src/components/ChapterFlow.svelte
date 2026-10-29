@@ -18,7 +18,7 @@
   } = $props()
 
   const NODE_W = 200
-  const NODE_H = 164
+  const NODE_H = 184
   const ROW = 190
   const COL = 270
   const PAD = 24
@@ -71,22 +71,28 @@
       loaded = { index: i, objective, groups: units?.groups ?? [], scenes: [...new Set((dialogues?.scenes ?? []).map(sceneLabel))] }
     })
   })
-  const sheet = $derived.by(() => {
-    if (!loaded) return null
+  /** Objective and fighting units of a chapter, with the project's edits (sheet and graph cards). */
+  function summarize(index: number, original: Objective | null, groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[]) {
     const edits = chapterList.records[0]
-    const key = String(loaded.index)
-    const objective = loaded.objective ? { ...loaded.objective, ...(edits?.objectives?.[key] ?? {}) } : null
-    const newGroups = Object.entries(edits?.newGroups ?? {}).filter(([, g]) => g.chapter === loaded!.index).map(([name]) => name)
+    const objective = original ? { ...original, ...(edits?.objectives?.[String(index)] ?? {}) } : null
+    const newGroups = Object.entries(edits?.newGroups ?? {}).filter(([, g]) => g.chapter === index).map(([name]) => name)
     const fighting = [
-      ...loaded.groups.filter((g) => g.origin !== 'cutscene').map((g) => edits?.unitGroups?.[g.name] ?? g.units),
+      ...groups.filter((g) => g.origin !== 'cutscene').map((g) => edits?.unitGroups?.[g.name] ?? g.units),
       ...newGroups.map((name) => edits?.unitGroups?.[name] ?? []),
     ].flat()
     return {
-      index: loaded.index, objective, scenes: loaded.scenes,
+      objective,
       allies: fighting.filter((u) => u.side !== 'enemy').length,
       enemies: fighting.filter((u) => u.side === 'enemy').length,
     }
+  }
+  const sheet = $derived(loaded ? { index: loaded.index, scenes: loaded.scenes, ...summarize(loaded.index, loaded.objective, loaded.groups) } : null)
+  // every chapter's card (one request; an older server without the route shows no summary)
+  let overview = $state<Awaited<ReturnType<typeof api.chaptersOverview>>>({})
+  $effect(() => {
+    api.chaptersOverview().then((o) => (overview = o)).catch(() => {})
   })
+  const cards = $derived(Object.fromEntries(Object.entries(overview).map(([i, o]) => [i, summarize(Number(i), o.objective, o.groups)])))
 
   function sceneLabel(s: DialogueScene): string {
     const key = `dlg.trigger.${s.trigger.kind}`
@@ -261,6 +267,13 @@
                 <span class="thumb"><img class="pixel" src={chapterMapUrl(n)} alt="" loading="lazy" /></span>
                 <span class="card-num">{t('flow.chapterNumber', { n })}</span>
                 <span class="card-title">{title(n)}</span>
+                {#if cards[n]}
+                  <span class="card-sum">
+                    {#if cards[n].objective}<span class="card-goal">🚩 {t(`objective.type.${cards[n].objective!.type}`)}</span>{/if}
+                    <span class="mini ally" title={t('flow.allies', { n: cards[n].allies })}>{cards[n].allies}</span>
+                    <span class="mini enemy" title={t('flow.enemies', { n: cards[n].enemies })}>{cards[n].enemies}</span>
+                  </span>
+                {/if}
               {/if}
             </button>
           {/each}
@@ -389,6 +402,11 @@
   .thumb { display: block; height: 92px; border-radius: 8px; overflow: hidden; background: var(--panel-2); flex: none; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .card-num { font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-sum { display: flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+  .card-goal { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+  .mini { padding: 0 0.4rem; border-radius: 999px; }
+  .mini.ally { background: var(--accent-soft); color: var(--accent); }
+  .mini.enemy { background: var(--bad-soft); color: var(--bad); }
   .card-title { font-size: 0.9rem; font-weight: 800; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
   .sheet-title { font-size: 1.4rem; margin: 0.1rem 0 0.6rem; }
   .sheet-block { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.7rem; }
