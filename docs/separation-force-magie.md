@@ -23,7 +23,7 @@ Notre ROM n'est pas propre : FE Maker la recompile, et chaque donnée modifiée 
 2. pour chaque adresse du C-SkillSys, trouver la fonction du jeu qui la contient et son décalage, puis l'adresse de cette fonction dans notre compilation ;
 3. compiler le C-SkillSys avec ces adresses (références FE-CLib refaites depuis notre `.map`) et l'écrire après notre ROM, dans l'espace libre.
 
-**Prototype du 24/10/2026 (soir)** : `docker/cskillsys/` (image `fe-maker-cskillsys` : devkitARM, ColorzCore compilé pour Linux avec .NET 6, outils d'Event Assembler ; `port.py` traduit les adresses, testé par `tests/server/test_cskillsys_port.py`). Résultats :
+**Prototype du 24/10/2026 (soir)**, retiré du dépôt le 29/10/2026 (toujours dans l'historique git) : `docker/cskillsys/` (image `fe-maker-cskillsys` : devkitARM, ColorzCore compilé pour Linux avec .NET 6, outils d'Event Assembler ; `port.py` traduit les adresses, testé par `tests/server/test_cskillsys_port.py`). Résultats :
 
 - le C-SkillSys (commit `f61f6c2`, avec FE-CLib-Mokha `3503999`, de la même époque) se compile dans Docker sur la ROM d'origine et démarre ;
 - sur une ROM de FE Maker (projet « test » de l'utilisateur), 69 811 adresses sont traduites par symbole (la référence de FE-CLib vient de l'ELF de la décomp : mêmes adresses que notre ROM d'origine, une centaine de noms différents seulement), il ne reste qu'un conflit (intro de débogage, non installée) et la ROM se compile (18 Mo) ;
