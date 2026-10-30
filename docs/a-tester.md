@@ -3,6 +3,27 @@
 Liste tenue pendant le travail en autonomie du 30/10/2026. Relancer FE Maker avant de tester (interface reconstruite).
 Chaque point a déjà été vérifié par un playtest automatique quand c'est indiqué ; il reste ton regard (interface, en jeu).
 
+## Deux décisions à prendre (mises en attente)
+
+1. **Nouveau chapitre avec carte neuve.** Tous les lecteurs de FE Maker (cartes, unités, événements, campagne) partent des
+   réglages de chapitre de la décomp. Deux voies :
+   - **(a) Réutiliser les places libres** : 3 chapitres vides du jeu (0x2C, 0x2D, 0x3A), et les chapitres que l'histoire du
+     projet n'atteint plus (route d'Ephraim, tour, ruines…), vidés pour repartir de zéro, avec une carte neuve (taille et jeu de tuiles
+     au choix). Rapide, dans l'esprit des personnages ajoutés. Limite : 79 chapitres en tout, ce qui suffit pour un hack.
+   - **(b) Vrais chapitres ajoutés après ceux du jeu** : plus propre sur le papier, mais il faut rendre tous les lecteurs conscients
+     du projet (gros chantier).
+   Je conseille (a).
+2. **Musique.** Les morceaux de FE-Repo-Music (licence Unlicense) sont des fichiers `.s` compatibles avec la décomp, mais ils
+   attendent le jeu d'instruments communautaire **NIMAP2** (le README dit de les jouer sur une ROM FE8 patchée avec
+   `for_fe8u.ups`). Il faut donc ajouter NIMAP2 au build (ses échantillons d'instruments), ce qui demande de vérifier sa licence et
+   d'où le télécharger. Les morceaux faits pour les instruments du jeu, eux, marcheraient tout de suite. Veux-tu que je
+   commence par NIMAP2 ?
+
+## Correction trouvée en route
+
+- [ ] Après un projet avec une animation de combat importée, le build suivant (autre projet, animation retirée) gardait les
+  anciennes animations. Corrigé ; vérifié par playtest (un projet non modifié redonne la ROM d'origine).
+
 ## Personnages ajoutés
 
 - [ ] Onglet Personnages : les boutons « + Allié » et « + Ennemi » sous la recherche créent « Nouvel allié » / « Nouvel ennemi » en bas de la liste, sélectionné. Annuler (Ctrl+Z) le retire.
