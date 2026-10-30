@@ -53,7 +53,9 @@
   let folder = $state('')
   let f2eOnly = $state(false)
   // weapon filter (ticket 47): the first time, the server asks GitHub for the weapons of each folder
-  let weaponFilter = $state('')
+  // several can be ticked: animations having all of them (ticket 48)
+  let weaponFilter = $state<string[]>([])
+  let missingFolders = $state(0)
   const FILTER_WTYPES = ['sword', 'lance', 'axe', 'bow', 'anima', 'light', 'dark', 'staff', 'item']
   let entries = $state<FeRepoEntry[]>([])
   let folders = $state<{ name: string; count: number }[]>([])
@@ -71,12 +73,15 @@
   async function run(refresh = false, more = false) {
     const n = ++request
     loading = true
+    // filtering by weapon may first ask GitHub (a minute): no stale list meanwhile
+    if (!more && weaponFilter.length) entries = []
     error = ''
     try {
-      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter, offset: more ? entries.length : 0 })
+      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter.join(','), offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
+      missingFolders = r.missingFolders ?? 0
       folders = r.folders
     } catch (e) {
       if (n === request) error = e instanceof ApiError ? t(`ferepo.error.${e.detail}`) : String(e)
@@ -113,18 +118,26 @@
       <option value="">{t('ferepo.allFolders')}</option>
       {#each folders as f (f.name)}<option value={f.name}>{f.name} ({f.count})</option>{/each}
     </select>
-    <select bind:value={weaponFilter} onchange={() => run()} aria-label={t('banim.weaponFilter')} title={t('banim.weaponFilterHint')}>
-      <option value="">{t('banim.allWeapons')}</option>
-      {#each FILTER_WTYPES as wt (wt)}<option value={wt}>{t(`wtype.${wt}`)}</option>{/each}
-    </select>
     <input bind:value={query} oninput={typed} placeholder={t('ferepo.search')} />
     <label class="small f2e"><input type="checkbox" bind:checked={f2eOnly} onchange={() => run()} /> {t('ferepo.f2eOnly')}</label>
     {#if initial && query !== initial}
       <button class="link small" onclick={() => { query = initial; run() }}>🔎 {initial}</button>
     {/if}
   </div>
+  <div class="wfilter" role="group" aria-label={t('banim.weaponFilter')}>
+    <span class="small">{t('banim.weaponFilter')} :</span>
+    {#each FILTER_WTYPES as wt (wt)}
+      <label class="wchip small" class:on={weaponFilter.includes(wt)}>
+        <input type="checkbox" checked={weaponFilter.includes(wt)}
+               onchange={(e) => { weaponFilter = (e.target as HTMLInputElement).checked ? [...weaponFilter, wt] : weaponFilter.filter((w) => w !== wt); run() }} />
+        {t(`wtype.${wt}`)}
+      </label>
+    {/each}
+    {#if weaponFilter.length}<button class="link small" onclick={() => { weaponFilter = []; run() }}>{t('banim.allWeapons')}</button>{/if}
+  </div>
   {#if error}<p class="bad small">{error}</p>{/if}
-  {#if loading && weaponFilter}<p class="muted small">{t('banim.weaponFilterHint')}</p>{/if}
+  {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}
+  {#if loading && weaponFilter.length}<p class="muted small">⏳ {t('banim.weaponFilterHint')}</p>{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}
@@ -184,6 +197,10 @@
   .bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
   .bar > input { flex: 1; min-width: 140px; }
   .f2e { flex-direction: row; align-items: center; gap: 0.3rem; }
+  .wfilter { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0.4rem 0; }
+  .wchip { display: inline-flex; flex-direction: row; width: auto; align-items: center; gap: 0.25rem; padding: 0.1rem 0.55rem; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+  .wchip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .wchip input { margin: 0; }
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; }
   .list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
   .list li button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; border: none; border-radius: 0; text-align: left; font-weight: 600; }

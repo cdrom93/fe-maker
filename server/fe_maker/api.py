@@ -1244,26 +1244,43 @@ def ferepo_image(url: str):
 @app.get("/api/ferepo/animations")
 def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
                       wtype: str = ""):
-    """Battle animations of the FE-Repo (one folder each), searched like the portraits (ticket 44); `wtype`: only
-    those with a weapon of that type (ticket 47; the weapons of each top folder are asked to GitHub once a week)."""
+    """Battle animations of the FE-Repo (one folder each), searched like the portraits (ticket 44); `wtype`: weapon
+    types, comma-separated, the animation must have them all (tickets 47, 48; the weapons of each top folder are asked
+    to GitHub once a week, the folders in parallel)."""
+    wanted = {w for w in wtype.split(",") if w}
     try:
         index, when = ferepo.load_index(refresh)
-        weapons: dict[str, list[str]] = {}
-        if wtype:
-            tops = [folder.split("/")[0]] if folder else [f["name"] for f in ferepo.folders(index, ferepo.ANIMATIONS)]
-            for top in tops:
-                weapons.update(ferepo.animation_weapons(top))
     except ferepo.FeRepoError as e:
         raise HTTPException(503, str(e)) from e
+    weapons: dict[str, list[str]] = {}
+    missing: list[str] = []   # top folders whose weapons GitHub did not give (limit of 60 requests an hour)
+    if wanted:
+        def ask(top: str) -> dict[str, list[str]] | None:
+            try:
+                return ferepo.animation_weapons(top)
+            except ferepo.FeRepoError:
+                return None
+
+        tops = [folder.split("/")[0]] if folder else [f["name"] for f in ferepo.folders(index, ferepo.ANIMATIONS)]
+        first = ask(tops[0])   # also lists the top folders, once
+        with ThreadPoolExecutor(8) as pool:
+            for top, found in zip(tops, [first, *pool.map(ask, tops[1:])]):
+                if found is None:
+                    missing.append(top)
+                else:
+                    weapons.update(found)
 
     def types(url: str) -> list[str]:
         return sorted({t for w in weapons.get(ferepo.animation_path(url), []) if (t := ferepo.weapon_type(w))})
 
     entries, total = ferepo.search(index, ferepo.ANIMATIONS, q, limit=60, folder=folder, offset=max(0, offset), f2e_only=f2e,
-                                   keep=(lambda url: wtype in types(url)) if wtype else None)
-    if wtype:
+                                   keep=(lambda url: wanted <= set(types(url))) if wanted else None)
+    if wanted:
         entries = [{**e, "weapons": types(e["url"])} for e in entries]
-    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ANIMATIONS)}
+        if len(missing) == len(tops):
+            raise HTTPException(503, "rateLimited")
+    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ANIMATIONS),
+            "missingFolders": len(missing)}
 
 
 @app.get("/api/ferepo/animation")

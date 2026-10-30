@@ -200,8 +200,9 @@ def weapon_type(name: str) -> str | None:
     return next((wtype for pattern, wtype in WEAPON_TYPES if re.search(pattern, name, re.IGNORECASE)), None)
 
 
-def _fresh_json(path: Path):
-    if path.is_file() and time.time() - path.stat().st_mtime < INDEX_MAX_AGE:
+def _fresh_json(path: Path, stale: bool = False):
+    """A cached JSON file younger than a week (any age with `stale`: when GitHub cannot be reached)."""
+    if path.is_file() and (stale or time.time() - path.stat().st_mtime < INDEX_MAX_AGE):
         return json.loads(path.read_text(encoding="utf-8"))
     return None
 
@@ -216,6 +217,16 @@ def animation_weapons(folder: str) -> dict[str, list[str]]:
         return cached
     tops_path = cache_dir() / "weapons" / "tops.json"
     tops = _fresh_json(tops_path)
+    try:
+        return _ask_weapons(folder, path, tops_path, tops)
+    except FeRepoError:
+        stale = _fresh_json(path, stale=True)   # an older answer is better than none (60 requests an hour)
+        if stale is None:
+            raise
+        return stale
+
+
+def _ask_weapons(folder: str, path: Path, tops_path: Path, tops: dict | None) -> dict[str, list[str]]:
     try:
         if tops is None:
             listing = json.loads(_download(API_PREFIX + urllib.parse.quote(ANIMATIONS) + "?ref=main", MAX_FILE_BYTES))

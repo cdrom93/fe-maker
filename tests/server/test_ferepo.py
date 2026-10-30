@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import time
 
 import pytest
 
@@ -156,3 +158,21 @@ def test_animation_weapons(tmp_path, monkeypatch):
     assert ferepo.animation_path(ANIMATION_URLS[0]) in weapons
     assert [ferepo.weapon_type(w) for w in ("1. Sword (Alt Crit)", "8. Unarmed", "6. Magic", "7. Staff")] == \
         ["sword", "item", "anima", "staff"]
+
+
+def test_animation_weapons_kept_when_github_refuses(tmp_path, monkeypatch):
+    """Ticket 48: past GitHub's 60 requests an hour, an older answer is used rather than nothing."""
+    monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
+    path = ferepo.cache_dir() / "weapons" / (hashlib.sha1(b"Magi").hexdigest() + ".json")
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"Battle Animations/Magi/Old Mage": ["Magic"]}), encoding="utf-8")
+    old = time.time() - 30 * 24 * 3600
+    os.utime(path, (old, old))
+
+    def refuse(url, limit):
+        raise ferepo.FeRepoError("rateLimited")
+
+    monkeypatch.setattr(ferepo, "_download", refuse)
+    assert ferepo.animation_weapons("Magi") == {"Battle Animations/Magi/Old Mage": ["Magic"]}
+    with pytest.raises(ferepo.FeRepoError, match="rateLimited"):
+        ferepo.animation_weapons("Other")

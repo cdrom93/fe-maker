@@ -77,7 +77,7 @@ export const api = {
       'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
   feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; wtype?: string } = {}) =>
-    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[]; missingFolders?: number }>(
       'GET', `/api/ferepo/animations?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`
         + `&wtype=${encodeURIComponent(options.wtype ?? '')}`),

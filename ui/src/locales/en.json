@@ -1156,5 +1156,6 @@
   "maps.terrainEffects": "Avoid +{avoid} · Def +{defense} · Res +{resistance} · Move cost: on foot {foot}, on horse {horse}",
   "banim.allWeapons": "All weapons",
   "banim.weaponFilter": "Weapon",
-  "banim.weaponFilterHint": "The first time, FE Maker asks GitHub for the weapons of each folder: a few seconds per folder (a minute or two for \"All folders\"), then it is kept for a week."
+  "banim.weaponFilterHint": "Looking up each animation's weapons: the first time, FE Maker asks GitHub (a few seconds, up to a minute for \"All folders\"), then it is kept for a week. When several are ticked, the animation must have them all.",
+  "banim.missingFolders": "{n} folder(s) not checked yet: GitHub allows 60 requests an hour. Their animations are missing from the list; try again later."
 }
