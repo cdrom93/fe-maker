@@ -43,7 +43,6 @@ The header's **Ticket** button notes a problem; "Send to GitHub" opens a filled-
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
-- Generated title pictures: still rather far from the game's style.
 - The game must be recompiled to show a change; there is no live preview.
 
 This project is not affiliated with Nintendo or Intelligent Systems. Never share a ROM: share the patch.

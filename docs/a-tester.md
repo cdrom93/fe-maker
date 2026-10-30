@@ -18,6 +18,11 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] #66 Limites : armes, objets et classes sont gardés (les retirer viendra plus tard) ; « Tous les chapitres » dans Dialogues liste encore les messages du jeu ; la liste des personnages garde les entrées sans nom du jeu.
 - [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre (playtest fait). Le menu propose ensuite « Reprendre le chapitre » sur ce dernier chapitre : à améliorer.
 
+## Titres de chapitre et descriptions
+
+- [ ] Image de titre : les chapitres ajoutés utilisent maintenant les vraies lettres du jeu, lues dans ses images de titre au moment de compiler. Seules G, J, K, N, P, Q, U, X, Y, Z, j, q, x viennent de l'ancienne méthode, le jeu ne les écrivant pas assez dans ses titres ; accents ajoutés sur les minuscules, pas sur les capitales (É reste E). Essai vu sur une planche de comparaison ; à voir en jeu et dans le menu de sauvegarde.
+- [ ] Description (touche R) : nouveau champ dans les fiches Personnage, Classe et Objet, avec un avertissement si le texte dépasse deux lignes d'environ 32 caractères (playtest fait : description de Seth avec accents, lue en jeu). Vide pour un personnage ajouté, celle du modèle pour une arme ou une classe ajoutée tant que tu n'y touches pas.
+
 ## Hack témoin (étape 3 de l'alpha)
 
 Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : projet vierge, héros renommé, un compagnon réutilisé, deux chapitres ajoutés, un soldat par chapitre, fin du jeu. Il va du premier chapitre au menu de sauvegarde, l'armée suit d'un chapitre à l'autre. Il ne remplace pas ton gel : les cartes y sont vides et il n'y a pas de dialogues.

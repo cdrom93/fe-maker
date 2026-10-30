@@ -43,7 +43,6 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
-- Images de titre générées : encore assez loin du style du jeu.
 - Le jeu doit recompiler pour montrer un changement ; il n'y a pas d'aperçu en direct.
 
 Le projet n'est pas affilié à Nintendo ni à Intelligent Systems. Ne partagez jamais de ROM : partagez le patch.

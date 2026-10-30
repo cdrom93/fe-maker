@@ -448,12 +448,18 @@ class DecompData:
         table, data = self._read(chaptitle.TABLE_FILE), self._read(chaptitle.DATA_FILE)
         pointers = self._read(chaptitle.POINTERS_FILE)
         template = self.decomp_dir / chaptitle.TITLE_FILE.format(n=0)
+        game_titles = {}
+        for chapter in self.chapter_settings["chapters"]:
+            text = chapter.get("chapTitleTextId", 0)
+            if text in self.texts.messages:
+                game_titles.setdefault(chapter.get("chapTitleId", 0), self.texts.get_name(text))
         rows = ""
         for number, (index, title) in enumerate(sorted(titles.items()), chaptitle.FIRST_NEW_ID):
             if number > chaptitle.LAST_NEW_ID:
                 raise GameDataError("Too many chapter titles")
             name = f"chap_title_fem_{number}"
-            self.asset_files[f"graphics/chap_title/{name}.png"] = chaptitle.strip(self.decomp_dir, title, template)
+            picture = chaptitle.strip(self.decomp_dir, title, template, game_titles)
+            self.asset_files[f"graphics/chap_title/{name}.png"] = picture
             rows += f"\t{{{name}, 0, 0}}, // {number}\n"
             data = (data.rstrip("\n") + f"\n\t.global {name}\n{name}:\n"
                     f"\t.incbin \"graphics/chap_title/{name}.4bpp.lz\"\n\t.align 2, 0\n")
