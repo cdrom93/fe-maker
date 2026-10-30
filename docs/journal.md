@@ -76,3 +76,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : pinceaux de terrain qui se raccordent tout seuls, appris des cartes du jeu (`autotile.py`) ; 96 à 100 % de paires de tuiles déjà vues sur les cartes refaites.
 - 30/10/2026 : pinceaux de terrain refaits après le retour sur « 2ème vague » : solveur de contraintes (wave function collapse) sur les bords des tuiles.
 - 30/10/2026 : vocabulaire unifié (scène, déroulé, dialogue), déclencheurs de tour et de « Parler » modifiables en phrases ; tickets 79-80 (ajouter un chapitre ou une carte depuis l'onglet Chapitres), 81 (danse d'une classe sans sprite de danseuse).
+- 30/10/2026 : premier push de l'alpha (42 commits), dépôt encore privé ; CI verte, image de compilation sur ghcr.io au second essai.
