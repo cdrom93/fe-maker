@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e "server[dev]"
-      - run: ruff check server tests docker
+      - run: ruff check server tests docker tools
       - run: python -m pytest tests/server -q
 
   ui:

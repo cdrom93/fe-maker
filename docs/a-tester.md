@@ -3,6 +3,35 @@
 Liste tenue pendant le travail en autonomie du 30/10/2026. Relancer FE Maker avant de tester (interface reconstruite).
 Chaque point a déjà été vérifié par un playtest automatique quand c'est indiqué ; il reste ton regard (interface, en jeu).
 
+## Tickets du 30/10 après-midi (58 à 66)
+
+- [ ] #58 Portrait d'un nouveau personnage : sur Bernardo, le panneau de portrait s'ouvre tout seul et propose « Depuis une planche PNG » et « Depuis FE-Repo ». Avant, il affichait seulement « le portrait n° 0 n'existe pas », sans bouton.
+- [ ] #59 Portée libre : une arme 1-10 montre ses cases rouges et « Rng 1-10 » (playtest fait : losange complet autour de Seth, écran vu). Toute autre portée marche aussi (2-5, 4-4...). Regarder FluDiBernar : les cases rouges au survol d'« Attaquer » et la fiche. Les bâtons gardent leur portée d'origine.
+- [ ] #60 Classe ajoutée : le sprite du modèle s'affiche tout de suite, dans la liste et la fiche, avec « Celui de Pirate tant que vous n'en importez pas un autre ».
+- [ ] #61 Animations : la bibliothèque reste ouverte et garde son choix après un import ; cliquer le nom de l'animation importée la rouvre en dessous. Une animation importée depuis le PC n'a pas de source : son nom reste du texte.
+- [ ] #62 Bouton « ← Retour » à gauche de « Annuler » (ou Alt + flèche gauche) : revient à l'onglet et à la fiche d'avant. Limite : sur la page Campagne, il ramène à la page mais pas au chapitre sélectionné.
+- [ ] #63 Sprite Pirate 2 : le carré gris autour du sprite sélectionné venait du fond de la planche FE-Repo. J'ai corrigé les deux images dans ton projet « test » ; les prochains imports sont bons. À revoir en jeu (sélection et marche).
+- [ ] #65 Onglet « Options du jeu » : les réglages sont présentés comme le menu Configuration du jeu, dans le même ordre, avec tous ses choix (13 réglages, dont « 2 » pour Animation, Musique, Effets sonores, Couleur des fenêtres). Le point • marque le réglage d'origine. Les noms étaient faux pour Unité et Combat (Panneau / Bulle, Stratégique / Détail) : corrigés.
+- [ ] #65 Cases à cocher : alignées avec leur texte partout (règle commune). Si tu en vois une encore décalée, dis-moi où.
+- [ ] #66 Projet vierge (écran d'accueil, « Projet vierge » sous le nom) : un chapitre vide « Chapitre 1 » de 15 × 10, sans ennemis ni dialogues, 41 places libres pour tes chapitres, les chapitres du jeu cachés de Chapitres, Cartes, Dialogues et Campagne, sans carte du monde. Case « Retirer aussi les personnages » : il reste un Héros (Eirika renommée, Rapière et Vulnéraire) ; « + Allié » et « + Ennemi » reprennent les places des personnages retirés.
+- [ ] #66 En jeu (playtest fait) : le héros bat l'unique ennemi et arrive au chapitre ajouté. **Place au moins un ennemi** : sans ennemi, l'objectif « vaincre tous les ennemis » ne se déclenche jamais et on reste sur la carte.
+- [ ] #66 Limites : armes, objets et classes sont gardés (les retirer viendra plus tard) ; « Tous les chapitres » dans Dialogues liste encore les messages du jeu ; la liste des personnages garde les entrées sans nom du jeu.
+- [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre. Le dernier chapitre d'un hack en a besoin, sinon le jeu reste sur la carte.
+
+## Ticket 64 : où sont les conditions et les sauts
+
+Onglet **Dialogues**, choisir un chapitre, puis le bouton ⚙ d'une scène : l'éditeur d'événements s'ouvre. En bas, la liste « Ajouter », groupe « Conditions » :
+
+1. Choisis par exemple « Si un personnage est vivant… » : FE Maker ajoute trois blocs : le test, le saut et l'étiquette.
+2. Choisis le personnage dans le premier bloc. Le saut est sélectionné : la commande que tu ajoutes ensuite se place dans la condition, en retrait, avant l'étiquette.
+3. Le jeu saute à l'étiquette si la condition est fausse : les commandes en retrait ne s'exécutent que si elle est vraie.
+
+Essai simple : dans l'ouverture du prologue, ajoute « Si un personnage est vivant… » avec Seth, puis un dialogue dans le bloc ; il s'affiche. Refais-le avec un personnage absent du chapitre : il ne s'affiche plus.
+
+## Ouverts sans action de ma part
+
+- #56 musique : en pause, à ta demande. #67 (chapitre d'après une fiche du wiki) : noté dans le cahier pour plus tard. Je les laisse ouverts.
+
 ## Chapitres ajoutés (décision 1 : places libres)
 
 - [ ] Page Campagne, fiche d'un chapitre : « + Ajouter un chapitre après celui-ci » (titre, largeur, hauteur ; 21 places libres au départ : étages de la tour et des ruines, chapitres de test). Le nouveau chapitre apparaît dans le graphe juste après, avec son titre.

@@ -22,8 +22,9 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import emulator, ferepo, newchapter, validation
+from . import __version__, decompfetch, emulator, ferepo, newchapter, validation
 from .builder import BuildError
+from .checks import run_checks
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
     banim,
@@ -115,6 +116,7 @@ class SettingsIn(BaseModel):
 def status():
     s = state.settings
     return {
+        "version": __version__,
         "hasRom": s.has_rom,
         "language": s.language,
         "mgbaPath": s.mgba_path,
@@ -124,6 +126,22 @@ def status():
         "defaultProjectsDir": str(default_projects_dir()),
         "project": _project_info(state.project) if state.project else None,
     }
+
+
+@app.get("/api/checks")
+def checks():
+    """What this computer still lacks to run FE Maker (checks.py)."""
+    return run_checks(state.settings)
+
+
+@app.post("/api/decomp/download")
+def download_decomp():
+    """First launch of a release: the decomp is downloaded (decompfetch.py)."""
+    try:
+        decompfetch.fetch()
+    except decompfetch.DecompFetchError as e:
+        raise HTTPException(502, str(e)) from e
+    return run_checks(state.settings)
 
 
 @app.post("/api/shutdown")

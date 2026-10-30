@@ -1,5 +1,5 @@
 import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
-import type { BuildStatus, Character, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BuildStatus, Character, Check, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 /** Options of the built game (server: decomp/gameoptions.py) */
 type GameOptionsData = {
@@ -48,6 +48,8 @@ export const api = {
     request<ProjectInfo>('POST', '/api/projects', { name, author, blank }),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
+  checks: () => request<Check[]>('GET', '/api/checks'),
+  downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
   saveData: (kind: DataKind, records: unknown) =>

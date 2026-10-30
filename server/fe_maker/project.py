@@ -14,7 +14,7 @@ from . import builder, ferepo, ups
 from .decomp import gameoptions, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
-from .paths import DECOMP_DIR
+from .paths import DECOMP_COMMIT, DECOMP_DIR
 from .validation import Problem, validate
 
 FORMAT_VERSION = 1
@@ -50,8 +50,8 @@ class ProjectError(Exception):
 
 def decomp_commit() -> str | None:
     git = shutil.which("git")
-    if not git:
-        return None
+    if not git or not (DECOMP_DIR / ".git").exists():
+        return DECOMP_COMMIT
     result = subprocess.run([git, "-C", str(DECOMP_DIR), "rev-parse", "HEAD"], capture_output=True, text=True)
     return result.stdout.strip() or None
 

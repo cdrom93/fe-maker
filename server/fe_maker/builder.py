@@ -7,6 +7,7 @@ through an overlay directory.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -21,6 +22,8 @@ from .paths import DECOMP_DIR, DOCKER_DIR
 from .rom import check_rom
 
 IMAGE = "fe-maker-build"
+# Published by .github/workflows/image.yml, so that a first build does not spend ten minutes compiling agbcc.
+REGISTRY_IMAGE = "ghcr.io/cdrom93/fe-maker-build"
 
 DOCKER_FALLBACKS = [
     r"C:\Program Files\Docker\Docker\resources\bin\docker.exe",
@@ -91,7 +94,7 @@ def ensure_lf_checkout(decomp_dir: Path = DECOMP_DIR) -> None:
     """Git for Windows converts text files to CRLF by default, which breaks
     the Linux build. Force the submodule checkout to keep LF line endings."""
     git = shutil.which("git")
-    if not git:
+    if not git or not (decomp_dir / ".git").exists():   # a release's download has LF endings already
         return
 
     def git_config(key: str) -> str:
@@ -104,6 +107,36 @@ def ensure_lf_checkout(decomp_dir: Path = DECOMP_DIR) -> None:
     subprocess.run([git, "-C", str(decomp_dir), "config", "core.eol", "lf"], check=True)
     subprocess.run([git, "-C", str(decomp_dir), "rm", "-r", "-q", "--cached", "."], check=True)
     subprocess.run([git, "-C", str(decomp_dir), "reset", "-q", "--hard"], check=True)
+
+
+def image_tag() -> str:
+    """The image's version: the hash of what it is made from (line endings aside)."""
+    digest = hashlib.sha256()
+    for name in ("Dockerfile", "entrypoint.sh"):
+        digest.update((DOCKER_DIR / name).read_bytes().replace(b"\r\n", b"\n"))
+    return digest.hexdigest()[:12]
+
+
+def ensure_image(docker: str, on_output: Callable[[str], None] | None = None) -> str:
+    """The build image of this version: already here, else published, else built."""
+    def run(*args: str) -> bool:
+        return subprocess.run([docker, *args], capture_output=True).returncode == 0
+
+    image = f"{IMAGE}:{image_tag()}"
+    if run("image", "inspect", image):
+        return image
+    published = f"{REGISTRY_IMAGE}:{image_tag()}"
+    if on_output:
+        on_output("Getting the build tools (first time only)...\n")
+    if run("pull", published) and run("tag", published, image):
+        return image
+    if on_output:
+        on_output("Preparing the build tools (first time only, about ten minutes)...\n")
+    result = subprocess.run([docker, "build", "-q", "-t", image, str(DOCKER_DIR)], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        raise BuildError("Build failed:\n" + result.stdout[-2000:] + result.stderr[-2000:])
+    return image
 
 
 def build(
@@ -138,26 +171,24 @@ def build(
         if not overlay.is_dir():
             raise BuildError(f"Overlay directory not found: {overlay}")
         args += ["-v", f"{overlay}:/overlay:ro"]
-    args.append(IMAGE)
 
     log_lines: list[str] = []
     with build_lock(on_output):
-        for command in ([docker, "build", "-q", "-t", IMAGE, str(DOCKER_DIR)], args):
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            assert process.stdout is not None
-            for line in process.stdout:
-                log_lines.append(line)
-                if on_output:
-                    on_output(line)
-            if process.wait() != 0:
-                raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
+        process = subprocess.Popen(
+            [*args, ensure_image(docker, on_output)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            log_lines.append(line)
+            if on_output:
+                on_output(line)
+        if process.wait() != 0:
+            raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
 
     log = "".join(log_lines)
     return BuildResult(

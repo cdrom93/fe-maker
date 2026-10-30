@@ -95,8 +95,8 @@
     music = await api.chapterMusic(selected)
   }
 
-  /** A chapter that leads nowhere: its ending scene goes to `to` (mirrors story.with_next). */
-  async function linkTo(to: number) {
+  /** A chapter that leads nowhere: its ending scene goes to `to`, or ends the game (mirrors story.with_next). */
+  async function linkTo(to: number | 'title') {
     const name = selected === null ? null : endings[selected]
     if (!name) return
     error = ''
@@ -104,7 +104,8 @@
       const commands = list.records[0]?.scripts?.[name] ?? (await api.eventScript(name)).commands
       let at = commands.length
       while (at > 0 && ['ENDA', 'NoFade', ''].includes(commands[at - 1].op)) at--
-      const next = [...commands.slice(0, at), { op: 'MNC2', args: [`0x${to.toString(16)}`] }, ...commands.slice(at)]
+      const change = to === 'title' ? { op: 'MNTS', args: ['0'] } : { op: 'MNC2', args: [`0x${to.toString(16)}`] }
+      const next = [...commands.slice(0, at), change, ...commands.slice(at)]
       list.update(0, (d) => {
         d.scripts ??= {}
         d.scripts[name] = next
@@ -472,9 +473,10 @@
           <label class="small">{t('flow.linkTo')}
             <select value="" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v !== '') linkTo(Number(v)) }}>
               <option value="">{t('flow.linkChoose')}</option>
-              {#each chapters as c (c.index)}<option value={c.index}>{c.index} · {c.title || c.id}</option>{/each}
+              {#each chapters.filter((c) => !c.hidden) as c (c.index)}<option value={c.index}>{c.index} · {c.title || c.id}</option>{/each}
             </select>
           </label>
+          <button class="small" onclick={() => linkTo('title')} title={t('flow.endGameHint')}>{t('flow.endGame')}</button>
         {/if}
       {/if}
       {#each mine as l, k (k)}

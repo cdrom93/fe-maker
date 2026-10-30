@@ -17,6 +17,9 @@
   let body = $state('')
   let images = $state<string[]>([])
   let error = $state('')
+  const ISSUES_REPO = 'cdrom93/fe-maker'
+  let version = $state('')
+  api.status().then((s) => (version = s.version)).catch(() => {})
   let sent = $state<number | null>(null)
   let sending = $state(false)
   let tickets = $state<Ticket[]>([])
@@ -39,6 +42,14 @@
     await load()
     textarea?.focus()
   })
+
+  /** A GitHub issue filled in from a ticket, in the user's browser: they read it and send it, or not (alpha, step 7). */
+  function issueUrl(tk: Ticket): string {
+    const lines = [tk.body, '', ...Object.entries(tk.context).map(([k, v]) => `- ${k}: ${v}`), `- FE Maker: ${version}`]
+    if (tk.images.length) lines.push('', t('ticket.issueImages', { n: tk.images.length }))
+    const query = new URLSearchParams({ title: `[${tk.kind}] ${tk.body.split('\n')[0].slice(0, 70)}`, body: lines.join('\n').slice(0, 6000) })
+    return `https://github.com/${ISSUES_REPO}/issues/new?${query}`
+  }
 
   async function load() {
     tickets = await api.tickets()
@@ -190,6 +201,7 @@
           {/if}
           <div class="actions left">
             {#if tk.status === 'open'}
+              <a class="issue" href={issueUrl(tk)} target="_blank" rel="noreferrer" title={t('ticket.issueHint')}>{t('ticket.issue')}</a>
               <button onclick={() => update(tk.id, { status: 'done' })}>{t('ticket.markDone')}</button>
               <button onclick={() => update(tk.id, { status: 'cancelled' })}>{t('ticket.markCancelled')}</button>
             {:else}
@@ -209,6 +221,7 @@
 </aside>
 
 <style>
+  .issue { font-size: 0.8rem; align-self: center; }
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;
     display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; box-sizing: border-box;

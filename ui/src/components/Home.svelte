@@ -2,6 +2,7 @@
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import type { Status } from '../lib/types'
+  import Checks from './Checks.svelte'
 
   let { status, onOpened }: { status: Status; onOpened: () => void } = $props()
 
@@ -28,6 +29,7 @@
   }
 </script>
 
+<Checks />
 <div class="home">
   <section class="panel">
     <h2>{t('home.new')}</h2>

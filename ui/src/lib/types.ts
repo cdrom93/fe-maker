@@ -451,6 +451,7 @@ export interface ProjectInfo {
 }
 
 export interface Status {
+  version: string
   hasRom: boolean
   language: 'fr' | 'en' | 'es' | 'it'
   mgbaPath: string | null
@@ -474,6 +475,13 @@ export type TicketKind = 'bug' | 'idea' | 'question'
 export type TicketPriority = 'high' | 'normal' | 'low'
 
 /** Test feedback written from the app (server/fe_maker/tickets.py). */
+/** Something FE Maker needs on this computer (server: checks.py). */
+export interface Check {
+  id: 'rom' | 'decomp' | 'docker' | 'mgba'
+  ok: boolean
+  detail: string
+}
+
 export interface Ticket {
   id: string
   number: number

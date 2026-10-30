@@ -120,6 +120,7 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
     scripts = dialogues.setdefault("scripts", {})
     data._load_chapter_events()
     chapters["blank"] = True
+    project.set_world_map(False)   # the world map only knows the game's places (story.py)
     if characters:
         players = next(g["name"] for g in units.chapter_unit_groups(
             project.decomp_dir, data._chapter_event_symbol(data.chapter_settings["chapters"][0])) if g["origin"] == "players")

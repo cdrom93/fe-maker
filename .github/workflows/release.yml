@@ -1,0 +1,26 @@
+# A release: pushing a tag v* builds the package and publishes it as a draft, to be read before it goes out.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci && npm run build
+        working-directory: ui
+      - run: python tools/make_release.py
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --prerelease --notes-file CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
