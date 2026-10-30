@@ -1,6 +1,11 @@
 # À tester avant le gel de l'alpha
 
 Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/artifact/GcH46bW4mcrDoGaEMZj8Hb. Un point « playtest fait » a déjà tourné en automatique : il reste ton regard.
+## Pinceaux de terrain
+
+- [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
+- [ ] À vérifier à l'œil : les côtes restent carrées (borde-les de Sable), et une rivière qui s'arrête en pleine plaine finit sur une tuile étrange.
+
 ## Tickets 77 et 78
 
 - [ ] #77 Menu Configuration du jeu : la ligne « Staff & Dance » est juste sous « Animation » (2e ligne), son aide tient sur la ligne (« Animate staves and dances ») et la dernière ligne, « Window Color », s'affiche en entier. Recompile pour le voir.

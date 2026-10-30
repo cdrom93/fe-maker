@@ -43,6 +43,7 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
+- Terrain brushes: the joins are learned from the game's maps; a coast stays squarer than by hand, and is better edged with sand.
 - "End the game here" goes back to the title screen; the menu then offers to resume the last chapter.
 - The copies in a project's `backups/` folder are restored by hand.
 - The game must be recompiled to show a change; there is no live preview.

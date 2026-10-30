@@ -27,6 +27,7 @@ from .builder import BuildError
 from .checks import run_checks
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
+    autotile,
     banim,
     banim_import,
     convoy,
@@ -771,6 +772,28 @@ def map_tileset(layout_id: str, palette: str | None = None, base: str | None = N
     _layout(layout_id)
     png = maps.render_tileset(maps.layout_assets(DECOMP_DIR, layout_id, base, palette))
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
+
+
+class AutotileIn(BaseModel):
+    rows: list[list[int]]
+    cells: list[tuple[int, int]]
+    base: str | None = None
+
+
+@app.get("/api/maps/{layout_id}/brushes")
+def map_brushes(layout_id: str, base: str | None = None):
+    """The ground terrains of this map's tile sheet, for the brushes whose tiles join by themselves."""
+    _layout(layout_id)
+    config = maps.layout_assets(DECOMP_DIR, layout_id, base).config
+    return {"brushes": autotile.brushes(autotile.learn(DECOMP_DIR, config))}
+
+
+@app.post("/api/maps/{layout_id}/autotile")
+def map_autotile(layout_id: str, body: AutotileIn):
+    """Join the painted cells with what is around them, as the game's maps do."""
+    _layout(layout_id)
+    config = maps.layout_assets(DECOMP_DIR, layout_id, body.base).config
+    return {"rows": autotile.paint(autotile.learn(DECOMP_DIR, config), body.rows, body.cells)}
 
 
 @app.get("/api/maps/{layout_id}/pieces")

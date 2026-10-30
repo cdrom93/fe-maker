@@ -1417,5 +1417,7 @@
   "flow.step.dialogues": "Write the dialogues",
   "field.abilities": "Abilities",
   "problem.chapterNoEnemies": "\"{title}\" has no enemies: it ends on the first turn",
-  "problem.chapterNoNext": "\"{title}\" leads nowhere: link it or end the game here"
+  "problem.chapterNoNext": "\"{title}\" leads nowhere: link it or end the game here",
+  "maps.ground": "Terrains",
+  "maps.groundHint": "Paint a river, a road, a cliff: the tiles join by themselves, as on the game's maps. Painting plains erases cleanly."
 }

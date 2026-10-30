@@ -224,11 +224,11 @@ L'interface est l'un des points les plus importants : tout doit être facile à 
 - **Autres** : éditeur de déclencheurs de Warcraft III / StarCraft II (actions écrites en phrases aux mots cliquables) ; Battle for Wesnoth (éditeur libre, transitions de terrain automatiques, camps réglés en quelques boutons) ; Game Builder Garage (briques de programmation expliquées) ; Levelhead (tester et éditer sans coupure) ; RPG Maker MZ (pages d'événement, et ce qu'il ne faut pas faire : listes de commandes lourdes) ; éditeurs de scénarios de Heroes III et Age of Empires II (objectifs et événements datés dans une même fiche).
 
 Priorités proposées :
-1. Tester un chapitre donné : bouton ▶ sur chaque chapitre, avec ses unités, sans repasser par le prologue.
-2. Unités et objets glissés sur la carte, zones de mouvement et de danger visibles pendant l'édition.
-3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu).
-4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs.
-5. Vérification avant export par un test automatique ; petits tutoriels au bon moment.
+1. Tester un chapitre donné : bouton ▶ sur chaque chapitre, avec ses unités, sans repasser par le prologue. **Fait.**
+2. Unités et objets glissés sur la carte, zones de mouvement et de danger visibles pendant l'édition. **Fait pour les unités et les zones** ; les objets se posent en peignant leur tuile ou un bâtiment entier.
+3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu). **Fait** (panneau « Terrains » de la carte, `autotile.py`) : très bon sur rivières, montagnes et routes ; côtes encore carrées.
+4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs. **Frise et vue simple des scènes faites** ; reste à modifier les déclencheurs en phrases.
+5. Vérification avant export par un test automatique ; petits tutoriels au bon moment. **À faire.**
 
 Maquettes cliquables (25/10/2026) : https://claude.ai/artifact/MKewiQUGuDhGbfbYt1UGsL.
 

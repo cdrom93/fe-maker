@@ -161,6 +161,10 @@ export const api = {
   classAnimations: (classId: string) => request<ClassAnimation[]>('GET', `/api/classes/${classId}/animations`),
   animationMode: (number: number | string, mode: string, palette = 0) =>
     request<{ durations: number[]; width: number; height: number }>('GET', `/api/animations/${number}/${mode}.json?palette=${palette}`),
+  mapBrushes: (id: string, base: string | null = null) =>
+    request<{ brushes: { terrain: number; tile: number }[] }>('GET', `/api/maps/${id}/brushes${base ? `?base=${encodeURIComponent(base)}` : ''}`),
+  mapAutotile: (id: string, body: { rows: number[][]; cells: [number, number][]; base: string | null }) =>
+    request<{ rows: number[][] }>('POST', `/api/maps/${id}/autotile`, body),
   mapPieces: (id: string, base: string | null = null) =>
     request<{ pieces: MapPiece[] }>('GET', `/api/maps/${id}/pieces${base ? `?base=${encodeURIComponent(base)}` : ''}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>

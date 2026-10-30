@@ -610,9 +610,24 @@
   const toGrid = (p: Cell): Cell => (change ? { x: p.x - change.x, y: p.y - change.y } : p)
   const copyGrid = () => (change ? change.rows : rows).map((r) => [...r])
 
+  // Terrain brushes: the tiles of the painted cells and around them are chosen as the game's maps do.
+  let groundBrushes = $state<{ terrain: number; tile: number }[]>([])
+  let groundBrush = $state<number | null>(null)
+  $effect(() => {
+    const id = info?.id
+    const base = chosenBase
+    groundBrushes = []
+    groundBrush = null
+    if (!id) return
+    api.mapBrushes(id, base).then((r) => {
+      if (info?.id === id && chosenBase === base) groundBrushes = r.brushes
+    }).catch(() => {})
+  })
+
   // Another tile taken while new tiles wait for an answer: they are dropped.
   const setBrush = (m: number) => {
     stamp = [[m]]
+    groundBrush = null
     palettePicked = null
     pendingTiles = null
   }
@@ -664,7 +679,27 @@
       const [x, y] = key.split(',').map(Number)
       next[y][x] = stampTile(x + offset.x, y + offset.y, start)
     }
-    commit(next)
+    finish(next)
+  }
+
+  function pickGround(b: { terrain: number; tile: number }) {
+    setBrush(b.tile)
+    groundBrush = b.terrain
+    if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen'
+  }
+
+  /** The end of a stroke: with a terrain brush, the painted cells are joined to what is around them first. */
+  async function finish(next: number[][]) {
+    if (groundBrush === null || !info) return commit(next)
+    const before = copyGrid()
+    const cells: [number, number][] = []
+    next.forEach((row, y) => row.forEach((m, x) => { if (m !== before[y]?.[x]) cells.push([x, y]) }))
+    if (!cells.length) return
+    try {
+      commit((await api.mapAutotile(info.id, { rows: next, cells, base: chosenBase })).rows)
+    } catch {
+      commit(next)
+    }
   }
 
   function onDown(e: MouseEvent) {
@@ -723,6 +758,7 @@
       stamp = Array.from({ length: a.y1 - a.y0 + 1 }, (_, j) => Array.from({ length: a.x1 - a.x0 + 1 }, (_, i) => shownTile(a.x0 + i, a.y0 + j)))
       palettePicked = null
       pendingTiles = null
+      groundBrush = null
       copyStart = null
       if (tool === 'pick' || tool === 'fill') tool = 'pen'
       return
@@ -736,7 +772,7 @@
     const result = $state.snapshot(draft) as number[][]
     draft = null
     rectStart = null
-    commit(result)
+    finish(result)
   }
 
   /** Save the painted grid (map or edited change) as one undo step. */
@@ -1071,6 +1107,7 @@
 
   /** Mouse released on the palette: the dragged rectangle becomes the block (one tile for a click). */
   function pickFromPalette() {
+    groundBrush = null
     if (!paletteDrag) return
     const a = rectOf(paletteDrag.a, paletteDrag.b)
     const tileAt = (x: number, y: number) => palTiles[y * palColumns + x] ?? palTiles[palTiles.length - 1]
@@ -1369,13 +1406,24 @@
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
+            {#if groundBrushes.length}
+              <h4 class="small ground-title">{t('maps.ground')} <Help text={t('maps.groundHint')} /></h4>
+              <div class="pieces ground">
+                {#each groundBrushes as b (b.terrain)}
+                  <button class="piece" class:active={groundBrush === b.terrain} onclick={() => pickGround(b)}>
+                    <canvas width="16" height="16" use:drawBrush={{ m: b.tile, sheet, layout }}></canvas>
+                    <span class="tiny">{terrainName(b.terrain)}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             {#if pieces.length}
               <details class="pieces-panel">
                 <summary class="small">{t('maps.pieces', { n: pieces.length })}</summary>
                 <div class="pieces">
                   {#each pieces as piece, k (k)}
                     <button class="piece" class:active={stamp === piece.rows} title={t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') })}
-                      onclick={() => { stamp = piece.rows; palettePicked = null; pendingTiles = null; if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen' }}>
+                      onclick={() => { stamp = piece.rows; groundBrush = null; palettePicked = null; pendingTiles = null; if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen' }}>
                       <canvas width={piece.rows[0].length * 16} height={piece.rows.length * 16} use:drawPiece={{ rows: piece.rows, sheet, layout }}></canvas>
                       <span class="tiny">{t(`maps.piece.${piece.kind}`)}</span>
                     </button>
@@ -1534,6 +1582,8 @@
 {/snippet}
 
 <style>
+  .ground-title { margin: 0.4rem 0 0; }
+  .pieces.ground { max-height: none; }
   .map-settings summary { cursor: pointer; font-weight: 700; margin-bottom: 0.4rem; }
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }

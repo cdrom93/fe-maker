@@ -1417,5 +1417,7 @@
   "flow.step.dialogues": "Écrire les dialogues",
   "field.abilities": "Capacités",
   "problem.chapterNoEnemies": "« {title} » n'a pas d'ennemi : il se termine au premier tour",
-  "problem.chapterNoNext": "« {title} » ne mène nulle part : reliez-le ou terminez le jeu ici"
+  "problem.chapterNoNext": "« {title} » ne mène nulle part : reliez-le ou terminez le jeu ici",
+  "maps.ground": "Terrains",
+  "maps.groundHint": "Peignez une rivière, une route, une falaise : les tuiles se raccordent toutes seules, comme sur les cartes du jeu. Peindre de la plaine efface proprement."
 }

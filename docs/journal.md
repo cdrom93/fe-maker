@@ -73,3 +73,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : « À faire » signale les chapitres ajoutés sans ennemi ou sans suite.
 - 30/10/2026 : tickets 77 (14e ligne du menu Configuration entière) et 78 (case « Fin du jeu » pour un retour à l'écran titre).
 - 30/10/2026 : « Staff & Dance » en 2e ligne du menu Configuration ; doc mise à jour pour l'interface simplifiée (guides, README, CHANGELOG, cahier).
+- 30/10/2026 : pinceaux de terrain qui se raccordent tout seuls, appris des cartes du jeu (`autotile.py`) ; 96 à 100 % de paires de tuiles déjà vues sur les cartes refaites.
