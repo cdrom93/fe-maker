@@ -44,7 +44,15 @@
     FlashCursor: '📍', CAMERA: '🎥', CAMERA2: '🎥', CAMERA_CAHR: '🎥', STAL: '⏱️', STAL2: '⏱️', STAL3: '⏱️',
     DISA: '👋', KILL: '💀', CUSA: '🤝', CUSN: '🤝', ENUT: '🚩', ENUF: '🏳️', CLEA: '🧹', CLEE: '🧹', CLEN: '🧹',
     NoFade: '⏹️', ENDA: '⏹️',
+    CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
+    CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
+    LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
   }
+  // Memory slots of the event engine (server: events.COMMANDS, kind "slot"): checks write their result in C.
+  const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
+  const BRANCHES = ['GOTO', 'BEQ', 'BNE', 'BGE', 'BGT', 'BLE', 'BLT']
+  // Ready-made conditions: a check, a branch past the block when it fails, and the block's end label.
+  const CONDITIONS = ['if:alive', 'if:flag', 'if:turn']
 
   let reference = $state<EventsReference | null>(null)
   let original = $state<EventCommand[]>([])
@@ -100,6 +108,21 @@
     })
   }
 
+  const labelNumber = (v: string) => (/^(0x[0-9a-f]+|\d+)$/i.test(v.trim()) ? Number(v.trim()) : NaN)
+  /** Block index of each LABEL number, to show where a jump goes. */
+  const labels = $derived(new Map(commands.flatMap((c, i) => (c.op === 'LABEL' ? [[labelNumber(c.args?.[0] ?? ''), i] as [number, number]] : []))))
+  /** Indentation of each block: the blocks a forward jump skips are inside it. */
+  const depths = $derived.by(() => {
+    const d = commands.map(() => 0)
+    commands.forEach((c, i) => {
+      if (!BRANCHES.includes(c.op)) return
+      const to = labels.get(labelNumber(c.args?.[0] ?? ''))
+      if (to !== undefined && to > i) for (let n = i + 1; n < to; n++) d[n]++
+    })
+    return d
+  })
+  const nextLabel = () => Math.max(-1, ...[...labels.keys()].filter((n) => !isNaN(n))) + 1
+
   function setArg(i: number, k: number, value: string) {
     save(commands.map((c, n) => (n === i ? { ...c, args: (c.args ?? []).map((a, j) => (j === k ? value : a)) } : c)))
   }
@@ -126,9 +149,24 @@
     const defaults: Record<string, string> = {
       song: reference?.songs.find((s) => s !== 'SONG_NONE') ?? '0', background: reference?.backgrounds[0] ?? '0',
       message: '0x0', character: first, group: groups[0] ?? '0', x: '0', y: '0', frames: '60', flag: 'EVFLAG_TMP(20)',
-      number: '0', speed: '0', raw: '0',
+      number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
+      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C',
     }
-    return { op, args: spec.map((a) => (op.startsWith('LOAD') && a.name === 'flag' ? '1' : defaults[a.kind] ?? '0')) }
+    return {
+      op,
+      args: spec.map((a) => (op.startsWith('LOAD') && a.name === 'flag' ? '1' : a.name === 'right' ? 'EVT_SLOT_0' : defaults[a.kind] ?? '0')),
+    }
+  }
+
+  /** The commands of a ready-made condition; the commands to run go between its branch and its label. */
+  function condition(kind: string): EventCommand[] {
+    const label = `0x${nextLabel().toString(16)}`
+    if (kind === 'if:turn') {
+      return [{ op: 'CHECK_TURNS' }, { op: 'SVAL', args: ['EVT_SLOT_1', '5'] }, { op: 'BLT', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_1'] },
+        { op: 'LABEL', args: [label] }]
+    }
+    const check = kind === 'if:alive' ? fresh('CHECK_ALIVE') : fresh('CHECK_EVENTID')
+    return [check, { op: 'BEQ', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_0'] }, { op: 'LABEL', args: [label] }]
   }
 
   /** New command after the selected one, else before the script's end (NoFade, ENDA). */
@@ -136,8 +174,10 @@
     if (!adding) return
     let at = selected !== null ? selected + 1 : commands.length
     if (selected === null) while (at > 0 && ['NoFade', 'ENDA', ''].includes(commands[at - 1].op)) at--
-    save([...commands.slice(0, at), fresh(adding), ...commands.slice(at)])
-    selected = at
+    const added = CONDITIONS.includes(adding) ? condition(adding) : [fresh(adding)]
+    save([...commands.slice(0, at), ...added, ...commands.slice(at)])
+    // a condition: select its branch, the next command added goes inside it
+    selected = at + added.length - (CONDITIONS.includes(adding) ? 2 : 1)
     adding = ''
   }
 
@@ -211,7 +251,7 @@
         <li class="gap" aria-hidden="true"></li>
       {:else}
         {@const spec = reference?.commands[c.op]}
-        <li class:active={selected === i} class:comment={c.op === '#'} class:raw={!spec && c.op !== '#'}>
+        <li class:active={selected === i} class:comment={c.op === '#'} class:raw={!spec && c.op !== '#'} style:margin-left="{depths[i] * 1.2}rem">
           <button class="num" onclick={() => (selected = selected === i ? null : i)} title={t('ev.select')}>{i + 1}</button>
           <div class="body">
             {#if c.op === '#'}
@@ -252,6 +292,22 @@
                       <button class="link" onclick={() => newMessageAt(i, k)} title={t('ev.newMessageHint')}>＋</button>
                     </span>
                     {#if ref && firstLine(ref)}<span class="tiny muted quote">« {firstLine(ref)} »</span>{/if}
+                  {:else if a.kind === 'slot'}
+                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#if !SLOTS.includes(v)}<option value={v}>{v}</option>{/if}
+                      {#each SLOTS as s (s)}<option value={s}>{t(`ev.slot.${s.slice(-1)}`)}</option>{/each}
+                    </select>
+                  {:else if a.kind === 'label'}
+                    {@const to = labels.get(labelNumber(v))}
+                    <span class="inline">
+                      <input class="short" value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                      {#if c.op !== 'LABEL'}
+                        {#if to !== undefined}<button class="link tiny" onclick={() => (selected = to)}>{t('ev.toBlock', { n: to + 1 })}</button>
+                        {:else}<span class="bad tiny">{t('ev.noLabel')}</span>{/if}
+                      {/if}
+                    </span>
+                  {:else if a.kind === 'script'}
+                    <input value={v} list="ev-scripts" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else if a.kind === 'group'}
                     <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else}
@@ -277,12 +333,18 @@
     {/each}
   </ol>
   <datalist id="ev-groups">{#each groups as g (g)}<option value={g}></option>{/each}</datalist>
+  <datalist id="ev-scripts">{#each reference?.scripts ?? [] as s (s)}<option value={s}></option>{/each}</datalist>
 
   {#if reference}
     <div class="add">
       <select bind:value={adding} aria-label={t('ev.add')}>
         <option value="">{t('ev.add')}</option>
-        {#each reference.addable as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
+        <optgroup label={t('ev.conditions')}>
+          {#each CONDITIONS as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
+        </optgroup>
+        <optgroup label={t('ev.commands')}>
+          {#each reference.addable as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
+        </optgroup>
       </select>
       <button onclick={add} disabled={!adding}>＋ {selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
     </div>

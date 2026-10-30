@@ -19,7 +19,12 @@ _SCRIPT_RE = re.compile(r"(?:CONST_DATA\s+)?EventListScr\s+(\w+)\s*\[\s*\]\s*=\s
 _IDENT_RE = re.compile(r"[A-Za-z_]\w*")
 
 # Argument kinds: song, message, character, group (unit group), x, y, frames, background, flag, speed,
-# item, number, raw. The editor shows a field for each.
+# item, number, raw, slot (a memory slot of the event engine, EVT_SLOT_0 to EVT_SLOT_D), label (a LABEL
+# number of the script), script (another script, for CALL). The editor shows a field for each.
+#
+# Conditions: a check (CHECK_x) puts its result in slot C, then a branch (BEQ, BNE...) jumps to a LABEL of
+# the script when its two slots compare; the game writes "if alive" as CHECK_ALIVE(x), BEQ(n, EVT_SLOT_C,
+# EVT_SLOT_0), ..., LABEL(n).
 COMMANDS: dict[str, list[tuple[str, str]]] = {
     "MUSC": [("song", "song")],
     "MUSS": [("song", "song")],
@@ -67,10 +72,30 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "CLEN": [],
     "NoFade": [],
     "ENDA": [],
+    "CHECK_ALIVE": [("character", "character")],
+    "CHECK_EXISTS": [("character", "character")],
+    "CHECK_DEPLOYED": [("character", "character")],
+    "CHECK_EVENTID": [("flag", "flag")],
+    "CHECK_TURNS": [],
+    "CHECK_HARD": [],
+    "CHECK_MODE": [],
+    "CHECK_ENEMIES": [],
+    "CHECK_MONEY": [],
+    "CHECK_ACTIVE": [],
+    "CHECK_AT": [("x", "x"), ("y", "y")],
+    "SVAL": [("slot", "slot"), ("value", "number")],
+    "LABEL": [("label", "label")],
+    "GOTO": [("label", "label")],
+    "CALL": [("script", "script")],
+    **{op: [("label", "label"), ("left", "slot"), ("right", "slot")] for op in ("BEQ", "BNE", "BGE", "BGT", "BLE", "BLT")},
 }
 # Commands the editor offers to add (the others can only be kept, moved or removed).
 ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "CAMERA", "CUMO_AT", "CURE", "FlashCursor",
-           "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF")
+           "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
+           "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
+           "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+_SLOT_RE = re.compile(r"EVT_SLOT_[0-9A-D]|0x[0-9A-Da-d]|1[0-3]|[0-9]")
+_LABEL_RE = re.compile(r"0x[0-9A-Fa-f]+|\d+")
 
 
 class EventError(Exception):
@@ -199,6 +224,9 @@ def validate_command(c: dict) -> str | None:
     if not spec and args:
         return "badArguments"
     if any(not str(a).strip() or any(ch in str(a) for ch in ";{}") for a in (args or [])):
+        return "badArguments"
+    patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}")}
+    if any(kind in patterns and not patterns[kind].fullmatch(str(a).strip()) for (_n, kind), a in zip(spec, args or [])):
         return "badArguments"
     return None
 

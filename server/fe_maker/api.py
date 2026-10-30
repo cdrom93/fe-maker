@@ -740,7 +740,7 @@ def events_reference():
 
     return {"commands": {op: [{"name": n, "kind": k} for n, k in spec] for op, spec in events.COMMANDS.items()},
             "addable": list(events.ADDABLE), "songs": constants("include/constants/songs.h", "SONG_"),
-            "backgrounds": constants("include/constants/backgrounds.h", "BG_")}
+            "backgrounds": constants("include/constants/backgrounds.h", "BG_"), "scripts": state.get_decomp().script_names()}
 
 
 @app.get("/api/events/scripts/{name}")

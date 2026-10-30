@@ -85,3 +85,15 @@ def test_new_scene_message_and_unknown_names(decomp_dir):
     files = "".join(s for s in d.changed_files().values() if isinstance(s, str))
     new_id = int(re.search(r"Text\((0x[0-9A-F]+)\)", files).group(1), 16)
     assert "A new line." in files and new_id not in DecompData(decomp_dir).texts.messages
+
+
+def test_conditions_and_jumps():
+    ok = [{"op": "CHECK_ALIVE", "args": ["CHARACTER_TEST"]}, {"op": "BEQ", "args": ["0x1", "EVT_SLOT_C", "EVT_SLOT_0"]},
+          {"op": "SVAL", "args": ["EVT_SLOT_1", "5"]}, {"op": "BLT", "args": ["2", "EVT_SLOT_C", "0x1"]},
+          {"op": "GOTO", "args": ["0x1"]}, {"op": "LABEL", "args": ["0x1"]}, {"op": "CALL", "args": ["EventScr_Test"]},
+          {"op": "CHECK_TURNS"}]
+    assert [ev.validate_command(c) for c in ok] == [None] * len(ok)
+    assert ev.validate_command({"op": "BEQ", "args": ["0x1", "EVT_SLOT_E", "EVT_SLOT_0"]}) == "badArguments"   # no slot E
+    assert ev.validate_command({"op": "LABEL", "args": ["start"]}) == "badArguments"   # labels are numbers
+    assert ev.validate_command({"op": "CALL", "args": ["Two words"]}) == "badArguments"
+    assert ev.parse_script(ev.render_script(ok)) == ok

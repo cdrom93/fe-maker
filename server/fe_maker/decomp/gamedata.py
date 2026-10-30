@@ -883,6 +883,11 @@ class DecompData:
                     return rel, *found
         return None
 
+    def script_names(self) -> list[str]:
+        """The chapters' event scripts, for CALL."""
+        self._load_event_sources()
+        return sorted({name for source in self._original_event_sources.values() for name in events.find_scripts(source)})
+
     def script_commands(self, name: str) -> list[dict]:
         found = self.find_script(name)
         if found is None:

@@ -395,6 +395,8 @@ export interface EventsReference {
   addable: string[]
   songs: string[]
   backgrounds: string[]
+  /** the chapters' event scripts, for CALL */
+  scripts: string[]
 }
 
 export interface SupportPair {

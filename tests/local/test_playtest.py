@@ -466,3 +466,22 @@ def test_added_class_moves_on_the_map(tmp_path):
         game.run(30)
         moved = next(u for u in game.units() if u["character"] == 2)
         assert (moved["x"], moved["y"]) == (seth["x"] - 2, seth["y"])
+
+
+def test_condition_in_the_prologue_opening(tmp_path):
+    """Conditions and jumps written by the editor's forms compile and run (the prologue still starts)."""
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "cond", "Cond")
+    commands = DecompData(project.decomp_dir).script_commands("EventScr_Prologue_BeginningScene")
+    at = next(i for i, c in enumerate(commands) if c["op"] == "LABEL") + 1
+    block = [{"op": "CHECK_ALIVE", "args": ["CHARACTER_SETH"]}, {"op": "BEQ", "args": ["0x7", "EVT_SLOT_C", "EVT_SLOT_0"]},
+             {"op": "CHECK_TURNS"}, {"op": "SVAL", "args": ["EVT_SLOT_1", "5"]},
+             {"op": "BGE", "args": ["0x7", "EVT_SLOT_C", "EVT_SLOT_1"]}, {"op": "GOTO", "args": ["0x7"]},
+             {"op": "LABEL", "args": ["0x7"]}]
+    dialogues = project.load("dialogues")
+    dialogues.setdefault("scripts", {})["EventScr_Prologue_BeginningScene"] = commands[:at] + block + commands[at:]
+    project.save("dialogues", dialogues)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
