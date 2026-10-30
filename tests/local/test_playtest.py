@@ -534,3 +534,24 @@ def test_game_options(tmp_path):
         _on_map(game)
         bits = game.read("gPlaySt", 0x40)   # PlaySt_OptionBits: autoCursor bit 4, textSpeed bits 5-6
         assert (bits >> 5) & 3 == 2 and (bits >> 4) & 1 == 1
+
+
+def test_stationary_enemy_shows_no_movement_range(tmp_path):
+    """Game option "no movement range for units that never move": O'Neill (prologue boss, movement AI 3) selected,
+    his movement map holds only his own tile."""
+    project = Project.create(tmp_path / "range", "Range")
+    project.set_game_options({"stationaryRange": True})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        boss = next(u for u in game.units("Red") if u["character"] == 0x68)   # CHARACTER_ONEILL
+        game.move_cursor(boss["x"], boss["y"])
+        game.press("A")
+        game.run(30)
+        width, height = game.read("gBmMapSize", 0, width=16), game.read("gBmMapSize", 2, width=16)
+        rows = game.read("gBmMapMovement", width=32)
+        reachable = sum(1 for y in range(height) for x in range(width)
+                        if game.read(game.read(rows + 4 * y, width=32) + x) < 0x7F)
+        game.screenshot().save(tmp_path / "range.png")
+        print("screenshot:", tmp_path / "range.png")
+        assert reachable == 1

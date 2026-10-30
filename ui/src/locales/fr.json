@@ -1293,5 +1293,7 @@
   "options.quickChapterTitle": "Titre de chapitre rapide",
   "options.quickChapterTitleHint": "le titre d'un chapitre se passe tout de suite, sans attendre une seconde",
   "options.holdAToSpeedUp": "A maintenu accélère les déplacements",
-  "options.holdAToSpeedUpHint": "dès la première partie (le jeu d'origine attend qu'on l'ait fini une fois)"
+  "options.holdAToSpeedUpHint": "dès la première partie (le jeu d'origine attend qu'on l'ait fini une fois)",
+  "options.stationaryRange": "Pas de zone de déplacement pour les unités immobiles",
+  "options.stationaryRangeHint": "un ennemi dont l'IA ne bouge pas montre seulement ce qu'il peut attaquer d'où il est (patch « Null Move Display »)"
 }

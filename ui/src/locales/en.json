@@ -1293,5 +1293,7 @@
   "options.quickChapterTitle": "Quick chapter title",
   "options.quickChapterTitleHint": "a chapter's title can be skipped at once, without waiting a second",
   "options.holdAToSpeedUp": "Hold A to speed up movement",
-  "options.holdAToSpeedUpHint": "from the first playthrough (the original game waits until it has been finished once)"
+  "options.holdAToSpeedUpHint": "from the first playthrough (the original game waits until it has been finished once)",
+  "options.stationaryRange": "No movement range for units that never move",
+  "options.stationaryRangeHint": "an enemy whose AI stays shows only what it can attack from where it stands (\"Null Move Display\" patch)"
 }

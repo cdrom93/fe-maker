@@ -18,6 +18,7 @@ from .tweaks import GAME_CONTROL_FILE, TweakError, skip_intro
 CONFIG_FILE = "src/bmio.c"
 CHAPTER_INTRO_FILE = "src/chapterintrofx.c"
 MOVE_SPEED_FILE = "src/mu.c"
+RANGE_DISPLAY_FILE = "src/playerphase.c"
 
 # Option -> (field of gPlaySt.config, the game's default, allowed values). Values, from the Options menu
 # (src/uiconfig.c): animation 0 on, 1 off, 2 solo (PLAY_ANIMCONF_x); textSpeed 0 slow, 1 normal, 2 fast, 3 max
@@ -33,7 +34,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "unitWindow": ("unitDisplayType", 0, (0, 1, 2)),
     "battleForecast": ("battleForecastType", 0, (0, 1, 2)),
 }
-SWITCHES = ("skipOpening", "quickChapterTitle", "holdAToSpeedUp")
+SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -42,6 +43,12 @@ _TITLE_QUICK = "    PROC_CALL(ChapterIntro_Init),\n\n    PROC_SLEEP(1), /* FE Ma
 # FEBuilder "Hold A to speed up movement": the game only allows it once it has been played through.
 _HOLD_A = "if (!IsFirstPlaythrough() && (gKeyStatusPtr->heldKeys & A_BUTTON))"
 _HOLD_A_ALWAYS = "if (gKeyStatusPtr->heldKeys & A_BUTTON) /* FE Maker: hold A from the first playthrough */"
+# FEBuilder "Null Move Display": a unit that never moves (movement AI 3, "stays") shows no movement range, only
+# what it can attack from where it stands. In DisplayUnitEffectRange (selecting a unit to see its range).
+_RANGE = "    GenerateUnitMovementMapExt(gActiveUnit, UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n"
+_RANGE_STATIONARY = ("    /* FE Maker: a unit that never moves (movement AI 3) shows no movement range */\n"
+                     "    GenerateUnitMovementMapExt(gActiveUnit, (UNIT_FACTION(gActiveUnit) != FACTION_BLUE && gActiveUnit->ai2 == 3)\n"
+                     "        ? 0 : UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n")
 
 
 def validate(options: dict) -> str | None:
@@ -85,6 +92,8 @@ def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
 
     if any(key in options and options[key] != DEFAULTS[key][1] for key in DEFAULTS):
         files[CONFIG_FILE] = with_defaults(current(CONFIG_FILE), {k: v for k, v in options.items() if k in DEFAULTS})
+    if options.get("stationaryRange"):
+        files[RANGE_DISPLAY_FILE] = _replace(current(RANGE_DISPLAY_FILE), _RANGE, _RANGE_STATIONARY, RANGE_DISPLAY_FILE)
     if options.get("skipOpening"):
         files[GAME_CONTROL_FILE] = skip_intro(current(GAME_CONTROL_FILE))
     if options.get("quickChapterTitle"):
