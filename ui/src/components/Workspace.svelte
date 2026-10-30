@@ -101,6 +101,11 @@
     dialogues: new EditableList<DialoguesData>((r) => save('dialogues', r[0])),
   }
   const allLists = Object.values(lists)
+  /** The latest changes of all the tabs. */
+  const allSteps = $derived(Object.entries(lists)
+    .flatMap(([name, list]) => (list.steps as { name: string; time: string; order: number }[])
+      .map((s, index) => ({ ...s, index, list: list as { undoTo: (step: number) => void }, tab: name as Tab })))
+    .sort((a, b) => b.order - a.order))
 
   // Classes the project uses (characters, generic units of edited chapters, and their promotions):
   // they count as used even if the original game never used them.
@@ -233,13 +238,13 @@
   <div class="row">
     <button onclick={back} disabled={!trail.length} title={t('ws.backHint')}>← {t('ws.back')}</button>
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
-    {#if active?.steps.length}
+    {#if allSteps.length}
       <details class="changes" bind:this={changes}>
-        <summary title={t('ws.changesHint')}>{t('ws.changes', { n: active.steps.length })}</summary>
+        <summary title={t('ws.changesHint')}>{t('ws.changes', { n: allSteps.length })}</summary>
         <ol>
-          {#each [...active.steps.keys()].reverse().slice(0, 15) as k (k)}
-            <li><button class="link" title={t('ws.changesBack')} onclick={() => { active?.undoTo(k); if (changes) changes.open = false }}>
-              {active.steps[k].time} · {active.steps[k].name || t(`ws.${tab}`)}
+          {#each allSteps.slice(0, 15) as s (s.order)}
+            <li><button class="link" title={t('ws.changesBack')} onclick={() => { s.list.undoTo(s.index); tab = s.tab; if (changes) changes.open = false }}>
+              {s.time} · {t(`ws.${s.tab}`)}{s.name ? ` · ${s.name}` : ''}
             </button></li>
           {/each}
         </ol>

@@ -2,14 +2,16 @@
  * Undo / redo for a list of records, with debounced autosave.
  * Each change replaces the whole list (lists are small: a few hundred records).
  */
+let stepCount = 0   // orders the changes of all the lists
+
 export class EditableList<T> {
   records = $state<T[]>([])
   saving = $state(false)
   private past: string[] = []
   private future: string[] = []
   /** what each step of `past` changed, for the list of changes: the record's name and the time */
-  steps = $state<{ name: string; time: string }[]>([])
-  private futureSteps: { name: string; time: string }[] = []
+  steps = $state<{ name: string; time: string; order: number }[]>([])
+  private futureSteps: { name: string; time: string; order: number }[] = []
   private timer: ReturnType<typeof setTimeout> | undefined
   canUndo = $state(false)
   canRedo = $state(false)
@@ -28,7 +30,7 @@ export class EditableList<T> {
   private record(index: number) {
     const name = (this.records[index] as { name?: string } | undefined)?.name ?? ''
     this.past.push(JSON.stringify(this.records))
-    this.steps.push({ name, time: new Date().toTimeString().slice(0, 5) })
+    this.steps.push({ name, time: new Date().toTimeString().slice(0, 5), order: ++stepCount })
     this.futureSteps = []
     if (this.past.length > 200) {
       this.past.shift()

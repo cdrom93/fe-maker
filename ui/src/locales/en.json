@@ -1379,7 +1379,7 @@
   "options.casualModeHint": "a fallen unit leaves the map and comes back for the next chapter; the game is still lost if the hero falls",
   "chapter.dangerZone": "Enemies' danger zone (other units not counted)",
   "ws.changes": "{n} change(s)",
-  "ws.changesHint": "This tab's latest changes",
+  "ws.changesHint": "The latest changes of all tabs",
   "ws.changesBack": "Go back to before this change",
   "scope.title": "What this project keeps",
   "scope.hint": "Untick what you no longer want to see. What you remove leaves the project's lists; chapters become free slots. The data is copied before each change.",
@@ -1407,5 +1407,7 @@
   "ev.simple.edit": "Edit the text",
   "ev.simple.empty": "This scene has no visible step: add one, or switch to the detailed view.",
   "dlg.showEmpty": "Show scenes without dialogue",
-  "ev.simple.flag": "a flag"
+  "ev.simple.flag": "a flag",
+  "flow.zoomHint": "Wheel: zoom. Drag the background: move.",
+  "flow.renameHint": "Empty: the original title comes back. The title picture follows at the next build."
 }

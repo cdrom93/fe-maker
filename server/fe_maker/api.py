@@ -404,7 +404,7 @@ def list_chapters():
             "index": i,
             "id": ch.get("internalName", str(i)),
             "title": titles.get(str(i)) or (d.texts.get_name(title_id) if title_id in d.texts.messages else ""),
-            "added": str(i) in titles,
+            "added": str(i) in stored.get("added", {}),
             "hidden": shown is not None and i not in shown,
             "map": layout,
             "events": _event_symbol(ch),
@@ -544,6 +544,7 @@ class ReachUnitIn(BaseModel):
     x: int
     y: int
     items: list[str] = []
+    ai: list[int] | None = None   # taken into account for enemies
 
 
 class ReachIn(BaseModel):
@@ -578,9 +579,11 @@ def chapter_reach(index: int, body: ReachIn):
         table = costs.get(cls.get("movement") or "") if cls else None
         if table is None:
             continue
-        own = reach.movement(terrain, table, cls["mov"], unit.x, unit.y)
+        can_move, can_strike = reach.ai_reach(unit.ai)
+        own = reach.movement(terrain, table, cls["mov"] if can_move else 0, unit.x, unit.y)
         moves |= own
-        strikes |= reach.strikes(own, reach.weapon_ranges(unit.items, items), width, height)
+        if can_strike:
+            strikes |= reach.strikes(own, reach.weapon_ranges(unit.items, items), width, height)
     return {"move": sorted(moves), "strike": sorted(strikes - moves)}
 
 

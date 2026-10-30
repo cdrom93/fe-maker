@@ -23,3 +23,11 @@ def test_only_weapons_strike():
              {"id": "B", "weaponType": "item", "range": {"min": 1, "max": 1}},
              {"id": "C", "weaponType": "staff", "range": {"min": 1, "max": 0}}]
     assert reach.weapon_ranges(["A", "B", "C", "D"], items) == [(1, 2)]
+
+
+def test_the_ai_of_a_unit_limits_its_reach():
+    assert reach.ai_reach(None) == (True, True)
+    assert reach.ai_reach([0, 0, 0, 0]) == (True, True)
+    assert reach.ai_reach([3, 0, 0, 0]) == (False, True)   # acts from its tile
+    assert reach.ai_reach([0, 3, 0, 0]) == (False, True)   # stays
+    assert reach.ai_reach([6, 0, 0, 0]) == (True, False)   # never acts

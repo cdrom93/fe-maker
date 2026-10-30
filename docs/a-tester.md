@@ -34,7 +34,13 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 
 ## Historique des changements
 
-- [ ] À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements de l'onglet (heure, fiche) ; cliquer l'un d'eux revient à avant ce changement, et « Rétablir » refait le chemin. La liste est par onglet et repart de zéro à chaque ouverture du projet.
+- [ ] #72 À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements **de tous les onglets** (heure, onglet, fiche) et reste visible en changeant d'onglet ; cliquer l'un d'eux va à son onglet et revient à avant ce changement. Il repart de zéro à chaque ouverture du projet.
+
+## Campagne et chapitres
+
+- [ ] #74 Tous les chapitres se renomment dans leur fiche de la page Campagne, ceux du jeu aussi : texte et image de titre. Champ vidé : le titre d'origine revient.
+- [ ] #76 Page Campagne : l'enchaînement se lit de haut en bas, la molette zoome autour du pointeur, glisser le fond déplace la vue, le pourcentage remet à 100 %.
+- [ ] #73 Zone de danger et portée d'un ennemi : l'IA compte. Un ennemi réglé « ne bouge pas » ou « agit sans se déplacer » ne frappe que depuis sa case ; un ennemi réglé « n'agit pas » ne frappe pas. Les autres réglages (suit son chef, attend une porte...) restent comptés comme s'il avançait.
 
 ## Portée sur la carte d'un chapitre
 

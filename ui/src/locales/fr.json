@@ -1379,7 +1379,7 @@
   "options.casualModeHint": "une unité vaincue quitte la carte et revient au chapitre suivant ; le jeu est toujours perdu si le héros tombe",
   "chapter.dangerZone": "Zone de danger des ennemis (sans tenir compte des autres unités)",
   "ws.changes": "{n} changement(s)",
-  "ws.changesHint": "Les derniers changements de cet onglet",
+  "ws.changesHint": "Les derniers changements de tous les onglets",
   "ws.changesBack": "Revenir à avant ce changement",
   "scope.title": "Ce que garde ce projet",
   "scope.hint": "Décochez ce que vous ne voulez plus voir. Ce qui est retiré quitte les listes du projet, les chapitres deviennent des places libres. Une copie des données est faite avant chaque changement.",
@@ -1407,5 +1407,7 @@
   "ev.simple.edit": "Modifier le texte",
   "ev.simple.empty": "Cette scène n'a pas d'étape visible : ajoutez-en une, ou passez en vue détaillée.",
   "dlg.showEmpty": "Afficher les scènes sans dialogue",
-  "ev.simple.flag": "un drapeau"
+  "ev.simple.flag": "un drapeau",
+  "flow.zoomHint": "Molette : zoomer. Glisser le fond : se déplacer.",
+  "flow.renameHint": "Vide : le titre d'origine revient. L'image du titre suit à la prochaine compilation."
 }

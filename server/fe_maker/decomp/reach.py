@@ -8,6 +8,17 @@ from __future__ import annotations
 import heapq
 
 NOT_WEAPONS = {"item", "staff", "dance"}
+# First two AI bytes of a unit (ui/src/locales: ai.action.n, ai.move.n, src/cp_data.c)
+ACTS_FROM_ITS_TILE = {3, 4, 5}
+NEVER_ACTS = {6}
+STAYS = {3}
+
+
+def ai_reach(ai: list[int] | None) -> tuple[bool, bool]:
+    """(moves, strikes) of a unit by its AI: an enemy set to stay where it is does not come to you."""
+    if not ai or len(ai) < 2:
+        return True, True
+    return ai[0] not in ACTS_FROM_ITS_TILE and ai[1] not in STAYS, ai[0] not in NEVER_ACTS
 
 
 def movement(terrain: list[list[int]], costs: list[int], mov: int, x: int, y: int) -> set[tuple[int, int]]:

@@ -138,7 +138,7 @@ export interface MapUnit {
 /** Project chapter data: unit groups once edited (data/chapters.json). */
 export interface ChaptersData {
   unitGroups: Record<string, MapUnit[]>
-  /** titles of the chapters the project adds, by chapter index (server: newchapter.py) */
+  /** titles the project gives its chapters, by chapter index */
   titles?: Record<string, string>
   /** groups made in the project (reinforcements), their units in unitGroups */
   newGroups?: Record<string, NewGroup>

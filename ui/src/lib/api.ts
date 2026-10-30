@@ -59,7 +59,7 @@ export const api = {
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),
   applyProjectScope: (kept: { chapters: number[]; characters: string[]; classes: string[]; items: string[]; supports: boolean; title: string; hero: string }) =>
     request<{ backup: string; forced: Record<string, string[]> }>('POST', '/api/project/scope', kept),
-  chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[] }[]) =>
+  chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[]; ai?: number[] }[]) =>
     request<{ move: [number, number][]; strike: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   reference: () => request<Reference>('GET', '/api/reference'),

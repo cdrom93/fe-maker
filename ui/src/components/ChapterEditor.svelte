@@ -233,7 +233,8 @@
   let reach = $state<{ move: [number, number][]; strike: [number, number][] }>({ move: [], strike: [] })
   const asked = $derived.by(() => {
     const shown = danger ? groups.flatMap((g) => unitsOf(g.name)).filter((u) => u.side === 'enemy') : unit ? [unit] : []
-    return JSON.stringify(shown.map((u) => ({ classId: effectiveClass(u), x: u.endX, y: u.endY, items: u.items })))
+    return JSON.stringify(shown.map((u) => ({ classId: effectiveClass(u), x: u.endX, y: u.endY, items: u.items,
+                                              ai: u.side === 'enemy' && Array.isArray(u.ai) ? u.ai : undefined })))
   })
   $effect(() => {
     const body = JSON.parse(asked)

@@ -67,3 +67,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : tickets 68-69 : ligne « Staff & Dance » dans le menu Configuration du jeu, barres de PV au dessin du patch HPbars, bulle sur l'unité à qui parler.
 - 30/10/2026 : ticket 71 : « Ce que garde ce projet » à l'unité, à la création ou plus tard (`scope.py`).
 - 30/10/2026 : ticket 70 : vue simple des scripts par étapes, vue détaillée au choix, scènes sans dialogue cachées.
+- 30/10/2026 : tickets 72-76 : historique de tous les onglets, IA dans la zone de danger, renommer tout chapitre, graphe de campagne vertical avec zoom et déplacement, proposition pour les tickets publics.
