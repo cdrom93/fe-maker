@@ -20,7 +20,7 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 
 ## Ce que garde le projet (ticket 71)
 
-- [ ] Onglet « Options du jeu », en haut : « Ce que garde ce projet », quatre listes (chapitres, personnages, classes, objets) avec recherche, Tout cocher / Tout décocher, et « Garder les soutiens du jeu ». Marche sur un projet existant ; un projet vierge s'ouvre directement ici.
+- [ ] Onglet « Options du jeu », tout en bas (en haut pour un projet vierge qui vient d'être créé) : « Ce que garde ce projet », quatre listes (chapitres, personnages, classes, objets) avec recherche, Tout cocher / Tout décocher, et « Garder les soutiens du jeu ». Marche sur un projet existant ; un projet vierge s'ouvre directement ici.
 - [ ] Ce qu'un chapitre gardé utilise est marqué « utilisé » et reste même décoché ; le message final dit combien d'éléments sont restés ainsi.
 - [ ] Une copie de `data/` est faite dans le dossier `backups/` du projet à chaque « Appliquer » : pour l'instant, on ne la restaure qu'à la main.
 - [ ] Retirer des chapitres : un chapitre gardé mène au suivant gardé, les étapes retirées sont sautées (par exemple le château de Frélia) ; la carte du monde est désactivée. Un chapitre retiré devient une place libre.

@@ -7,11 +7,13 @@
 
   type Reference = { options: Record<string, number | boolean>; switches: string[]; defaults: Record<string, { game: number; values: number[] }> }
 
-  let { onteststart, onscope }: {
+  let { onteststart, onscope, scopeFirst = false }: {
     /** where test builds now start */
     onteststart: (start: string) => void
     /** the project's lists changed */
     onscope: () => void
+    /** a project just created blank starts with what it keeps */
+    scopeFirst?: boolean
   } = $props()
 
   let data = $state<Reference | null>(null)
@@ -52,7 +54,7 @@
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
-  <ProjectScope onchanged={onscope} />
+  {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
   {#if test}
     <section class="panel">
       <h3>{t('options.testTitle')}</h3>
@@ -104,6 +106,7 @@
       {/each}
     </section>
   {/if}
+  {#if !scopeFirst}<ProjectScope onchanged={onscope} />{/if}
 </div>
 
 <style>

@@ -25,7 +25,8 @@
   // The work follows the story: the campaign, then a chapter (its units, map and dialogues), then the game's lists.
   const TABS: Tab[] = ['flow', 'chapters', 'characters', 'classes', 'items', 'combat', 'options']
   const CHAPTER_VIEWS: Tab[] = ['chapters', 'maps', 'dialogues']
-  let tab = $state<Tab>(firstTab())
+  const startsBlank = firstTab() === 'options'
+  let tab = $state<Tab>(startsBlank ? 'options' : 'flow')
 
   /** A project just created blank opens on what it keeps of the game. */
   function firstTab(): Tab {
@@ -365,7 +366,7 @@
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else if tab === 'options'}
-    <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} />
+    <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} scopeFirst={startsBlank} />
   {:else}
     <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
   {/if}
