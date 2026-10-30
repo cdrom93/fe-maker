@@ -41,6 +41,7 @@ from .decomp import (
     pieces,
     portraits,
     quotes,
+    reach,
     story,
     supports,
     tiled,
@@ -512,6 +513,51 @@ def chapter_links():
     decomp = state.get_decomp()
     return {"links": decomp.chapter_links(edited), "endings": decomp.chapter_endings(), "kinds": story.CHANGE_OPS,
             "toChapter": list(story.TO_CHAPTER)}
+
+
+class ReachUnitIn(BaseModel):
+    classId: str
+    x: int
+    y: int
+    items: list[str] = []
+
+
+class ReachIn(BaseModel):
+    units: list[ReachUnitIn]
+
+
+@app.post("/api/chapters/{index}/reach")
+def chapter_reach(index: int, body: ReachIn):
+    """Where these units can go and strike on the chapter's map as painted in the project (decomp/reach.py)."""
+    project = state.require_project()
+    try:
+        stem = maps.chapter_map_assets(DECOMP_DIR, _chapter(index)).layout.stem
+        stored = project.load("maps")
+        painted = stored.get("layouts", {}).get(stem)
+        assets = maps.layout_assets(DECOMP_DIR, stem, stored.get("bases", {}).get(stem))
+        edits = stored.get("tilesets", {}).get(assets.config.stem)
+        terrains = bytes(tileedit.Tileset(DECOMP_DIR, _tile_layout(stem, assets), edits).terrain) if edits \
+            else maps.read_config(assets.config)[1]
+        width, height, cells = maps.read_layout(assets.layout)
+    except (maps.MapError, tileedit.TileEditError) as e:
+        raise HTTPException(404, str(e)) from e
+    rows = painted["rows"] if painted else [cells[y * width:(y + 1) * width] for y in range(height)]
+    terrain = [[terrains[m] if m < len(terrains) else 0 for m in row] for row in rows]
+    height, width = len(rows), len(rows[0])
+    classes = {c["id"]: c for c in project.load("classes")}
+    items = project.load("items")
+    costs = maps.movement_costs(DECOMP_DIR)
+    moves: set[tuple[int, int]] = set()
+    strikes: set[tuple[int, int]] = set()
+    for unit in body.units:
+        cls = classes.get(unit.classId)
+        table = costs.get(cls.get("movement") or "") if cls else None
+        if table is None:
+            continue
+        own = reach.movement(terrain, table, cls["mov"], unit.x, unit.y)
+        moves |= own
+        strikes |= reach.strikes(own, reach.weapon_ranges(unit.items, items), width, height)
+    return {"move": sorted(moves), "strike": sorted(strikes - moves)}
 
 
 @app.get("/api/chapters/{index}/map.png")

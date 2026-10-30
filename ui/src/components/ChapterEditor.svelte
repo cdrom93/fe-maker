@@ -227,6 +227,25 @@
     return edits[name] ?? groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
+
+  // On the map: where the picked unit can go (blue) and strike (red), or all the enemies' danger zone.
+  let danger = $state(false)
+  let reach = $state<{ move: [number, number][]; strike: [number, number][] }>({ move: [], strike: [] })
+  const asked = $derived.by(() => {
+    const shown = danger ? groups.flatMap((g) => unitsOf(g.name)).filter((u) => u.side === 'enemy') : unit ? [unit] : []
+    return JSON.stringify(shown.map((u) => ({ classId: effectiveClass(u), x: u.endX, y: u.endY, items: u.items })))
+  })
+  $effect(() => {
+    const body = JSON.parse(asked)
+    const index = chapter?.index
+    if (index === undefined || !body.length) {
+      reach = { move: [], strike: [] }
+      return
+    }
+    api.chapterReach(index, body).then((r) => {
+      if (index === chapter?.index) reach = r
+    }).catch(() => {})
+  })
   // Selecting a unit (on the map) shows its group's list if a list is open. Only a new
   // selection triggers this: opening another group must not bring the old one back.
   $effect(() => {
@@ -494,6 +513,7 @@
         <section class="panel map-panel">
           {#if loading}<p class="muted">…</p>{/if}
           {#if data && data.width}
+            <label class="danger"><input type="checkbox" bind:checked={danger} /> {t('chapter.dangerZone')}</label>
             <div
               class="map"
               class:picking={pickingSeize}
@@ -513,6 +533,12 @@
                 {@const a = objective.area && !areaCorner ? objective.area : { x1: areaCorner!.x, y1: areaCorner!.y, x2: areaCorner!.x, y2: areaCorner!.y }}
                 <span class="area-marker" style="left: {a.x1 * CELL}px; top: {a.y1 * CELL}px; width: {(a.x2 - a.x1 + 1) * CELL}px; height: {(a.y2 - a.y1 + 1) * CELL}px" title={t('objective.type.area')}>🚩</span>
               {/if}
+              {#each reach.move as [x, y] (`${x},${y}`)}
+                {#if !danger}<span class="reach move" style="left: {x * CELL}px; top: {y * CELL}px"></span>{/if}
+              {/each}
+              {#each danger ? [...reach.move, ...reach.strike] : reach.strike as [x, y] (`${x},${y}`)}
+                <span class="reach strike" style="left: {x * CELL}px; top: {y * CELL}px"></span>
+              {/each}
               {#if objective?.type === 'seize'}
                 {#each objective.seize as tile, k (k)}
                   <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}>🏰</span>
@@ -648,6 +674,10 @@
   .map.picking { cursor: crosshair; }
   .map.picking .unit { pointer-events: none; }
   .area-marker { position: absolute; box-sizing: border-box; border: 3px dashed #e74c3c; background: rgb(231 76 60 / 0.15); pointer-events: none; font-size: 16px; padding: 2px; }
+  .danger { margin-bottom: 0.4rem; font-size: 0.8rem; color: var(--text); }
+  .reach { position: absolute; width: 32px; height: 32px; pointer-events: none; }
+  .reach.move { background: rgb(64 128 255 / 35%); }
+  .reach.strike { background: rgb(255 64 64 / 35%); }
   .seize-marker {
     position: absolute; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center;
     border: 3px solid #f1c40f; border-radius: 4px; background: rgb(241 196 15 / 0.25); font-size: 15px; pointer-events: none;

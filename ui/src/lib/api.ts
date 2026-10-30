@@ -49,6 +49,8 @@ export const api = {
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
+  chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[] }[]) =>
+    request<{ move: [number, number][]; strike: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),

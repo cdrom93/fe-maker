@@ -1377,5 +1377,6 @@
   "options.hpBars": "HP bars on the map",
   "options.hpBarsHint": "a small bar under each wounded unit, red below a third of its HP",
   "options.casualMode": "Casual mode",
-  "options.casualModeHint": "a fallen unit leaves the map and comes back for the next chapter; the game is still lost if the hero falls"
+  "options.casualModeHint": "a fallen unit leaves the map and comes back for the next chapter; the game is still lost if the hero falls",
+  "chapter.dangerZone": "Enemies' danger zone (other units not counted)"
 }

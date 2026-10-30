@@ -1377,5 +1377,6 @@
   "options.hpBars": "Barres de PV sur la carte",
   "options.hpBarsHint": "une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV",
   "options.casualMode": "Mode débutant",
-  "options.casualModeHint": "une unité vaincue quitte la carte et revient au chapitre suivant ; le jeu est toujours perdu si le héros tombe"
+  "options.casualModeHint": "une unité vaincue quitte la carte et revient au chapitre suivant ; le jeu est toujours perdu si le héros tombe",
+  "chapter.dangerZone": "Zone de danger des ennemis (sans tenir compte des autres unités)"
 }
