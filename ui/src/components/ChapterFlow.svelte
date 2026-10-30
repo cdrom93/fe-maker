@@ -37,6 +37,8 @@
   let original = $state<ChapterLink[][]>([])
   let kinds = $state<Record<string, ChapterLink['kind']>>({})
   let toChapter = $state<string[]>([])
+  /** each chapter's ending scene, where a chapter that leads nowhere gets its link */
+  let endings = $state<(string | null)[]>([])
   let selected = $state<number | null>(0)
   let error = $state('')
   /** false: the project goes from chapter to chapter without the world map (ticket 39) */
@@ -52,6 +54,7 @@
     original = info.links
     kinds = info.kinds
     toChapter = info.toChapter
+    endings = info.endings
     worldMap = wm.worldMap
     freeChapters = free.free
   }
@@ -90,6 +93,25 @@
     if (selected === null) return
     await api.removeChapterMusic(selected, 'bluePhase')
     music = await api.chapterMusic(selected)
+  }
+
+  /** A chapter that leads nowhere: its ending scene goes to `to` (mirrors story.with_next). */
+  async function linkTo(to: number) {
+    const name = selected === null ? null : endings[selected]
+    if (!name) return
+    error = ''
+    try {
+      const commands = list.records[0]?.scripts?.[name] ?? (await api.eventScript(name)).commands
+      let at = commands.length
+      while (at > 0 && ['ENDA', 'NoFade', ''].includes(commands[at - 1].op)) at--
+      const next = [...commands.slice(0, at), { op: 'MNC2', args: [`0x${to.toString(16)}`] }, ...commands.slice(at)]
+      list.update(0, (d) => {
+        d.scripts ??= {}
+        d.scripts[name] = next
+      })
+    } catch (e) {
+      error = String(e)
+    }
   }
 
   /** A chapter the project adds changes title (its text and its title picture, written at build time). */
@@ -204,11 +226,13 @@
   // The game's links, with the scripts edited since the page was loaded read again.
   const links = $derived.by(() => {
     const edited = list.records[0]?.scripts ?? {}
-    return original.map((ls) => {
-      const scripts = [...new Set(ls.map((l) => l.script))]
+    return original.map((ls, i) => {
+      const ending = endings[i]
+      // an ending scene without a link yet can get one here (ticket 55)
+      const scripts = [...new Set([...ls.map((l) => l.script), ...(ending && edited[ending] ? [ending] : [])])]
       return scripts.flatMap((s) => {
         const mine = ls.filter((l) => l.script === s)
-        return edited[s] ? linksOf(s, mine[0].ending, edited[s]) : mine
+        return edited[s] ? linksOf(s, s === ending, edited[s]) : mine
       })
     })
   })
@@ -442,7 +466,17 @@
         {#if addError}<p class="bad small">{addError}</p>{/if}
       </div>
       <h4>{t('flow.next')}</h4>
-      {#if !mine.length}<p class="muted small">{t('flow.noNext')}</p>{/if}
+      {#if !mine.length}
+        <p class="muted small">{t('flow.noNext')}</p>
+        {#if endings[selected]}
+          <label class="small">{t('flow.linkTo')}
+            <select value="" onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v !== '') linkTo(Number(v)) }}>
+              <option value="">{t('flow.linkChoose')}</option>
+              {#each chapters as c (c.index)}<option value={c.index}>{c.index} · {c.title || c.id}</option>{/each}
+            </select>
+          </label>
+        {/if}
+      {/if}
       {#each mine as l, k (k)}
         <div class="link" class:secondary={!l.ending}>
           <p class="tiny muted">{l.ending ? t('flow.endingScene') : t('flow.otherScriptNamed')} · <code>{l.script}</code></p>

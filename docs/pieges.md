@@ -55,7 +55,7 @@ piège dans sa section.
 - In playtests, wait for animations before reading the screen (`press` waits 20 frames; a move takes ~40), pick menu entries by their position (menus differ with the situation: Attack only when an enemy is in range), and remember Canto (Seth can move again after an action).
 - Playtest harness: a chapter's turn/phase say "player" while its opening scene still runs; tapping A after it selects units. Wait for the scene to end before acting (`tests/local/test_playtest.py` shows how).
 
-- Deux compilations en même temps (un playtest lancé pendant que toute la suite `tests/local` tourne en arrière-plan) partagent la copie de travail du volume Docker et se cassent l'une l'autre : « Build failed » sans erreur du compilateur (30/10/2026). Lancer les playtests un par un.
+- Deux compilations en même temps partagent la copie de travail du volume Docker : « Build failed » sans erreur du compilateur, ou pire, une ROM qui marche en mélangeant les fichiers de deux projets (ticket 57 : carte et portrait d'origine dans le projet de l'utilisateur, pendant un de mes playtests). `builder.build_lock` les fait attendre, entre tous les programmes.
 
 ## Outils et interface
 

@@ -1311,5 +1311,8 @@
   "flow.music.import": "Importer un MIDI",
   "flow.music.hint": "Première version : le MIDI est joué avec les instruments des musiques de carte du jeu ; le son dépend donc du fichier.",
   "flow.music.notAMidi": "ce fichier n'est pas un MIDI",
-  "problem.titleTooLong": "le titre ne tient pas dans l'image de titre du chapitre : raccourcissez-le"
+  "problem.titleTooLong": "le titre ne tient pas dans l'image de titre du chapitre : raccourcissez-le",
+  "flow.linkTo": "Relier à un chapitre existant :",
+  "flow.linkChoose": "Choisir…",
+  "options.testTitle": "Tests"
 }

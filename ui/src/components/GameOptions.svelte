@@ -6,13 +6,27 @@
 
   type Reference = { options: Record<string, number | boolean>; switches: string[]; defaults: Record<string, { game: number; values: number[] }> }
 
+  let { onteststart }: { /** where test builds now start */ onteststart: (start: string) => void } = $props()
+
   let data = $state<Reference | null>(null)
+  let test = $state<{ start: string; simplePrologue: boolean } | null>(null)
   let error = $state('')
   let saving = $state(false)
 
   $effect(() => {
     api.gameOptions().then((d) => (data = d)).catch((e) => (error = String(e)))
+    api.testOptions().then((o) => (test = o)).catch((e) => (error = String(e)))
   })
+
+  async function setTest(change: { start?: string; simplePrologue?: boolean }) {
+    error = ''
+    try {
+      test = await api.setTestOptions(change)
+      onteststart(test.start)
+    } catch (e) {
+      error = String(e)
+    }
+  }
 
   async function set(key: string, value: number | boolean) {
     if (!data) return
@@ -32,6 +46,26 @@
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
+  {#if test}
+    <section class="panel">
+      <h3>{t('options.testTitle')}</h3>
+      <p class="muted small">{t('ws.startHint')}</p>
+      <div class="grid">
+        <label>
+          <span>{t('ws.start')}</span>
+          <select value={test.start} onchange={(e) => setTest({ start: (e.target as HTMLSelectElement).value })}>
+            <option value="map">{t('ws.start.map')}</option>
+            <option value="menu">{t('ws.start.menu')}</option>
+            <option value="normal">{t('ws.start.normal')}</option>
+          </select>
+        </label>
+      </div>
+      <label class="switch" title={t('ws.simplePrologueHint')}>
+        <input type="checkbox" checked={test.simplePrologue} onchange={(e) => setTest({ simplePrologue: (e.target as HTMLInputElement).checked })} />
+        <span><strong>{t('ws.simplePrologue')}</strong> <span class="muted small">{t('ws.simplePrologueHint')}</span></span>
+      </label>
+    </section>
+  {/if}
   {#if data}
     <section class="panel">
       <h3>{t('options.defaultsTitle')}</h3>

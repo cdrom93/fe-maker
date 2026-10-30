@@ -38,6 +38,14 @@ def _number(arg: str) -> int | None:
     return None if n == NO_CHAPTER else n
 
 
+def with_next(commands: list[dict], chapter: int) -> list[dict]:
+    """A script that had no next chapter, with MNC2 before its last commands (mirrored in ChapterFlow.svelte)."""
+    at = len(commands)
+    while at > 0 and commands[at - 1].get("op") in ("ENDA", "NoFade", ""):
+        at -= 1
+    return [*commands[:at], {"op": "MNC2", "args": [f"0x{chapter:X}"]}, *commands[at:]]
+
+
 def links(commands: list[dict]) -> list[dict]:
     """Chapter changes of a script: {"at": command index, "op", "kind", "to": chapter index or None}."""
     out = []

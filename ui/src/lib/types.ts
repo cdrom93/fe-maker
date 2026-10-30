@@ -556,6 +556,8 @@ export interface ChapterLink {
 export interface ChapterLinks {
   /** by chapter index */
   links: ChapterLink[][]
+  /** each chapter's ending scene */
+  endings: (string | null)[]
   kinds: Record<string, ChapterLink['kind']>
   toChapter: string[]
 }

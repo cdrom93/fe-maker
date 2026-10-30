@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from .decomp import maps, objectives, units
+from .decomp import maps, objectives, story, units
 from .decomp.gamedata import DecompData
 from .validation import MAP_MIN_HEIGHT, MAP_MIN_WIDTH
 
@@ -32,17 +32,20 @@ class ChapterError(Exception):
 
 
 def free_slots(data: DecompData, scripts: dict, taken: set[int]) -> list[int]:
-    """Chapters a new one can take: own map, own event group, not reached by the project's story."""
+    """Chapters a new one can take: own map, own event group, reached neither by the game's story nor the project's
+    (a chapter of the game's story the project has cut off for now is not free: ticket 55)."""
     data._load_chapter_events()
     chapters = data.chapter_settings["chapters"]
-    links = data.chapter_links(scripts)
-    reached, todo = {0}, [0]
-    while todo:
-        for link in links[todo.pop()]:
-            to = link.get("to")
-            if isinstance(to, int) and 0 <= to < len(chapters) and to not in reached:
-                reached.add(to)
-                todo.append(to)
+    reached = set()
+    for links in (data.chapter_links(), data.chapter_links(scripts)):
+        seen, todo = {0}, [0]
+        while todo:
+            for link in links[todo.pop()]:
+                to = link.get("to")
+                if isinstance(to, int) and 0 <= to < len(chapters) and to not in seen:
+                    seen.add(to)
+                    todo.append(to)
+        reached |= seen
     symbols = Counter(data._chapter_event_symbol(c) for c in chapters)
     layouts = {i: len(info["chapters"]) for info in maps.layouts(data.decomp_dir).values() for i in info["chapters"]}
     return [i for i, c in enumerate(chapters)
@@ -110,6 +113,8 @@ def add_chapter(project, after: int, width: int, height: int, title: str) -> int
         ending = [before[link["at"]], {"op": "ENDA"}]
         before[link["at"]] = {"op": "MNC2", "args": [f"0x{n:X}"]}
         scripts[link["script"]] = before
+    elif (name := data.chapter_endings()[after]):   # the chapter before led nowhere: now it leads here
+        scripts[name] = story.with_next(scripts.get(name) or data.script_commands(name), n)
     scripts[group["endingSceneEvents"]] = ending
 
     project.save("chapters", chapters)

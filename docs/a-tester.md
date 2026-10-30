@@ -18,6 +18,11 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] En jeu : le morceau joue pendant la phase du joueur de ce chapitre (playtest fait : le lecteur de musique joue bien le morceau ajouté, mais personne ne l'a écouté).
 - [ ] À écouter : le MIDI est joué avec les instruments des musiques de carte du jeu ; selon le fichier, certains instruments peuvent sonner faux ou manquer. Limites : seulement la phase du joueur, pas d'aperçu dans FE Maker, pas encore les morceaux de FE-Repo-Music (ils demandent le jeu d'instruments NIMAP2).
 
+## Corrections des tickets 55 et 57 (à relancer FE Maker)
+
+- [ ] Ticket 55 : un chapitre sans sortie propose « Relier à un chapitre existant » ; un chapitre de l'histoire du jeu n'est plus pris comme place libre. Dans ton projet « test », « Truc » a pris la place du chapitre 1 avant cette correction : le contenu de ce chapitre 1 reste remplacé dans ce projet.
+- [ ] Ticket 57 : la carte et le portrait d'origine venaient d'un croisement avec un de mes playtests (même heure, même copie de travail) ; reproduit sans problème sur une copie de ton projet. Une seule compilation à la fois désormais. Options de test rangées dans « Options du jeu ».
+
 ## Correction trouvée en route
 
 - [ ] Après un projet avec une animation de combat importée, le build suivant (autre projet, animation retirée) gardait les

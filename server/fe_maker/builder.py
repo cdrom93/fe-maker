@@ -7,9 +7,13 @@ through an overlay directory.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
-from collections.abc import Callable
+import tempfile
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +38,43 @@ class BuildResult:
     rom_path: Path
     matches_original: bool
     log: str
+
+
+def _try_lock(file) -> bool:
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return False
+    return True
+
+
+@contextmanager
+def build_lock(on_output: Callable[[str], None] | None = None, poll: float = 1.0) -> Iterator[None]:
+    """One build at a time on this computer, whatever program asks for it (FE Maker, a second server, playtests): they
+    share the working copy of the Docker volume, and two builds at once mix their projects' files (ticket 57). The
+    system frees the lock when the process ends, even after a crash."""
+    with open(Path(tempfile.gettempdir()) / "fe-maker-build.lock", "a+b") as file:
+        waited = False
+        while not _try_lock(file):
+            if not waited and on_output:
+                on_output("[fe-maker] Another build is running, waiting for it...\n")
+            waited = True
+            time.sleep(poll)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                import msvcrt
+
+                file.seek(0)
+                msvcrt.locking(file.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def find_docker() -> str:
@@ -100,22 +141,23 @@ def build(
     args.append(IMAGE)
 
     log_lines: list[str] = []
-    for command in ([docker, "build", "-q", "-t", IMAGE, str(DOCKER_DIR)], args):
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        assert process.stdout is not None
-        for line in process.stdout:
-            log_lines.append(line)
-            if on_output:
-                on_output(line)
-        if process.wait() != 0:
-            raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
+    with build_lock(on_output):
+        for command in ([docker, "build", "-q", "-t", IMAGE, str(DOCKER_DIR)], args):
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                log_lines.append(line)
+                if on_output:
+                    on_output(line)
+            if process.wait() != 0:
+                raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
 
     log = "".join(log_lines)
     return BuildResult(

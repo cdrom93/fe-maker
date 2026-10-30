@@ -29,7 +29,6 @@
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
   let start = $state('map')
-  let simplePrologue = $state(true)
   let testChapter = $state(0)
   let focus = $state<Focus | null>(null)
 
@@ -124,7 +123,6 @@
       api.testOptions(),
     ])
     start = testOpts.start
-    simplePrologue = testOpts.simplePrologue
     testChapter = testOpts.chapter ?? 0
     reference = ref
     lists.characters.load(chars)
@@ -193,18 +191,6 @@
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     <button onclick={() => active?.redo()} disabled={!active?.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
-    <label class="check" title={t('ws.startHint')}>
-      {t('ws.start')}
-      <select value={start} onchange={async (e) => (start = (await api.setTestOptions({ start: (e.target as HTMLSelectElement).value })).start)}>
-        <option value="map">{t('ws.start.map')}</option>
-        <option value="menu">{t('ws.start.menu')}</option>
-        <option value="normal">{t('ws.start.normal')}</option>
-      </select>
-    </label>
-    <label class="check" title={t('ws.simplePrologueHint')}>
-      <input type="checkbox" checked={simplePrologue} onchange={async (e) => (simplePrologue = (await api.setTestOptions({ simplePrologue: (e.target as HTMLInputElement).checked })).simplePrologue)} />
-      {t('ws.simplePrologue')}
-    </label>
     {#if testChapter && start === 'map'}
       <span class="from-chapter" title={t('ws.fromChapterHint')}>
         {t('ws.fromChapter', { n: testChapter })}
@@ -266,7 +252,7 @@
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else if tab === 'options'}
-    <GameOptions />
+    <GameOptions onteststart={(s) => (start = s)} />
   {:else}
     <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
   {/if}

@@ -470,7 +470,9 @@ def chapter_links():
     """For each chapter (by index), the event commands that start another chapter (story.py), the
     project's edited scripts included: the graph of how chapters follow each other (ticket 31)."""
     edited = state.project.load("dialogues").get("scripts", {}) if state.project else {}
-    return {"links": state.get_decomp().chapter_links(edited), "kinds": story.CHANGE_OPS, "toChapter": list(story.TO_CHAPTER)}
+    decomp = state.get_decomp()
+    return {"links": decomp.chapter_links(edited), "endings": decomp.chapter_endings(), "kinds": story.CHANGE_OPS,
+            "toChapter": list(story.TO_CHAPTER)}
 
 
 @app.get("/api/chapters/{index}/map.png")
