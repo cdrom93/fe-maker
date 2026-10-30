@@ -38,3 +38,8 @@ def test_clearing_keeps_the_objective_and_the_game_over_check():
 def test_reached_chapters_follow_the_links_from_the_first():
     links = [[{"to": 2}], [{"to": 0}], [{"to": None}], []]
     assert newchapter.reached_chapters(links) == {0, 2}
+
+
+def test_the_story_order_follows_the_links():
+    links = [[{"to": 2, "ending": True}], [], [{"to": 1, "ending": False}, {"to": 3, "ending": True}], []]
+    assert newchapter.story_order(links) == [0, 2, 3, 1]

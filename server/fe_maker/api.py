@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, decompfetch, emulator, ferepo, newchapter, validation
+from . import __version__, decompfetch, emulator, ferepo, newchapter, scope, validation
 from .builder import BuildError
 from .checks import run_checks
 from .config import Settings, default_projects_dir, find_tiled
@@ -412,6 +412,30 @@ def list_chapters():
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
         })
     return result
+
+
+class ScopeIn(BaseModel):
+    chapters: list[int]
+    characters: list[str]
+    classes: list[str]
+    items: list[str]
+    supports: bool = True
+    title: str = ""
+    hero: str = ""
+
+
+@app.get("/api/project/scope")
+def project_scope():
+    """What the project keeps of the game (scope.py, ticket 71)."""
+    return scope.contents(state.require_project())
+
+
+@app.post("/api/project/scope")
+def set_project_scope(body: ScopeIn):
+    project = state.require_project()
+    if state.build_lock.locked():
+        raise HTTPException(409, "buildRunning")
+    return scope.apply(project, body.chapters, body.characters, body.classes, body.items, body.supports, body.title, body.hero)
 
 
 class NewChapterIn(BaseModel):

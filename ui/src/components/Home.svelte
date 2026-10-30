@@ -10,7 +10,6 @@
   let author = $state('')
   /** a blank project (ticket 66): what it drops; weapons and classes stay */
   let blank = $state(false)
-  let blankCharacters = $state(true)
   let path = $state('')
   let busy = $state(false)
   let error = $state('')
@@ -27,20 +26,30 @@
       busy = false
     }
   }
+
+  function create() {
+    if (blank) {
+      try {
+        sessionStorage.setItem('fe-maker.first-tab', 'options')
+      } catch {
+        // storage unavailable: the project opens on its first tab
+      }
+    }
+    run(() => api.createProject(name, author, blank ? { characters: true, title: t('home.blankTitle'), hero: t('home.blankHero') } : undefined))
+  }
 </script>
 
 <Checks />
 <div class="home">
   <section class="panel">
     <h2>{t('home.new')}</h2>
-    <form onsubmit={(e) => { e.preventDefault(); run(() => api.createProject(name, author, blank ? { characters: blankCharacters, title: t('home.blankTitle'), hero: t('home.blankHero') } : undefined)) }}>
+    <form onsubmit={(e) => { e.preventDefault(); create() }}>
       <label>{t('home.name')}<input bind:value={name} required maxlength="60" /></label>
       <label>{t('home.author')}<input bind:value={author} maxlength="60" /></label>
       <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')}</label>
       {#if blank}
         <div class="blank">
           <p class="muted hint">{t('home.blankHint')}</p>
-          <label class="choice"><input type="checkbox" bind:checked={blankCharacters} /> {t('home.blankCharacters')}</label>
           <p class="muted hint">{t('home.blankKept')}</p>
         </div>
       {/if}

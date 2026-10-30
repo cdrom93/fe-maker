@@ -39,16 +39,19 @@ class ChapterError(Exception):
     pass
 
 
-def reached_chapters(links: list[list[dict]]) -> set[int]:
-    """The chapters a story reaches from the first one."""
-    seen, todo = {0}, [0]
-    while todo:
-        for link in links[todo.pop()]:
+def story_order(links: list[list[dict]]) -> list[int]:
+    """The chapters a story reaches from the first one, in the order it reaches them."""
+    order = [0]
+    for chapter in order:
+        for link in sorted(links[chapter], key=lambda link: not link.get("ending")):
             to = link.get("to")
-            if isinstance(to, int) and 0 <= to < len(links) and to not in seen:
-                seen.add(to)
-                todo.append(to)
-    return seen
+            if isinstance(to, int) and 0 <= to < len(links) and to not in order:
+                order.append(to)
+    return order
+
+
+def reached_chapters(links: list[list[dict]]) -> set[int]:
+    return set(story_order(links))
 
 
 def free_slots(data: DecompData, scripts: dict, taken: set[int], blank: bool = False) -> list[int]:
@@ -144,6 +147,44 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
     project.save("chapters", chapters)
     project.save("maps", maps_data)
     project.save("dialogues", dialogues)
+
+
+def drop_chapters(project, data: DecompData, kept: set[int], title: str, hero: str) -> None:
+    """Keep only these chapters of the story (scope.py): the others are free slots; a kept chapter that led to one
+    leads nowhere; without the first chapter the project starts blank."""
+    scripts = project.load("dialogues").get("scripts", {})
+    links = data.chapter_links(scripts)
+    edited = {}
+
+    def next_kept(chapter: int, seen: set[int]) -> int | None:
+        """The first kept chapter after a removed one (the game's stopovers, Castle Frelia...)."""
+        if chapter in kept:
+            return chapter
+        seen.add(chapter)
+        for link in links[chapter] if chapter < len(links) else []:
+            to = link.get("to")
+            if isinstance(to, int) and to not in seen and (found := next_kept(to, seen)) is not None:
+                return found
+        return None
+
+    for index in kept:
+        for link in links[index]:
+            if isinstance(link.get("to"), int) and link["to"] not in kept:
+                script = link["script"]
+                commands = edited.setdefault(script, list(scripts.get(script) or data.script_commands(script)))
+                to = next_kept(link["to"], {index})
+                commands[link["at"]] = {"op": "#", "text": ""} if to is None else {"op": "MNC2", "args": [f"0x{to:X}"]}
+    dialogues = project.load("dialogues")
+    for name, commands in edited.items():
+        dialogues.setdefault("scripts", {})[name] = [c for c in commands if c.get("op") != "#" or c.get("text")]
+    project.save("dialogues", dialogues)
+    chapters = project.load("chapters")
+    chapters["blank"] = True
+    chapters["added"] = {k: v for k, v in chapters.get("added", {}).items() if int(k) in kept}
+    project.save("chapters", chapters)
+    project.set_world_map(False)
+    if 0 not in kept:
+        start_blank(project, False, title, hero)
 
 
 def add_chapter(project, after: int, width: int, height: int, title: str) -> int:

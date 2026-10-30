@@ -23,7 +23,18 @@
 
   type Tab = NavKind
   const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'flow', 'maps', 'dialogues', 'options']
-  let tab = $state<Tab>('characters')
+  let tab = $state<Tab>(firstTab())
+
+  /** A project just created blank opens on what it keeps of the game. */
+  function firstTab(): Tab {
+    try {
+      const asked = sessionStorage.getItem('fe-maker.first-tab')
+      sessionStorage.removeItem('fe-maker.first-tab')
+      return asked === 'options' ? 'options' : 'characters'
+    } catch {
+      return 'characters'
+    }
+  }
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
@@ -297,7 +308,7 @@
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else if tab === 'options'}
-    <GameOptions onteststart={(s) => (start = s)} />
+    <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} />
   {:else}
     <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
   {/if}

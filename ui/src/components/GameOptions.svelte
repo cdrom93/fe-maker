@@ -3,10 +3,16 @@
   // can change them in the game's Options menu) and comfort changes taken from FEBuilderGBA's patches.
   import { api } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
+  import ProjectScope from './ProjectScope.svelte'
 
   type Reference = { options: Record<string, number | boolean>; switches: string[]; defaults: Record<string, { game: number; values: number[] }> }
 
-  let { onteststart }: { /** where test builds now start */ onteststart: (start: string) => void } = $props()
+  let { onteststart, onscope }: {
+    /** where test builds now start */
+    onteststart: (start: string) => void
+    /** the project's lists changed */
+    onscope: () => void
+  } = $props()
 
   let data = $state<Reference | null>(null)
   let test = $state<{ start: string; simplePrologue: boolean } | null>(null)
@@ -46,6 +52,7 @@
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
+  <ProjectScope onchanged={onscope} />
   {#if test}
     <section class="panel">
       <h3>{t('options.testTitle')}</h3>

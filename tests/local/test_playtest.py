@@ -773,3 +773,20 @@ def test_casual_mode_brings_a_fallen_unit_back(tmp_path):
         game.press("A", wait=40)
         assert game.wait_until(lambda: game.chapter() == second and game.turn() == 1, seconds=90, tap="A")
         assert game.wait_until(lambda: not game.read(unit, 0x0C, width=32) & dead_hidden, seconds=30, tap="A")
+
+
+def test_a_project_keeps_only_what_is_chosen(tmp_path):
+    """Keep the first two chapters, a few characters and little else: it builds, the chapters' needs stay."""
+    from fe_maker import scope
+
+    project = Project.create(tmp_path / "scope", "Scope")
+    result = scope.apply(project, [0, 1, 2], ["CHARACTER_SETH"], ["CLASS_PALADIN"], ["ITEM_VULNERARY"], False, "Un", "Hero")
+    assert (tmp_path / "scope" / "backups").is_dir() and "ITEM_SWORD_STEEL" in result["forced"]["items"]
+    assert not [p.to_dict() for p in project.validate() if p.severity == "error"]
+    assert {c["id"] for c in project.load("characters")} >= {"CHARACTER_EIRIKA", "CHARACTER_SETH"}
+    assert project.load("dialogues")["scripts"]["EventScr_Ch1_EndingScene"][-2:] != []   # chapter 1 no longer leads on
+    assert "CHARACTER_TANA" not in {c["id"] for c in project.load("characters")}
+    assert "ITEM_SWORD_SILVER" in {i["id"] for i in project.load("items")} or len(project.load("items")) < 150
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)

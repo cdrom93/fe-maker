@@ -1,6 +1,13 @@
 import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { BuildStatus, Character, Check, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
+/** What a project keeps of the game (server: scope.py) */
+export type ScopeRow = { id: string | number; name: string; kept: boolean }
+export type ProjectScope = {
+  chapters: ScopeRow[]; characters: ScopeRow[]; classes: ScopeRow[]; items: ScopeRow[]; supports: boolean
+  needed: { characters: string[]; classes: string[]; items: string[] }
+}
+
 /** Options of the built game (server: decomp/gameoptions.py) */
 type GameOptionsData = {
   options: Record<string, number | boolean>
@@ -49,6 +56,9 @@ export const api = {
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
+  projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),
+  applyProjectScope: (kept: { chapters: number[]; characters: string[]; classes: string[]; items: string[]; supports: boolean; title: string; hero: string }) =>
+    request<{ backup: string; forced: Record<string, string[]> }>('POST', '/api/project/scope', kept),
   chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[] }[]) =>
     request<{ move: [number, number][]; strike: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),

@@ -18,6 +18,14 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] #66 Limites : armes, objets et classes sont gardés (les retirer viendra plus tard) ; « Tous les chapitres » dans Dialogues liste encore les messages du jeu ; la liste des personnages garde les entrées sans nom du jeu.
 - [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre (playtest fait). Le menu propose ensuite « Reprendre le chapitre » sur ce dernier chapitre : à améliorer.
 
+## Ce que garde le projet (ticket 71)
+
+- [ ] Onglet « Options du jeu », en haut : « Ce que garde ce projet », quatre listes (chapitres, personnages, classes, objets) avec recherche, Tout cocher / Tout décocher, et « Garder les soutiens du jeu ». Marche sur un projet existant ; un projet vierge s'ouvre directement ici.
+- [ ] Ce qu'un chapitre gardé utilise est marqué « utilisé » et reste même décoché ; le message final dit combien d'éléments sont restés ainsi.
+- [ ] Une copie de `data/` est faite dans le dossier `backups/` du projet à chaque « Appliquer » : pour l'instant, on ne la restaure qu'à la main.
+- [ ] Retirer des chapitres : un chapitre gardé mène au suivant gardé, les étapes retirées sont sautées (par exemple le château de Frélia) ; la carte du monde est désactivée. Un chapitre retiré devient une place libre.
+- [ ] À voir : un personnage retiré mais encore cité dans un dialogue gardé reste dans le jeu sans apparaître dans la liste.
+
 ## Historique des changements
 
 - [ ] À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements de l'onglet (heure, fiche) ; cliquer l'un d'eux revient à avant ce changement, et « Rétablir » refait le chemin. La liste est par onglet et repart de zéro à chaque ouverture du projet.
