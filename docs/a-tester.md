@@ -4,7 +4,7 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 ## Pinceaux de terrain
 
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
-- [ ] À vérifier à l'œil : les côtes restent carrées (borde-les de Sable), et une rivière qui s'arrête en pleine plaine finit sur une tuile étrange.
+- [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
 ## Tickets 77 et 78
 

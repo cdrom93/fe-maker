@@ -43,7 +43,7 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
-- Pinceaux de terrain : les raccords sont appris des cartes du jeu ; une côte reste plus carrée qu'à la main, et il vaut mieux la border de sable.
+- Pinceaux de terrain : les raccords sont calculés d'après les tuiles du jeu ; les routes sont le point faible, et le terrain autour du trait peut changer un peu.
 - « Terminer le jeu ici » ramène à l'écran titre ; le menu propose ensuite de reprendre le dernier chapitre.
 - Les copies du dossier `backups/` d'un projet se restaurent à la main.
 - Le jeu doit recompiler pour montrer un changement ; il n'y a pas d'aperçu en direct.

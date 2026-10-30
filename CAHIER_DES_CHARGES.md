@@ -226,7 +226,7 @@ L'interface est l'un des points les plus importants : tout doit être facile à 
 Priorités proposées :
 1. Tester un chapitre donné : bouton ▶ sur chaque chapitre, avec ses unités, sans repasser par le prologue. **Fait.**
 2. Unités et objets glissés sur la carte, zones de mouvement et de danger visibles pendant l'édition. **Fait pour les unités et les zones** ; les objets se posent en peignant leur tuile ou un bâtiment entier.
-3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu). **Fait** (panneau « Terrains » de la carte, `autotile.py`) : très bon sur rivières, montagnes et routes ; côtes encore carrées.
+3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu). **Fait, refait après son retour du 30/10** (panneau « Terrains » de la carte, `autotile.py`) : solveur de contraintes sur les bords des tuiles ; bon sur rivières, montagnes et côtes, moyen sur les routes.
 4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs. **Frise et vue simple des scènes faites** ; reste à modifier les déclencheurs en phrases.
 5. Vérification avant export par un test automatique ; petits tutoriels au bon moment. **À faire.**
 

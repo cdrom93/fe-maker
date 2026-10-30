@@ -33,6 +33,8 @@ piège dans sa section.
 
 ## Cartes
 
+- Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.
+
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.
 - Map layouts are keyed by layout id (file stem): several chapters can share one, so painting it changes all of them (the UI says so). Map change sets are keyed by layout id too (one per layout).
 - Map checks against units (`_validate_chapter_maps`) only report what the project changed: the original game has units outside their map and under roofs removed by map changes.
