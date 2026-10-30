@@ -41,7 +41,6 @@ The header's **Ticket** button notes a problem; "Send to GitHub" opens a filled-
 
 - Added chapters take free slots of the game: 21 in an ordinary project, 41 in a blank one.
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
-- Added characters and classes: the description comes from the model or stays empty.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
 - Generated title pictures: still rather far from the game's style.

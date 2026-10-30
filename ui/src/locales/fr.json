@@ -1371,5 +1371,7 @@
   "options.quickLevelUp": "Gain de niveau rapide",
   "options.quickLevelUpHint": "la fenêtre de gain de niveau sur la carte reste moins longtemps",
   "options.noSupportAnimations": "Pas d'écran de combat pour les bâtons et les danses",
-  "options.noSupportAnimationsHint": "ils se jouent sur la carte, même avec les animations de combat activées"
+  "options.noSupportAnimationsHint": "ils se jouent sur la carte, même avec les animations de combat activées",
+  "field.description": "Description (touche R en jeu)",
+  "field.descriptionLong": "Le jeu affiche deux lignes d'environ {n} caractères : ce texte risque de déborder."
 }

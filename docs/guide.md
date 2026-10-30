@@ -41,7 +41,6 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 
 - Les chapitres ajoutés prennent des places libres du jeu : 21 dans un projet ordinaire, 41 dans un projet vierge.
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
-- Personnages et classes ajoutés : la description vient du modèle ou reste vide.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
 - Images de titre générées : encore assez loin du style du jeu.

@@ -8,6 +8,7 @@
   import RecordList from './RecordList.svelte'
   import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
+  import DescriptionField from './DescriptionField.svelte'
   import PortraitPanel from './PortraitPanel.svelte'
   import ClassPicker from './ClassPicker.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
@@ -136,6 +137,7 @@
               </select>
             </label>
           </div>
+          <DescriptionField value={ch.description ?? reference.descriptions.characters[ch.id] ?? ''} onchange={(text) => edit((c) => (c.description = text))} />
           <p class="small"><Mention kind="dialogues" id="supports">{t('field.supportsLink')}</Mention></p>
           <details class="portrait-details" open={ch.portraitId === 0}>
             <summary>{ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]

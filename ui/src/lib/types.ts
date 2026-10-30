@@ -1,6 +1,8 @@
 export type StatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'lck' | 'con'
 
 export interface Character {
+  /** the help text, when the project changes it */
+  description?: string
   id: string
   name: string
   class: string
@@ -18,6 +20,8 @@ export interface Character {
 }
 
 export interface Item {
+  /** the help text, when the project changes it */
+  description?: string
   id: string
   name: string
   /** weapons the project adds (ITEM_NEW_xx): the game's weapon they copy (spell, own animations) */
@@ -53,6 +57,8 @@ export type ClassStatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'con'
 
 /** Editable class data (project data/classes.json). */
 export interface ClassData {
+  /** the help text, when the project changes it */
+  description?: string
   id: string
   name: string
   /** classes the project adds (CLASS_NEW_xx): the game's class they copy (sprites, animations) */
@@ -322,6 +328,8 @@ export interface ChapterUnits {
 }
 
 export interface Reference {
+  /** help texts of the game, by kind and id */
+  descriptions: Record<'characters' | 'classes' | 'items', Record<string, string>>
   classFacts: Record<string, ClassFacts>
   movementTypes: string[]
   effectivenessLists: string[]

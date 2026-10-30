@@ -343,6 +343,7 @@ def reference():
         "iconCount": len(d.item_icon_files()),
         "portraits": _portrait_names(),
         "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
+        "descriptions": state.get_decomp().descriptions(),
     }
 
 

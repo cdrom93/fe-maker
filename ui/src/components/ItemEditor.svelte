@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DescriptionField from './DescriptionField.svelte'
   import { api, itemIconUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
@@ -80,6 +81,8 @@
             {t('field.name')}
             <input value={it.name} class:invalid={!!problemFor('name')} oninput={(e) => edit((i) => (i.name = (e.target as HTMLInputElement).value))} />
           </label>
+          <DescriptionField value={it.description ?? reference.descriptions.items[it.id] ?? reference.descriptions.items[it.model ?? ''] ?? ''}
+                            onchange={(text) => edit((i) => (i.description = text))} />
           {#if it.model}
             <p class="muted small">
               {t('item.copyOf')} <Mention kind="items" id={it.model}>{list.records.find((r) => r.id === it.model)?.name ?? it.model}</Mention>

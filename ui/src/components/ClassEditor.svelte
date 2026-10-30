@@ -6,6 +6,7 @@
   import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
+  import DescriptionField from './DescriptionField.svelte'
   import BattleAnimation from './BattleAnimation.svelte'
   import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
@@ -159,6 +160,8 @@
         <p class="muted small">
           {t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}{#if cl.gender} · {t('class.gender')} : <GenderSign gender={cl.gender} />{/if}
         </p>
+        <DescriptionField value={cl.description ?? reference.descriptions.classes[cl.id] ?? reference.descriptions.classes[cl.model ?? ''] ?? ''}
+                          onchange={(text) => edit((c) => (c.description = text))} />
         <ReservedWeapons {items} classId={cl.id} className={cl.name} />
         {#if cl.model}
           <p class="muted small">

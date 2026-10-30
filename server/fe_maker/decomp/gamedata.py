@@ -1536,6 +1536,28 @@ class DecompData:
         if old_values != new_values:
             f["baseRanks"] = render_designated_list({k: _rank_to_c(v) for k, v in new.items()})
 
+    def _description(self, fields: dict) -> str | None:
+        """The help text of a character, class or item, as the editors show it (lines, no text codes)."""
+        index = _int_field(fields, "descTextId")
+        if not index or index not in self.texts.messages:
+            return None
+        return re.sub(r"\[[^\]]*\]", "", self.texts.raw(index).replace("[LF]\n", "\n").replace("[LF]", "\n")).strip()
+
+    def descriptions(self) -> dict[str, dict[str, str]]:
+        """The game's help texts: the project keeps only those it changes ("description" in its records)."""
+        tables = {"characters": self.characters, "classes": self.classes, "items": self.items}
+        return {kind: {e.fields["number"]: text for e in table.entries
+                       if (text := self._description(e.original_fields)) is not None}
+                for kind, table in tables.items()}
+
+    def _set_description(self, fields: dict, record: dict) -> None:
+        text = record.get("description")
+        if text is None:
+            return
+        index = _int_field(fields, "descTextId")
+        if index and text != self._description(fields):
+            self.texts.set_raw(index, name_message(text.strip().replace("\n", "[LF]\n")))
+
     def export_characters(self) -> list[dict]:
         return [self._character_record(entry) for entry in self.characters.entries]
 
@@ -1573,8 +1595,8 @@ class DecompData:
                 if (n < ALLY_CHARACTER_END) == ally and name not in taken:
                     entry = next(e for e in self.characters.entries if e.original_fields["number"] == name)
                     record = self._character_record(entry)
-                    record.update(name="", level=1, portraitId=0, weaponRanks={}, bases={s: 0 for s in STATS}, affinity=None,
-                                  abilities=[], convoyAccess=False, canSeize=False, reused=True)
+                    record.update(name="", description="", level=1, portraitId=0, weaponRanks={}, bases={s: 0 for s in STATS},
+                                  affinity=None, abilities=[], convoyAccess=False, canSeize=False)
                     return record
         raise GameDataError("noFreeCharacter")
 
@@ -1673,8 +1695,7 @@ class DecompData:
                 raise GameDataError(f"Unknown character {ch['id']}")
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), ch["name"])
-            if ch.get("reused"):   # a game character taken again by a blank project: not its old description
-                self.texts.set_name(_int_field(f, "descTextId"), "")
+            self._set_description(f, ch)
             if f["defaultClass"] != ch["class"]:
                 original_class = entry.original_fields["defaultClass"]
                 # In game, chapters load units with an explicit class: defaultClass alone
@@ -1903,6 +1924,7 @@ class DecompData:
                 raise GameDataError(f"Unknown item {it['id']}")
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), it["name"])
+            self._set_description(f, it)
             wtype = WEAPON_TYPES_REV.get(it["weaponType"], it["weaponType"])
             if f.get("weaponType") != wtype:
                 f["weaponType"] = wtype

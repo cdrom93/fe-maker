@@ -246,3 +246,22 @@ def test_new_class_copies_its_model_after_the_game_classes(decomp_dir):
     # the last new class has a row even without promotions: the engine reads gPromoJidLut[class]
     assert "{0}" in promotions.split("[CLASS_NEW_81]")[1].split("\n")[0]
     assert "gSomethingElse" in promotions
+
+
+def test_a_description_is_written_only_when_it_changes(decomp_dir):
+    d = DecompData(decomp_dir)
+    characters = d.export_characters()
+    d.apply_characters(characters)
+    assert not d.texts.edits
+    index = _description_index(d)
+    if index:
+        characters[0]["description"] = "Un jeune héros\nvenu du nord"
+        d.apply_characters(characters)
+        assert "[LF]\nvenu du nord" in d.texts.raw(index)
+        assert d._description(d.characters.entries[0].fields) == "Un jeune héros\nvenu du nord"
+
+
+def _description_index(d):
+    from fe_maker.decomp.gamedata import _int_field
+
+    return _int_field(d.characters.entries[0].fields, "descTextId")
