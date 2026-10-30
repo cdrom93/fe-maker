@@ -12,6 +12,8 @@ piège dans sa section.
 - Docker fails to start when CPU virtualization is off in the BIOS (happened several times on the user's PC).
 - C-SkillSys prototype (ticket 27, stopped 24/10/2026, removed from the repo 29/10/2026, still in git history): it rebuilt every game text from its own copy and replaced item/spell tables, so it would erase FE Maker's edits: see `docs/separation-force-magie.md` before going further. Builds also output `fireemblem8.elf`.
 
+- `data/banim/data_banim.o` dépend des objets que liste `linker_script_banim.txt`, pas du script lui-même : après un projet avec une animation importée, le build suivant (autre projet, animation retirée) gardait les anciennes animations, et un projet non modifié ne redonnait plus la ROM d'origine. `docker/entrypoint.sh` efface l'objet quand le script change (30/10/2026).
+
 ## Données du jeu (personnages, classes, objets, textes)
 
 - A unit with any magic rank plays its battle animation's magic (ranged) moves, whatever weapon it strikes with (`UnitHasMagicRank` in `banim-battleparse.c`): a mage with a sword stood still. Projects mixing magic and physical ranks get `tweaks.animation_modes_by_weapon` (docs/audit-decomp.md item 59).

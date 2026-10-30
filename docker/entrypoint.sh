@@ -20,6 +20,14 @@ if [ -d /overlay ]; then
     rsync -rlp --checksum /overlay/ "$WORK/"
 fi
 
+# data/banim/data_banim.o depends on the objects its linker script lists, not on the script: when the script
+# changes (battle animations a project imports, added or gone), the old object would stay. Rebuild it.
+BANIM_SUM=$(sha1sum "$WORK/linker_script_banim.txt" | cut -d' ' -f1)
+if [ "$(cat "$WORK/.fe-maker-banim-linker" 2>/dev/null)" != "$BANIM_SUM" ]; then
+    rm -f "$WORK/data/banim/data_banim.o"
+    echo "$BANIM_SUM" > "$WORK/.fe-maker-banim-linker"
+fi
+
 mkdir -p "$WORK/tools/agbcc"
 cp -a /opt/agbcc/. "$WORK/tools/agbcc/"
 cp /rom/baserom.gba "$WORK/baserom.gba"
