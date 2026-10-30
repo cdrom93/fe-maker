@@ -23,6 +23,7 @@ EXP_BAR_FILE = "src/mapanim_expbar.c"
 LEVEL_UP_FILE = "src/mapanim_lvup.c"
 BATTLE_FILE = "src/bmbattle.c"
 MAP_UI_FILE = "src/bm.c"
+UNIT_FILE = "src/bmunit.c"
 MAP_SPRITES_FILE = "src/bmudisp.c"
 
 # Option -> (field of gPlaySt.config, the game's default, allowed values), in the order and with the choices of the
@@ -46,7 +47,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
 SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
-            "noSupportAnimations", "hpBars")
+            "noSupportAnimations", "hpBars", "casualMode")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -128,6 +129,13 @@ static void FemPutHpBar(struct Unit * unit)
 """ % _HP_TILE + _ICONS
 _ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_POISON:\n"
 _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
+# Casual mode, after FEBuilder's "CasualMode" (its behavior, written in C, always on rather than a choice in the game):
+# a fallen player unit leaves the map, keeps its supports and comes back for the next chapter.
+_DEATH_CLEANUP = ("            if (UNIT_CATTRIBUTES(unit) & CA_SUPPLY)\n"
+                  "                unit->state = unit->state &~ US_DEAD;\n")
+_DEATH_CLEANUP_CASUAL = "            unit->state = unit->state &~ US_DEAD; /* FE Maker: casual mode */\n"
+_DEATH_SUPPORTS = "            unit->state |= US_DEAD | US_HIDDEN;\n            InitUnitsupports(unit);\n"
+_DEATH_SUPPORTS_CASUAL = "            unit->state |= US_DEAD | US_HIDDEN; /* FE Maker: casual mode, supports stay */\n"
 
 
 def validate(options: dict) -> str | None:
@@ -188,6 +196,9 @@ def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
         source = _replace(current(LEVEL_UP_FILE), _LEVEL_TEXT, _LEVEL_TEXT_QUICK, LEVEL_UP_FILE)
         source = _replace(source, _LEVEL_IN, _LEVEL_IN_QUICK, LEVEL_UP_FILE)
         files[LEVEL_UP_FILE] = _replace(source, _LEVEL_GAINS, _LEVEL_GAINS_QUICK, LEVEL_UP_FILE)
+    if options.get("casualMode"):
+        files[CONFIG_FILE] = _replace(current(CONFIG_FILE), _DEATH_CLEANUP, _DEATH_CLEANUP_CASUAL, CONFIG_FILE)
+        files[UNIT_FILE] = _replace(current(UNIT_FILE), _DEATH_SUPPORTS, _DEATH_SUPPORTS_CASUAL, UNIT_FILE)
     if options.get("hpBars"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BARS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)

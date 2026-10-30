@@ -35,6 +35,8 @@ Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : pr
 
 - [ ] « Barres de PV sur la carte » : une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV, verte au-dessus (playtest fait : Seth à 5 PV sur 30). À voir : barres pendant les menus et après un combat, en brouillard de guerre, et si leurs couleurs te vont.
 
+- [ ] « Mode débutant » : une unité vaincue revient au chapitre suivant, soutiens gardés (playtest fait : unité marquée morte, de retour sur la carte suivante). Toujours actif s'il est coché, pas un choix du joueur en début de partie. À voir sur une vraie mort.
+
 ## Préparation de l'alpha (rien n'est publié)
 
 - [ ] Écran d'accueil : le panneau « À installer avant de commencer » n'apparaît que s'il manque quelque chose. Pour le voir : quitte Docker Desktop puis recharge la page ; message clair, « Vérifier à nouveau » après l'avoir relancé.

@@ -732,3 +732,44 @@ def test_hp_bars_under_wounded_units(tmp_path):
         game.run(30)
         game.screenshot().save(tmp_path / "bar.png")
         print("screenshot:", tmp_path / "bar.png", game.units())
+
+
+def test_casual_mode_brings_a_fallen_unit_back(tmp_path):
+    from fe_maker import newchapter
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "casual", "Casual")
+    newchapter.start_blank(project, True, "Un", "Aelis")
+    project.set_game_options({"casualMode": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == newchapter.BLANK_LORD)["bases"].update(pow=30, skl=30, spd=30)
+    friend = DecompData(project.decomp_dir).new_character(True, {c["id"] for c in characters}, True)
+    friend["name"] = "Bran"
+    project.save("characters", [*characters, friend])
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    army.append({**army[0], "slot": None, "character": friend["id"], "class": friend["class"], "x": 1, "y": 0, "endX": 1,
+                 "endY": 0, "items": []})
+    chapters["unitGroups"]["UnitDef_Event_PrologueEnemy"] = [{
+        "slot": None, "character": "CHARACTER_SOLDIER_83", "class": "CLASS_SOLDIER", "level": 1, "autolevel": False,
+        "side": "enemy", "x": 0, "y": 1, "endX": 0, "endY": 1, "items": ["ITEM_LANCE_IRON"], "ai": [0, 0, 0, 0],
+        "fixedPath": False}]
+    project.save("chapters", chapters)
+    second = newchapter.add_chapter(project, 0, 15, 10, "Deux")
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units("Red"), seconds=60)
+        game.run(60)
+        unit = game.address("gUnitArrayBlue") + 0x48   # the second unit: Bran falls
+        dead_hidden = 1 << 2 | 1 << 0
+        game.write(unit, game.read(unit, 0x0C, width=32) | dead_hidden, offset=0x0C, width=32)
+        game.move_cursor(0, 0)
+        game.run(20)
+        game.press("A", wait=40)
+        game.press("A", wait=60)
+        game.press("A", wait=40)
+        game.press("A", wait=40)
+        game.press("A", wait=40)
+        assert game.wait_until(lambda: game.chapter() == second and game.turn() == 1, seconds=90, tap="A")
+        assert game.wait_until(lambda: not game.read(unit, 0x0C, width=32) & dead_hidden, seconds=30, tap="A")

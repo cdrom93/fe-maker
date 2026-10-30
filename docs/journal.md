@@ -61,3 +61,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : trois réglages de confort (barre d'expérience, gain de niveau, pas d'écran de combat pour bâtons et danses), hack témoin automatique de 3 chapitres joué jusqu'au menu, 32 playtests au vert.
 - 30/10/2026 : titres des chapitres ajoutés écrits avec les lettres du jeu, apprises dans ses images de titre à la compilation ; descriptions modifiables (personnages, classes, objets).
 - 30/10/2026 : option « Barres de PV sur la carte » (C, d'après le comportement du patch HPbars).
+- 30/10/2026 : option « Mode débutant » (C, d'après le comportement du patch CasualMode).

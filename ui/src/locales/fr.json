@@ -1375,5 +1375,7 @@
   "field.description": "Description (touche R en jeu)",
   "field.descriptionLong": "Le jeu affiche deux lignes d'environ {n} caractères : ce texte risque de déborder.",
   "options.hpBars": "Barres de PV sur la carte",
-  "options.hpBarsHint": "une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV"
+  "options.hpBarsHint": "une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV",
+  "options.casualMode": "Mode débutant",
+  "options.casualModeHint": "une unité vaincue quitte la carte et revient au chapitre suivant ; le jeu est toujours perdu si le héros tombe"
 }
