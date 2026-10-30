@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, Objective, ObjectiveEdit, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
@@ -69,10 +70,10 @@
       </label>
       {#if boss}<Mention kind="characters" id={boss.id}><span class="open">↗</span></Mention>{/if}
     </div>
-    {#if !objective.bossEditable}<p class="muted small">{t('objective.bossPerRoute')}</p>{/if}
+    {#if !objective.bossEditable}<Help text={t('objective.bossPerRoute')} />{/if}
     {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
     {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
-    {#if boss && !boss.abilities.includes('boss')}<p class="muted small">{t('objective.bossAbility')}</p>{/if}
+    {#if boss && !boss.abilities.includes('boss')}<Help text={t('objective.bossAbility')} />{/if}
     {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
 {/snippet}
 
@@ -90,7 +91,7 @@
         </button>
       {/each}
     </div>
-    <p class="muted small">{t(`objective.hint.${objective.type}`)}</p>
+    <Help text={t(`objective.hint.${objective.type}`)} />
 
     {#if objective.type === 'seize'}
       <div class="row">

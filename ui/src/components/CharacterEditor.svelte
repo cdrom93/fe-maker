@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { api, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
@@ -119,7 +120,7 @@
             </span>
           </label>
           {#each mine.filter((p) => p.field === 'class') as p, i (i)}<p class="{p.severity} small">{problemText(p)}</p>{/each}
-          <p class="muted small help">{t('field.classHint')}</p>
+          <Help text={t('field.classHint')} />
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
@@ -153,8 +154,7 @@
       </section>
 
       <section class="panel">
-        <h3>{t('field.preview')}</h3>
-        <p class="muted small help">{t('field.basesHint')}</p>
+        <h3>{t('field.preview')} <Help text={t('field.basesHint')} /></h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -212,7 +212,7 @@
             </label>
           {/each}
         </div>
-        <p class="muted small help">{t('field.noAnimationHint')} {t('field.inventoryLater')}</p>
+        <Help text={`${t('field.noAnimationHint')} ${t('field.inventoryLater')}`} />
       </details>
 
       <details class="panel fold">

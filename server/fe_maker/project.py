@@ -147,7 +147,9 @@ class Project:
         if chapters.get("blankCharacters"):   # the game's chapters still carry the characters a blank project dropped
             ids = {c["id"] for c in characters}
             problems = [p for p in problems if p.kind != "characters" or p.id in ids]
-        return problems
+        from . import newchapter  # it imports this module's data layer
+
+        return problems + newchapter.story_problems(self)
 
     # ---------- build ----------
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { onMount } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, portraitUrl } from '../lib/api'
@@ -476,7 +477,7 @@
                        maxPartners={supportInfo.maxPartners} {messageId} firstLine={firstLineOf} faceCode={faceOf} onpick={pick} />
         {/if}
       {:else}
-      <p class="muted small help">{t('dlg.hint')}</p>
+      <Help text={t('dlg.hint')} />
       {#if !visibleScenes.length}<p class="muted">{t('dlg.none')}</p>{/if}
       {#if chapterQuotes.length}
         <div class="scene">
@@ -638,7 +639,7 @@
         {#if view === 'talk'}
           <div class="cast">
             <button onclick={() => (showFacePicker = !showFacePicker)} class:active={showFacePicker}>＋ {t('dlg.addFace')}</button>
-            <span class="muted tiny help">{t('dlg.stageHint')}</span>
+            <Help text={t('dlg.stageHint')} />
           </div>
           {#if showFacePicker}
             <FacePicker {faces} label={faceLabel} first={[...new Set(steps.filter((s) => s.kind === 'face').map((s) => s.face ?? ''))]}
@@ -714,7 +715,7 @@
           <button onclick={() => addStep('move')}>＋ {t('dlg.add.move')}</button>
         </div>
         {/if}
-        <p class="muted tiny help">{t('dlg.textHint')}</p>
+        <Help text={t('dlg.textHint')} />
         {#each messageProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
       </section>
     {/if}

@@ -2,6 +2,7 @@
   // Visual editor of an event script (server: decomp/events.py): one block per command, with a form
   // for the commands FE Maker knows; the others are kept as they are and can be moved or removed.
   import { untrack } from 'svelte'
+  import Help from './Help.svelte'
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
@@ -327,7 +328,7 @@
     </p>
   {/if}
   <div class="view">
-    <p class="muted small">{advanced ? t('ev.hint') : t('ev.simple.hint')}</p>
+    <Help text={advanced ? t('ev.hint') : t('ev.simple.hint')} />
     <button class="link small" onclick={() => setAdvanced(!advanced)}>{advanced ? t('ev.simple.toSimple') : t('ev.simple.toDetail', { n: hiddenCount })}</button>
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}

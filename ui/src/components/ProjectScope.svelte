@@ -3,6 +3,7 @@
   import { onMount } from 'svelte'
   import { api, type ProjectScope } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
+  import Help from './Help.svelte'
 
   let { onchanged }: { /** the project's data changed on the server */ onchanged: () => void } = $props()
 
@@ -57,8 +58,7 @@
 </script>
 
 <section class="panel" id="project-scope">
-  <h3>{t('scope.title')}</h3>
-  <p class="muted small">{t('scope.hint')}</p>
+  <h3>{t('scope.title')} <Help text={t('scope.hint')} /></h3>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if scope}
     <div class="kinds" role="tablist">
@@ -74,8 +74,8 @@
         <input type="search" bind:value={search} placeholder={t('ws.search')} aria-label={t('ws.search')} />
         <button onclick={() => setAll(k, true)}>{t('scope.all')}</button>
         <button onclick={() => setAll(k, false)}>{t('scope.none')}</button>
+        <Help text={t(`scope.${k}Hint`)} />
       </div>
-      <p class="muted small">{t(`scope.${k}Hint`)}</p>
       <ul>
         {#each shown(k) as r (r.id)}
           <li>

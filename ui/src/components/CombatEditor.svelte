@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassView, Combat, Item, Problem, Reference } from '../lib/types'
@@ -76,15 +77,13 @@
 {#if combat}
   <div class="combat">
     <section class="panel">
-      <h3>{t('combat.triangle')}</h3>
-      <p class="muted small help">{t('combat.triangleVisualHint')}</p>
+      <h3>{t('combat.triangle')} <Help text={t('combat.triangleVisualHint')} /></h3>
       <div class="triangles">
         <TriangleDiagram title={t('combat.weapons')} types={toTypes(PHYSICAL)} {advantage} onchange={setAdvantage} />
         <TriangleDiagram title={t('combat.magic')} types={toTypes(MAGIC)} {advantage} onchange={setAdvantage} />
       </div>
       <details class="advanced">
-      <summary>{t('combat.allRules')}</summary>
-      <p class="muted small help">{t('combat.triangleHint')}</p>
+      <summary>{t('combat.allRules')} <Help text={t('combat.triangleHint')} /></summary>
       <div class="table-wrap">
         <table>
           <thead>
@@ -116,8 +115,7 @@
     </section>
 
     <section class="panel">
-      <h3>{t('combat.effectiveness')}</h3>
-      <p class="muted small help">{t('combat.effectivenessHint')}</p>
+      <h3>{t('combat.effectiveness')} <Help text={t('combat.effectivenessHint')} /></h3>
       <div class="lists">
         {#each reference.effectivenessLists as name (name)}
           <fieldset>

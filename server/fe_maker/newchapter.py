@@ -27,7 +27,7 @@ from collections import Counter
 
 from .decomp import maps, objectives, story, units
 from .decomp.gamedata import DecompData
-from .validation import MAP_MIN_HEIGHT, MAP_MIN_WIDTH
+from .validation import MAP_MIN_HEIGHT, MAP_MIN_WIDTH, Problem
 
 PLAIN = 0x01   # terrain byte of plains (src/data/terrain names)
 MAX_SIZE = (64, 64)
@@ -185,6 +185,34 @@ def drop_chapters(project, data: DecompData, kept: set[int], title: str, hero: s
     project.set_world_map(False)
     if 0 not in kept:
         start_blank(project, False, title, hero)
+
+
+def story_problems(project) -> list[Problem]:
+    """What is left to do on the chapters a blank project or an added chapter brought: shown in "To do"."""
+    stored = project.load("chapters")
+    if not stored.get("blank") and not stored.get("added"):
+        return []
+    data = DecompData(project.decomp_dir)
+    data._load_chapter_events()
+    links = data.chapter_links(project.load("dialogues").get("scripts", {}))
+    settings = data.chapter_settings["chapters"]
+    titles = stored.get("titles", {})
+    edits = stored.get("unitGroups", {})
+    games = units.read_unit_groups(project.decomp_dir)
+    problems = []
+    for index in story_order(links) + sorted({int(k) for k in stored.get("added", {})} - set(story_order(links))):
+        if str(index) not in stored.get("added", {}) and not (stored.get("blank") and index in stored.get("cleared", [])):
+            continue
+        title = titles.get(str(index), str(index))
+        loads = units.chapter_unit_groups(project.decomp_dir, data._chapter_event_symbol(settings[index]))
+        groups = [edits[g["name"]] if g["name"] in edits else games[g["name"]].units for g in loads
+                  if g["name"] in edits or g["name"] in games]
+        enemies = sum(u.get("side") == "enemy" for group in groups for u in group)
+        if not enemies:
+            problems.append(Problem("warning", "chapters", str(index), "units", "chapterNoEnemies", {"title": title}))
+        if not links[index]:
+            problems.append(Problem("warning", "chapters", str(index), "story", "chapterNoNext", {"title": title}))
+    return problems
 
 
 def add_chapter(project, after: int, width: int, height: int, title: str) -> int:

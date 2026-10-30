@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { onMount, untrack } from 'svelte'
   import { aiPreset } from '../lib/ai'
   import { appContext } from '../lib/appContext.svelte'
@@ -409,8 +410,7 @@
   {#if chapter}
     <div class="detail">
       <section class="panel">
-        <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span></h2>
-        <p class="muted small help">{t('chapter.editHint')}</p>
+        <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span> <Help text={t('chapter.editHint')} /></h2>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
@@ -430,8 +430,7 @@
           </div>
           {#if cutsceneGroups.length}
             <details class="cutscenes" bind:open={showCutscenes}>
-              <summary>{t('chapter.cutsceneGroups', { n: cutsceneGroups.length })}</summary>
-              <p class="muted small help">{t('chapter.cutsceneHint')}</p>
+              <summary>{t('chapter.cutsceneGroups', { n: cutsceneGroups.length })} <Help text={t('chapter.cutsceneHint')} /></summary>
               <div class="groups">
                 {#each cutsceneGroups as g (g.name)}{@render groupChip(g)}{/each}
               </div>
@@ -451,7 +450,7 @@
                   </label>
                   <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeReinforcements')}</button>
                 </div>
-                <p class="muted small help">{t('chapter.newGroupHint')}</p>
+                <Help text={t('chapter.newGroupHint')} />
               {/if}
               {#if !cutsceneGroups.some((g) => g.name === og) && unitsOf(og).length}
                 <button class="dup" title={t('chapter.duplicateGroupHint')} onclick={() => duplicateGroup(og)}>⧉ {t('chapter.duplicateGroup')}</button>

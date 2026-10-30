@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { AI_ACTION_COUNT as ACTION_COUNT, AI_GUARD_TILE as GUARD_TILE, AI_MOVE_COUNT as MOVE_COUNT, AI_NAMED_TARGETS as NAMED_TARGETS,
     AI_PRESETS as PRESETS, AI_RECOVERY_COUNT as RECOVERY_COUNT, AI_TARGET_COUNT as TARGET_COUNT, aiPreset } from '../lib/ai'
   import { t } from '../lib/i18n.svelte'
@@ -22,7 +23,7 @@
 </script>
 
 <h3>{t('ai.title')}</h3>
-{#if side === 'player'}<p class="muted small help">{t('ai.playerHint')}</p>{/if}
+{#if side === 'player'}<Help text={t('ai.playerHint')} />{/if}
 {#if bytes}
   <label>
     <span>{t('ai.preset')}</span>

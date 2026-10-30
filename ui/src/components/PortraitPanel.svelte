@@ -1,5 +1,6 @@
 <script lang="ts">
   // Replace a portrait of the game with a 128 x 112 sheet (server: decomp/portraits.py).
+  import Help from './Help.svelte'
   import { api, ApiError, portraitSheetUrl } from '../lib/api'
   import { problemText, t } from '../lib/i18n.svelte'
   import { portraitsChanged } from '../lib/portraits.svelte'
@@ -182,7 +183,7 @@
       <label class="small name">{t('portrait.name')}
         <input value={info.name} maxlength="40" onchange={(e) => rename((e.target as HTMLInputElement).value)} />
       </label>
-      <p class="muted tiny help">{t('portrait.addedHint', { id: portraitId })}</p>
+      <Help text={t('portrait.addedHint', { id: portraitId })} />
     {:else}
       <p class="small">
         {#if imported}<strong>{t('portrait.imported')}</strong>{:else}{t('portrait.game', { name: info?.name ?? '' })}{/if}
@@ -215,7 +216,7 @@
         <NumberField label={t('portrait.eyesY')} value={imported.eyes[1]} min={0} max={8} compact onchange={(v) => move('eyes', 1, v)} />
       </div>
     {/if}
-    <p class="muted tiny help">{t('portrait.hint')}</p>
+    <Help text={t('portrait.hint')} />
     {#if error}<p class="bad small">{error}</p>{/if}
     {#each myProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
   </div>

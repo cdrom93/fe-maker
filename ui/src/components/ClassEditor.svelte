@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { api, mapSpriteUrl } from '../lib/api'
   import { mapSpriteVersion } from '../lib/portraits.svelte'
   import FeRepoBrowser from './FeRepoBrowser.svelte'
@@ -256,7 +257,7 @@
             </tbody>
           </table>
         </div>
-        <p class="muted small help">{t('class.statsHint')}</p>
+        <Help text={t('class.statsHint')} />
       </details>
 
       <details class="panel fold">
@@ -294,7 +295,7 @@
             </label>
           {/each}
         </div>
-        <p class="muted small help">{t('class.weaponRanksHint')}</p>
+        <Help text={t('class.weaponRanksHint')} />
       </details>
 
       <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />

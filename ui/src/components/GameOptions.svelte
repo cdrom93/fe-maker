@@ -1,6 +1,7 @@
 <script lang="ts">
   // Options of the built game (server: decomp/gameoptions.py): the defaults of a new save's options (the player
   // can change them in the game's Options menu) and comfort changes taken from FEBuilderGBA's patches.
+  import Help from './Help.svelte'
   import { api } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import ProjectScope from './ProjectScope.svelte'
@@ -57,8 +58,7 @@
   {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
   {#if test}
     <section class="panel">
-      <h3>{t('options.testTitle')}</h3>
-      <p class="muted small help">{t('ws.startHint')}</p>
+      <h3>{t('options.testTitle')} <Help text={t('ws.startHint')} /></h3>
       <div class="grid">
         <label>
           <span>{t('ws.start')}</span>
@@ -71,14 +71,13 @@
       </div>
       <label class="switch" title={t('ws.simplePrologueHint')}>
         <input type="checkbox" checked={test.simplePrologue} onchange={(e) => setTest({ simplePrologue: (e.target as HTMLInputElement).checked })} />
-        <span><strong>{t('ws.simplePrologue')}</strong> <span class="muted small help">{t('ws.simplePrologueHint')}</span></span>
+        <span><strong>{t('ws.simplePrologue')}</strong> <Help text={t('ws.simplePrologueHint')} /></span>
       </label>
     </section>
   {/if}
   {#if data}
     <section class="panel">
-      <h3>{t('options.defaultsTitle')}</h3>
-      <p class="muted small help">{t('options.defaultsHint')}</p>
+      <h3>{t('options.defaultsTitle')} <Help text={`${t('options.defaultsHint')} ${t('options.gameDefaultHint')}`} /></h3>
       <div class="config">
         {#each Object.entries(data.defaults) as [key, d] (key)}
           <span class="option">{t(`options.${key}`)}</span>
@@ -92,16 +91,14 @@
           </div>
         {/each}
       </div>
-      <p class="muted small help">{t('options.gameDefaultHint')}</p>
     </section>
 
     <section class="panel">
-      <h3>{t('options.comfortTitle')}</h3>
-      <p class="muted small help">{t('options.comfortHint')}</p>
+      <h3>{t('options.comfortTitle')} <Help text={t('options.comfortHint')} /></h3>
       {#each data.switches as key (key)}
         <label class="switch">
           <input type="checkbox" checked={!!data.options[key]} disabled={saving} onchange={(e) => set(key, (e.target as HTMLInputElement).checked)} />
-          <span><strong>{t(`options.${key}`)}</strong> <span class="muted small">{t(`options.${key}Hint`)}</span></span>
+          <span><strong>{t(`options.${key}`)}</strong> <Help text={t(`options.${key}Hint`)} /></span>
         </label>
       {/each}
     </section>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { t } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item } from '../lib/types'
   import GenderSign from './GenderSign.svelte'
@@ -36,7 +37,7 @@
     {t('reserve.toggle')}
   </label>
   {#if res}
-    <p class="muted small help">{t('reserve.hint')}</p>
+    <Help text={t('reserve.hint')} />
     {#if !res.characters.length && !res.classes.length}<p class="warn small">{t('reserve.empty')}</p>{/if}
     <div class="cols">
       <div>

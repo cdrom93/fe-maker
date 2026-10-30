@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { t } from '../lib/i18n.svelte'
 
   let {
@@ -44,15 +45,13 @@
   <label class="ability" class:inherited>
     <input type="checkbox" checked={inherited || abilities.includes(key)} disabled={inherited} onchange={(e) => toggle(key, (e.target as HTMLInputElement).checked)} />
     <span>
-      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{/if}</span>
-      <span class="muted desc">{t(`ability.desc.${key}`)}</span>
+      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{/if} <Help text={t(`ability.desc.${key}`)} /></span>
     </span>
   </label>
 {/snippet}
 
 <section class="panel">
-  <h3>{t('ability.title')}</h3>
-  {#if fromClass.length}<p class="muted small help">{t('ability.hint')}</p>{/if}
+  <h3>{t('ability.title')}{#if fromClass.length} <Help text={t('ability.hint')} />{/if}</h3>
   <div class="groups">
     {#each GROUPS as [group, keys] (group)}
       <div>
@@ -63,8 +62,7 @@
             <label class="ability">
               <input type="checkbox" checked={seize.on} onchange={(e) => seize.onchange((e.target as HTMLInputElement).checked)} />
               <span>
-                <span class="name">{t('field.canSeize')}</span>
-                <span class="muted desc help">{t('field.canSeizeHint')}</span>
+                <span class="name">{t('field.canSeize')} <Help text={t('field.canSeizeHint')} /></span>
               </span>
             </label>
           {/if}
@@ -72,8 +70,7 @@
             <label class="ability">
               <input type="checkbox" checked={convoy.on} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />
               <span>
-                <span class="name">{t('field.convoyAccess')}</span>
-                <span class="muted desc help">{t('field.convoyAccessHint')}</span>
+                <span class="name">{t('field.convoyAccess')} <Help text={t('field.convoyAccessHint')} /></span>
               </span>
             </label>
           {/if}
@@ -96,11 +93,9 @@
   .ability input { margin-top: 0.2rem; flex-shrink: 0; }
   .ability > span { display: flex; flex-direction: column; }
   .name { font-size: 0.88rem; }
-  .desc { font-size: 0.75rem; line-height: 1.25; }
   .inherited { opacity: 0.7; }
   .tag { font-size: 0.75rem; }
   details { margin-top: 0.75rem; }
   summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
   .advanced { margin-top: 0.5rem; }
-  .small { font-size: 0.8rem; margin: 0 0 0.5rem; }
 </style>

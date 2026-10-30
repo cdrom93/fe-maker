@@ -37,11 +37,15 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Un projet s'ouvre sur **Campagne**. Onglets dans l'ordre du travail : Campagne, Chapitres, puis les listes du jeu (Personnages, Classes, Objets, Combat) et Options.
 - [ ] Onglet **Chapitres** : il réunit trois vues, « Unités et objectif », « Carte », « Dialogues », et garde le même chapitre de l'une à l'autre. Choisir un chapitre dans Campagne le garde aussi.
 - [ ] Fiche d'un chapitre (Campagne) : quatre étapes dans l'ordre : dessiner la carte, placer les unités et fixer l'objectif, écrire les dialogues, tester.
-- [ ] Barre du haut allégée : Retour, Annuler, changements, Rétablir, Tester, menu **Projet** (exporter le patch, touches, explications, fermer). « Tester ce chapitre » apparaît dans Chapitres ; « Tester depuis le début » part toujours du début, le rappel « depuis le chapitre n » a disparu.
-- [ ] Les longues explications sont cachées : Projet → « Afficher les explications » les remet partout, et le choix est retenu.
+- [ ] Barre du haut allégée : Retour, Annuler, changements, Rétablir, Tester, menu **Projet** (exporter le patch, touches, fermer). « Tester ce chapitre » apparaît dans Chapitres ; « Tester depuis le début » part toujours du début, le rappel « depuis le chapitre n » a disparu.
+- [ ] Les explications sont dans des infobulles : un petit « i » à côté d'un titre ou d'une option, à survoler. Les textes visibles ont été raccourcis. Dis-moi s'il en reste de trop longs, ou si une explication utile manque.
 - [ ] Vue « Unités et objectif » : groupes et carte d'abord, objectif et réglages du chapitre en dessous. Vue « Carte » : la peinture d'abord, les réglages (taille, jeu de tuiles, palette, Tiled) repliés.
 - [ ] Fiches Personnage et Classe : croissances, rangs d'armes, capacités, statistiques et promotions repliés, un clic les ouvre.
 - [ ] Les avertissements ne sont plus en haut : ils restent dans « À faire » de la page Campagne. Les erreurs, qui bloquent le test, restent en haut.
+
+## À faire sur les chapitres
+
+- [ ] Page Campagne, « À faire » : un chapitre ajouté ou vierge sans ennemi, ou qui ne mène nulle part, est signalé avec son nom. Cliquer le nom ouvre le chapitre.
 
 ## Historique des changements
 

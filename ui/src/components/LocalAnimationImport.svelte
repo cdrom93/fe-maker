@@ -1,6 +1,7 @@
 <script lang="ts">
   // A battle animation from the user's PC (ticket 53): a weapon's folder (FEditor script and frames) or its .zip,
   // converted and given to the class like a FE-Repo one (server: /api/animations/import/local).
+  import Help from './Help.svelte'
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import { animationTargets, guessTarget, targetLabel } from '../lib/animationTargets'
@@ -47,7 +48,7 @@
 </script>
 
 <div class="local">
-  <p class="muted small help">{t('banim.local.hint')}</p>
+  <Help text={t('banim.local.hint')} />
   <div class="row">
     <label class="pick">
       <input type="file" webkitdirectory multiple onchange={chosen} />

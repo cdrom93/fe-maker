@@ -3,6 +3,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { Status } from '../lib/types'
   import Checks from './Checks.svelte'
+  import Help from './Help.svelte'
 
   let { status, onOpened }: { status: Status; onOpened: () => void } = $props()
 
@@ -46,15 +47,9 @@
     <form onsubmit={(e) => { e.preventDefault(); create() }}>
       <label>{t('home.name')}<input bind:value={name} required maxlength="60" /></label>
       <label>{t('home.author')}<input bind:value={author} maxlength="60" /></label>
-      <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')}</label>
-      {#if blank}
-        <div class="blank">
-          <p class="muted hint">{t('home.blankHint')}</p>
-          <p class="muted hint">{t('home.blankKept')}</p>
-        </div>
-      {/if}
-      <p class="muted hint">{t('home.createHint', { dir: status.defaultProjectsDir })}</p>
+      <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')} <Help text={t('home.blankHint')} /></label>
       <button class="primary" disabled={busy || !name.trim()}>{t('home.create')}</button>
+      <p class="muted hint">{t('home.createHint', { dir: status.defaultProjectsDir })}</p>
     </form>
   </section>
 
@@ -80,8 +75,6 @@
 
 <style>
   .choice { color: var(--text); font-weight: 600; }
-  .blank { padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.35rem; }
-  .blank p { margin: 0; }
   .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; max-width: 900px; margin: 2rem auto; }
   form { display: flex; flex-direction: column; gap: 0.75rem; }
   form.row { flex-direction: row; margin-top: 1rem; }

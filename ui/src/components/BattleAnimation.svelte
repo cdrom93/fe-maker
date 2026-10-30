@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { untrack } from 'svelte'
   import { api, animationUrl } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
@@ -191,7 +192,7 @@
         {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
       </p>
     {/if}
-    <p class="muted small help">{t('banim.hint')}</p>
+    <Help text={t('banim.hint')} />
     <div class="sources">
       <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>{t('banim.lib.title')}</button>
       <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>{t('banim.local.title')}</button>

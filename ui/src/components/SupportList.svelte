@@ -1,6 +1,7 @@
 <script lang="ts">
   // Support pairs (server: decomp/supports.py): points at the start, points per turn side by side,
   // and the C, B and A conversations. Shown in the Dialogues tab, under "Supports".
+  import Help from './Help.svelte'
   import { portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
@@ -131,7 +132,7 @@
   const tooMany = $derived(problems.filter((pr) => pr.kind === 'dialogues' && pr.code === 'supportTooMany'))
 </script>
 
-<p class="muted small help">{t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })}</p>
+<Help text={t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })} />
 {#each tooMany as pr (pr.id)}
   <p class="bad small"><Mention kind="characters" id={pr.id.replace('support:', '')}>{charName(pr.id.replace('support:', ''))}</Mention> — {problemText(pr)}</p>
 {/each}

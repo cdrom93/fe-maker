@@ -2,6 +2,7 @@
   // Battle animations of FE-Repo (ticket 44, server: ferepo.py): browse by kind of class, search; choosing
   // one shows its preview, its weapons, authors and license; a weapon's animation can be given to the class
   // (downloaded, converted and kept in the project).
+  import Help from './Help.svelte'
   import { untrack } from 'svelte'
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
@@ -143,7 +144,7 @@
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}
-  {#if loading && weaponFilter.length}<p class="muted small help">{t('banim.weaponFilterHint')}</p>{/if}
+  {#if loading && weaponFilter.length}<Help text={t('banim.weaponFilterHint')} />{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}
@@ -190,7 +191,7 @@
         {/if}
         <p class="small">{t('banim.lib.authors')} : {picked.authors.join(', ') || t('banim.lib.seeCredits')} · {picked.license}</p>
         <a class="small" href={picked.url} target="_blank" rel="noreferrer">{t('banim.lib.open')} ↗</a>
-        <p class="muted tiny help">{t('banim.import.hint')}</p>
+        <Help text={t('banim.import.hint')} />
       {:else}
         <p class="muted small">{t('banim.lib.pick')}</p>
       {/if}

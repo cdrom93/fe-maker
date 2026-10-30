@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Help from './Help.svelte'
   import { onMount, tick, type Snippet } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl } from '../lib/api'
@@ -371,21 +372,20 @@
   <section class="panel graph-panel">
     <div class="head">
       <div>
-        <h2>{t('flow.title')}</h2>
-        <p class="muted small help">{t('flow.hint')}</p>
+        <h2>{t('flow.title')} <Help text={t('flow.hint')} /></h2>
       </div>
       <label class="switch-row">
         <input type="checkbox" checked={worldMap} onchange={(e) => setWorldMap((e.target as HTMLInputElement).checked)} />
-        <span><strong>{t('flow.worldMapOption')}</strong><br /><span class="tiny help">{worldMap ? t('flow.worldMapOn') : t('flow.worldMapOff')}</span></span>
+        <strong>{t('flow.worldMapOption')}</strong> <Help text={worldMap ? t('flow.worldMapOn') : t('flow.worldMapOff')} />
       </label>
     </div>
-    <div class="legend small help">
+    <div class="legend small">
       {#if worldMap}<span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge worldMap" /></svg> {t('flow.kind.worldMap')}</span>{/if}
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge direct" /></svg> {t('flow.kind.direct')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge noSave" /></svg> {t('flow.kind.noSave')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge other" /></svg> {t('flow.otherScript')}</span>
     </div>
-    <p class="muted tiny zoom-hint"><span class="help">{t('flow.zoomHint')}</span> <button class="link" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)} %</button></p>
+    <p class="muted tiny zoom-hint"><Help text={t('flow.zoomHint')} /> <button class="link" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)} %</button></p>
     <div class="graph-scroll" bind:this={scroller} role="presentation" onpointerdown={startDrag} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag}>
       {#if chapters.length}
         <div style="width: {(graph.width + NODE_W / 2) * zoom}px; height: {(graph.height + NODE_H) * zoom}px">
@@ -432,7 +432,7 @@
       <div class="todo">
         <h4>{t('flow.todo')}</h4>
         {#if todoCount.errors || todoCount.warnings}
-          <p class="muted tiny help">{t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })}</p>
+          <Help text={t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })} />
           {@render todo()}
         {:else}
           <p class="muted small">{t('flow.todoNone')}</p>
@@ -441,8 +441,7 @@
     {/if}
     {#if graph.unreached.length}
       <details class="unreached">
-        <summary class="small">{t('flow.unreached', { n: graph.unreached.length })}</summary>
-        <p class="muted tiny help">{t('flow.unreachedHint')}</p>
+        <summary class="small">{t('flow.unreached', { n: graph.unreached.length })} <Help text={t('flow.unreachedHint')} /></summary>
         <div class="chips">
           {#each graph.unreached as n (n)}<button class:active={selected === n} onclick={() => (selected = n)}>{title(n)}</button>{/each}
         </div>
@@ -486,7 +485,7 @@
         {/if}
       {/if}
       <div class="music">
-        <h4>{t('flow.music.title')}</h4>
+        <h4>{t('flow.music.title')} <Help text={t('flow.music.hint')} /></h4>
         {#if music.bluePhase}
           <span class="small">{music.bluePhase.name}</span>
           <button class="link" onclick={removeMusic}>{t('flow.music.reset')}</button>
@@ -496,7 +495,6 @@
         <label class="small">{t('flow.music.import')}
           <input type="file" accept=".mid,.midi,audio/midi" onchange={(e) => importMusic((e.target as HTMLInputElement).files?.[0])} />
         </label>
-        <p class="tiny muted">{t('flow.music.hint')}</p>
         {#if musicError}<p class="bad small">{musicError}</p>{/if}
       </div>
       <div class="add-chapter">
@@ -563,7 +561,7 @@
           <li><button class="link-button" onclick={() => (selected = i.from)}>{title(i.from)}</button> <span class="muted tiny">{t(`flow.kind.${i.link.kind}`)}{i.link.ending ? '' : ` · ${i.link.script}`}</span></li>
         {/each}
       </ul>
-      <p class="muted tiny help">{t('flow.editHint')}</p>
+      <Help text={t('flow.editHint')} />
     </section>
   {/if}
 </div>

@@ -52,7 +52,7 @@
   onDestroy(resetAppContext)
 
   // One chapter at a time: its units, map and dialogues stay on it.
-  let chapterList = $state<{ index: number; id: string; map: string | null; hidden?: boolean }[]>([])
+  let chapterList = $state<{ index: number; id: string; title: string; map: string | null; hidden?: boolean }[]>([])
   let currentChapter = $state<number | null>(null)
   $effect(() => {
     const id = appContext.recordId
@@ -66,23 +66,6 @@
     navigator.open(view, chapter ? (view === 'maps' ? chapter.map : String(chapter.index)) : null)
   }
 
-  // The explanations under the titles, for whoever wants them.
-  function readHelp(): boolean {
-    try {
-      return localStorage.getItem('fe-maker.show-help') === '1'
-    } catch {
-      return false
-    }
-  }
-  let showHelp = $state(readHelp())
-  $effect(() => {
-    document.body.classList.toggle('show-help', showHelp)
-    try {
-      localStorage.setItem('fe-maker.show-help', showHelp ? '1' : '0')
-    } catch {
-      // storage unavailable: the choice is just not remembered
-    }
-  })
   let projectMenu = $state<HTMLDetailsElement>()
   function fromMenu(action: () => void) {
     if (projectMenu) projectMenu.open = false
@@ -224,7 +207,7 @@
   /** Display name of a record mentioned by a problem. */
   function recordName(kind: Problem['kind'], id: string): string {
     if (kind === 'combat') return t('ws.combat')
-    if (kind === 'chapters') return id.replace('UnitDef_Event_', '')
+    if (kind === 'chapters') return (/^\d+$/.test(id) ? chapterList.find((c) => String(c.index) === id)?.title : '') || id.replace('UnitDef_Event_', '')
     if (kind === 'maps') return id
     if (kind === 'dialogues' && id.startsWith('new')) return t('dlg.newQuotes')
     if (kind === 'dialogues') return t('dlg.message', { id: `0x${Number(id.split('#')[0]).toString(16).toUpperCase()}` })
@@ -305,7 +288,6 @@
       <div class="menu-items">
         <button onclick={() => fromMenu(() => startBuild(false))} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
         <button onclick={() => fromMenu(() => (showKeys = true))}>{t('keys.title')}</button>
-        <label><input type="checkbox" bind:checked={showHelp} /> {t('ws.showHelp')}</label>
         <button onclick={() => fromMenu(close)}>{t('ws.close')}</button>
       </div>
     </details>
@@ -316,7 +298,7 @@
   <ul class="problems">
     {#each [...errors, ...warnings] as p, i (i)}
       {@const isRecord = p.kind !== 'combat' && p.kind !== 'chapters' && p.kind !== 'dialogues' && !!p.id}
-      {@const target = p.kind === 'maps' ? p.id : isRecord ? p.id : null}
+      {@const target = p.kind === 'maps' || (p.kind === 'chapters' && /^\d+$/.test(p.id)) ? p.id : isRecord ? p.id : null}
       <li class={p.severity}>
         <Mention kind={p.kind} id={target}>{recordName(p.kind, p.id)}</Mention>
         — {problemText(p)}
@@ -391,7 +373,6 @@
   .menu { position: relative; }
   .menu summary { list-style: none; cursor: pointer; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; }
   .menu-items { position: absolute; z-index: 30; right: 0; margin-top: 0.3rem; min-width: 14rem; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
-  .menu-items label { color: var(--text); padding: 0.2rem 0.3rem; }
   .views { display: flex; gap: 0.3rem; margin: -0.5rem 0 0.75rem; }
   .views button { border: none; background: none; color: var(--muted); padding: 0.35rem 0.8rem; }
   .views button.active { background: var(--accent-soft); color: var(--text); font-weight: 800; }

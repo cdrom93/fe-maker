@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import Help from './Help.svelte'
   import type { MapLayout } from '../lib/types'
 
   /** Draws the current brush metatile on a small canvas. */
@@ -1107,14 +1108,14 @@
           {#each info.chapters as c, k (c)}{#if k}, {/if}<Mention kind="chapters" id={String(c)}>{chapterTitle(c)}</Mention>{/each}
           {#if info.chapters.length > 1}<span class="warn"> — {t('maps.shared', { n: info.chapters.length })}</span>{/if}
         </p>
-        <p class="muted small help">{t('maps.hint')}</p>
+        <Help text={t('maps.hint')} />
         <details class="map-settings" open={!!sizeProblem}>
           <summary class="small">{t('maps.settings')}</summary>
         {#if layout}
           <div class="size">
             <NumberField label={t('maps.width')} value={width} min={MIN_WIDTH} max={MAX_SIDE} compact onchange={(v) => resize(v, height)} />
             <NumberField label={t('maps.height')} value={height} min={MIN_HEIGHT} max={MAX_SIDE} compact onchange={(v) => resize(width, v)} />
-            <span class="muted small help">{t('maps.sizeHint')}</span>
+            <Help text={t('maps.sizeHint')} />
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
           <details class="bases-panel">
@@ -1131,7 +1132,7 @@
                 </button>
               {/each}
             </div>
-            <p class="muted tiny help">{t('maps.baseHint')}</p>
+            <Help text={t('maps.baseHint')} />
           </details>
           {#if baseMissing.length}
             <p class="warn small">{t('maps.baseMissing', { terrains: baseMissing.map((m) => layout!.terrainNames[m] || `#${m}`).join(', ') })}</p>
@@ -1231,7 +1232,7 @@
             </div>
             {#if change}
               <div class="change-panel">
-                <p class="muted small">{t(change.manual ? 'maps.manualChangeHint' : 'maps.changeEditHint')}</p>
+                <Help text={t(change.manual ? 'maps.manualChangeHint' : 'maps.changeEditHint')} />
                 <div class="row">
                   <NumberField label={t('maps.changeId')} value={change.id} min={0} max={MAX_CHANGE_ID} compact onchange={(v) => editChange('id', v)} />
                   <NumberField label="X" value={change.x} min={0} max={width - 1} compact onchange={(v) => editChange('x', v)} />
@@ -1270,7 +1271,7 @@
                   · {OBJECT_ICONS[o.kind]} {t(`maps.kind.${o.kind}`)}
                 {/each}
               {:else}
-                {t('maps.mouseHint')}
+                <Help text={t('maps.mouseHint')} />
               {/if}
             </p>
             {#if showTerrain}
@@ -1347,7 +1348,7 @@
                 {#if pendingNudge}<span class="warn small">{t('maps.pendingNudge')}</span>{/if}
               </div>
             {/if}
-            {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny help">{t('maps.transformHint')}</p>{/if}
+            {#if transformError}<p class="bad small">{transformError}</p>{:else}<Help text={t('maps.transformHint')} />{/if}
             {#if addedSlots.length}
               {@const unused = addedSlots.filter((k) => !addedUsage.has(k))}
               <details class="added-tiles">
@@ -1364,7 +1365,7 @@
                     </div>
                   {/each}
                 </div>
-                <p class="muted tiny help">{t('maps.addedTilesHint')}</p>
+                <Help text={t('maps.addedTilesHint')} />
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
@@ -1380,7 +1381,7 @@
                     </button>
                   {/each}
                 </div>
-                <p class="muted tiny help">{t('maps.piecesHint')}</p>
+                <Help text={t('maps.piecesHint')} />
               </details>
             {/if}
             <label>
@@ -1399,7 +1400,7 @@
                 onmousemove={(e) => { if (paletteDrag && e.buttons & 1) paletteDrag = { a: paletteDrag.a, b: paletteCell(e) } }}
               ></canvas>
             </div>
-            <p class="muted tiny">{paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')}</p>
+            <Help text={paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')} />
           {/if}
         </section>
       </div>
@@ -1409,8 +1410,7 @@
 
 {#snippet objectsPanel()}
   <div class="objects">
-    <h3>{t('maps.objects', { n: objects.length })}</h3>
-    <p class="muted small help">{t('maps.objectsHint')}</p>
+    <h3>{t('maps.objects', { n: objects.length })} <Help text={t('maps.objectsHint')} /></h3>
     {#if objectsInfo && !objectsInfo.hasChangeLayer && objects.some((o) => o.new && CHANGE_KINDS.includes(o.kind))}
       <p class="warn small">{t('maps.obj.noChangeLayer')}</p>
     {/if}
@@ -1520,7 +1520,7 @@
                 <span>{t('maps.obj.text')}</span>
                 <textarea rows="3" value={st.text ?? ''} onchange={(e) => setObject(o, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
               </label>
-              <p class="muted tiny help">{t('maps.obj.textHint')}</p>
+              <Help text={t('maps.obj.textHint')} />
               {#each mapProblems.filter((p) => p.field === 'objects' && p.params.at === keyOf(o)) as pr, i (i)}<p class="bad small">{problemText(pr)}</p>{/each}
             {/if}
           {/if}
