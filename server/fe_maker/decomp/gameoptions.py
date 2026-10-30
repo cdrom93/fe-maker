@@ -47,7 +47,8 @@ _HOLD_A_ALWAYS = "if (gKeyStatusPtr->heldKeys & A_BUTTON) /* FE Maker: hold A fr
 # what it can attack from where it stands. In DisplayUnitEffectRange (selecting a unit to see its range).
 _RANGE = "    GenerateUnitMovementMapExt(gActiveUnit, UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n"
 _RANGE_STATIONARY = ("    /* FE Maker: a unit that never moves (movement AI 3) shows no movement range */\n"
-                     "    GenerateUnitMovementMapExt(gActiveUnit, (UNIT_FACTION(gActiveUnit) != FACTION_BLUE && gActiveUnit->ai2 == 3)\n"
+                     "    GenerateUnitMovementMapExt(gActiveUnit,\n"
+                     "        (UNIT_FACTION(gActiveUnit) != FACTION_BLUE && gActiveUnit->ai2 == 3)\n"
                      "        ? 0 : UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n")
 
 
