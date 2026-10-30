@@ -136,6 +136,49 @@ def without_world_map(decomp_dir: Path, files: dict[str, str]) -> dict[str, str]
     return files
 
 
+BATTLE_PARSE_FILE = "src/banim-battleparse.c"
+MAGIC_TYPES = ("staff", "anima", "light", "dark")
+PHYSICAL_TYPES = ("sword", "lance", "axe", "bow")
+_MAGIC_CHECK = "UnitHasMagicRank(unit_r6)"
+_BY_WEAPON = """
+/* FE Maker: the battle animation's moves follow the weapon used, not the unit's ranks (ticket 52): the game takes
+ * every unit with a magic rank for a caster, and a mage striking with a sword played its sword animation's
+ * ranged moves (nothing: the unit stood still). */
+static s8 FEMaker_MagicAttack(struct Unit * unit)
+{
+    u16 weapon = ((struct BattleUnit *)unit)->weaponBefore;
+    int type;
+
+    if (weapon == 0)
+        return UnitHasMagicRank(unit);
+    type = GetItemType(weapon);
+    return type == ITYPE_STAFF || type == ITYPE_ANIMA || type == ITYPE_LIGHT || type == ITYPE_DARK;
+}
+"""
+
+
+def mixes_magic(characters: list[dict], classes: list[dict]) -> bool:
+    """A character with a magic rank and a physical weapon rank (its own or its class's): never in the game."""
+    class_ranks = {c["id"]: c.get("weaponRanks", {}) for c in classes}
+    for ch in characters:
+        ranks = {**class_ranks.get(ch.get("class"), {}), **{k: v for k, v in ch.get("weaponRanks", {}).items() if v}}
+        has = {k for k, v in ranks.items() if v not in (0, None, "", "-")}
+        if has & set(MAGIC_TYPES) and has & set(PHYSICAL_TYPES):
+            return True
+    return False
+
+
+def animation_modes_by_weapon(decomp_dir: Path, files: dict[str, str]) -> dict[str, str]:
+    """Battle animations pick their moves (close or ranged, physical or magic) by the weapon used (ticket 52)."""
+    source = files.get(BATTLE_PARSE_FILE) or (decomp_dir / BATTLE_PARSE_FILE).read_text(encoding="utf-8")
+    if source.count(_MAGIC_CHECK) != 4:
+        raise TweakError(f"{BATTLE_PARSE_FILE}: the magic rank checks were not found")
+    anchor = source.index("\n", source.rindex("#include")) + 1
+    rest = source[anchor:].replace(_MAGIC_CHECK, "FEMaker_MagicAttack(unit_r6)")
+    files[BATTLE_PARSE_FILE] = source[:anchor] + _BY_WEAPON + rest
+    return files
+
+
 def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) -> dict[str, str]:
     """Add the tweaks enabled for test builds to `files` (decomp-relative path -> content)."""
     start = options.get("start", "normal")

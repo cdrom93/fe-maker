@@ -14,6 +14,8 @@ piège dans sa section.
 
 ## Données du jeu (personnages, classes, objets, textes)
 
+- A unit with any magic rank plays its battle animation's magic (ranged) moves, whatever weapon it strikes with (`UnitHasMagicRank` in `banim-battleparse.c`): a mage with a sword stood still. Projects mixing magic and physical ranks get `tweaks.animation_modes_by_weapon` (docs/audit-decomp.md item 59).
+- `decomp.animated_weapons` is shared by every project: merge the project's animations into a copy (`validation.animated_weapons`), never into it (ticket 50).
 - Unit definitions set each unit's class in every chapter: a character class change must retarget unit defs. The character sheet is the only source of a named character's class: chapter edits never write `classIndex` for `CHARACTER_` units (class 0 = the character's class when a unit switches to a named character); only generic units (raw ids 0x80...) get a class per chapter.
 - Weapon ranks a class cannot animate crash the battle animation (validation `noBattleAnimation`).
 - Weapon locks: generic CA/IA_LOCK 1,2,4,5,6,7 are allocated automatically from items' `reservedFor`; LOCK_3 means monster weapon.

@@ -336,6 +336,29 @@ TABLE_FILE = "src/banim_data.c"
 POINTERS_FILE = "include/banim_pointer.h"
 SHEETS_INCLUDE = "include/banim_sheet.inc"
 CONF_FILE = "src/data_banimconf.c"
+# Items with their own entry in the game's class settings that follow the animation the project gives their weapon
+# type (ticket 49): the throwing axes.
+FOLLOWING_ITEMS = {"axe": ("ITEM_AXE_HANDAXE", "ITEM_AXE_TOMAHAWK", "ITEM_AXE_HATCHET")}
+# The caster moves the same way with every tome, only the spell differs (it comes with the tome): an animation given to
+# one of these types goes to the others too, unless they have one of their own (ticket 51).
+TOMES = ("anima", "light", "dark")
+
+
+def with_shared_tomes(weapons: dict) -> dict:
+    """A class's project animations with the tomes it has none for taking another tome's (TOMES)."""
+    shared = next((weapons[t] for t in TOMES if t in weapons), None)
+    return {**({t: shared for t in TOMES} if shared is not None else {}), **weapons}
+
+
+def set_class_animation(weapons: dict, wtype: str, animation) -> None:
+    """Give a class's weapon type an animation (None: back to the game's); the other tomes follow (TOMES)."""
+    old = weapons.get(wtype)
+    for w in TOMES if wtype in TOMES else (wtype,):
+        if w == wtype or weapons.get(w) == old:
+            if animation is None:
+                weapons.pop(w, None)
+            else:
+                weapons[w] = animation
 CLASSES_FILE = "src/data_classes.c"
 MAX_ANIMATIONS = (0x2000 - 8) // 32     # banim_data[] sits between 0xC00008 and 0xC02000 (ldscript.txt)
 _TABLE_END = '};\n__attribute__((section(".data.banim_array_len")))'

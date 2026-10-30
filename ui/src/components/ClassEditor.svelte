@@ -18,7 +18,8 @@
     items,
     reference,
     problems,
-  }: { list: EditableList<ClassData>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[] } = $props()
+    onanimations,
+  }: { list: EditableList<ClassData>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[]; onanimations?: () => void } = $props()
 
   const STATS: ClassStatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
@@ -197,7 +198,7 @@
         <p class="muted small">{t('class.weaponRanksHint')}</p>
       </section>
 
-      <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} />
+      <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />
 
       <AbilitiesPanel abilities={cl.abilities} fromClass={[]} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 

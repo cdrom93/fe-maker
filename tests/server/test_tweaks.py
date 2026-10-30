@@ -107,3 +107,20 @@ def test_simplified_prologue(tmp_path, decomp_dir):
     project.set_test_options({"simplePrologue": True})
     overlay = project.generate_overlay(decomp_dir, for_test=False)
     assert not (overlay / "src" / "events" / "prologue-eventscript.h").exists()
+
+
+def test_animation_modes_by_weapon_only_for_mixed_units(tmp_path):
+    """Ticket 52: a mage with a sword rank strikes with her sword animation's close moves."""
+    from fe_maker.decomp import tweaks
+
+    classes = [{"id": "CLASS_MAGE", "weaponRanks": {"anima": "E"}}, {"id": "CLASS_LORD", "weaponRanks": {"sword": "E"}}]
+    assert not tweaks.mixes_magic([{"class": "CLASS_LORD", "weaponRanks": {"sword": "D"}}], classes)
+    assert tweaks.mixes_magic([{"class": "CLASS_MAGE", "weaponRanks": {"sword": "D"}}], classes)
+    assert tweaks.mixes_magic([{"class": "CLASS_LORD", "weaponRanks": {"dark": "D"}}], classes)
+    checks = "    if (!UnitHasMagicRank(unit_r6)) {}\n" * 4
+    source = '#include "global.h"\n#include "bmunit.h"\n\nvoid f(void)\n{\n' + checks + "}\n"
+    (tmp_path / "src").mkdir()
+    (tmp_path / tweaks.BATTLE_PARSE_FILE).write_text(source, encoding="utf-8")
+    out = tweaks.animation_modes_by_weapon(tmp_path, {})[tweaks.BATTLE_PARSE_FILE]
+    assert out.count("FEMaker_MagicAttack(unit_r6)") == 4 and "UnitHasMagicRank(unit_r6)" not in out
+    assert out.index('#include "bmunit.h"') < out.index("static s8 FEMaker_MagicAttack") < out.index("void f(void)")

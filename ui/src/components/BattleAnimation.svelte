@@ -6,7 +6,11 @@
   import type { ClassAnimation, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
-  let { classId, className, items, wtypes }: { classId: string; className: string; items: Item[]; wtypes: string[] } = $props()
+  let { classId, className, items, wtypes, onchanged }: {
+    classId: string; className: string; items: Item[]; wtypes: string[]
+    /** the class's animations changed (imported, restored, removed): weapons animated and problems to refresh */
+    onchanged?: () => void
+  } = $props()
   let showLibrary = $state(false)
 
   const MODES = ['stand', 'attack_close', 'attack_close_critical', 'attack_range', 'attack_range_critical', 'dodge_close', 'attack_miss'] as const
@@ -34,16 +38,21 @@
     untrack(reload)
   })
 
+  function changed() {
+    reload()
+    onchanged?.()
+  }
+
   /** Back to the game's animation for this weapon type (an imported one stays in the project). */
   async function restore(a: ClassAnimation) {
     if (!a.wtype) return
     await api.setClassAnimation(classId, a.wtype, null)
-    reload()
+    changed()
   }
   async function removeImported(a: ClassAnimation) {
     if (!a.ref.startsWith('new-')) return
     await api.removeAnimation(a.ref.slice(4))
-    reload()
+    changed()
   }
 
   const anim = $derived(animations[chosen])
@@ -171,7 +180,7 @@
     {/if}
     <p class="muted small">{t('banim.hint')}</p>
     <button class="library-toggle" onclick={() => (showLibrary = !showLibrary)}>📚 {t('banim.lib.title')}</button>
-    {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={reload} />{/if}
+    {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={changed} />{/if}
   </section>
 {/if}
 

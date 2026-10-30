@@ -16,5 +16,13 @@ CONST_DATA struct BattleAnimDef AnimConf_TestKnight[] = {
         .wtype = 0x0100 | ITYPE_SWORD,
         .index = 0x0003,
     },
+    {
+        .wtype = 0x0100 | ITYPE_AXE,
+        .index = 0x0002,
+    },
+    {
+        .wtype = ITEM_AXE_HANDAXE,
+        .index = 0x0003,
+    },
     { 0 }
 };

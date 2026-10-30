@@ -129,3 +129,43 @@ def test_feditor_loop_marker():
     parsed = bi.parse_script(script)
     assert parsed.modes[1] == [("frame", 2, "A.png"), ("frame", 2, "B.png"), ("code", 0x1B), ("frame", 2, "A.png"),
                                ("code", 0x701)]
+
+
+def test_throwing_axes_follow_the_new_axe_animation(decomp_dir, tmp_path):
+    """Ticket 49: a class given another axe animation throws its hand axes with it too."""
+    from fe_maker.decomp import banim_import as bi
+    from fe_maker.decomp.gamedata import DecompData
+
+    d = DecompData(decomp_dir)
+    d.apply_animations({"animations": {}, "classes": {"CLASS_TESTKNIGHT": {"axe": 1}}}, tmp_path)
+    conf = d.asset_files[bi.CONF_FILE].split("AnimConf_FEM_TESTKNIGHT[]")[1]
+    assert ".wtype = 0x0100 | ITYPE_AXE,\n        .index = 0x0001," in conf
+    assert ".wtype = ITEM_AXE_HANDAXE,\n        .index = 0x0001," in conf
+    assert ".wtype = 0x0100 | ITYPE_SWORD,\n        .index = 0x0003," in conf
+
+
+def test_tomes_share_their_animation():
+    """Ticket 51: an animation given to one tome goes to the others, unless they have their own."""
+    from fe_maker.decomp import banim_import as bi
+
+    weapons = {}
+    bi.set_class_animation(weapons, "anima", "new:1")
+    assert weapons == {"anima": "new:1", "light": "new:1", "dark": "new:1"}
+    bi.set_class_animation(weapons, "dark", "new:2")
+    assert weapons == {"anima": "new:2", "light": "new:2", "dark": "new:2"}
+    weapons["dark"] = "new:9"   # one of its own (saved before ticket 51): kept
+    bi.set_class_animation(weapons, "anima", "new:3")
+    assert weapons == {"anima": "new:3", "light": "new:3", "dark": "new:9"}
+    bi.set_class_animation(weapons, "anima", None)
+    assert weapons == {"dark": "new:9"}
+    bi.set_class_animation(weapons, "sword", "new:4")
+    assert weapons == {"dark": "new:9", "sword": "new:4"}
+
+
+def test_tomes_without_their_own_take_another():
+    from fe_maker.decomp import banim_import as bi
+
+    assert bi.with_shared_tomes({"anima": "new:4", "sword": "new:3"}) == \
+        {"anima": "new:4", "light": "new:4", "dark": "new:4", "sword": "new:3"}
+    assert bi.with_shared_tomes({"anima": "new:4", "dark": 7}) == {"anima": "new:4", "light": "new:4", "dark": 7}
+    assert bi.with_shared_tomes({"staff": "new:1"}) == {"staff": "new:1"}

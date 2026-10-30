@@ -122,8 +122,8 @@ def test_animated_weapons(decomp_dir):
     d = DecompData(decomp_dir)
     assert d.animated_weapons == {
         "CLASS_TESTLORD": ["sword"],
-        "CLASS_TESTKNIGHT": ["lance", "sword"],
-        "CLASS_TESTUNUSED": ["lance", "sword"],
+        "CLASS_TESTKNIGHT": ["lance", "sword", "axe"],
+        "CLASS_TESTUNUSED": ["lance", "sword", "axe"],
     }
 
 

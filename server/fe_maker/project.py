@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import builder, ferepo, ups
+from .decomp import tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .paths import DECOMP_DIR
@@ -200,6 +201,8 @@ class Project:
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
+        if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
+            files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:
             files = apply_test_tweaks(decomp_dir, self.test_options, files)
         overlay = self.root / "build" / "overlay"

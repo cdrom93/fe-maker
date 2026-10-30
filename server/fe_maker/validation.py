@@ -10,9 +10,9 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 
+from .decomp import banim_import, fonts, mapobjects, tileedit, units
 from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
-from .decomp import fonts, mapobjects, tileedit, units
 from .decomp import maps as decomp_maps
 from .decomp import portraits as decomp_portraits
 from .decomp import supports as decomp_supports
@@ -66,6 +66,7 @@ def _range(problems, kind, rid, fname, value, lo, hi):
 
 # Characters the game's font can draw (set by validate from the decomp's font).
 _font: dict[int, int] = dict(fonts._FALLBACK)
+_animated: dict[str, list[str]] = {}
 
 
 def _chars(problems, kind, rid, fname, text, params=None):
@@ -96,15 +97,23 @@ def _duplicates(problems, kind, records):
         seen.add(r["id"])
 
 
+def animated_weapons(decomp: DecompData, animations: dict | None) -> dict[str, list[str]]:
+    """Weapon types each class has a battle animation for: the game's, and those the project gave it (ticket 44).
+    A new dict: the decomp data is shared by every project (ticket 50)."""
+    result = {class_id: list(weapons) for class_id, weapons in decomp.animated_weapons.items()}
+    for class_id, weapons in ((animations or {}).get("classes") or {}).items():
+        weapons = banim_import.with_shared_tomes(weapons)
+        known = result.setdefault(class_id, [])
+        known += [w for w in weapons if w not in known]
+    return result
+
+
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
              chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None,
              portraits: dict | None = None, assets_dir=None, animations: dict | None = None) -> list[Problem]:
-    global _font
-    # Weapon types the project gave a class an animation for (ticket 44) count as animated.
-    for class_id, weapons in ((animations or {}).get("classes") or {}).items():
-        known = decomp.animated_weapons.get(class_id, [])
-        decomp.animated_weapons[class_id] = known + [w for w in weapons if w not in known]
+    global _font, _animated
+    _animated = animated_weapons(decomp, animations)
     _font = fonts.widths(decomp.decomp_dir)
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
@@ -151,7 +160,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
             # Only what the project changed: a few special original units (summons) have such ranks on purpose.
             orig = original.get(rid)
             changed = orig is None or orig["class"] != ch.get("class") or wtype not in orig["weaponRanks"]
-            animated = decomp.animated_weapons.get(ch.get("class"), [])
+            animated = _animated.get(ch.get("class"), [])
             if changed and rank not in (0, None, "") and animated and wtype not in animated:
                 problems.append(Problem("error", "characters", rid, f"weaponRanks.{wtype}", "noBattleAnimation",
                                         {"weapon": wtype},
@@ -831,7 +840,7 @@ def _validate_classes(problems, classes, decomp, class_ids, weapon_types):
             problems.append(Problem("error", "classes", rid, "terrainBonus", "unknownTerrainBonus", {},
                                     f"{rid}: unknown terrain bonus"))
         orig = original.get(rid, {})
-        animated = decomp.animated_weapons.get(rid, [])
+        animated = _animated.get(rid, [])
         for wtype, rank in cl.get("weaponRanks", {}).items():
             if wtype not in weapon_types:
                 problems.append(Problem("error", "classes", rid, "weaponRanks", "unknownWeaponType", {"type": wtype},

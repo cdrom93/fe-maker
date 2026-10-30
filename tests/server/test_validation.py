@@ -35,6 +35,12 @@ def test_weapon_rank_without_battle_animation(decomp_dir):
     chars[0]["weaponRanks"]["lance"] = "C"  # the lord class only animates swords
     codes = _codes(validate(chars, d.export_items(), d))
     assert ("CHARACTER_TESTHERO", "weaponRanks.lance", "noBattleAnimation") in codes
+    lord = chars[0]["class"]
+    # a lance animation the project gave the lord class (ticket 50), without changing the game's data
+    codes = _codes(validate(chars, d.export_items(), d, animations={"classes": {lord: {"lance": "new:1"}}}))
+    assert not any(c[2] == "noBattleAnimation" for c in codes)
+    assert "lance" not in d.animated_weapons.get(lord, [])
+    assert ("CHARACTER_TESTHERO", "weaponRanks.lance", "noBattleAnimation") in _codes(validate(chars, d.export_items(), d))
     chars[0]["class"] = "CLASS_TESTKNIGHT"  # the knight animates lances
     codes = _codes(validate(chars, d.export_items(), d))
     assert not any(c[2] == "noBattleAnimation" for c in codes)

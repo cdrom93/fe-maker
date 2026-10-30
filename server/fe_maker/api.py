@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import emulator, ferepo
+from . import emulator, ferepo, validation
 from .builder import BuildError
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
@@ -214,10 +214,13 @@ def reference():
     d = state.get_decomp()
     classes = d.export_classes()
     class_names = {c["id"]: c["name"] for c in classes}
+    animated = validation.animated_weapons(d, _project_animations())
     char_names = {c["id"]: c["name"] for c in d.export_characters()}
     return {
         "classes": classes,  # original game classes (the project's own are in data/classes)
-        "classFacts": d.class_facts(),
+        # with the battle animations the project gave the classes (ticket 50: a mage given a sword animation)
+        "classFacts": {cid: {**facts, "animatedWeapons": animated.get(cid, facts["animatedWeapons"])}
+                       for cid, facts in d.class_facts().items()},
         "movementTypes": d.movement_types(),
         "effectivenessLists": sorted(d.effectiveness or {}),
         # Item id -> names of the classes / characters allowed to wield it (weapon locks)
@@ -822,7 +825,7 @@ def class_animations(class_id: str):
     animations = {a.number: a for a in banim.table(DECOMP_DIR)}
     project = _project_animations()
     imported = project.get("animations", {})
-    changed = project.get("classes", {}).get(class_id, {})
+    changed = banim_import.with_shared_tomes(project.get("classes", {}).get(class_id, {}))
     left = dict(changed)
 
     def describe(wtype, item_id, anim) -> dict | None:
@@ -841,10 +844,12 @@ def class_animations(class_id: str):
     for d in banim.configs(DECOMP_DIR).get(conf, []):
         weapon = d["weapon"]
         wtype = WEAPON_TYPES.get(weapon)
-        anim = left.pop(wtype, d["number"]) if wtype else d["number"]
+        # throwing axes follow the class's new axe animation (ticket 49), as at build time
+        follows = next((w for w, items in banim_import.FOLLOWING_ITEMS.items() if weapon in items and w in changed), None)
+        anim = left.pop(wtype, d["number"]) if wtype else changed[follows] if follows else d["number"]
         found = describe(wtype, None if weapon in WEAPON_TYPES else weapon, anim)
         if found:
-            result.append({**found, "changed": bool(wtype) and wtype in changed})
+            result.append({**found, "changed": bool(wtype) and wtype in changed or follows is not None})
     for wtype, anim in left.items():   # weapon types the class had no animation for
         found = describe(wtype, None, anim)
         if found:
@@ -982,7 +987,7 @@ def import_animation(body: AnimationImportIn):
     weapon_folder = urllib.parse.unquote(body.url.rstrip("/")).split("/")[-1]
     data["animations"][key] = {"name": source["name"], "weapon": weapon_folder, "frames": converted.frames,
                                "sheets": len(converted.sheets), "source": source}
-    data["classes"].setdefault(body.classId, {})[body.wtype] = f"new:{key}"
+    banim_import.set_class_animation(data["classes"].setdefault(body.classId, {}), body.wtype, f"new:{key}")
     problems = project.save("animations", data)
     project.update_credits()
     banim.clear_caches()
@@ -1015,11 +1020,7 @@ class ClassAnimationIn(BaseModel):
 def set_class_animation(class_id: str, body: ClassAnimationIn):
     project = state.require_project()
     data = project.load("animations")
-    weapons = data.setdefault("classes", {}).setdefault(class_id, {})
-    if body.animation is None:
-        weapons.pop(body.wtype, None)
-    else:
-        weapons[body.wtype] = body.animation
+    banim_import.set_class_animation(data.setdefault("classes", {}).setdefault(class_id, {}), body.wtype, body.animation)
     data["classes"] = {c: w for c, w in data["classes"].items() if w}
     problems = project.save("animations", data)
     return {"problems": [p.to_dict() for p in problems]}

@@ -98,6 +98,13 @@
   // the story flow edits the dialogues' scripts: its undo is theirs
   const active = $derived(lists[tab === 'flow' ? 'dialogues' : tab])
 
+  /** A class's battle animations changed: the weapons each class animates and the problems follow (ticket 50). */
+  async function refreshAnimated() {
+    const [ref, probs] = await Promise.all([api.reference(), api.problems()])
+    reference = ref
+    problems = probs.problems
+  }
+
   onMount(async () => {
     const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts] = await Promise.all([
       api.reference(),
@@ -242,7 +249,7 @@
   {#if tab === 'characters'}
     <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} onproblems={(p) => (problems = p)} />
   {:else if tab === 'classes'}
-    <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} />
+    <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} onanimations={refreshAnimated} />
   {:else if tab === 'items'}
     <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
   {:else if tab === 'combat'}

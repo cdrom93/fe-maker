@@ -656,12 +656,14 @@ class DecompData:
             if entry is None:
                 raise GameDataError(f"Unknown class {class_id}")
             defs = [dict(d) for d in confs.get(entry.fields.get("pBattleAnimDef", "").lstrip("&").strip(), [])]
-            for wtype, anim in weapons.items():
+            for wtype, anim in banim_import.with_shared_tomes(weapons).items():
                 number = numbers.get(anim) if isinstance(anim, str) else int(anim)
                 weapon = WEAPON_TYPES_REV.get(wtype)
                 if number is None or weapon is None:
                     raise GameDataError(f"{class_id}: unknown animation {anim} for {wtype}")
-                same = [d for d in defs if d["weapon"] == weapon]
+                # Throwing axes have their own entries in the game (a throw): they follow the class's new axe
+                # animation (ticket 49).
+                same = [d for d in defs if d["weapon"] == weapon or d["weapon"] in banim_import.FOLLOWING_ITEMS.get(wtype, ())]
                 for d in same:
                     d["number"] = number
                 if not same:
