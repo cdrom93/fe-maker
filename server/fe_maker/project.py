@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import builder, ferepo, ups
+from . import builder, ferepo, newchapter, ups
 from .decomp import gameoptions, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
@@ -147,9 +147,13 @@ class Project:
         if chapters.get("blankCharacters"):   # the game's chapters still carry the characters a blank project dropped
             ids = {c["id"] for c in characters}
             problems = [p for p in problems if p.kind != "characters" or p.id in ids]
-        from . import newchapter  # it imports this module's data layer
-
-        return problems + newchapter.story_problems(self)
+        # What the original game already does is not the user's to fix: only warnings on what the project changed.
+        data = DecompData(self.decomp_dir)
+        games = {"items": data.export_items(), "classes": data.export_classes(), "characters": data.export_characters()}
+        untouched = {(kind, g["id"]) for kind, records in games.items() for g in records
+                     if g in (characters if kind == "characters" else self.load(kind))}
+        problems = [p for p in problems if p.severity == "error" or (p.kind, p.id) not in untouched]
+        return newchapter.story_problems(self) + problems
 
     # ---------- build ----------
 

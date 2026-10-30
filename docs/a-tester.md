@@ -46,6 +46,7 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 ## À faire sur les chapitres
 
 - [ ] Page Campagne, « À faire » : un chapitre ajouté ou vierge sans ennemi, ou qui ne mène nulle part, est signalé avec son nom. Cliquer le nom ouvre le chapitre.
+- [ ] « À faire » ne montre plus les avertissements sur ce que le jeu d'origine fait déjà (noms de balistes trop longs...) : seulement ce que ton projet a changé.
 
 ## Historique des changements
 
