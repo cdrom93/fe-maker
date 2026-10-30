@@ -41,3 +41,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : retours sur 49 et 51 : les trois haches de lancer sont liées entre elles (plus à la hache) ; les trois livres se règlent ensemble (« Magie ») ou un par un.
 - 30/10/2026 : ticket 53, import d'une animation de combat depuis le PC (dossier d'une arme ou .zip, `/api/animations/import/local`, `LocalAnimationImport.svelte`) ; cibles d'import partagées dans `ui/src/lib/animationTargets.ts`.
 - 30/10/2026 : ticket 54, plus d'emojis décoratifs devant les textes des boutons, liens, titres et phrases (ni dans le README) ; ceux qui servent d'icônes restent.
+- 30/10/2026 : règle ajoutée : illustrer d'abord avec les visuels du jeu (icônes d'armes et d'objets, portraits, sprites), avant un emoji.

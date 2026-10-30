@@ -34,6 +34,7 @@ En une phrase : *faire ce que fait FEBuilderGBA, mais en beaucoup plus facile à
 6. **Un seul bouton « Tester »** : compile et lance le jeu dans l'émulateur.
 7. Interface **en français et en anglais** dès le départ (fichiers de traduction).
 8. **Tout ce qui est mentionné est cliquable** : une arme, une classe, un personnage, une liste… cité n'importe où (rappel, puce, liste déroulante, message d'erreur) ouvre directement sa fiche pour l'éditer, sans aller-retour entre les onglets. Cette règle vaut pour tous les éditeurs à venir (chapitres, cartes, dialogues…).
+9. **Illustrer avec les visuels du jeu** (ajouté le 30/10/2026, ticket 54) : icônes d'armes et d'objets, portraits, sprites de carte, tuiles, avant tout emoji ou icône dessinée. Pas d'emoji décoratif devant le texte d'un bouton, d'un lien, d'un titre ou d'une phrase ; un emoji seulement s'il sert d'icône (outils de la carte, types d'objectif, repères ⚠ ⭐ ✎).
 
 ---
 
