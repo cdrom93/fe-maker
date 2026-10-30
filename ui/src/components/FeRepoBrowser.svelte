@@ -1,14 +1,17 @@
 <script lang="ts">
-  // Portraits of FE-Repo (server: ferepo.py): browse by folder, search, thumbnails, authors and license;
-  // "Use" imports one.
+  // Portraits or map sprites of FE-Repo (server: ferepo.py): browse by folder, search, thumbnails, authors and
+  // license; "Use" imports one.
   import { untrack } from 'svelte'
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import type { FeRepoEntry } from '../lib/types'
 
-  let { initial = '', busy = false, onpick }: {
+  let { initial = '', busy = false, kind = 'portraits', onpick }: {
     /** a suggested search (the character's name) */
-    initial?: string; busy?: boolean; onpick: (e: FeRepoEntry) => void
+    initial?: string; busy?: boolean
+    /** what to browse: portraits (128 x 112 sheets) or map sprites (standing sheets, with their moving one) */
+    kind?: 'portraits' | 'mapsprites'
+    onpick: (e: FeRepoEntry) => void
   } = $props()
 
   let query = $state('')
@@ -33,7 +36,8 @@
     loading = true
     error = ''
     try {
-      const r = await api.feRepoPortraits(query, { refresh, folder, f2e: f2eOnly, offset: more ? entries.length : 0 })
+      const search = kind === 'mapsprites' ? api.feRepoMapSprites : api.feRepoPortraits
+      const r = await search(query, { refresh, folder, f2e: f2eOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -83,11 +87,12 @@
   <div class="grid">
     {#each entries as e (e.url)}
       <div class="card">
-        <img src={imageUrl(e.url)} alt={e.name} loading="lazy"
+        <img src={imageUrl(e.url)} alt={e.name} loading="lazy" class:sprite={kind === 'mapsprites'}
              onload={(ev) => {
                const img = ev.target as HTMLImageElement
-               if (img.naturalWidth !== 128 || img.naturalHeight !== 112) notSheets[e.url] = true
+               if (kind === 'portraits' && (img.naturalWidth !== 128 || img.naturalHeight !== 112)) notSheets[e.url] = true
              }} />
+        {#if kind === 'mapsprites' && !e.walk}<span class="tiny muted">{t('mapsprite.noWalk')}</span>{/if}
         <div class="info">
           <strong class="small">{e.name}</strong>
           <span class="tiny muted">{e.authors.join(', ') || t('ferepo.unknownAuthor')}</span>
@@ -112,6 +117,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; max-height: 26rem; overflow-y: auto; }
   .card { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; }
   .card img { width: 128px; height: 112px; object-fit: contain; image-rendering: pixelated; align-self: center; }
+  .card img.sprite { width: 48px; height: 96px; }
   .info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; align-items: flex-start; }
   .folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: left; }
   .badge { align-self: flex-start; font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }

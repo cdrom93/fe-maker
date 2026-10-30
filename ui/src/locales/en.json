@@ -1239,5 +1239,18 @@
   "ev.commands": "Commands",
   "ev.if.alive": "If a character is alive…",
   "ev.if.flag": "If a flag is set…",
-  "ev.if.turn": "If the turn is at least…"
+  "ev.if.turn": "If the turn is at least…",
+  "mapsprite.title": "Sprite on the map",
+  "mapsprite.game": "The game's.",
+  "mapsprite.imported": "Imported: {name}",
+  "mapsprite.noWalk": "no walking animation (the class's stays)",
+  "mapsprite.reset": "Back to the game's",
+  "mapsprite.ferepo": "FE-Repo library",
+  "mapsprite.stand": "Standing",
+  "mapsprite.walk": "Walking",
+  "mapsprite.import": "Import from the PC",
+  "mapsprite.hint": "Standing: 16 × 48, 16 × 96 or 32 × 96 (three frames). Walking: 32 × 480. Colors are brought to the game's palette.",
+  "mapsprite.error.notAnImage": "this file is not a picture",
+  "mapsprite.error.badStandSize": "the standing sprite must be 16 × 48, 16 × 96 or 32 × 96",
+  "mapsprite.error.badWalkSize": "the walking sprite must be 32 × 480"
 }

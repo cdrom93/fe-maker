@@ -122,8 +122,14 @@ def map_sprite(decomp_dir: Path, sprite_id: int, side: str = "player", scale: in
     table = map_sprite_table(decomp_dir)
     if not 0 <= sprite_id < len(table):
         return None
-    name, (w, h) = table[sprite_id]
-    sheet = decomp_dir / "graphics" / "unit_icon" / "wait" / f"{name}.png"
+    name, size = table[sprite_id]
+    return map_sprite_sheet(decomp_dir, decomp_dir / "graphics" / "unit_icon" / "wait" / f"{name}.png", size, side, scale, trim)
+
+
+def map_sprite_sheet(decomp_dir: Path, sheet: Path, size: tuple[int, int], side: str = "player", scale: int = 2,
+                     trim: bool = False) -> bytes | None:
+    """First standing frame of a standing sheet (the game's or one the project imports), in the colors of a side."""
+    w, h = size
     palette = decomp_dir / MAP_SPRITE_PALETTES.get(side, MAP_SPRITE_PALETTES["player"])
     if not sheet.is_file() or not palette.is_file():
         return None

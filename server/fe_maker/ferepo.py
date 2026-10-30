@@ -30,6 +30,8 @@ INDEX_MAX_AGE = 7 * 24 * 3600   # seconds before the index is downloaded again
 MAX_FILE_BYTES = 2 * 1024 * 1024
 PORTRAITS = "Portrait Repository"
 ANIMATIONS = "Battle Animations"   # listed as folders (GitHub "tree" URLs), one per animation
+MAP_SPRITES = "Map Sprites"   # pairs "<name> {authors}-stand.png" (standing) and "-walk.png" (moving)
+_SPRITE_KIND_RE = re.compile(r"[\s-]*(?:walk|stand)(?:\s*16x16)?$", re.IGNORECASE)
 TREE_PREFIX = "https://github.com/Klokinator/FE-Repo/tree/main/"
 API_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/contents/"
 TREES_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/git/trees/"
@@ -95,6 +97,8 @@ def describe(url: str) -> dict:
     path = urllib.parse.unquote(url.split("/main/", 1)[-1])
     parts = path.split("/")
     stem = re.sub(r"\.[A-Za-z0-9]+$", "", parts[-1])
+    if parts[0] == MAP_SPRITES:   # "Myrmidon {Author}-stand": the sheet's kind after the authors
+        stem = _SPRITE_KIND_RE.sub("", stem)
     m = _NAME_RE.match(stem)
     tags = re.findall(r"\[([^\]]*)\]", m.group("tags") or "") if m else []
     authors = [a.strip() for a in (m.group("authors") or "").split(",") if a.strip()] if m else []
@@ -126,6 +130,23 @@ def search(index: dict[str, list[str]], category: str, query: str = "", limit: i
     # (references, tutorials) after the portraits themselves.
     found.sort(key=lambda e: (not e["folder"] or e["folder"].startswith("Assistive"), e["folder"], e["name"]))
     return found[offset:offset + limit], len(found)
+
+
+def map_sprites(index: dict[str, list[str]], query: str = "", folder: str = "", offset: int = 0,
+                f2e_only: bool = False) -> tuple[list[dict], int]:
+    """Standing map sprites of FE-Repo, searched like the portraits, each with its moving sheet ("walk": URL or
+    None) when the repository has one."""
+    def kind(url: str) -> str:
+        m = re.search(r"(walk|stand)(?:\s*16x16)?\.png$", urllib.parse.unquote(url), re.IGNORECASE)
+        return m.group(1).lower() if m else ""
+
+    walks = {(e["folder"], e["name"], tuple(e["authors"])): url
+             for url in index.get(MAP_SPRITES, []) if kind(url) == "walk" for e in [describe(url)]}
+    entries, total = search(index, MAP_SPRITES, query, folder=folder, offset=offset, f2e_only=f2e_only,
+                            keep=lambda url: kind(url) == "stand")
+    for e in entries:
+        e["walk"] = walks.get((e["folder"], e["name"], tuple(e["authors"])))
+    return entries, total
 
 
 def folders(index: dict[str, list[str]], category: str) -> list[dict]:

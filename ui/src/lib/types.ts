@@ -521,6 +521,8 @@ export interface FeRepoEntry {
   license: 'F2E' | 'F2U'
   /** battle animations filtered by weapon: the weapon types it has (ticket 47) */
   weapons?: string[]
+  /** map sprites: the moving sheet going with this standing one, if FE-Repo has it */
+  walk?: string | null
 }
 
 export interface PortraitInfo {

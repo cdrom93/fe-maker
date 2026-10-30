@@ -1,7 +1,7 @@
-import { portraitVersion } from './portraits.svelte'
+import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { BuildStatus, Character, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
-export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits'
+export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
 
 export class ApiError extends Error {
   constructor(public status: number, public detail: string) {
@@ -80,6 +80,19 @@ export const api = {
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoMapSprites: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+      'GET', `/api/ferepo/mapsprites?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  importFeRepoMapSprite: (classId: string, stand: string, walk: string | null) =>
+    request<{ problems: Problem[] }>('POST', `/api/classes/${classId}/mapsprite/ferepo`, { stand, walk }),
+  importLocalMapSprite: (classId: string, stand: File, walk: File | null) => {
+    const form = new FormData()
+    form.append('stand', stand)
+    if (walk) form.append('walk', walk)
+    return request<{ problems: Problem[] }>('POST', `/api/classes/${classId}/mapsprite`, form)
+  },
+  removeMapSprite: (classId: string) => request<{ problems: Problem[] }>('DELETE', `/api/classes/${classId}/mapsprite`),
   feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; wtype?: string } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[]; missingFolders?: number }>(
       'GET', `/api/ferepo/animations?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
@@ -150,7 +163,7 @@ export const animationUrl = (number: number | string, mode: string, palette = 0)
 export const mapTilesetUrl = (id: string, base: string | null = null) =>
   `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
-  `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}`
+  `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}&v=${mapSpriteVersion.n}`
 /** `smile`, `eyes`: the dialogue face as the expression codes leave it. */
 export const portraitUrl = (id: number, face = false, expression?: { smile?: boolean; eyes?: string }) =>
   `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}` +

@@ -33,3 +33,11 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Ajouter « Si un personnage est vivant… » : test + saut + étiquette ; le saut est sélectionné, la commande ajoutée ensuite se place dans le bloc, en retrait.
 - [ ] Les scripts du jeu s'affichent avec ces formulaires (plus de blocs « tel quel » pour BEQ, LABEL, CALL…) et en retrait dans leurs conditions ; « → bloc n » mène à l'étiquette, « étiquette absente » si elle manque.
 - [ ] En jeu : un dialogue qui ne s'affiche que si un personnage est vivant (playtest fait : le prologue démarre avec une condition ajoutée à son ouverture ; le comportement de la condition reste à voir).
+
+## Sprites de carte
+
+- [ ] Fiche d'une classe, panneau « Sprite sur la carte » : le sprite dans les trois couleurs (joueur, ennemi, allié), « Celui du jeu ».
+- [ ] « Bibliothèque FE-Repo » : recherche par nom (le nom de la classe est proposé), dossiers, auteurs et licence ; « sans animation de marche » quand FE-Repo n'a que l'image immobile ; « Utiliser » importe le sprite.
+- [ ] « Importer depuis le PC » : choisir une image immobile (16 × 48, 16 × 96 ou 32 × 96) et, si on l'a, la marche (32 × 480) ; une mauvaise taille donne un message clair.
+- [ ] Le nouveau sprite apparaît dans la liste des classes, dans les trois couleurs, et sur les cartes des chapitres ; les auteurs FE-Repo sont dans CREDITS.txt du projet ; « Revenir à celui du jeu ».
+- [ ] En jeu : les unités de la classe ont le sprite importé, immobiles et en marche (playtest fait : la classe Paladin avec les images de l'archer, Seth immobile et en marche) ; un sprite 16 × 32 (cavalier) ou 32 × 32 (monstre).

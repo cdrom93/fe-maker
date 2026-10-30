@@ -1,5 +1,7 @@
 <script lang="ts">
   import { api, mapSpriteUrl } from '../lib/api'
+  import { mapSpriteVersion } from '../lib/portraits.svelte'
+  import FeRepoBrowser from './FeRepoBrowser.svelte'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
@@ -53,6 +55,36 @@
   }
 
   let addError = $state('')
+
+  // Map sprites the project imports (server: decomp/mapsprites.py): class id -> key, key -> its name and source.
+  let imported = $state<{ classes: Record<string, string>; sprites: Record<string, { name: string; walk?: boolean }> }>({ classes: {}, sprites: {} })
+  let spriteBusy = $state(false)
+  let spriteError = $state('')
+  let browsing = $state(false)
+  let localStand = $state<File | null>(null)
+  let localWalk = $state<File | null>(null)
+  const mySprite = $derived(cl ? imported.sprites[imported.classes[cl.id]] : undefined)
+
+  $effect(() => {
+    api.getData<typeof imported>('mapsprites').then((d) => (imported = { classes: d.classes ?? {}, sprites: d.sprites ?? {} })).catch(() => {})
+  })
+
+  async function spriteChange(action: () => Promise<{ problems: Problem[] }>) {
+    spriteBusy = true
+    spriteError = ''
+    try {
+      await action()
+      imported = await api.getData('mapsprites')
+      mapSpriteVersion.n++
+      browsing = false
+      localStand = localWalk = null
+    } catch (e) {
+      const code = String(e).match(/(notAnImage|badStandSize|badWalkSize)/)?.[1]
+      spriteError = code ? t(`mapsprite.error.${code}`) : String(e)
+    } finally {
+      spriteBusy = false
+    }
+  }
 
   async function addClass() {
     if (!cl) return
@@ -136,6 +168,35 @@
             <button onclick={addClass} title={t('class.newFromHint')}>+ {t('class.newFrom')}</button>
             {#if addError}<span class="bad">{addError}</span>{/if}
           </p>
+        {/if}
+      </section>
+
+      <section class="panel">
+        <h3>{t('mapsprite.title')}</h3>
+        <div class="sprite-row">
+          {#each ['player', 'enemy', 'ally'] as side (side)}
+            <img class="big-sprite" src={mapSpriteUrl(cl.id, side)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+          {/each}
+          <div class="sprite-info">
+            {#if mySprite}
+              <span class="small">{t('mapsprite.imported', { name: mySprite.name })}{mySprite.walk ? '' : ` · ${t('mapsprite.noWalk')}`}</span>
+              <button class="link" disabled={spriteBusy} onclick={() => spriteChange(() => api.removeMapSprite(cl.id))}>{t('mapsprite.reset')}</button>
+            {:else}
+              <span class="muted small">{t('mapsprite.game')}</span>
+            {/if}
+            <span class="buttons">
+              <button onclick={() => (browsing = !browsing)} disabled={spriteBusy}>{t('mapsprite.ferepo')}</button>
+              <label class="file">{t('mapsprite.stand')} <input type="file" accept="image/png" onchange={(e) => (localStand = (e.target as HTMLInputElement).files?.[0] ?? null)} /></label>
+              <label class="file">{t('mapsprite.walk')} <input type="file" accept="image/png" onchange={(e) => (localWalk = (e.target as HTMLInputElement).files?.[0] ?? null)} /></label>
+              <button disabled={!localStand || spriteBusy} onclick={() => spriteChange(() => api.importLocalMapSprite(cl.id, localStand!, localWalk))}>{t('mapsprite.import')}</button>
+            </span>
+            <span class="tiny muted">{t('mapsprite.hint')}</span>
+            {#if spriteError}<span class="bad small">{spriteError}</span>{/if}
+          </div>
+        </div>
+        {#if browsing}
+          <FeRepoBrowser kind="mapsprites" initial={cl.name} busy={spriteBusy}
+                         onpick={(e) => spriteChange(() => api.importFeRepoMapSprite(cl.id, e.url, e.walk ?? null))} />
         {/if}
       </section>
 
@@ -270,4 +331,10 @@
   }
   .sprite img { image-rendering: pixelated; display: block; max-width: 40px; max-height: 56px; object-fit: contain; }
   @media (max-width: 800px) { .editor { grid-template-columns: 1fr; } }
+  .sprite-row { display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; }
+  .big-sprite { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; background: var(--panel-2); border-radius: 6px; }
+  .sprite-info { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 14rem; }
+  .sprite-info .buttons { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+  .file { font-size: 0.8rem; display: flex; gap: 0.3rem; align-items: center; }
+  .file input { max-width: 11rem; font-size: 0.75rem; }
 </style>

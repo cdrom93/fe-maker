@@ -30,6 +30,7 @@ DATA_FILES = {
     "dialogues": "export_dialogues",
     "portraits": "export_portraits",
     "animations": "export_animations",
+    "mapsprites": "export_map_sprites",
 }
 PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's assets folder
 ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
@@ -180,6 +181,8 @@ class Project:
         sources = [e["source"] for e in self.load("portraits").values() if isinstance(e, dict) and e.get("source")]
         sources += [e["source"] for e in self.load("animations").get("animations", {}).values()
                     if isinstance(e, dict) and e.get("source")]
+        sources += [e["source"] for e in self.load("mapsprites").get("sprites", {}).values()
+                    if isinstance(e, dict) and e.get("source")]
         lines = sorted({ferepo.credit_line(s) for s in sources})
         if lines:
             mine += "\n" + RESOURCES_HEADER + "".join(f"{line}\n" for line in lines)
@@ -198,6 +201,7 @@ class Project:
         data.apply_dialogues(self.load("dialogues"))
         data.apply_portraits(self.load("portraits"), self.root / "assets")
         data.apply_animations(self.load("animations"), self.root / "assets")
+        data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)

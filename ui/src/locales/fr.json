@@ -1239,5 +1239,18 @@
   "ev.commands": "Commandes",
   "ev.if.alive": "Si un personnage est vivant…",
   "ev.if.flag": "Si un drapeau est levé…",
-  "ev.if.turn": "Si le tour est au moins…"
+  "ev.if.turn": "Si le tour est au moins…",
+  "mapsprite.title": "Sprite sur la carte",
+  "mapsprite.game": "Celui du jeu.",
+  "mapsprite.imported": "Importé : {name}",
+  "mapsprite.noWalk": "sans animation de marche (celle de la classe reste)",
+  "mapsprite.reset": "Revenir à celui du jeu",
+  "mapsprite.ferepo": "Bibliothèque FE-Repo",
+  "mapsprite.stand": "Immobile",
+  "mapsprite.walk": "Marche",
+  "mapsprite.import": "Importer depuis le PC",
+  "mapsprite.hint": "Immobile : 16 × 48, 16 × 96 ou 32 × 96 (trois images). Marche : 32 × 480. Les couleurs sont ramenées à la palette du jeu.",
+  "mapsprite.error.notAnImage": "ce fichier n'est pas une image",
+  "mapsprite.error.badStandSize": "le sprite immobile doit faire 16 × 48, 16 × 96 ou 32 × 96",
+  "mapsprite.error.badWalkSize": "le sprite de marche doit faire 32 × 480"
 }

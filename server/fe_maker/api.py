@@ -34,6 +34,7 @@ from .decomp import (
     fonts,
     mapobjects,
     maps,
+    mapsprites,
     pieces,
     portraits,
     quotes,
@@ -43,7 +44,15 @@ from .decomp import (
     tileedit,
     units,
 )
-from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
+from .decomp.assets import (
+    MAP_SPRITE_PALETTES,
+    face_preview,
+    item_icon_preview,
+    map_sprite_sheet,
+    portrait_names,
+    portrait_preview,
+    read_agbpal,
+)
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.cparse import parse_int
 from .decomp.gamedata import (
@@ -844,8 +853,105 @@ def _game_class(class_id: str):
     return next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
 
 
+def _imported_map_sprite(class_id: str) -> tuple[Path, tuple[int, int]] | None:
+    """The folder and frame size of the map sprite the project imports for a class, if any."""
+    if state.project is None:
+        return None
+    stored = state.project.load("mapsprites")
+    key = stored.get("classes", {}).get(class_id)
+    info = stored.get("sprites", {}).get(key) if key else None
+    if not info:
+        return None
+    w, h = next(s for s, c in mapsprites.WAIT_SIZES.items() if c == info["size"])
+    return state.project.root / "assets" / "mapsprites" / key, (w, h // 3)
+
+
+def _import_map_sprite(class_id: str, stand: bytes, walk: bytes | None, name: str, source: dict | None = None) -> dict:
+    """A map sprite (standing sheet, moving sheet if given) for a class, converted to the player palette."""
+    project = state.require_project()
+    if not any(c["id"] == class_id for c in project.load("classes")):
+        raise HTTPException(404, "unknownClass")
+    try:
+        stand_png, size, walk_png = mapsprites.convert(stand, walk, read_agbpal(DECOMP_DIR / MAP_SPRITE_PALETTES["player"]))
+    except mapsprites.MapSpriteError as e:
+        raise HTTPException(400, str(e)) from e
+    stored = project.load("mapsprites")
+    key = mapsprites.safe_key(class_id.removeprefix("CLASS_"))
+    folder = project.root / "assets" / "mapsprites" / key
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "stand.png").write_bytes(stand_png)
+    if walk_png is not None:
+        (folder / "walk.png").write_bytes(walk_png)
+    elif (folder / "walk.png").exists():
+        (folder / "walk.png").unlink()
+    entry = {"name": name[:60], "size": size, "walk": walk_png is not None}
+    if source:
+        entry["source"] = source
+    stored.setdefault("sprites", {})[key] = entry
+    stored.setdefault("classes", {})[class_id] = key
+    problems = project.save("mapsprites", stored)
+    project.update_credits()
+    return {"entry": entry, "problems": [p.to_dict() for p in problems]}
+
+
+class MapSpriteFeRepoIn(BaseModel):
+    stand: str
+    walk: str | None = None
+
+
+@app.post("/api/classes/{class_id}/mapsprite/ferepo")
+def import_ferepo_map_sprite(class_id: str, body: MapSpriteFeRepoIn):
+    """A map sprite of FE-Repo for a class; its authors and license go to the project's credits."""
+    try:
+        stand = ferepo.fetch(body.stand)
+        walk = ferepo.fetch(body.walk) if body.walk else None
+    except ferepo.FeRepoError as e:
+        raise HTTPException(400, str(e)) from e
+    source = ferepo.describe(body.stand)
+    return _import_map_sprite(class_id, stand, walk, source["name"], source)
+
+
+@app.post("/api/classes/{class_id}/mapsprite")
+async def import_local_map_sprite(class_id: str, stand: UploadFile = File(...), walk: UploadFile | None = File(None)):
+    """A map sprite from the user's PC: a standing sheet, and a moving sheet if given."""
+    return _import_map_sprite(class_id, await stand.read(), await walk.read() if walk else None,
+                              Path(stand.filename or "").stem or class_id)
+
+
+@app.delete("/api/classes/{class_id}/mapsprite")
+def remove_map_sprite(class_id: str):
+    """The class gets back the game's map sprite."""
+    project = state.require_project()
+    stored = project.load("mapsprites")
+    key = stored.get("classes", {}).pop(class_id, None)
+    if key and key not in stored["classes"].values():
+        stored.get("sprites", {}).pop(key, None)
+        shutil.rmtree(project.root / "assets" / "mapsprites" / key, ignore_errors=True)
+    problems = project.save("mapsprites", stored)
+    project.update_credits()
+    return {"problems": [p.to_dict() for p in problems]}
+
+
+@app.get("/api/ferepo/mapsprites")
+def ferepo_map_sprites(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+    """Standing map sprites of FE-Repo matching a search, each with its moving sheet if there is one."""
+    try:
+        index, when = ferepo.load_index(refresh)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503, str(e)) from e
+    entries, total = ferepo.map_sprites(index, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.MAP_SPRITES)}
+
+
 @app.get("/api/assets/map-sprite/{class_id}")
 def map_sprite(class_id: str, side: str = "player", trim: bool = False):
+    imported = _imported_map_sprite(class_id)
+    if imported is not None:
+        folder, size = imported
+        png = map_sprite_sheet(DECOMP_DIR, folder / "stand.png", size, side, trim=trim)
+        if png is None:
+            raise HTTPException(404)
+        return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
     entry = _game_class(class_id)
     if entry is None:
         raise HTTPException(404)

@@ -485,3 +485,40 @@ def test_condition_in_the_prologue_opening(tmp_path):
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
+
+
+def test_imported_map_sprite(tmp_path):
+    """A map sprite imported for the paladin class (here the game's archer sheets, as if from the PC): Seth stands
+    and walks with it."""
+    from fe_maker.decomp import mapsprites
+    from fe_maker.decomp.assets import MAP_SPRITE_PALETTES, read_agbpal
+
+    project = Project.create(tmp_path / "sprite", "Sprite")
+    icons = project.decomp_dir / "graphics" / "unit_icon"
+    stand, size, walk = mapsprites.convert((icons / "wait" / "unit_icon_wait_Archer_sheet.png").read_bytes(),
+                                           (icons / "move" / "unit_icon_move_Archer_sheet.png").read_bytes(),
+                                           read_agbpal(project.decomp_dir / MAP_SPRITE_PALETTES["player"]))
+    folder = project.root / "assets" / "mapsprites" / "PALADIN"
+    folder.mkdir(parents=True)
+    (folder / "stand.png").write_bytes(stand)
+    (folder / "walk.png").write_bytes(walk)
+    project.save("mapsprites", {"classes": {"CLASS_PALADIN": "PALADIN"},
+                                "sprites": {"PALADIN": {"name": "Archer", "size": size, "walk": True}}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        game.screenshot().save(tmp_path / "standing.png")
+        game.move_cursor(seth["x"], seth["y"])
+        game.press("A")
+        game.move_cursor(seth["x"] - 2, seth["y"])
+        game.press("A", wait=10)
+        game.screenshot().save(tmp_path / "walking.png")
+        game.run(60)
+        game.press("UP")
+        game.press("A")
+        game.run(30)
+        moved = next(u for u in game.units() if u["character"] == 2)
+        assert (moved["x"], moved["y"]) == (seth["x"] - 2, seth["y"])
+        print("screenshots:", tmp_path)

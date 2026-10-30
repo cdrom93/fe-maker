@@ -21,6 +21,7 @@ from . import (
     fonts,
     mapobjects,
     maps,
+    mapsprites,
     objectives,
     portraits,
     quotes,
@@ -237,6 +238,9 @@ class DecompData:
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
+        # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
+        self.map_sprites: dict[str, dict] = {}
+        self.map_sprite_ids: dict[str, tuple[int, str]] = {}
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -1307,22 +1311,86 @@ class DecompData:
         return entry
 
     def _with_new_class_files(self, out: dict[str, str | bytes]) -> None:
-        """Constants of the classes the project adds and their moving map sprites (their models')."""
+        """Constants of the classes the project adds."""
         if (self.decomp_dir / CLASS_CONSTANTS_FILE).is_file():
             out[CLASS_CONSTANTS_FILE] = self._enum_with(CLASS_CONSTANTS_FILE, "CLASS_",
                                                         {c: n for c, (n, _m) in self.new_classes.items()})
+
+    def _class_numbers(self) -> dict[str, int]:
+        """Class id -> number (the game's from classes.h, else their order in the table; the project's own)."""
+        numbers = {e.fields["number"]: i + 1 for i, e in enumerate(e for e in self.classes.entries if e.original_fields)}
+        if (self.decomp_dir / CLASS_CONSTANTS_FILE).is_file():
+            numbers.update({name: int(value, 0) for name, value in
+                            re.findall(r"\b(CLASS_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read(CLASS_CONSTANTS_FILE))})
+        numbers.update({c: n for c, (n, _m) in self.new_classes.items()})
+        return numbers
+
+    def _with_moving_sprites(self, out: dict[str, str | bytes]) -> None:
+        """unit_icon_move_table, one row per class in order: rows for the classes the project adds (their models'),
+        and the moving sheets imported for classes, with the walking motion of the class's row."""
         if not (self.decomp_dir / MOVING_SPRITES_FILE).is_file():
             return
-        models = {n: model for n, model in self.new_classes.values()}
-        game_numbers = {e.fields["number"]: i + 1 for i, e in enumerate(e for e in self.classes.entries if e.original_fields)}
         source = self._read(MOVING_SPRITES_FILE)
         rows = re.findall(r"^[ \t]*\{[^{}\n]*\},[^\n]*$", source, re.MULTILINE)
-        added = []
-        for n in range(len(rows) + 1, max(models) + 1):   # a gap left by a removed class takes the first row
-            row = rows[game_numbers.get(models.get(n, ""), 1) - 1]
-            added.append(re.sub(r"//.*$", f"// {n - 1}", row))
-        close = source.rindex("};")
-        out[MOVING_SPRITES_FILE] = source[:close] + "\n".join(added) + "\n" + source[close:]
+        numbers = self._class_numbers()
+        models = {n: model for n, model in self.new_classes.values()}
+        table = list(rows)
+        for n in range(len(rows) + 1, max(models, default=0) + 1):   # a gap left by a removed class: the first row
+            table.append(re.sub(r"//.*$", f"// {n - 1}", rows[numbers.get(models.get(n, ""), 1) - 1]))
+        for class_id, sprite in self.map_sprites.items():
+            n = numbers.get(class_id, 0)
+            if sprite["move"] and 0 < n <= len(table):
+                table[n - 1] = re.sub(r"\{\s*\w+", "{" + mapsprites.sheet_name("move", sprite["key"]), table[n - 1], count=1)
+        if table != rows:
+            start, end = source.index(rows[0]), source.index(rows[-1]) + len(rows[-1])
+            out[MOVING_SPRITES_FILE] = source[:start] + "\n".join(table) + source[end:]
+
+    @staticmethod
+    def export_map_sprites() -> dict:
+        """Map sprites imported for classes: none in the original game."""
+        return {"classes": {}, "sprites": {}}
+
+    def apply_map_sprites(self, data: dict, assets_dir: Path) -> None:
+        """Map sprites imported for classes (mapsprites.py): their sheets, a standing sprite number for each
+        (after the game's), given to the classes as their SMSId."""
+        if not data.get("classes") or not (self.decomp_dir / mapsprites.WAIT_TABLE_FILE).is_file():
+            return
+        game_rows = mapsprites.wait_rows(self._read(mapsprites.WAIT_TABLE_FILE))
+        entries = {e.fields["number"]: e for e in self.classes.entries}
+        for class_id, key in sorted(data["classes"].items()):
+            info, entry, folder = data.get("sprites", {}).get(key), entries.get(class_id), assets_dir / "mapsprites" / key
+            if info is None or entry is None or not (folder / "stand.png").is_file():
+                continue
+            if key not in self.map_sprite_ids:
+                number = len(game_rows) + len(self.map_sprite_ids)
+                if number >= mapsprites.MAX_WAIT_SPRITES:
+                    raise GameDataError(f"At most {mapsprites.MAX_WAIT_SPRITES - len(game_rows)} imported map sprites")
+                pattern = re.match(r"\{\s*(\d+)", game_rows[min(_int_field(entry.original_fields, "SMSId"),
+                                                                 len(game_rows) - 1)]).group(1)
+                self.map_sprite_ids[key] = (number, f"{{{pattern}, {info['size']}, {mapsprites.sheet_name('wait', key)}}}")
+                self.asset_files[f"graphics/unit_icon/wait/{mapsprites.sheet_name('wait', key)}.png"] = \
+                    (folder / "stand.png").read_bytes()
+                if (folder / "walk.png").is_file():
+                    self.asset_files[f"graphics/unit_icon/move/{mapsprites.sheet_name('move', key)}.png"] = \
+                        (folder / "walk.png").read_bytes()
+            entry.fields["SMSId"] = hex(self.map_sprite_ids[key][0])
+            self.map_sprites[class_id] = {"key": key, "move": (folder / "walk.png").is_file()}
+
+    def _with_map_sprite_files(self, out: dict[str, str | bytes]) -> None:
+        """The imported sheets' rows of unit_icon_wait_table, their incbins and their declarations."""
+        keys = sorted(self.map_sprite_ids, key=lambda k: self.map_sprite_ids[k][0])
+        moves = {s["key"] for s in self.map_sprites.values() if s["move"]}
+        out[mapsprites.WAIT_TABLE_FILE] = mapsprites.with_wait_rows(self._read(mapsprites.WAIT_TABLE_FILE),
+                                                                    [self.map_sprite_ids[k][1] for k in keys])
+        names = [(mapsprites.sheet_name("wait", k), "wait") for k in keys]
+        names += [(mapsprites.sheet_name("move", k), "move") for k in keys if k in moves]
+        for rel, kind in ((mapsprites.WAIT_DATA_FILE, "wait"), (mapsprites.MOVE_DATA_FILE, "move")):
+            blocks = "".join(mapsprites.incbin_block(n, k) for n, k in names if k == kind)
+            if blocks and (self.decomp_dir / rel).is_file():
+                out[rel] = self._read(rel).rstrip("\n") + "\n" + blocks
+        if (self.decomp_dir / mapsprites.POINTERS_FILE).is_file():
+            out[mapsprites.POINTERS_FILE] = self._read(mapsprites.POINTERS_FILE).rstrip("\n") + "\n" + \
+                "".join(f"extern char {n}[];\n" for n, _k in names)
 
     def _new_class_promotions(self) -> None:
         """New classes promote like their models unless the project says otherwise; the last one gets a row even
@@ -1832,6 +1900,10 @@ class DecompData:
         if self.new_classes:
             self._with_new_class_files(out)
             self._new_class_promotions()
+        if self.new_classes or self.map_sprites:
+            self._with_moving_sprites(out)
+        if self.map_sprite_ids:
+            self._with_map_sprite_files(out)
         if self.promotions is not None and self.promotions != self._original_promotions:
             out[combat.PROMOTIONS_FILE] = combat.render_promotions(self._sources[combat.PROMOTIONS_FILE], self.promotions)
         if self.effectiveness is not None and self.effectiveness != self._original_effectiveness:
