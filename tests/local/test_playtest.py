@@ -575,3 +575,24 @@ def test_added_chapter(tmp_path):
         assert ok
         assert (game.read("gBmMapSize", 0, width=16), game.read("gBmMapSize", 2, width=16)) == (15, 10)
         assert all(u["y"] == 0 for u in game.units())
+
+
+def test_imported_music_in_the_prologue(tmp_path):
+    """A MIDI (here one of the game's) imported as the prologue's player phase music: it takes a free row of the song
+    table and the music player plays it on the map."""
+    import shutil
+
+    project = Project.create(tmp_path / "music", "Music")
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
+    project.save("music", {"songs": {"theme": {"name": "Theme"}}, "chapters": {"0": {"bluePhase": "theme"}}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(120)
+        header = game.read("gSongTable", 87 * 8, width=32)
+        players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]   # struct MusicPlayer: info first
+        playing = {game.read(info, 0, width=32) for info in players}   # MusicPlayerInfo: songHeader first
+        print("song 87", hex(header), "playing", [hex(p) for p in playing])
+        assert header in playing

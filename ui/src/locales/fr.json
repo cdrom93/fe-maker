@@ -1304,5 +1304,11 @@
   "flow.add.cancel": "Annuler",
   "flow.add.hint": "Le nouveau chapitre prend une place libre du jeu (étages de la tour, des ruines, chapitres de test) : carte vide à peindre, sans ennemis, objectif « vaincre tous les ennemis ». Places restantes : {n}.",
   "flow.add.noFreeChapter": "plus de place libre pour un chapitre",
-  "flow.add.badMapSize": "la carte doit faire de 15 × 10 à 64 × 64"
+  "flow.add.badMapSize": "la carte doit faire de 15 × 10 à 64 × 64",
+  "flow.music.title": "Musique de la phase du joueur",
+  "flow.music.game": "Celle du jeu.",
+  "flow.music.reset": "Revenir à celle du jeu",
+  "flow.music.import": "Importer un MIDI",
+  "flow.music.hint": "Première version : le MIDI est joué avec les instruments des musiques de carte du jeu ; le son dépend donc du fichier.",
+  "flow.music.notAMidi": "ce fichier n'est pas un MIDI"
 }

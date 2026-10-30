@@ -61,6 +61,14 @@ export const api = {
   newChapter: (after: number, width: number, height: number, title: string) =>
     request<{ index: number; problems: Problem[] }>('POST', '/api/chapters/new', { after, width, height, title }),
   freeChapters: () => request<{ free: number }>('GET', '/api/chapters/free'),
+  chapterMusic: (index: number) => request<Record<string, { key: string; name?: string }>>('GET', `/api/chapters/${index}/music`),
+  importChapterMusic: (index: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ problems: Problem[] }>('POST', `/api/chapters/${index}/music`, form)
+  },
+  removeChapterMusic: (index: number, phase: string) =>
+    request<{ problems: Problem[] }>('DELETE', `/api/chapters/${index}/music/${phase}`),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chaptersOverview: () =>
     request<Record<string, { objective: Objective | null; groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[] }>>('GET', '/api/chapters/overview'),

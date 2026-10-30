@@ -31,6 +31,7 @@ DATA_FILES = {
     "portraits": "export_portraits",
     "animations": "export_animations",
     "mapsprites": "export_map_sprites",
+    "music": "export_music",
 }
 PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's assets folder
 ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
@@ -217,6 +218,7 @@ class Project:
         data.apply_portraits(self.load("portraits"), self.root / "assets")
         data.apply_animations(self.load("animations"), self.root / "assets")
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
+        data.apply_music(self.load("music"), self.root / "assets")
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)

@@ -36,6 +36,7 @@ from .decomp import (
     mapobjects,
     maps,
     mapsprites,
+    music,
     pieces,
     portraits,
     quotes,
@@ -389,6 +390,46 @@ def new_chapter(body: NewChapterIn):
     except newchapter.ChapterError as e:
         raise HTTPException(409, str(e)) from e
     return {"index": index, "problems": [p.to_dict() for p in project.validate()]}
+
+
+@app.get("/api/chapters/{index}/music")
+def chapter_music(index: int):
+    """The songs the project imported for this chapter, by phase."""
+    stored = state.require_project().load("music")
+    phases = stored.get("chapters", {}).get(str(index), {})
+    return {phase: {"key": key, **stored.get("songs", {}).get(key, {})} for phase, key in phases.items()}
+
+
+@app.post("/api/chapters/{index}/music")
+async def import_chapter_music(index: int, file: UploadFile = File(...), phase: str = Form("bluePhase")):
+    """A MIDI file from the PC as this chapter's music for a phase, with the game's player phase instruments."""
+    project = state.require_project()
+    data = await file.read()
+    try:
+        music.check_midi(data)
+    except music.MusicError as e:
+        raise HTTPException(400, str(e)) from e
+    if phase not in music.PHASES:
+        raise HTTPException(400, "unknownPhase")
+    stored = project.load("music")
+    name = Path(file.filename or "").stem or "song"
+    key = music.safe_key(name)
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{key}.mid").write_bytes(data)
+    stored.setdefault("songs", {})[key] = {"name": name[:60], "voicegroup": music.DEFAULT_VOICEGROUP,
+                                           "volume": music.DEFAULT_VOLUME}
+    stored.setdefault("chapters", {}).setdefault(str(index), {})[phase] = key
+    return {"problems": [p.to_dict() for p in project.save("music", stored)]}
+
+
+@app.delete("/api/chapters/{index}/music/{phase}")
+def remove_chapter_music(index: int, phase: str):
+    """The chapter plays the game's music again for that phase."""
+    project = state.require_project()
+    stored = project.load("music")
+    stored.get("chapters", {}).get(str(index), {}).pop(phase, None)
+    return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
 
 @app.get("/api/chapters/free")

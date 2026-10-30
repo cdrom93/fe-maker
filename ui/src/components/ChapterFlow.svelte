@@ -64,6 +64,34 @@
   let newHeight = $state(10)
   let addError = $state('')
 
+  // Music imported for the selected chapter's player phase (server: decomp/music.py).
+  let music = $state<Record<string, { key: string; name?: string }>>({})
+  let musicError = $state('')
+
+  $effect(() => {
+    const i = selected
+    music = {}
+    musicError = ''
+    if (i !== null && i >= 0) api.chapterMusic(i).then((m) => { if (selected === i) music = m }).catch(() => {})
+  })
+
+  async function importMusic(file: File | undefined) {
+    if (!file || selected === null) return
+    musicError = ''
+    try {
+      await api.importChapterMusic(selected, file)
+      music = await api.chapterMusic(selected)
+    } catch (e) {
+      musicError = String(e).includes('notAMidi') ? t('flow.music.notAMidi') : String(e)
+    }
+  }
+
+  async function removeMusic() {
+    if (selected === null) return
+    await api.removeChapterMusic(selected, 'bluePhase')
+    music = await api.chapterMusic(selected)
+  }
+
   async function addChapter() {
     if (selected === null || selected < 0) return
     addError = ''
@@ -370,6 +398,20 @@
         <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
         {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">{t('flow.openMap')}</span></Mention>{/if}
       </div>
+      <div class="music">
+        <h4>{t('flow.music.title')}</h4>
+        {#if music.bluePhase}
+          <span class="small">{music.bluePhase.name}</span>
+          <button class="link" onclick={removeMusic}>{t('flow.music.reset')}</button>
+        {:else}
+          <span class="muted small">{t('flow.music.game')}</span>
+        {/if}
+        <label class="small">{t('flow.music.import')}
+          <input type="file" accept=".mid,.midi,audio/midi" onchange={(e) => importMusic((e.target as HTMLInputElement).files?.[0])} />
+        </label>
+        <p class="tiny muted">{t('flow.music.hint')}</p>
+        {#if musicError}<p class="bad small">{musicError}</p>{/if}
+      </div>
       <div class="add-chapter">
         {#if adding}
           <label>{t('flow.add.title')} <input bind:value={newTitle} maxlength="40" /></label>
@@ -498,4 +540,6 @@
   .add-chapter { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.6rem 0; }
   .add-chapter label { display: flex; gap: 0.3rem; align-items: center; font-size: 0.85rem; }
   .add-chapter input[type='number'] { width: 4rem; }
+  .music { margin: 0.6rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+  .music h4, .music p { flex-basis: 100%; margin: 0; }
 </style>

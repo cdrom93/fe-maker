@@ -3,28 +3,18 @@
 Liste tenue pendant le travail en autonomie du 30/10/2026. Relancer FE Maker avant de tester (interface reconstruite).
 Chaque point a déjà été vérifié par un playtest automatique quand c'est indiqué ; il reste ton regard (interface, en jeu).
 
-## Deux décisions à prendre (mises en attente)
-
-1. **Nouveau chapitre avec carte neuve.** Tous les lecteurs de FE Maker (cartes, unités, événements, campagne) partent des
-   réglages de chapitre de la décomp. Deux voies :
-   - **(a) Réutiliser les places libres** : 3 chapitres vides du jeu (0x2C, 0x2D, 0x3A), et les chapitres que l'histoire du
-     projet n'atteint plus (route d'Ephraim, tour, ruines…), vidés pour repartir de zéro, avec une carte neuve (taille et jeu de tuiles
-     au choix). Rapide, dans l'esprit des personnages ajoutés. Limite : 79 chapitres en tout, ce qui suffit pour un hack.
-   - **(b) Vrais chapitres ajoutés après ceux du jeu** : plus propre sur le papier, mais il faut rendre tous les lecteurs conscients
-     du projet (gros chantier).
-   Je conseille (a).
-2. **Musique.** Les morceaux de FE-Repo-Music (licence Unlicense) sont des fichiers `.s` compatibles avec la décomp, mais ils
-   attendent le jeu d'instruments communautaire **NIMAP2** (le README dit de les jouer sur une ROM FE8 patchée avec
-   `for_fe8u.ups`). Il faut donc ajouter NIMAP2 au build (ses échantillons d'instruments), ce qui demande de vérifier sa licence et
-   d'où le télécharger. Les morceaux faits pour les instruments du jeu, eux, marcheraient tout de suite. Veux-tu que je
-   commence par NIMAP2 ?
-
 ## Chapitres ajoutés (décision 1 : places libres)
 
 - [ ] Page Campagne, fiche d'un chapitre : « + Ajouter un chapitre après celui-ci » (titre, largeur, hauteur ; 21 places libres au départ : étages de la tour et des ruines, chapitres de test). Le nouveau chapitre apparaît dans le graphe juste après, avec son titre.
 - [ ] Il a une carte vide (à peindre dans l'onglet Cartes), l'armée du chapitre d'avant en haut à gauche, un groupe d'ennemis vide (onglet Chapitres) et l'objectif « vaincre tous les ennemis » : **placer des ennemis avant de tester**, sinon il est gagné tout de suite.
 - [ ] Le chapitre d'avant mène au nouveau, qui mène où allait celui d'avant (playtest fait : chapitre ajouté après le prologue, armée Eirika et Seth, carte 15 × 10, sa fin mène au chapitre 1).
 - [ ] Limites : l'image du titre affichée au début du chapitre reste celle de la place prise (« Tour de Valni »…) ; le texte du titre (menu de sauvegarde) est le bon.
+
+## Musique (première démo)
+
+- [ ] Page Campagne, fiche d'un chapitre, « Musique de la phase du joueur » : « Importer un MIDI », le nom du morceau s'affiche, « Revenir à celle du jeu ».
+- [ ] En jeu : le morceau joue pendant la phase du joueur de ce chapitre (playtest fait : le lecteur de musique joue bien le morceau ajouté, mais personne ne l'a écouté).
+- [ ] À écouter : le MIDI est joué avec les instruments des musiques de carte du jeu ; selon le fichier, certains instruments peuvent sonner faux ou manquer. Limites : seulement la phase du joueur, pas d'aperçu dans FE Maker, pas encore les morceaux de FE-Repo-Music (ils demandent le jeu d'instruments NIMAP2).
 
 ## Correction trouvée en route
 
