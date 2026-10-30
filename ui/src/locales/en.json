@@ -1157,5 +1157,7 @@
   "banim.allWeapons": "All weapons",
   "banim.weaponFilter": "Weapon",
   "banim.weaponFilterHint": "Looking up each animation's weapons: the first time, FE Maker asks GitHub (a few seconds, up to a minute for \"All folders\"), then it is kept for a week. When several are ticked, the animation must have them all.",
-  "banim.missingFolders": "{n} folder(s) not checked yet: GitHub allows 60 requests an hour. Their animations are missing from the list; try again later."
+  "banim.missingFolders": "{n} folder(s) not checked yet: GitHub allows 60 requests an hour. Their animations are missing from the list; try again later.",
+  "banim.group.tomes": "Magic (anima, light, dark)",
+  "banim.group.throwing_axes": "Throwing axes (all 3)"
 }

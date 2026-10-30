@@ -825,7 +825,7 @@ def class_animations(class_id: str):
     animations = {a.number: a for a in banim.table(DECOMP_DIR)}
     project = _project_animations()
     imported = project.get("animations", {})
-    changed = banim_import.with_shared_tomes(project.get("classes", {}).get(class_id, {}))
+    changed = banim_import.with_groups(project.get("classes", {}).get(class_id, {}))
     left = dict(changed)
 
     def describe(wtype, item_id, anim) -> dict | None:
@@ -844,14 +844,14 @@ def class_animations(class_id: str):
     for d in banim.configs(DECOMP_DIR).get(conf, []):
         weapon = d["weapon"]
         wtype = WEAPON_TYPES.get(weapon)
-        # throwing axes follow the class's new axe animation (ticket 49), as at build time
-        follows = next((w for w, items in banim_import.FOLLOWING_ITEMS.items() if weapon in items and w in changed), None)
-        anim = left.pop(wtype, d["number"]) if wtype else changed[follows] if follows else d["number"]
+        key = wtype or weapon   # an item of its own (throwing axes) is set by its id
+        anim = left.pop(key, d["number"])
         found = describe(wtype, None if weapon in WEAPON_TYPES else weapon, anim)
         if found:
-            result.append({**found, "changed": bool(wtype) and wtype in changed or follows is not None})
-    for wtype, anim in left.items():   # weapon types the class had no animation for
-        found = describe(wtype, None, anim)
+            result.append({**found, "changed": key in changed})
+    for key, anim in left.items():   # weapon types (or throwing axes) the class had no animation for
+        item = key in banim_import.GROUP_ITEMS
+        found = describe(None if item else key, key if item else None, anim)
         if found:
             result.append({**found, "changed": True})
     return result
@@ -945,7 +945,7 @@ def import_animation(body: AnimationImportIn):
     """Download a FE-Repo animation (one weapon), convert it to the decomp's format, keep it in the project and
     give it to the class for that weapon type (ticket 44). The authors go to the project's CREDITS.txt."""
     project = state.require_project()
-    if body.wtype not in WEAPON_TYPES.values():
+    if not _animation_target(body.wtype):
         raise HTTPException(400, "unknownWeaponType")
     data = project.load("animations")
     data.setdefault("animations", {})
@@ -1011,6 +1011,11 @@ def remove_animation(key: str):
     return {"problems": [p.to_dict() for p in problems]}
 
 
+def _animation_target(target: str) -> bool:
+    """A weapon type, a group of linked weapons or one of its items (tickets 49, 51)."""
+    return target in WEAPON_TYPES.values() or target in banim_import.GROUPS or target in banim_import.GROUP_ITEMS
+
+
 class ClassAnimationIn(BaseModel):
     wtype: str
     animation: str | int | None    # a game animation's number, "new:<key>", or None: the game's own again
@@ -1018,6 +1023,8 @@ class ClassAnimationIn(BaseModel):
 
 @app.put("/api/classes/{class_id}/animations")
 def set_class_animation(class_id: str, body: ClassAnimationIn):
+    if not _animation_target(body.wtype):
+        raise HTTPException(400, "unknownWeaponType")
     project = state.require_project()
     data = project.load("animations")
     banim_import.set_class_animation(data.setdefault("classes", {}).setdefault(class_id, {}), body.wtype, body.animation)

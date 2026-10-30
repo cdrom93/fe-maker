@@ -45,8 +45,9 @@
 
   /** Back to the game's animation for this weapon type (an imported one stays in the project). */
   async function restore(a: ClassAnimation) {
-    if (!a.wtype) return
-    await api.setClassAnimation(classId, a.wtype, null)
+    const target = a.wtype ?? a.item   // a throwing axe is set by its item id
+    if (!target) return
+    await api.setClassAnimation(classId, target, null)
     changed()
   }
   async function removeImported(a: ClassAnimation) {

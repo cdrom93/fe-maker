@@ -190,7 +190,7 @@ def folder_files(url: str) -> list[dict]:
 
 
 # Weapon type of an animation's weapon folder ("1. Sword (Alt Crit)", "6. Magic", "7. Staff"...), first match wins;
-# mirrored by FOLDER_WTYPES in AnimationLibrary.svelte.
+# close to FOLDER_WTYPES in AnimationLibrary.svelte (which also guesses the linked groups: tomes, throwing axes).
 WEAPON_TYPES = [(r"staff|staves", "staff"), (r"light", "light"), (r"dark|flux", "dark"), (r"magic|anima|tome", "anima"),
                 (r"axe", "axe"), (r"bow|arrow", "bow"), (r"lance|spear|javelin", "lance"), (r"sword|blade|knife", "sword"),
                 (r"unarmed|item|refresh|dance|play", "item")]

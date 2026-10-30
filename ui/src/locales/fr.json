@@ -1157,5 +1157,7 @@
   "banim.allWeapons": "Toutes les armes",
   "banim.weaponFilter": "Arme",
   "banim.weaponFilterHint": "Recherche des armes de chaque animation : la première fois, FE Maker les demande à GitHub (quelques secondes, jusqu'à une minute pour « Tous les dossiers »), puis c'est gardé une semaine. Cochées à plusieurs, les armes doivent toutes être présentes.",
-  "banim.missingFolders": "{n} dossier(s) pas encore vérifié(s) : GitHub limite à 60 demandes par heure. Leurs animations manquent dans la liste ; réessayez plus tard."
+  "banim.missingFolders": "{n} dossier(s) pas encore vérifié(s) : GitHub limite à 60 demandes par heure. Leurs animations manquent dans la liste ; réessayez plus tard.",
+  "banim.group.tomes": "Magie (anima, lumière, ténèbres)",
+  "banim.group.throwing_axes": "Haches de lancer (les 3)"
 }

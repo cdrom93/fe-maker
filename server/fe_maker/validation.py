@@ -102,7 +102,7 @@ def animated_weapons(decomp: DecompData, animations: dict | None) -> dict[str, l
     A new dict: the decomp data is shared by every project (ticket 50)."""
     result = {class_id: list(weapons) for class_id, weapons in decomp.animated_weapons.items()}
     for class_id, weapons in ((animations or {}).get("classes") or {}).items():
-        weapons = banim_import.with_shared_tomes(weapons)
+        weapons = [w for w in banim_import.with_groups(weapons) if w not in banim_import.GROUP_ITEMS]
         known = result.setdefault(class_id, [])
         known += [w for w in weapons if w not in known]
     return result

@@ -131,41 +131,34 @@ def test_feditor_loop_marker():
                                ("code", 0x701)]
 
 
-def test_throwing_axes_follow_the_new_axe_animation(decomp_dir, tmp_path):
-    """Ticket 49: a class given another axe animation throws its hand axes with it too."""
+def test_throwing_axes_set_together(decomp_dir, tmp_path):
+    """Ticket 49: the three throwing axes are linked, apart from the class's axe animation."""
     from fe_maker.decomp import banim_import as bi
     from fe_maker.decomp.gamedata import DecompData
 
+    weapons = {}
+    bi.set_class_animation(weapons, "throwing_axes", 1)
+    assert weapons == {"ITEM_AXE_HANDAXE": 1, "ITEM_AXE_TOMAHAWK": 1, "ITEM_AXE_HATCHET": 1}
     d = DecompData(decomp_dir)
-    d.apply_animations({"animations": {}, "classes": {"CLASS_TESTKNIGHT": {"axe": 1}}}, tmp_path)
+    d.apply_animations({"animations": {}, "classes": {"CLASS_TESTKNIGHT": {"ITEM_AXE_HANDAXE": 1}}}, tmp_path)
     conf = d.asset_files[bi.CONF_FILE].split("AnimConf_FEM_TESTKNIGHT[]")[1]
-    assert ".wtype = 0x0100 | ITYPE_AXE,\n        .index = 0x0001," in conf
     assert ".wtype = ITEM_AXE_HANDAXE,\n        .index = 0x0001," in conf
-    assert ".wtype = 0x0100 | ITYPE_SWORD,\n        .index = 0x0003," in conf
+    assert ".wtype = ITEM_AXE_TOMAHAWK,\n        .index = 0x0001," in conf     # follows its group
+    assert ".wtype = 0x0100 | ITYPE_AXE,\n        .index = 0x0002," in conf    # the axe keeps its own
 
 
 def test_tomes_share_their_animation():
-    """Ticket 51: an animation given to one tome goes to the others, unless they have their own."""
+    """Ticket 51: the three tomes at once, or one of them; a tome without its own takes another's."""
     from fe_maker.decomp import banim_import as bi
 
     weapons = {}
-    bi.set_class_animation(weapons, "anima", "new:1")
+    bi.set_class_animation(weapons, "tomes", "new:1")
     assert weapons == {"anima": "new:1", "light": "new:1", "dark": "new:1"}
     bi.set_class_animation(weapons, "dark", "new:2")
-    assert weapons == {"anima": "new:2", "light": "new:2", "dark": "new:2"}
-    weapons["dark"] = "new:9"   # one of its own (saved before ticket 51): kept
-    bi.set_class_animation(weapons, "anima", "new:3")
-    assert weapons == {"anima": "new:3", "light": "new:3", "dark": "new:9"}
-    bi.set_class_animation(weapons, "anima", None)
-    assert weapons == {"dark": "new:9"}
-    bi.set_class_animation(weapons, "sword", "new:4")
-    assert weapons == {"dark": "new:9", "sword": "new:4"}
-
-
-def test_tomes_without_their_own_take_another():
-    from fe_maker.decomp import banim_import as bi
-
-    assert bi.with_shared_tomes({"anima": "new:4", "sword": "new:3"}) == \
+    assert weapons == {"anima": "new:1", "light": "new:1", "dark": "new:2"}
+    bi.set_class_animation(weapons, "dark", None)
+    assert weapons == {"anima": "new:1", "light": "new:1"}
+    assert bi.with_groups(weapons)["dark"] == "new:1"
+    assert bi.with_groups({"anima": "new:4", "sword": "new:3"}) == \
         {"anima": "new:4", "light": "new:4", "dark": "new:4", "sword": "new:3"}
-    assert bi.with_shared_tomes({"anima": "new:4", "dark": 7}) == {"anima": "new:4", "light": "new:4", "dark": 7}
-    assert bi.with_shared_tomes({"staff": "new:1"}) == {"staff": "new:1"}
+    assert bi.with_groups({"staff": "new:1"}) == {"staff": "new:1"}
