@@ -1340,5 +1340,11 @@
   "options.windowColor.0": "1",
   "options.windowColor.1": "2",
   "options.windowColor.2": "3",
-  "options.windowColor.3": "4"
+  "options.windowColor.3": "4",
+  "home.blank": "Blank project",
+  "home.blankHint": "To write your own story: a single empty chapter, with no enemies or dialogue. The game's chapters become free slots for yours.",
+  "home.blankCharacters": "Also remove the game's characters (a hero to rename stays)",
+  "home.blankKept": "The game's weapons, items and classes are kept: you change them one by one.",
+  "home.blankTitle": "Chapter 1",
+  "home.blankHero": "Hero"
 }

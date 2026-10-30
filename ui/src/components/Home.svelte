@@ -7,6 +7,9 @@
 
   let name = $state('')
   let author = $state('')
+  /** a blank project (ticket 66): what it drops; weapons and classes stay */
+  let blank = $state(false)
+  let blankCharacters = $state(true)
   let path = $state('')
   let busy = $state(false)
   let error = $state('')
@@ -28,9 +31,17 @@
 <div class="home">
   <section class="panel">
     <h2>{t('home.new')}</h2>
-    <form onsubmit={(e) => { e.preventDefault(); run(() => api.createProject(name, author)) }}>
+    <form onsubmit={(e) => { e.preventDefault(); run(() => api.createProject(name, author, blank ? { characters: blankCharacters, title: t('home.blankTitle'), hero: t('home.blankHero') } : undefined)) }}>
       <label>{t('home.name')}<input bind:value={name} required maxlength="60" /></label>
       <label>{t('home.author')}<input bind:value={author} maxlength="60" /></label>
+      <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')}</label>
+      {#if blank}
+        <div class="blank">
+          <p class="muted hint">{t('home.blankHint')}</p>
+          <label class="choice"><input type="checkbox" bind:checked={blankCharacters} /> {t('home.blankCharacters')}</label>
+          <p class="muted hint">{t('home.blankKept')}</p>
+        </div>
+      {/if}
       <p class="muted hint">{t('home.createHint', { dir: status.defaultProjectsDir })}</p>
       <button class="primary" disabled={busy || !name.trim()}>{t('home.create')}</button>
     </form>
@@ -57,6 +68,9 @@
 </div>
 
 <style>
+  .choice { color: var(--text); font-weight: 600; }
+  .blank { padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.35rem; }
+  .blank p { margin: 0; }
   .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; max-width: 900px; margin: 2rem auto; }
   form { display: flex; flex-direction: column; gap: 0.75rem; }
   form.row { flex-direction: row; margin-top: 1rem; }

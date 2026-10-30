@@ -12,7 +12,13 @@ debug chapters. Adding a chapter after another one clears such a slot with the e
 - a simple opening: the army, then the (empty) groups the editor shows for the chapter (dialogues.json "scripts");
 - the story: the chapter before now leads to it (MNC2), and it leads where the chapter before used to go.
 
-chapters.json "added" {index: {"after": index}} remembers which slots the project took.
+chapters.json "added" {index: {"after": index}} remembers which slots the project took; "cleared" lists the chapters
+whose event lists are emptied at build time (DecompData.apply_chapters).
+
+A blank project (ticket 66, `start_blank`) clears chapter 0, the one the engine starts on, the same way: the game's
+other chapters are then no longer part of the story (chapters.json "blank"), so they are free slots and the
+editors hide them. Without its characters, only the first lord stays in the list, the others wait to be reused by
+"new character" (`DecompData.reusable_characters`).
 """
 
 from __future__ import annotations
@@ -25,32 +31,118 @@ from .validation import MAP_MIN_HEIGHT, MAP_MIN_WIDTH
 
 PLAIN = 0x01   # terrain byte of plains (src/data/terrain names)
 MAX_SIZE = (64, 64)
+BLANK_LORD = "CHARACTER_EIRIKA"   # a blank project needs one unit, and the game is lost when this one dies
+BLANK_LORD_ITEMS = ("ITEM_SWORD_RAPIER", "ITEM_VULNERARY")
 
 
 class ChapterError(Exception):
     pass
 
 
-def free_slots(data: DecompData, scripts: dict, taken: set[int]) -> list[int]:
-    """Chapters a new one can take: own map, own event group, reached neither by the game's story nor the project's
-    (a chapter of the game's story the project has cut off for now is not free: ticket 55)."""
+def reached_chapters(links: list[list[dict]]) -> set[int]:
+    """The chapters a story reaches from the first one."""
+    seen, todo = {0}, [0]
+    while todo:
+        for link in links[todo.pop()]:
+            to = link.get("to")
+            if isinstance(to, int) and 0 <= to < len(links) and to not in seen:
+                seen.add(to)
+                todo.append(to)
+    return seen
+
+
+def free_slots(data: DecompData, scripts: dict, taken: set[int], blank: bool = False) -> list[int]:
+    """Chapters a new one can take: own map, own event group, reached neither by the game's story (unless the project
+    is blank) nor the project's (a chapter of the game's story the project has cut off for now is not free: ticket 55)."""
     data._load_chapter_events()
     chapters = data.chapter_settings["chapters"]
-    reached = set()
-    for links in (data.chapter_links(), data.chapter_links(scripts)):
-        seen, todo = {0}, [0]
-        while todo:
-            for link in links[todo.pop()]:
-                to = link.get("to")
-                if isinstance(to, int) and 0 <= to < len(chapters) and to not in seen:
-                    seen.add(to)
-                    todo.append(to)
-        reached |= seen
+    reached = reached_chapters(data.chapter_links(scripts))
+    if not blank:
+        reached |= reached_chapters(data.chapter_links())
     symbols = Counter(data._chapter_event_symbol(c) for c in chapters)
     layouts = {i: len(info["chapters"]) for info in maps.layouts(data.decomp_dir).values() for i in info["chapters"]}
     return [i for i, c in enumerate(chapters)
             if i not in reached and i not in taken and layouts.get(i) == 1
             and (symbol := data._chapter_event_symbol(c)) and symbols[symbol] == 1]
+
+
+def _opening(loads: list[dict]) -> list[dict]:
+    opening = []
+    for g in loads:
+        op = "LOAD2" if g["origin"] == "players" else "LOAD1"
+        if g["origin"] in ("players", "opening"):
+            opening += [{"op": op, "args": ["1", g["name"]]}, {"op": "ENUN"}]
+    return opening + [{"op": "NoFade"}, {"op": "ENDA"}]
+
+
+def _clear_chapter(project, data: DecompData, n: int, width: int, height: int, title: str, chapters: dict, maps_data: dict,
+                   army: list | None) -> tuple[dict, list[dict]]:
+    """Chapter n as an empty one, `army` (units, else its own) in a block at the top left; its event group and the
+    groups it loads."""
+    symbol = data._chapter_event_symbol(data.chapter_settings["chapters"][n])
+    group = objectives.event_group(data.event_sources, symbol)
+
+    # The slot's own player group (the tower's are placeholders) is reused, the other groups emptied.
+    games = units.read_unit_groups(project.decomp_dir)
+    loads = units.chapter_unit_groups(project.decomp_dir, symbol)
+    edits = chapters.setdefault("unitGroups", {})
+    for g in loads:
+        if g["origin"] == "players":
+            own = len(games[g["name"]].units)
+            source = army if army is not None else games[g["name"]].units
+            edits[g["name"]] = [{**u, "slot": i if i < own else None, "x": i % width, "y": i // width,
+                                 "endX": i % width, "endY": i // width} for i, u in enumerate(source)]
+        else:
+            edits[g["name"]] = []
+    chapters.setdefault("objectives", {})[str(n)] = {"type": "defeat_all"}
+    chapters.setdefault("titles", {})[str(n)] = title.strip()[:40] or f"Chapter {n}"
+    if n not in chapters.setdefault("cleared", []):
+        chapters["cleared"].append(n)
+
+    # An empty map on the slot's tile sheet: its most used plain tile.
+    stem, info = next((s, i) for s, i in maps.layouts(project.decomp_dir).items() if n in i["chapters"])
+    assets = maps.with_base(project.decomp_dir, info["assets"], maps_data.get("bases", {}).get(stem))
+    terrain = maps.read_config(assets.config)[1]
+    _w, _h, cells = maps.read_layout(info["assets"].layout)
+    plains = Counter(m for m in cells if m < len(terrain) and terrain[m] == PLAIN)
+    plain = plains.most_common(1)[0][0] if plains else next((m for m, t in enumerate(terrain) if t == PLAIN), 0)
+    maps_data.setdefault("layouts", {})[stem] = {"rows": [[plain] * width for _ in range(height)]}
+    if info.get("changes"):
+        maps_data.setdefault("changes", {})[stem] = []
+    return group, loads
+
+
+def start_blank(project, characters: bool, title: str, hero: str) -> None:
+    """Turn a new project into a blank one: chapter 0 emptied, the game's other chapters out of the story; with
+    `characters`, the game's characters too except the first lord (renamed `hero`) and their supports."""
+    data = DecompData(project.decomp_dir)
+    dialogues, chapters, maps_data = project.load("dialogues"), project.load("chapters"), project.load("maps")
+    scripts = dialogues.setdefault("scripts", {})
+    data._load_chapter_events()
+    chapters["blank"] = True
+    if characters:
+        players = next(g["name"] for g in units.chapter_unit_groups(
+            project.decomp_dir, data._chapter_event_symbol(data.chapter_settings["chapters"][0])) if g["origin"] == "players")
+        lord = next(c for c in project.load("characters") if c["id"] == BLANK_LORD)
+        army = [{**units.read_unit_groups(project.decomp_dir)[players].units[0], "character": BLANK_LORD, "class": lord["class"],
+                 "level": lord["level"], "items": list(BLANK_LORD_ITEMS)}]
+    else:
+        army = None
+    group, loads = _clear_chapter(project, data, 0, 15, 10, title, chapters, maps_data, army)
+    scripts[group["beginningSceneEvents"]] = _opening(loads)
+    scripts[group["endingSceneEvents"]] = [{"op": "ENDA"}]
+    if characters:
+        removed = data.reusable_characters()
+        kept = [c for c in project.load("characters") if c["id"] not in removed]
+        for c in kept:
+            if c["id"] == BLANK_LORD:
+                c["name"] = hero.strip() or c["name"]
+        project.save("characters", kept)
+        dialogues["supports"] = []
+        chapters["blankCharacters"] = True
+    project.save("chapters", chapters)
+    project.save("maps", maps_data)
+    project.save("dialogues", dialogues)
 
 
 def add_chapter(project, after: int, width: int, height: int, title: str) -> int:
@@ -64,48 +156,20 @@ def add_chapter(project, after: int, width: int, height: int, title: str) -> int
     data._load_chapter_events()
     if not 0 <= after < len(data.chapter_settings["chapters"]):
         raise ChapterError("unknownChapter")
-    slots = free_slots(data, scripts, {int(k) for k in added})
+    slots = free_slots(data, scripts, {int(k) for k in added}, chapters.get("blank", False))
     if not slots:
         raise ChapterError("noFreeChapter")
     n = slots[0]
-    symbol = data._chapter_event_symbol(data.chapter_settings["chapters"][n])
-    group = objectives.event_group(data.event_sources, symbol)
-
-    # Units: the army of the chapter before (its player group, as the project has it) in a block at the top left;
-    # the slot's own player group (the tower's are placeholders) is reused, the other groups emptied.
     games = units.read_unit_groups(project.decomp_dir)
-    loads = units.chapter_unit_groups(project.decomp_dir, symbol)
     edits = chapters.setdefault("unitGroups", {})
     before = units.chapter_unit_groups(project.decomp_dir, data._chapter_event_symbol(data.chapter_settings["chapters"][after]))
     army = next((g["name"] for g in before if g["origin"] == "players"), None)
-    for g in loads:
-        if g["origin"] == "players":
-            own = len(games[g["name"]].units)
-            source = (edits.get(army) or games[army].units) if army else games[g["name"]].units
-            edits[g["name"]] = [{**u, "slot": i if i < own else None, "x": i % width, "y": i // width,
-                                 "endX": i % width, "endY": i // width} for i, u in enumerate(source)]
-        else:
-            edits[g["name"]] = []
-    chapters.setdefault("objectives", {})[str(n)] = {"type": "defeat_all"}
-    chapters.setdefault("titles", {})[str(n)] = title.strip()[:40] or f"Chapter {n}"
+    source = (edits.get(army) or games[army].units) if army else None
     added[str(n)] = {"after": after}
-
-    # An empty map on the slot's tile sheet: its most used plain tile.
-    stem, info = next((s, i) for s, i in maps.layouts(project.decomp_dir).items() if n in i["chapters"])
-    assets = maps.with_base(project.decomp_dir, info["assets"], maps_data.get("bases", {}).get(stem))
-    terrain = maps.read_config(assets.config)[1]
-    _w, _h, cells = maps.read_layout(info["assets"].layout)
-    plains = Counter(m for m in cells if m < len(terrain) and terrain[m] == PLAIN)
-    plain = plains.most_common(1)[0][0] if plains else next((m for m, t in enumerate(terrain) if t == PLAIN), 0)
-    maps_data.setdefault("layouts", {})[stem] = {"rows": [[plain] * width for _ in range(height)]}
+    group, loads = _clear_chapter(project, data, n, width, height, title, chapters, maps_data, source)
 
     # Opening: the army, then the groups of the chapter; story: the chapter before leads here.
-    opening = []
-    for g in loads:
-        op = "LOAD2" if g["origin"] == "players" else "LOAD1"
-        if g["origin"] in ("players", "opening"):
-            opening += [{"op": op, "args": ["1", g["name"]]}, {"op": "ENUN"}]
-    scripts[group["beginningSceneEvents"]] = opening + [{"op": "NoFade"}, {"op": "ENDA"}]
+    scripts[group["beginningSceneEvents"]] = _opening(loads)
     ending = [{"op": "ENDA"}]
     link = next((link for link in data.chapter_links(scripts)[after] if link["ending"]), None)
     if link is not None:

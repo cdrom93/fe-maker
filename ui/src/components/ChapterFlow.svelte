@@ -277,7 +277,7 @@
         if (to !== null && pos.has(to)) edges.push({ from: n, to, link: l })
       }
     }
-    const unreached = chapters.filter((c) => c.title && !depth.has(c.index)).map((c) => c.index)
+    const unreached = chapters.filter((c) => c.title && !c.hidden && !depth.has(c.index)).map((c) => c.index)
     return { pos, edges, width: PAD * 2 + (rows.size ? Math.max(...rows.keys()) + 1 : 1) * COL, height, unreached }
   })
 

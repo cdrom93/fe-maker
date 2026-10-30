@@ -44,7 +44,8 @@ export const api = {
     form.append('file', file)
     return request<Status>('POST', '/api/rom', form)
   },
-  createProject: (name: string, author: string) => request<ProjectInfo>('POST', '/api/projects', { name, author }),
+  createProject: (name: string, author: string, blank?: { characters: boolean; title: string; hero: string }) =>
+    request<ProjectInfo>('POST', '/api/projects', { name, author, blank }),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   reference: () => request<Reference>('GET', '/api/reference'),

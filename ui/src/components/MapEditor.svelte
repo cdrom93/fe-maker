@@ -362,7 +362,7 @@
     const [all, chapterList] = await Promise.all([api.maps(), api.chapters()])
     chapters = chapterList
     // A map is named after the story chapters that use it.
-    maps = all.map((m) => {
+    maps = all.filter((m) => !m.chapters.length || m.chapters.some((i) => !chapterList[i]?.hidden)).map((m) => {
       const titles = [...new Set(m.chapters.map((i) => chapterList[i]?.title).filter(Boolean))]
       return { ...m, name: titles.join(' / ') || m.id }
     })

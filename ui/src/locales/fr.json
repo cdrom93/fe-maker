@@ -1340,5 +1340,11 @@
   "options.windowColor.0": "1",
   "options.windowColor.1": "2",
   "options.windowColor.2": "3",
-  "options.windowColor.3": "4"
+  "options.windowColor.3": "4",
+  "home.blank": "Projet vierge",
+  "home.blankHint": "Pour écrire votre propre histoire : un seul chapitre vide, sans ennemis ni dialogues. Les chapitres du jeu deviennent des places libres pour les vôtres.",
+  "home.blankCharacters": "Retirer aussi les personnages du jeu (il reste un héros à renommer)",
+  "home.blankKept": "Les armes, les objets et les classes du jeu sont gardés : vous les changez une à une.",
+  "home.blankTitle": "Chapitre 1",
+  "home.blankHero": "Héros"
 }

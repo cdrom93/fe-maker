@@ -255,6 +255,29 @@ def ensure_game_over(sources: dict[str, str], symbol: str) -> dict[str, str]:
     return {**sources, rel: sources[rel][:start] + body + sources[rel][end:]}
 
 
+def clear_events(sources: dict[str, str], symbol: str) -> dict[str, str]:
+    """The event lists of a chapter emptied of everything but its objective and the game over check (chapters the
+    project clears, newchapter.py); no tutorial either."""
+    group = event_group(sources, symbol)
+    sources = dict(sources)
+    keep = (_DEFEAT_RE, _SEIZE_RE, _WIN_TURN_RE, _AREA_WIN_RE, GAME_OVER_RE)
+    for field in ("turnBasedEvents", "characterBasedEvents", "locationBasedEvents", "miscBasedEvents",
+                  "specialEventsWhenUnitSelected", "specialEventsWhenDestSelected", "specialEventsAfterUnitMoved"):
+        found = _list(sources, group.get(field, ""))
+        if found is None:
+            continue
+        rel, start, end = found
+        lines = [line for line in sources[rel][start:end].split("\n")
+                 if _END_RE.search(line) or any(p.search(line + "
+") for p in keep)]
+        sources[rel] = sources[rel][:start] + "\n" + "\n".join(lines) + "\n" + sources[rel][end:]
+    found = _block(sources, rf"EventListScr\s*\*\s*{re.escape(group.get('tutorialEvents', '-'))}\s*\[\s*\]\s*=\s*\{{")
+    if found is not None:
+        rel, start, end = found
+        sources[rel] = sources[rel][:start] + "\n    NULL\n" + sources[rel][end:]
+    return sources
+
+
 def chapter_constants(header: str) -> dict[str, int]:
     """CHAPTER_L_PROLOGUE -> 0... from include/constants/chapters.h."""
     return {name: int(value, 0) for name, value in re.findall(r"\b(CHAPTER_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", header)}

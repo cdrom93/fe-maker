@@ -633,3 +633,18 @@ def test_a_range_the_game_does_not_list_is_drawn_and_shown(tmp_path):
         rows = game.read("gBmMapRange", 0, 32)
         row = game.read(rows + 4 * seth["y"], 0, 32)
         assert game.read(row + seth["x"] - 7, 0, 8) and not game.read(row + seth["x"], 0, 8)
+
+
+def test_blank_project_starts_on_its_empty_chapter(tmp_path):
+    from fe_maker import newchapter
+
+    project = Project.create(tmp_path / "blank", "Blank")
+    newchapter.start_blank(project, True, "Chapitre 1", "Heros")
+    assert not [p for p in project.validate() if p.severity == "error"]
+    assert newchapter.add_chapter(project, 0, 15, 10, "Chapitre 2") == 1   # the game's chapter 1 is free now
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(120)
+        assert [u["character"] for u in game.units()] == [1] and game.units("Red") == [] and game.chapter() == 0

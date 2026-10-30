@@ -58,6 +58,7 @@ NEW_CHARACTER_PREFIX = "CHARACTER_NEW_"
 # BWL_ARRAY_NUM (include/bmsave.h): only characters below it keep their battle stats in the save
 # (epilogue, support points): playable characters take a number below it.
 ALLY_CHARACTER_END = 0x46
+GENERIC_CHARACTER_START = 0x80   # the named characters end here
 ITEM_CONSTANTS_FILE = "include/constants/items.h"
 SPELL_ASSOC_FILE = "src/spellassoc-data.c"
 # An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
@@ -410,6 +411,10 @@ class DecompData:
                 self._add_reinforcements(name, meta, group_units)
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
+        for index in chapters.get("cleared", []):   # chapters the project cleared (newchapter.py)
+            self._load_chapter_events()
+            self.event_sources = objectives.clear_events(
+                self.event_sources, self._chapter_event_symbol(self.chapter_settings["chapters"][index]))
         # Fog of war: the units' vision range, 0 for none (chapter settings' initialFogLevel, ticket 43)
         fog = {int(k): int(v) for k, v in chapters.get("fog", {}).items()}
         if fog:
@@ -1531,9 +1536,16 @@ class DecompData:
         return sorted(n for n in (parse_int(k) for k in numbers if not k.startswith("CHARACTER_"))
                       if 0 < n < 0xFF and n not in used)
 
-    def new_character(self, ally: bool, taken: set[str]) -> dict:
+    def reusable_characters(self) -> dict[str, int]:
+        """The game's named characters a blank project takes out of its list, with their numbers (newchapter.py): all
+        but the first lord, the summons and the citizens and arena opponents the engine asks for."""
+        constants = self._character_constants()
+        return {name: n for name, n in constants.items()
+                if 1 < n < GENERIC_CHARACTER_START and "SUMMON" not in name}
+
+    def new_character(self, ally: bool, taken: set[str], reuse: bool = False) -> dict:
         """Sheet of a character to add: the first free entry for an ally (below ALLY_CHARACTER_END) or an enemy
-        (from it); `taken` are the ids already in the project."""
+        (from it); `taken` are the ids already in the project; `reuse`: then a game character a blank project dropped."""
         for n in self.free_character_numbers():
             new_id = f"{NEW_CHARACTER_PREFIX}{n:02X}"
             if (n < ALLY_CHARACTER_END) == ally and new_id not in taken:
@@ -1544,6 +1556,14 @@ class DecompData:
                 record.update(id=new_id, name="", level=1, portraitId=0, weaponRanks={},
                               bases={s: 0 for s in STATS}, affinity=None, abilities=[])
                 return record
+        if reuse:
+            for name, n in sorted(self.reusable_characters().items(), key=lambda kv: kv[1]):
+                if (n < ALLY_CHARACTER_END) == ally and name not in taken:
+                    entry = next(e for e in self.characters.entries if e.original_fields["number"] == name)
+                    record = self._character_record(entry)
+                    record.update(name="", level=1, portraitId=0, weaponRanks={}, bases={s: 0 for s in STATS}, affinity=None,
+                                  abilities=[], convoyAccess=False, canSeize=False, reused=True)
+                    return record
         raise GameDataError("noFreeCharacter")
 
     def _activate_character(self, new_id: str) -> Entry:
@@ -1641,6 +1661,8 @@ class DecompData:
                 raise GameDataError(f"Unknown character {ch['id']}")
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), ch["name"])
+            if ch.get("reused"):   # a game character taken again by a blank project: not its old description
+                self.texts.set_name(_int_field(f, "descTextId"), "")
             if f["defaultClass"] != ch["class"]:
                 original_class = entry.original_fields["defaultClass"]
                 # In game, chapters load units with an explicit class: defaultClass alone

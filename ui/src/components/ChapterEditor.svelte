@@ -253,7 +253,7 @@
 
   onMount(async () => {
     const all = await api.chapters()
-    chapters = all.map((c) => ({ ...c, code: c.id, id: String(c.index), name: c.title || c.id }))
+    chapters = all.filter((c) => !c.hidden).map((c) => ({ ...c, code: c.id, id: String(c.index), name: c.title || c.id }))
     // Opened from a link (e.g. the map editor): the chapter list was not loaded yet.
     const asked = nav.focus?.kind === 'chapters' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1
     if (chapters.length) await load(Math.max(0, asked))

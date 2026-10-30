@@ -164,10 +164,17 @@ async def upload_rom(file: UploadFile = File(...)):
 
 # ---------- projects ----------
 
+class BlankIn(BaseModel):
+    characters: bool = True
+    title: str = ""
+    hero: str = ""
+
+
 class CreateProjectIn(BaseModel):
     name: str
     author: str = ""
     folder: str | None = None
+    blank: BlankIn | None = None   # ticket 66, newchapter.start_blank
 
 
 class OpenProjectIn(BaseModel):
@@ -190,7 +197,10 @@ def create_project(body: CreateProjectIn):
         raise HTTPException(400, "nameEmpty")
     folder = Path(body.folder) if body.folder else default_projects_dir() / slugify(body.name)
     try:
-        return _open(Project.create(folder, body.name.strip(), body.author.strip()))
+        project = Project.create(folder, body.name.strip(), body.author.strip())
+        if body.blank is not None:
+            newchapter.start_blank(project, body.blank.characters, body.blank.title, body.blank.hero)
+        return _open(project)
     except ProjectError as e:
         raise HTTPException(400, str(e))
 
@@ -229,9 +239,12 @@ def new_character(body: NewCharacterIn):
     project = state.require_project()
     characters = project.load("characters")
     try:
-        record = DecompData(project.decomp_dir).new_character(body.ally, {c["id"] for c in characters})
+        reuse = project.load("chapters").get("blankCharacters", False)
+        record = DecompData(project.decomp_dir).new_character(body.ally, {c["id"] for c in characters}, reuse)
     except GameDataError as e:
         raise HTTPException(409, str(e)) from e
+    if not record["id"].startswith(NEW_CHARACTER_PREFIX):
+        return {"record": record, "replaces": None}
     number = int(record["id"].removeprefix(NEW_CHARACTER_PREFIX), 16)
     replaces = next((c["id"] for c in characters
                      if not c["id"].startswith("CHARACTER_") and parse_int(c["id"]) == number), None)
@@ -353,7 +366,13 @@ def _event_symbol(chapter: dict) -> str | None:
 def list_chapters():
     d = state.get_decomp()
     # titles of the chapters the project adds (newchapter.py)
-    titles = state.project.load("chapters").get("titles", {}) if state.project is not None else {}
+    stored = state.project.load("chapters") if state.project is not None else {}
+    titles = stored.get("titles", {})
+    # A blank project's editors only show its own chapters (newchapter.py)
+    shown = None
+    if stored.get("blank"):
+        shown = newchapter.reached_chapters(d.chapter_links(state.project.load("dialogues").get("scripts", {})))
+        shown |= {int(k) for k in stored.get("added", {})}
     result = []
     for i, ch in enumerate(maps.chapter_settings(DECOMP_DIR)):
         title_id = ch.get("chapTitleTextId", 0)
@@ -366,6 +385,7 @@ def list_chapters():
             "id": ch.get("internalName", str(i)),
             "title": titles.get(str(i)) or (d.texts.get_name(title_id) if title_id in d.texts.messages else ""),
             "added": str(i) in titles,
+            "hidden": shown is not None and i not in shown,
             "map": layout,
             "events": _event_symbol(ch),
             "convoy": convoy.has_convoy(i),   # in the game (ticket 29)
@@ -438,7 +458,7 @@ def free_chapters():
     project = state.require_project()
     taken = {int(k) for k in project.load("chapters").get("added", {})}
     return {"free": len(newchapter.free_slots(DecompData(project.decomp_dir), project.load("dialogues").get("scripts", {}),
-                                               taken))}
+                                               taken, project.load("chapters").get("blank", False)))}
 
 
 @app.get("/api/chapters/overview")

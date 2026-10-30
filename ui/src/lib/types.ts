@@ -93,6 +93,8 @@ export interface Combat {
 }
 
 export interface ChapterInfo {
+  /** a chapter of the game a blank project does not use */
+  hidden?: boolean
   index: number
   id: string
   title: string

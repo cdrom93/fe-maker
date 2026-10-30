@@ -138,11 +138,16 @@ class Project:
         return self.validate()
 
     def validate(self) -> list[Problem]:
-        return validate(self.load("characters"), self.load("items"), DecompData(self.decomp_dir),
-                        classes=self.load("classes"), combat=self.load("combat"), chapters=self.load("chapters"),
-                        maps=self.load("maps"), dialogues=self.load("dialogues"),
-                        portraits=self.load("portraits"), assets_dir=self.root / "assets",
-                        animations=self.load("animations"))
+        characters, chapters = self.load("characters"), self.load("chapters")
+        problems = validate(characters, self.load("items"), DecompData(self.decomp_dir),
+                            classes=self.load("classes"), combat=self.load("combat"), chapters=chapters,
+                            maps=self.load("maps"), dialogues=self.load("dialogues"),
+                            portraits=self.load("portraits"), assets_dir=self.root / "assets",
+                            animations=self.load("animations"))
+        if chapters.get("blankCharacters"):   # the game's chapters still carry the characters a blank project dropped
+            ids = {c["id"] for c in characters}
+            problems = [p for p in problems if p.kind != "characters" or p.id in ids]
+        return problems
 
     # ---------- build ----------
 
