@@ -1310,5 +1310,6 @@
   "flow.music.reset": "Revenir à celle du jeu",
   "flow.music.import": "Importer un MIDI",
   "flow.music.hint": "Première version : le MIDI est joué avec les instruments des musiques de carte du jeu ; le son dépend donc du fichier.",
-  "flow.music.notAMidi": "ce fichier n'est pas un MIDI"
+  "flow.music.notAMidi": "ce fichier n'est pas un MIDI",
+  "problem.titleTooLong": "le titre ne tient pas dans l'image de titre du chapitre : raccourcissez-le"
 }

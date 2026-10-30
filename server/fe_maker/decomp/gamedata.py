@@ -14,6 +14,7 @@ from pathlib import Path
 from . import (
     banim,
     banim_import,
+    chaptitle,
     combat,
     convoy,
     dialogues,
@@ -426,11 +427,36 @@ class DecompData:
                         self.texts.set_raw(current, text)
                     else:
                         settings[index][key] = self.texts.add(text)
+            self._add_title_images(titles)
         # Chapters with or without convoy, changed from the game's rule (ticket 29)
         edited = {int(k): bool(v) for k, v in chapters.get("convoy", {}).items()}
         if any(convoy.has_convoy(k) != v for k, v in edited.items()):
             count = len(maps.chapter_settings(self.decomp_dir))
             self.no_convoy = [i for i in range(count) if not edited.get(i, convoy.has_convoy(i))]
+
+    def _add_title_images(self, titles: dict[int, str]) -> None:
+        """The title strip of each chapter the project adds, drawn from its text (chaptitle.py), after the game's."""
+        if not (self.decomp_dir / chaptitle.TABLE_FILE).is_file():
+            return
+        table, data = self._read(chaptitle.TABLE_FILE), self._read(chaptitle.DATA_FILE)
+        pointers = self._read(chaptitle.POINTERS_FILE)
+        template = self.decomp_dir / chaptitle.TITLE_FILE.format(n=0)
+        rows = ""
+        for number, (index, title) in enumerate(sorted(titles.items()), chaptitle.FIRST_NEW_ID):
+            if number > chaptitle.LAST_NEW_ID:
+                raise GameDataError("Too many chapter titles")
+            name = f"chap_title_fem_{number}"
+            self.asset_files[f"graphics/chap_title/{name}.png"] = chaptitle.strip(self.decomp_dir, title, template)
+            rows += f"\t{{{name}, 0, 0}}, // {number}\n"
+            data = (data.rstrip("\n") + f"\n\t.global {name}\n{name}:\n"
+                    f"\t.incbin \"graphics/chap_title/{name}.4bpp.lz\"\n\t.align 2, 0\n")
+            pointers = pointers.rstrip("\n") + f"\nextern char {name}[];\n"
+            for key in ("chapTitleId", "chapTitleIdInHectorStory"):
+                self.chapter_settings["chapters"][index][key] = number
+        close = table.rindex("};")
+        self.asset_files[chaptitle.TABLE_FILE] = table[:close] + rows + table[close:]
+        self.asset_files[chaptitle.DATA_FILE] = data
+        self.asset_files[chaptitle.POINTERS_FILE] = pointers
 
     # ---------- maps ----------
 
@@ -1076,6 +1102,10 @@ class DecompData:
                             continue
                         commands = events.parse_script(body)
                     found += [{"script": name, "ending": name == ending, **link} for link in story.links(commands)]
+            # An ending scene the project wrote in a file with another prefix (the tower's floors: tower1-eventinfo.h,
+            # tower-eventscript.h), for a chapter it adds (ticket 55).
+            if ending in (edited or {}) and not any(link["script"] == ending for link in found):
+                found += [{"script": ending, "ending": True, **link} for link in story.links(edited[ending])]
             out.append(found)
         return out
 

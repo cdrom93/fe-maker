@@ -10,7 +10,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 
-from .decomp import banim_import, fonts, mapobjects, tileedit, units
+from .decomp import banim_import, chaptitle, fonts, mapobjects, tileedit, units
 from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
 from .decomp import maps as decomp_maps
@@ -218,7 +218,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     if combat is not None:
         _validate_combat(problems, combat, class_ids, weapon_types)
     if chapters is not None:
-        _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items})
+        _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items}, decomp)
         _validate_unit_weapons(problems, decomp, chapters, characters,
                                classes if classes is not None else decomp.export_classes(), items)
     if maps is not None:
@@ -761,7 +761,12 @@ def _validate_objectives(problems, objectives_by_chapter: dict, character_ids=fr
                                         {"lines": 2, "max": OBJECTIVE_LINE_MAX}, f"{rid}: objective text may not fit"))
 
 
-def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids):
+def _validate_chapters(problems, chapters, class_ids, character_ids, item_ids, decomp=None):
+    if decomp is not None:
+        for index, title in chapters.get("titles", {}).items():
+            if chaptitle.text_width(decomp.decomp_dir, title, 0) > chaptitle.VISIBLE_WIDTH - 4:
+                problems.append(Problem("warning", "chapters", str(index), "title", "titleTooLong", {},
+                                        f"Chapter {index}: the title does not fit in its picture"))
     _validate_objectives(problems, chapters.get("objectives", {}), character_ids)
     for group, unit_list in chapters.get("unitGroups", {}).items():
         for side, limit in UNITS_PER_SIDE.items():

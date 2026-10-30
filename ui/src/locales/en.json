@@ -1310,5 +1310,6 @@
   "flow.music.reset": "Back to the game's",
   "flow.music.import": "Import a MIDI",
   "flow.music.hint": "First version: the MIDI is played with the instruments of the game's map music, so the sound depends on the file.",
-  "flow.music.notAMidi": "this file is not a MIDI"
+  "flow.music.notAMidi": "this file is not a MIDI",
+  "problem.titleTooLong": "the title does not fit in the chapter's title picture: shorten it"
 }

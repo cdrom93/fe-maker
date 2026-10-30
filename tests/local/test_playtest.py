@@ -596,3 +596,20 @@ def test_imported_music_in_the_prologue(tmp_path):
         playing = {game.read(info, 0, width=32) for info in players}   # MusicPlayerInfo: songHeader first
         print("song 87", hex(header), "playing", [hex(p) for p in playing])
         assert header in playing
+
+
+def test_added_chapter_title_picture(tmp_path):
+    """A chapter the project adds has its own title strip (chap_title_data row 0x58), and leads where the chapter
+    before led (ticket 55: the Campaign page sees that link)."""
+    from fe_maker import newchapter
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "title", "Title")
+    index = newchapter.add_chapter(project, 0, 15, 10, "Le Fort de l'Aube")
+    scripts = project.load("dialogues")["scripts"]
+    assert [link["to"] for link in DecompData(project.decomp_dir).chapter_links(scripts)[index]] == [1]
+    project.set_test_options({"start": "map", "chapter": index})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.read("gChapterDataTable", index * 0x94 + 0x0E) == 0x58
+        assert game.read("chap_title_data", 0x58 * 12, width=32) == game.address("chap_title_fem_88")

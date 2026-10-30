@@ -53,3 +53,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : option « Pas de zone de déplacement pour les unités immobiles » (IA de déplacement 3, patch « Null Move Display ») ; vérifié en jeu.
 - 30/10/2026 : chapitres ajoutés (page Campagne, « Ajouter un chapitre après celui-ci ») sur les places libres du jeu (étages de la tour et des ruines, chapitres de test) : titre, carte vide, armée du chapitre d'avant, ennemis à placer, enchaînement ; vérifié en jeu.
 - 30/10/2026 : démo de musique : un MIDI importé (page Campagne) devient la musique de la phase du joueur d'un chapitre, sur une ligne libre de la table des morceaux, avec les instruments du jeu ; vérifié en jeu (le lecteur joue le morceau).
+- 30/10/2026 : chapitres ajoutés : image de titre écrite d'après leur nom (vue en jeu), titre modifiable dans la fiche, ticket 55 (la page Campagne voit où ils mènent).

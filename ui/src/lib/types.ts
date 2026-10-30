@@ -96,6 +96,8 @@ export interface ChapterInfo {
   index: number
   id: string
   title: string
+  /** a chapter the project adds, on a free slot of the game's (its title can be changed) */
+  added?: boolean
   map: string | null
   events: string | null
   /** the convoy can be used in this chapter, in the game */
@@ -128,6 +130,8 @@ export interface MapUnit {
 /** Project chapter data: unit groups once edited (data/chapters.json). */
 export interface ChaptersData {
   unitGroups: Record<string, MapUnit[]>
+  /** titles of the chapters the project adds, by chapter index (server: newchapter.py) */
+  titles?: Record<string, string>
   /** groups made in the project (reinforcements), their units in unitGroups */
   newGroups?: Record<string, NewGroup>
   /** objectives edited in the project, by chapter index */

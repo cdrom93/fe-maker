@@ -92,6 +92,17 @@
     music = await api.chapterMusic(selected)
   }
 
+  /** A chapter the project adds changes title (its text and its title picture, written at build time). */
+  function rename(value: string) {
+    const name = value.trim()
+    if (selected === null || !name) return
+    const index = selected
+    chapterList.update(0, (d) => {
+      d.titles = { ...d.titles, [index]: name }
+    })
+    chapters = chapters.map((c) => (c.index === index ? { ...c, title: name } : c))
+  }
+
   async function addChapter() {
     if (selected === null || selected < 0) return
     addError = ''
@@ -372,6 +383,11 @@
     <section class="panel detail">
       <span class="card-num">{t('flow.chapterNumber', { n: selected })}</span>
       <h2 class="sheet-title">{title(selected)}</h2>
+      {#if chapters[selected].added}
+        <label class="rename">{t('flow.add.title')}
+          <input value={chapters[selected].title} maxlength="40" onchange={(e) => rename((e.target as HTMLInputElement).value)} />
+        </label>
+      {/if}
       <img class="pixel detail-map" src={chapterMapUrl(selected)} alt="" />
       {#if sheet?.index === selected}
         <div class="sheet-block">
@@ -542,4 +558,6 @@
   .add-chapter input[type='number'] { width: 4rem; }
   .music { margin: 0.6rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
   .music h4, .music p { flex-basis: 100%; margin: 0; }
+  .rename { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .rename input { flex: 1; min-width: 0; }
 </style>

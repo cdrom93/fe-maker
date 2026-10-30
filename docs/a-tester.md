@@ -8,7 +8,9 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Page Campagne, fiche d'un chapitre : « + Ajouter un chapitre après celui-ci » (titre, largeur, hauteur ; 21 places libres au départ : étages de la tour et des ruines, chapitres de test). Le nouveau chapitre apparaît dans le graphe juste après, avec son titre.
 - [ ] Il a une carte vide (à peindre dans l'onglet Cartes), l'armée du chapitre d'avant en haut à gauche, un groupe d'ennemis vide (onglet Chapitres) et l'objectif « vaincre tous les ennemis » : **placer des ennemis avant de tester**, sinon il est gagné tout de suite.
 - [ ] Le chapitre d'avant mène au nouveau, qui mène où allait celui d'avant (playtest fait : chapitre ajouté après le prologue, armée Eirika et Seth, carte 15 × 10, sa fin mène au chapitre 1).
-- [ ] Limites : l'image du titre affichée au début du chapitre reste celle de la place prise (« Tour de Valni »…) ; le texte du titre (menu de sauvegarde) est le bon.
+- [ ] Ticket 55 : la fiche d'un chapitre ajouté montre « Ce chapitre mène à » avec le choix du chapitre suivant, et la flèche apparaît dans le graphe (il faut relancer FE Maker).
+- [ ] Image du titre : l'écran d'ouverture du chapitre affiche son nom, écrit par FE Maker dans le style du jeu, accents compris (playtest fait : « Le Fort de l'Aube » vu en jeu). À voir aussi dans le menu de sauvegarde.
+- [ ] La fiche d'un chapitre ajouté permet de changer son titre ; un titre trop long pour l'image donne un avertissement.
 
 ## Musique (première démo)
 
