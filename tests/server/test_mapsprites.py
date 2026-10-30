@@ -62,3 +62,14 @@ def test_ferepo_pairs_standing_and_walking_sheets():
     hero = next(e for e in entries if e["name"] == "Hero")
     assert hero["authors"] == ["Ann"] and hero["walk"].endswith("-walk.png")
     assert next(e for e in entries if e["name"] == "Monk")["walk"] is None
+
+
+def test_indexed_sheets_whose_background_is_not_index_0():
+    # FE-Repo sheets don't always keep the background first (ticket 63): its top left color becomes transparent.
+    img = Image.new("P", (32, 480), 5)
+    img.putpalette([c for rgb in PALETTE for c in rgb])
+    img.putpixel((3, 3), 0)
+    img.putpixel((4, 3), 4)
+    _stand, _size, walk = mapsprites.convert(_png(Image.new("P", (16, 96), 0)), _png(img), PALETTE)
+    out = Image.open(io.BytesIO(walk))
+    assert out.getpixel((0, 0)) == 0 and out.getpixel((4, 3)) == 4 and out.getpixel((3, 3)) != 0

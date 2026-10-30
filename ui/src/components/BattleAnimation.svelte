@@ -4,7 +4,7 @@
   import { t } from '../lib/i18n.svelte'
   import AnimationLibrary from './AnimationLibrary.svelte'
   import LocalAnimationImport from './LocalAnimationImport.svelte'
-  import type { ClassAnimation, Item } from '../lib/types'
+  import type { ClassAnimation, FeRepoEntry, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
   let { classId, className, items, wtypes, onchanged }: {
@@ -14,6 +14,8 @@
   } = $props()
   let showLibrary = $state(false)
   let showLocal = $state(false)
+  /** the imported animation to show in the library again */
+  let reopen = $state<FeRepoEntry | null>(null)
 
   const MODES = ['stand', 'attack_close', 'attack_close_critical', 'attack_range', 'attack_range_critical', 'dodge_close', 'attack_miss'] as const
   const PALETTES = ['player', 'enemy', 'ally'] as const
@@ -33,8 +35,11 @@
       if (id === classId) animations = list
     }).catch(() => {})
   }
+  // Only when the class really changes: an edit of the class gives this prop's getter a new value to read, and
+  // emptying the list then closed the library (ticket 61).
+  const currentClass = $derived(classId)
   $effect(() => {
-    void classId
+    void currentClass
     animations = []
     chosen = 0
     untrack(reload)
@@ -176,7 +181,12 @@
     </div>
     {#if anim?.changed}
       <p class="small">
-        {anim.imported ? t('banim.importedFrom', { name: anim.name }) : t('banim.changedTo', { name: anim.name })}
+        {#if anim.source}
+          {t('banim.importedLabel')}
+          <button class="link" title={t('banim.reopenHint')} onclick={() => { reopen = anim.source!; showLibrary = true; showLocal = false }}>{anim.name}</button>
+        {:else}
+          {anim.imported ? t('banim.importedFrom', { name: anim.name }) : t('banim.changedTo', { name: anim.name })}
+        {/if}
         <button class="link" onclick={() => restore(anim)}>↺ {t('banim.restore')}</button>
         {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
       </p>
@@ -186,7 +196,7 @@
       <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>{t('banim.lib.title')}</button>
       <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>{t('banim.local.title')}</button>
     </div>
-    {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={changed} />{/if}
+    {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} open={reopen} onimported={changed} />{/if}
     {#if showLocal}<LocalAnimationImport {classId} {wtypes} onimported={changed} />{/if}
   </section>
 {/if}

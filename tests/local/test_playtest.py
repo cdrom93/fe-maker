@@ -613,3 +613,23 @@ def test_added_chapter_title_picture(tmp_path):
     with Game(out.rom_path, out.map_path) as game:
         assert game.read("gChapterDataTable", index * 0x94 + 0x0E) == 0x58
         assert game.read("chap_title_data", 0x58 * 12, width=32) == game.address("chap_title_fem_88")
+
+
+def test_a_range_the_game_does_not_list_is_drawn_and_shown(tmp_path):
+    project = Project.create(tmp_path / "range", "Range")
+    items = project.load("items")
+    items[2]["range"] = {"min": 1, "max": 10}   # Seth's Steel Sword (ticket 59)
+    project.save("items", items)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        game.move_cursor(seth["x"], seth["y"])
+        game.run(20)
+        game.press("A", wait=40)
+        game.press("A", wait=60)   # stays: the action menu, on Attack, draws the weapons' range
+        rows = game.read("gBmMapRange", 0, 32)
+        row = game.read(rows + 4 * seth["y"], 0, 32)
+        assert game.read(row + seth["x"] - 7, 0, 8) and not game.read(row + seth["x"], 0, 8)

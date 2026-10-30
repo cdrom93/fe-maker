@@ -8,12 +8,14 @@
   import type { FeRepoAnimation, FeRepoEntry } from '../lib/types'
   import { animationTargets, guessTarget, targetLabel } from '../lib/animationTargets'
 
-  let { initial = '', classId, wtypes, onimported }: {
+  let { initial = '', classId, wtypes, open = null, onimported }: {
     /** a suggested search (the class's name) */
     initial?: string
     classId: string
     /** weapon types the animation can be given for */
     wtypes: string[]
+    /** an animation to show (one already imported) */
+    open?: FeRepoEntry | null
     onimported: () => void
   } = $props()
 
@@ -85,6 +87,17 @@
 
   $effect(() => {
     untrack(() => run())
+  })
+
+  $effect(() => {
+    const e = open
+    if (e) {
+      untrack(() => {
+        query = e.name
+        run()
+        pick(e)
+      })
+    }
   })
 
   function typed() {

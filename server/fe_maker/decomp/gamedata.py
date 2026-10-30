@@ -32,6 +32,7 @@ from . import (
     supports,
     tileedit,
     units,
+    weaponrange,
 )
 from .cparse import (
     Entry,
@@ -229,6 +230,7 @@ class DecompData:
         self.character_portraits: dict[str, int] = {}
         # Who can seize, when the project changes it (seize.py)
         self.seizers: list[str] | None = None
+        self.other_ranges = False   # a weapon has a range the game does not list (weaponrange.py)
         self.no_convoy: list[int] | None = None
         # Ids of the portraits the project adds (their text codes go to textdefs.txt)
         self.new_faces: list[int] = []
@@ -1873,7 +1875,10 @@ class DecompData:
             for key, field in (("might", "might"), ("hit", "hit"), ("crit", "crit"), ("weight", "weight"),
                                ("uses", "maxUses"), ("pricePerUse", "costPerUse"), ("iconId", "iconId")):
                 _set_int(f, field, it[key])
-            _set_int(f, "encodedRange", (it["range"]["min"] << 4) | it["range"]["max"])
+            encoded = (it["range"]["min"] << 4) | it["range"]["max"]
+            if encoded != _int_field(f, "encodedRange"):
+                self.other_ranges = self.other_ranges or encoded not in weaponrange.GAME_RANGES
+            _set_int(f, "encodedRange", encoded)
             if "effectiveness" in it and it["effectiveness"] != _effectiveness_name(f.get("pEffectiveness", "")):
                 if it["effectiveness"] is None:
                     f["pEffectiveness"] = "NULL"
@@ -1971,6 +1976,9 @@ class DecompData:
             out[convoy.MENU_FILE] = convoy.with_openers(self._read(convoy.MENU_FILE), self.convoy_openers)
         if self.seizers is not None:
             out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
+        if self.other_ranges:
+            out[weaponrange.ITEM_FILE] = weaponrange.with_item_ranges(self._read(weaponrange.ITEM_FILE))
+            out[weaponrange.RANGE_MAP_FILE] = weaponrange.with_range_map(self._read(weaponrange.RANGE_MAP_FILE))
         if self.no_convoy is not None:
             out[convoy.CONTAINER_FILE] = convoy.with_chapters(self._read(convoy.CONTAINER_FILE), self.no_convoy)
         if self.new_classes:

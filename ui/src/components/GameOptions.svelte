@@ -70,18 +70,20 @@
     <section class="panel">
       <h3>{t('options.defaultsTitle')}</h3>
       <p class="muted small">{t('options.defaultsHint')}</p>
-      <div class="grid">
+      <div class="config">
         {#each Object.entries(data.defaults) as [key, d] (key)}
-          <label>
-            <span>{t(`options.${key}`)}</span>
-            <select value={value(key)} disabled={saving} onchange={(e) => set(key, Number((e.target as HTMLSelectElement).value))}>
-              {#each d.values as v (v)}
-                <option value={v}>{t(`options.${key}.${v}`)}{v === d.game ? ` (${t('options.gameDefault')})` : ''}</option>
-              {/each}
-            </select>
-          </label>
+          <span class="option">{t(`options.${key}`)}</span>
+          <div class="choices" role="radiogroup" aria-label={t(`options.${key}`)}>
+            {#each d.values as v (v)}
+              <button role="radio" aria-checked={value(key) === v} class:on={value(key) === v} disabled={saving}
+                      title={v === d.game ? t('options.gameDefault') : undefined} onclick={() => set(key, v)}>
+                {t(`options.${key}.${v}`)}{#if v === d.game}<span class="game" aria-hidden="true">•</span>{/if}
+              </button>
+            {/each}
+          </div>
         {/each}
       </div>
+      <p class="muted small">{t('options.gameDefaultHint')}</p>
     </section>
 
     <section class="panel">
@@ -101,7 +103,16 @@
   .options { display: flex; flex-direction: column; gap: 1rem; max-width: 60rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.75rem; }
   .grid label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
-  .switch { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.35rem 0; }
+  .switch { display: flex; flex-direction: row; gap: 0.5rem; align-items: flex-start; padding: 0.35rem 0; }
+  .switch input { margin-top: 0.2rem; }
+  /* Laid out like the game's Configuration menu: the option, then its choices in a row. */
+  .config { display: grid; grid-template-columns: minmax(11rem, max-content) 1fr; gap: 0.35rem 1.25rem; align-items: center; }
+  .option { font-weight: 700; }
+  .choices { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .choices button { padding: 0.25rem 0.7rem; font-weight: 600; color: var(--muted); }
+  .choices button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 800; }
+  .game { margin-left: 0.3rem; color: var(--accent); }
+  @media (max-width: 600px) { .config { grid-template-columns: 1fr; } }
   .small { font-size: 0.8rem; }
   .bad { color: var(--bad); }
 </style>

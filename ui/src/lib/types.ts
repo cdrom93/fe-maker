@@ -590,6 +590,8 @@ export interface ClassAnimation {
   imported: boolean
   /** changed by the project for this weapon type */
   changed: boolean
+  /** where an animation imported from FE-Repo comes from */
+  source?: FeRepoEntry | null
 }
 
 /** A battle animation's folder in FE-Repo: its files, weapons (subfolders) and preview picture. */

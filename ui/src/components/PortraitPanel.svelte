@@ -145,8 +145,29 @@
   }
 </script>
 
+{#snippet addNew()}
+  <div class="new">
+    <span class="small"><strong>{t('portrait.new')}</strong></span>
+    <span class="muted tiny">{missing ? t('portrait.newHintNone') : t('portrait.newHint')}</span>
+    <div class="buttons">
+      <button onclick={() => newInput?.click()} disabled={busy}>{t('portrait.newFile')}</button>
+      <button onclick={() => (browsing = browsing === 'new' ? null : 'new')} class:active={browsing === 'new'}>{t('portrait.newFeRepo')}</button>
+    </div>
+    <input type="file" accept="image/png" hidden bind:this={newInput} onchange={(e) => addFile((e.target as HTMLInputElement).files?.[0])} />
+  </div>
+{/snippet}
+
 {#if missing}
-  <p class="bad small">{t('portrait.missing', { id: portraitId })}</p>
+  {#if portraitId === 0}
+    <p class="muted small">{t('portrait.none')}</p>
+  {:else}
+    <p class="bad small">{t('portrait.missing', { id: portraitId })}</p>
+  {/if}
+  {#if onnew}
+    {@render addNew()}
+    {#if error}<p class="bad small">{error}</p>{/if}
+    {#if browsing}<div class="ferepo"><FeRepoBrowser initial={characterName} {busy} onpick={importFeRepo} /></div>{/if}
+  {/if}
 {:else}
 <div class="portrait-panel">
   <div class="sheet" style="width: {128 * SCALE}px; height: {112 * SCALE}px">
@@ -179,17 +200,7 @@
       {/if}
     </div>
     <input type="file" accept="image/png" hidden bind:this={fileInput} onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
-    {#if onnew && info && !info.added}
-      <div class="new">
-        <span class="small"><strong>{t('portrait.new')}</strong></span>
-        <span class="muted tiny">{t('portrait.newHint')}</span>
-        <div class="buttons">
-          <button onclick={() => newInput?.click()} disabled={busy}>{t('portrait.newFile')}</button>
-          <button onclick={() => (browsing = browsing === 'new' ? null : 'new')} class:active={browsing === 'new'}>{t('portrait.newFeRepo')}</button>
-        </div>
-        <input type="file" accept="image/png" hidden bind:this={newInput} onchange={(e) => addFile((e.target as HTMLInputElement).files?.[0])} />
-      </div>
-    {/if}
+    {#if onnew && info && !info.added}{@render addNew()}{/if}
     {#if imported?.source}
       <p class="small">
         {t('ferepo.from', { name: imported.source.name, authors: imported.source.authors.join(', ') || t('ferepo.unknownAuthor') })}

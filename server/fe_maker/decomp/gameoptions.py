@@ -20,19 +20,25 @@ CHAPTER_INTRO_FILE = "src/chapterintrofx.c"
 MOVE_SPEED_FILE = "src/mu.c"
 RANGE_DISPLAY_FILE = "src/playerphase.c"
 
-# Option -> (field of gPlaySt.config, the game's default, allowed values). Values, from the Options menu
-# (src/uiconfig.c): animation 0 on, 1 off, 2 solo (PLAY_ANIMCONF_x); textSpeed 0 slow, 1 normal, 2 fast, 3 max
-# (GetTextDisplaySpeed); gameSpeed 0 normal, 1 fast; autoCursor 0 on, 1 off; autoEndTurn 0 on, 1 off;
-# terrainWindow 0 on, 1 off; unitWindow 0 detailed, 1 simple, 2 off; battleForecast 0 detailed, 1 simple, 2 off.
+# Option -> (field of gPlaySt.config, the game's default, allowed values), in the order and with the choices of the
+# game's Configuration menu (gGameOptionsUiOrder, gGameOptions in src/uiconfig.c). Animation: 0 "1" without
+# backgrounds, 3 "2" with backgrounds, 1 off, 2 solo (PLAY_ANIMCONF_x); unit window: 0 panel, 1 burst, 2 off; combat
+# window: 0 strategic, 1 detailed, 2 off; window color: the four colors; the others 0 on, 1 off (text speed 0 slow,
+# 1 normal, 2 fast, 3 max; game speed 0 normal, 1 fast).
 DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
-    "animation": ("animationType", 0, (0, 1, 2)),
-    "textSpeed": ("textSpeed", 1, (0, 1, 2, 3)),
+    "animation": ("animationType", 0, (0, 3, 1, 2)),
     "gameSpeed": ("gameSpeed", 0, (0, 1)),
-    "autoCursor": ("autoCursor", 0, (0, 1)),
-    "autoEndTurn": ("disableAutoEndTurns", 0, (0, 1)),
+    "textSpeed": ("textSpeed", 1, (0, 1, 2, 3)),
     "terrainWindow": ("disableTerrainDisplay", 0, (0, 1)),
     "unitWindow": ("unitDisplayType", 0, (0, 1, 2)),
     "battleForecast": ("battleForecastType", 0, (0, 1, 2)),
+    "objective": ("disableGoalDisplay", 0, (0, 1)),
+    "subtitleHelp": ("noSubtitleHelp", 0, (0, 1)),
+    "autoCursor": ("autoCursor", 0, (0, 1)),
+    "autoEndTurn": ("disableAutoEndTurns", 0, (0, 1)),
+    "music": ("disableBgm", 0, (0, 1)),
+    "soundEffects": ("disableSoundEffects", 0, (0, 1)),
+    "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
 SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp")
 
@@ -75,8 +81,10 @@ def with_defaults(source: str, options: dict) -> str:
     for key, (field, _game, _allowed) in DEFAULTS.items():
         if key in options:
             body, n = re.subn(rf"(gPlaySt\.config\.{field} = )\d+;", rf"\g<1>{int(options[key])};", body)
-            if n != 1:
+            if n != 1 and field != "disableGoalDisplay":   # the only one the game leaves at the 0 of the cleared state
                 raise TweakError(f"Option {field} not found in InitPlayConfig ({CONFIG_FILE})")
+            if n != 1:
+                body = f"{body[:-1]}    gPlaySt.config.{field} = {int(options[key])};\n}}"
     return source[:m.start()] + body + source[m.end():]
 
 

@@ -87,6 +87,9 @@ input, select, textarea {
   padding: 0.35em 0.5em;
   min-width: 0;
 }
+input[type='checkbox'], input[type='radio'] { flex: none; margin: 0; padding: 0; }
+/* a box and its text on one line (labels are columns by default) */
+label:has(> input[type='checkbox']), label:has(> input[type='radio']) { flex-direction: row; align-items: center; gap: 0.4em; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input.invalid { border-color: var(--bad); background: var(--bad-soft); }
 

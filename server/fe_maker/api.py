@@ -1080,7 +1080,8 @@ def class_animations(class_id: str):
             key = anim[4:]
             base, symbol = state.project.root / "assets" / ANIMATIONS_DIR / key, banim_import.symbol_of(key)
             return {"wtype": wtype, "item": item_id, "ref": f"new-{key}", "number": None,
-                    "name": imported[key].get("name", key), "imported": True, "modes": banim.modes_of(base, symbol)}
+                    "name": imported[key].get("name", key), "imported": True, "modes": banim.modes_of(base, symbol),
+                    "source": imported[key].get("source")}
         game = animations.get(anim) if isinstance(anim, int) else None
         if game is None:
             return None

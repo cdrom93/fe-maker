@@ -166,3 +166,7 @@ Les plus gros blocs, sur 1,1 Mo au total :
 - Décomp : FireEmblemUniverse contributors, https://github.com/FireEmblemUniverse/fireemblem8u (pas de licence constatée)
 - agbcc : pret contributors, https://github.com/pret/agbcc (GPL-2.0)
 - Format `.mar` des cartes : `scripts/mar_to_map.py` de la décomp, qui cite FEBuilderGBA (`MapEditorForm.cs`), https://github.com/FEBuilderGBA/FEBuilderGBA (GPL-3.0)
+
+## Portées d'armes
+
+`encodedRange` est libre, mais `GetItemReachBits` (cases rouges) et `GetItemDisplayRangeString` (« Rng ») ne connaissent que des paires fixes : 1, 1-2, 1-3, 2, 2-3, 3-10 ; les autres attaquent normalement, mais sans cases rouges et avec « -- » (ticket 59). Valeurs du menu Configuration : `animationType` 0 « 1 » sans décor, 3 « 2 » avec décor, 1 OFF, 2 Solo ; `battleForecastType` 0 Strat (simple), 1 Detail ; `disableGoalDisplay` n'est pas dans `InitPlayConfig` (reste à 0).

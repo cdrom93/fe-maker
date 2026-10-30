@@ -64,3 +64,10 @@ piège dans sa section.
 - Editors loaded asynchronously (chapters, maps) must read `nav.focus` once their list is loaded: `followFocus` alone misses a link that mounted the tab.
 - Show validation problems with `problemText(p)` (`ui/src/lib/i18n.svelte.ts`), not `t('problem.' + code)`: it turns `terrain`, `object` and `wtype` parameters into names.
 - Svelte `$derived` lists already hold a record right after `list.update` adds it: take its index before saving ("Add a change" opened nothing because of this).
+
+## Vus sur les tickets 59-63 (30/10/2026)
+
+- Svelte 5 : une prop `x={a.b}` n'est pas mémorisée : un `$effect` qui lit `x` repart dès que `a` change, même si `a.b` est identique (la bibliothèque d'animations se vidait). Passer par `$derived(x)`.
+- Planches FE-Repo indexées : le fond n'est pas toujours la couleur 0 (carré gris autour du sprite sélectionné) : prendre la transparence du PNG, sinon le pixel en haut à gauche.
+- Un `<img>` masqué par `onerror` le reste quand sa source change : une classe ajoutée demande son sprite avant d'être enregistrée ; utiliser l'id du modèle.
+- Heredoc du shell : `\n` dans un script Python écrit ainsi se perd : passer par l'outil Write.

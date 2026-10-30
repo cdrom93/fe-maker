@@ -35,3 +35,9 @@ def test_options_are_checked():
 def test_no_option_no_file(tmp_path):
     assert gameoptions.apply(tmp_path, {}, {}) == {}
     assert gameoptions.apply(tmp_path, {"textSpeed": 1}, {}) == {}   # the game's own default
+
+
+def test_the_goal_display_is_added_to_init_play_config():
+    # InitPlayConfig does not set it: the cleared state leaves it at 0
+    out = gameoptions.with_defaults(SOURCE, {"objective": 1})
+    assert "    gPlaySt.config.gameSpeed = 0;\n    gPlaySt.config.disableGoalDisplay = 1;\n}\n\nvoid Other" in out

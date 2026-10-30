@@ -64,6 +64,8 @@
   let localStand = $state<File | null>(null)
   let localWalk = $state<File | null>(null)
   const mySprite = $derived(cl ? imported.sprites[imported.classes[cl.id]] : undefined)
+  /** An added class has its model's sprites until it gets its own; it may not be saved yet. */
+  const spriteClass = (k: ClassView) => (imported.classes[k.id] ? k.id : (k.model ?? k.id))
 
   $effect(() => {
     api.getData<typeof imported>('mapsprites').then((d) => (imported = { classes: d.classes ?? {}, sprites: d.sprites ?? {} })).catch(() => {})
@@ -125,7 +127,7 @@
 <div class="editor">
   <RecordList records={classes} {selected} onselect={(i) => (selected = i)} secondary={(k) => !k.usedInGame} secondaryLabel={t('list.unusedClasses')} {problemIds}>
     {#snippet icon(k: ClassView)}
-      <span class="sprite"><img src={mapSpriteUrl(k.id, 'player', true)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
+      <span class="sprite"><img src={mapSpriteUrl(spriteClass(k), 'player', true)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
     {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
   </RecordList>
@@ -175,14 +177,14 @@
         <h3>{t('mapsprite.title')}</h3>
         <div class="sprite-row">
           {#each ['player', 'enemy', 'ally'] as side (side)}
-            <img class="big-sprite" src={mapSpriteUrl(cl.id, side)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+            <img class="big-sprite" src={mapSpriteUrl(spriteClass(cl), side)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
           {/each}
           <div class="sprite-info">
             {#if mySprite}
               <span class="small">{t('mapsprite.imported', { name: mySprite.name })}{mySprite.walk ? '' : ` · ${t('mapsprite.noWalk')}`}</span>
               <button class="link" disabled={spriteBusy} onclick={() => spriteChange(() => api.removeMapSprite(cl.id))}>{t('mapsprite.reset')}</button>
             {:else}
-              <span class="muted small">{t('mapsprite.game')}</span>
+              <span class="muted small">{cl.model ? t('mapsprite.model', { name: classes.find((k) => k.id === cl.model)?.name ?? cl.model }) : t('mapsprite.game')}</span>
             {/if}
             <span class="buttons">
               <button onclick={() => (browsing = !browsing)} disabled={spriteBusy}>{t('mapsprite.ferepo')}</button>

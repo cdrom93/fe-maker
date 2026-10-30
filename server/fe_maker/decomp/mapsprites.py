@@ -36,8 +36,9 @@ class MapSpriteError(Exception):
 
 
 def to_palette(data: bytes, palette: list[tuple[int, int, int]]) -> Image.Image:
-    """A sheet with the indices of `palette` (16 colors): color 0 stays transparent (index 0 of an indexed
-    picture, else transparent pixels or the color of the top left pixel), the others go to the nearest color."""
+    """A sheet with the indices of `palette` (16 colors): the background becomes color 0 (transparent pixels, else
+    the color of the top left pixel: FE-Repo's indexed sheets don't always keep it first, ticket 63), the others go
+    to the nearest color."""
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
@@ -48,6 +49,8 @@ def to_palette(data: bytes, palette: list[tuple[int, int, int]]) -> Image.Image:
         colors = [tuple(source[i * 3:i * 3 + 3]) for i in range(len(source) // 3)]
         pixels = list(img.tobytes())
         background = None
+        clear = img.info.get("transparency")
+        clear = clear if isinstance(clear, int) else pixels[0]
     else:
         rgba = img.convert("RGBA")
         raw = rgba.tobytes()
@@ -64,7 +67,7 @@ def to_palette(data: bytes, palette: list[tuple[int, int, int]]) -> Image.Image:
     out = []
     for p in pixels:
         if background is None:
-            transparent = p == 0
+            transparent = p == clear
             key = p
         else:
             transparent = p[3] < 128 or p == background

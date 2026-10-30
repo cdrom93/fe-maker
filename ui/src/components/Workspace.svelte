@@ -38,7 +38,7 @@
   })
   onDestroy(resetAppContext)
 
-  provideNavigator({
+  const navigator = {
     open(kind: NavKind, id: string | null = null) {
       tab = kind
       focus = { kind, id, n: (focus?.n ?? 0) + 1 }
@@ -46,7 +46,33 @@
     get focus() {
       return focus
     },
+  }
+  provideNavigator(navigator)
+
+  // "Back" (ticket 62): the places seen, a place being a tab and its record.
+  type Place = { tab: Tab; id: string }
+  let trail = $state<Place[]>([])
+  let here: Place = { tab: 'characters', id: '' }
+  let settle: ReturnType<typeof setTimeout> | undefined
+  $effect(() => {
+    const place = { tab, id: appContext.recordId }
+    clearTimeout(settle)
+    // A little later: a tab first shows its first record, then the one asked for.
+    settle = setTimeout(() => {
+      if (place.tab === here.tab && place.id === here.id) return
+      if (place.tab !== here.tab || here.id) trail = [...trail, here].slice(-50)
+      here = place
+    }, 150)
   })
+  onDestroy(() => clearTimeout(settle))
+
+  function back() {
+    const place = trail.at(-1)
+    if (!place) return
+    trail = trail.slice(0, -1)
+    here = place
+    navigator.open(place.tab, place.id || null)
+  }
 
   async function save(kind: DataKind, data: unknown) {
     problems = (await api.saveData(kind, data)).problems
@@ -168,6 +194,11 @@
   }
 
   function onKey(e: KeyboardEvent) {
+    if (e.altKey && e.key === 'ArrowLeft') {
+      e.preventDefault()
+      back()
+      return
+    }
     if (showKeys || !(e.ctrlKey || e.metaKey)) return
     const key = e.key.toLowerCase()
     if (key === 'z' && !e.shiftKey) {
@@ -188,6 +219,7 @@
     <span class="muted small">{saving ? t('ws.saving') : t('ws.saved')}</span>
   </div>
   <div class="row">
+    <button onclick={back} disabled={!trail.length} title={t('ws.backHint')}>← {t('ws.back')}</button>
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     <button onclick={() => active?.redo()} disabled={!active?.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>

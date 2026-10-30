@@ -67,7 +67,11 @@
   $effect(() => {
     const r = records[selected]
     appContext.record = r ? (r.name && r.name !== r.id ? `${r.name} (${r.id})` : r.id) : ''
-    return () => (appContext.record = '')
+    appContext.recordId = r?.id ?? ''
+    return () => {
+      appContext.record = ''
+      appContext.recordId = ''
+    }
   })
 </script>
 
