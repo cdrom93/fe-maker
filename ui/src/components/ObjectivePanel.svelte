@@ -95,7 +95,7 @@
     {#if objective.type === 'seize'}
       <div class="row">
         <span>{t('objective.tile')} : {#if tile}<strong>{tile.x}, {tile.y}</strong>{:else}<span class="bad">{t('objective.noTile')}</span>{/if}</span>
-        <button class:active={picking} onclick={() => (picking = !picking)}>🎯 {picking ? t('objective.picking') : t('objective.pick')}</button>
+        <button class:active={picking} onclick={() => (picking = !picking)}>{picking ? t('objective.picking') : t('objective.pick')}</button>
         <label class="inline">
           {t('objective.label')}
           <select value={objective.seizeLabel} onchange={(e) => onchange({ seizeLabel: (e.target as HTMLSelectElement).value as 'throne' | 'gate' })}>
@@ -109,7 +109,7 @@
     {:else if objective.type === 'area'}
       <div class="row">
         <span>{t('objective.area')} : {#if objective.area}<strong>{objective.area.x1}, {objective.area.y1} → {objective.area.x2}, {objective.area.y2}</strong>{:else}<span class="bad">{t('objective.noTile')}</span>{/if}</span>
-        <button class:active={picking} onclick={() => (picking = !picking)}>🎯 {picking ? t('objective.pickingArea') : t('objective.pickArea')}</button>
+        <button class:active={picking} onclick={() => (picking = !picking)}>{picking ? t('objective.pickingArea') : t('objective.pickArea')}</button>
         <label class="inline">
           {t('objective.areaWho')}
           <select value={objective.areaWho ?? ''} onchange={(e) => onchange({ areaWho: (e.target as HTMLSelectElement).value })}>
@@ -136,7 +136,7 @@
   {#if objective.editable}
     <div class="row">
       <label class="inline" title={t('objective.protectHint')}>
-        🛡 {t('objective.protect')}
+        {t('objective.protect')}
         <select value={objective.protect ?? ''} onchange={(e) => onchange({ protect: (e.target as HTMLSelectElement).value || null })}>
           <option value="">{t('field.none')}</option>
           {#if objective.protect && !protectChar}<option value={objective.protect}>{objective.protect}</option>{/if}

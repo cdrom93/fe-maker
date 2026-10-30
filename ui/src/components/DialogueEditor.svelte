@@ -540,7 +540,7 @@
             {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
           {/if}
           <div class="views" role="radiogroup" aria-label={t('dlg.view')}>
-            <button role="radio" aria-checked={view === 'talk'} class:active={view === 'talk'} onclick={() => setView('talk')} title={t('dlg.view.talkHint')}>💬 {t('dlg.view.talk')}</button>
+            <button role="radio" aria-checked={view === 'talk'} class:active={view === 'talk'} onclick={() => setView('talk')} title={t('dlg.view.talkHint')}>{t('dlg.view.talk')}</button>
             <button role="radio" aria-checked={view === 'steps'} class:active={view === 'steps'} onclick={() => setView('steps')} title={t('dlg.view.stepsHint')}>☰ {t('dlg.view.steps')}</button>
           </div>
         </div>
@@ -685,7 +685,7 @@
                   {@const auto = autoBoxes(s.text ?? '')}
                   {#if auto && font}
                     <p class="auto tiny">
-                      ✂ {t('dlg.autoLayout', { n: auto })}
+                      {t('dlg.autoLayout', { n: auto })}
                       <button class="link" onclick={() => editStep(i, { text: layout(s.text ?? '', font!, maxWidth) })}>{t('dlg.applyLayout')}</button>
                     </p>
                   {/if}

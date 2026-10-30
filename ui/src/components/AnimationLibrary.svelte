@@ -114,7 +114,7 @@
     <input bind:value={query} oninput={typed} placeholder={t('ferepo.search')} />
     <label class="small f2e"><input type="checkbox" bind:checked={f2eOnly} onchange={() => run()} /> {t('ferepo.f2eOnly')}</label>
     {#if initial && query !== initial}
-      <button class="link small" onclick={() => { query = initial; run() }}>🔎 {initial}</button>
+      <button class="link small" onclick={() => { query = initial; run() }}>{t('ferepo.suggest', { name: initial })}</button>
     {/if}
   </div>
   <div class="wfilter" role="group" aria-label={t('banim.weaponFilter')}>
@@ -130,7 +130,7 @@
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}
-  {#if loading && weaponFilter.length}<p class="muted small">⏳ {t('banim.weaponFilterHint')}</p>{/if}
+  {#if loading && weaponFilter.length}<p class="muted small">{t('banim.weaponFilterHint')}</p>{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}

@@ -72,7 +72,7 @@
     <button onclick={() => run(true)} disabled={loading} title={t('ferepo.refreshHint')}>⟳</button>
   </div>
   {#if initial && query !== initial}
-    <p class="small"><button class="link" onclick={suggest}>🔎 {t('ferepo.suggest', { name: initial })}</button></p>
+    <p class="small"><button class="link" onclick={suggest}>{t('ferepo.suggest', { name: initial })}</button></p>
   {/if}
   <p class="muted tiny">
     {t('ferepo.hint')}

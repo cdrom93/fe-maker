@@ -51,11 +51,11 @@
   <div class="row">
     <label class="pick">
       <input type="file" webkitdirectory multiple onchange={chosen} />
-      <span>📁 {t('banim.local.folder')}</span>
+      <span>{t('banim.local.folder')}</span>
     </label>
     <label class="pick">
       <input type="file" accept=".zip" onchange={chosen} />
-      <span>🗜 {t('banim.local.zip')}</span>
+      <span>{t('banim.local.zip')}</span>
     </label>
     {#if files.length}<span class="small">{t('banim.local.files', { n: files.length })}</span>{/if}
   </div>

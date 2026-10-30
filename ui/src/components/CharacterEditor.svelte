@@ -108,9 +108,9 @@
               </select>
             </label>
           </div>
-          <p class="small"><Mention kind="dialogues" id="supports">💞 {t('field.supportsLink')}</Mention></p>
+          <p class="small"><Mention kind="dialogues" id="supports">{t('field.supportsLink')}</Mention></p>
           <details class="portrait-details">
-            <summary>🖼 {ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
+            <summary>{ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
               ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })
               : t('portrait.title', { id: ch.portraitId })}</summary>
             <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} characterName={ch.name} onnew={(id, name) => {

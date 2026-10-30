@@ -63,7 +63,7 @@
             <label class="ability">
               <input type="checkbox" checked={seize.on} onchange={(e) => seize.onchange((e.target as HTMLInputElement).checked)} />
               <span>
-                <span class="name">🚩 {t('field.canSeize')}</span>
+                <span class="name">{t('field.canSeize')}</span>
                 <span class="muted desc">{t('field.canSeizeHint')}</span>
               </span>
             </label>
@@ -72,7 +72,7 @@
             <label class="ability">
               <input type="checkbox" checked={convoy.on} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />
               <span>
-                <span class="name">📦 {t('field.convoyAccess')}</span>
+                <span class="name">{t('field.convoyAccess')}</span>
                 <span class="muted desc">{t('field.convoyAccessHint')}</span>
               </span>
             </label>

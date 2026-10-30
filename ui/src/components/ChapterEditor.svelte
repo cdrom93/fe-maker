@@ -392,17 +392,17 @@
         <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span></h2>
         <p class="muted small">
           {t('chapter.editHint')}
-          {#if chapter.map}<Mention kind="maps" id={chapter.map}>🗺 {t('chapter.editMap')}</Mention>{/if}
-          <Mention kind="dialogues" id={String(chapter.index)}>💬 {t('chapter.editDialogues')}</Mention>
+          {#if chapter.map}<Mention kind="maps" id={chapter.map}>{t('chapter.editMap')}</Mention>{/if}
+          <Mention kind="dialogues" id={String(chapter.index)}>{t('chapter.editDialogues')}</Mention>
         </p>
         <label class="check small convoy" title={t('chapter.convoyHint')}>
           <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
-          📦 {t('chapter.convoy')}
+          {t('chapter.convoy')}
           {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
         </label>
         <label class="check small convoy" title={t('chapter.fogHint')}>
           <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
-          🌫 {t('chapter.fog')}
+          {t('chapter.fog')}
           {#if fog > 0}
             <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
               {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}

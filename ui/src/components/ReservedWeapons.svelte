@@ -20,7 +20,7 @@
 
 {#if direct.length || viaClass.length}
   <div class="reserved">
-    <span class="muted">🔒 {t('reserve.reminder')}</span>
+    <span class="muted">{t('reserve.reminder')}</span>
     {#each direct as i (i.id)}
       <Mention kind="items" id={i.id}><img class="pixel" src={itemIconUrl(i.iconId)} alt="" />{i.name}</Mention>
     {/each}

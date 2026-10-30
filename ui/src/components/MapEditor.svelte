@@ -1154,7 +1154,7 @@
             <span class="small">{t('maps.tiled')}</span>
             <button onclick={openInTiled} title={t('maps.tiledOpenHint')}>↗ {t('maps.tiledOpen')}</button>
             <button onclick={reloadFromTiled} title={t('maps.tiledReloadHint')}>↙ {t('maps.tiledReload')}</button>
-            <button onclick={() => tmxInput?.click()} title={t('maps.tmxImportHint')}>📂 {t('maps.tmxImport')}</button>
+            <button onclick={() => tmxInput?.click()} title={t('maps.tmxImportHint')}>{t('maps.tmxImport')}</button>
             <input type="file" accept=".tmx" hidden bind:this={tmxInput} onchange={(e) => importTmx((e.target as HTMLInputElement).files?.[0])} />
           </div>
           {#if tiledInfo?.id === info.id}
@@ -1367,7 +1367,7 @@
             {/if}
             {#if pieces.length}
               <details class="pieces-panel">
-                <summary class="small">🏘 {t('maps.pieces', { n: pieces.length })}</summary>
+                <summary class="small">{t('maps.pieces', { n: pieces.length })}</summary>
                 <div class="pieces">
                   {#each pieces as piece, k (k)}
                     <button class="piece" class:active={stamp === piece.rows} title={t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') })}

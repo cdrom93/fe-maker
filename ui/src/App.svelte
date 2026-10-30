@@ -61,7 +61,7 @@
   </div>
   <div class="tools">
     <button class="ticket" title={t('ticket.buttonTitle')} aria-pressed={showTickets} class:active={showTickets} onclick={() => toggleTickets()}>
-      🎫 {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
+      {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
     </button>
   <div class="lang" role="group" aria-label={t('app.language')}>
     {#each LANGUAGES as l (l.code)}

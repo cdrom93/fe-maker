@@ -208,7 +208,7 @@
       </span>
     {/if}
     <button class="play" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
-    <button onclick={() => (showKeys = true)}>🎮 {t('keys.title')}</button>
+    <button onclick={() => (showKeys = true)}>{t('keys.title')}</button>
     <button onclick={close}>{t('ws.close')}</button>
   </div>
 </div>

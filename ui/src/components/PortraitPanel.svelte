@@ -169,9 +169,9 @@
     {/if}
     {#if info?.sharedWith.length}<p class="muted small">{t('portrait.shared', { ids: info.sharedWith.join(', ') })}</p>{/if}
     <div class="buttons">
-      <button onclick={() => fileInput?.click()} disabled={busy}>🖼 {t('portrait.import')}</button>
-      <button onclick={() => (browsing = browsing === 'replace' ? null : 'replace')} class:active={browsing === 'replace'}>🔎 {t('ferepo.open')}</button>
-      <button onclick={download}>⬇ {t('portrait.download')}</button>
+      <button onclick={() => fileInput?.click()} disabled={busy}>{t('portrait.import')}</button>
+      <button onclick={() => (browsing = browsing === 'replace' ? null : 'replace')} class:active={browsing === 'replace'}>{t('ferepo.open')}</button>
+      <button onclick={download}>{t('portrait.download')}</button>
       {#if info?.added}
         <button class="link" onclick={remove} disabled={busy} title={t('portrait.deleteHint')}>{t('portrait.delete')}</button>
       {:else if imported}
@@ -181,11 +181,11 @@
     <input type="file" accept="image/png" hidden bind:this={fileInput} onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
     {#if onnew && info && !info.added}
       <div class="new">
-        <span class="small"><strong>➕ {t('portrait.new')}</strong></span>
+        <span class="small"><strong>{t('portrait.new')}</strong></span>
         <span class="muted tiny">{t('portrait.newHint')}</span>
         <div class="buttons">
-          <button onclick={() => newInput?.click()} disabled={busy}>🖼 {t('portrait.newFile')}</button>
-          <button onclick={() => (browsing = browsing === 'new' ? null : 'new')} class:active={browsing === 'new'}>🔎 {t('portrait.newFeRepo')}</button>
+          <button onclick={() => newInput?.click()} disabled={busy}>{t('portrait.newFile')}</button>
+          <button onclick={() => (browsing = browsing === 'new' ? null : 'new')} class:active={browsing === 'new'}>{t('portrait.newFeRepo')}</button>
         </div>
         <input type="file" accept="image/png" hidden bind:this={newInput} onchange={(e) => addFile((e.target as HTMLInputElement).files?.[0])} />
       </div>

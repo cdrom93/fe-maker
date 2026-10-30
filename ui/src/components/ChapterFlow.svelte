@@ -265,14 +265,14 @@
             <button class="card" class:active={selected === n} class:end={n === END} style="left: {p.x}px; top: {p.y}px; width: {NODE_W}px; height: {n === END ? 56 : NODE_H}px"
                     aria-pressed={selected === n} onclick={() => (selected = n)}>
               {#if n === END}
-                <span class="card-title">🏁 {title(n)}</span>
+                <span class="card-title">{title(n)}</span>
               {:else}
                 <span class="thumb"><img class="pixel" src={chapterMapUrl(n)} alt="" loading="lazy" /></span>
                 <span class="card-num">{t('flow.chapterNumber', { n })}</span>
                 <span class="card-title">{title(n)}</span>
                 {#if cards[n]}
                   <span class="card-sum">
-                    {#if cards[n].objective}<span class="card-goal">🚩 {t(`objective.type.${cards[n].objective!.type}`)}</span>{/if}
+                    {#if cards[n].objective}<span class="card-goal">{t(`objective.type.${cards[n].objective!.type}`)}</span>{/if}
                     <span class="mini ally" title={t('flow.allies', { n: cards[n].allies })}>{cards[n].allies}</span>
                     <span class="mini enemy" title={t('flow.enemies', { n: cards[n].enemies })}>{cards[n].enemies}</span>
                   </span>
@@ -292,7 +292,7 @@
           <p class="muted tiny">{t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })}</p>
           {@render todo()}
         {:else}
-          <p class="muted small">✅ {t('flow.todoNone')}</p>
+          <p class="muted small">{t('flow.todoNone')}</p>
         {/if}
       </div>
     {/if}
@@ -317,7 +317,7 @@
         <div class="sheet-block">
           <h4>{t('flow.objective')}</h4>
           <div class="goal">
-            🚩 {sheet.objective ? t(`objective.type.${sheet.objective.type}`) : '…'}{sheet.objective?.type === 'defense' ? ` · ${t('flow.turns', { n: sheet.objective.turns })}` : ''}
+            {sheet.objective ? t(`objective.type.${sheet.objective.type}`) : '…'}{sheet.objective?.type === 'defense' ? ` · ${t('flow.turns', { n: sheet.objective.turns })}` : ''}
           </div>
           <div class="chips">
             <span class="chip ally">{t('flow.allies', { n: sheet.allies })}</span>
@@ -336,7 +336,7 @@
       <div class="sheet-buttons">
         <button class="play big" onclick={() => selected !== null && ontest(selected)} title={t('flow.testHint')}>▶ {t('flow.test')}</button>
         <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
-        {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">🗺 {t('flow.openMap')}</span></Mention>{/if}
+        {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">{t('flow.openMap')}</span></Mention>{/if}
       </div>
       <h4>{t('flow.next')}</h4>
       {#if !mine.length}<p class="muted small">{t('flow.noNext')}</p>{/if}

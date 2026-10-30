@@ -192,12 +192,12 @@
 
 <div class="script">
   <div class="head">
-    <h3>⚙ {t('ev.title', { name })}</h3>
+    <h3>{t('ev.title', { name })}</h3>
     {#if edited}<button class="link" onclick={resetScript}>{t('ev.reset')}</button>{/if}
   </div>
   {#if sceneKind === 'beginning' || sceneKind === 'ending'}
     <p class="simple">
-      <button onclick={simpleScene}>✨ {t('ev.simple')}</button>
+      <button onclick={simpleScene}>{t('ev.simple')}</button>
       <span class="tiny muted">{t(sceneKind === 'ending' ? 'ev.simpleEndingHint' : 'ev.simpleHint')}</span>
     </p>
   {/if}

@@ -171,7 +171,7 @@
             {#each PALETTES as p, i (p)}<option value={i}>{t(`banim.palette.${p}`)}</option>{/each}
           </select>
         </label>
-        <button onclick={() => (playing = !playing)}>{playing ? `⏸ ${t('banim.pause')}` : `▶ ${t('banim.play')}`}</button>
+        <button onclick={() => (playing = !playing)}>{playing ? t('banim.pause') : t('banim.play')}</button>
       </div>
     </div>
     {#if anim?.changed}
@@ -183,8 +183,8 @@
     {/if}
     <p class="muted small">{t('banim.hint')}</p>
     <div class="sources">
-      <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>📚 {t('banim.lib.title')}</button>
-      <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>💻 {t('banim.local.title')}</button>
+      <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>{t('banim.lib.title')}</button>
+      <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>{t('banim.local.title')}</button>
     </div>
     {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={changed} />{/if}
     {#if showLocal}<LocalAnimationImport {classId} {wtypes} onimported={changed} />{/if}

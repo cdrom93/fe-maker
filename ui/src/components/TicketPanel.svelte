@@ -111,7 +111,7 @@
 
 <aside class="side" bind:this={panel} aria-labelledby="ticket-title">
   <div class="head">
-    <h2 id="ticket-title">🎫 {t('ticket.title')}</h2>
+    <h2 id="ticket-title">{t('ticket.title')}</h2>
     <button class="ghost" aria-label={t('build.close')} title={t('build.close')} onclick={onClose}>✕</button>
   </div>
 
