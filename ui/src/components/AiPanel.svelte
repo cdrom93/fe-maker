@@ -22,7 +22,7 @@
 </script>
 
 <h3>{t('ai.title')}</h3>
-{#if side === 'player'}<p class="muted small">{t('ai.playerHint')}</p>{/if}
+{#if side === 'player'}<p class="muted small help">{t('ai.playerHint')}</p>{/if}
 {#if bytes}
   <label>
     <span>{t('ai.preset')}</span>

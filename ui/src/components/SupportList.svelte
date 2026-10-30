@@ -131,7 +131,7 @@
   const tooMany = $derived(problems.filter((pr) => pr.kind === 'dialogues' && pr.code === 'supportTooMany'))
 </script>
 
-<p class="muted small">{t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })}</p>
+<p class="muted small help">{t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })}</p>
 {#each tooMany as pr (pr.id)}
   <p class="bad small"><Mention kind="characters" id={pr.id.replace('support:', '')}>{charName(pr.id.replace('support:', ''))}</Mention> — {problemText(pr)}</p>
 {/each}

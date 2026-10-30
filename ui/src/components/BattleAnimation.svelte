@@ -191,7 +191,7 @@
         {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
       </p>
     {/if}
-    <p class="muted small">{t('banim.hint')}</p>
+    <p class="muted small help">{t('banim.hint')}</p>
     <div class="sources">
       <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>{t('banim.lib.title')}</button>
       <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>{t('banim.local.title')}</button>

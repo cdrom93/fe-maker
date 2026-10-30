@@ -372,20 +372,20 @@
     <div class="head">
       <div>
         <h2>{t('flow.title')}</h2>
-        <p class="muted small">{t('flow.hint')}</p>
+        <p class="muted small help">{t('flow.hint')}</p>
       </div>
       <label class="switch-row">
         <input type="checkbox" checked={worldMap} onchange={(e) => setWorldMap((e.target as HTMLInputElement).checked)} />
-        <span><strong>{t('flow.worldMapOption')}</strong><br /><span class="tiny">{worldMap ? t('flow.worldMapOn') : t('flow.worldMapOff')}</span></span>
+        <span><strong>{t('flow.worldMapOption')}</strong><br /><span class="tiny help">{worldMap ? t('flow.worldMapOn') : t('flow.worldMapOff')}</span></span>
       </label>
     </div>
-    <div class="legend small">
+    <div class="legend small help">
       {#if worldMap}<span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge worldMap" /></svg> {t('flow.kind.worldMap')}</span>{/if}
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge direct" /></svg> {t('flow.kind.direct')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge noSave" /></svg> {t('flow.kind.noSave')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge other" /></svg> {t('flow.otherScript')}</span>
     </div>
-    <p class="muted tiny zoom-hint">{t('flow.zoomHint')} <button class="link" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)} %</button></p>
+    <p class="muted tiny zoom-hint"><span class="help">{t('flow.zoomHint')}</span> <button class="link" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)} %</button></p>
     <div class="graph-scroll" bind:this={scroller} role="presentation" onpointerdown={startDrag} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag}>
       {#if chapters.length}
         <div style="width: {(graph.width + NODE_W / 2) * zoom}px; height: {(graph.height + NODE_H) * zoom}px">
@@ -432,7 +432,7 @@
       <div class="todo">
         <h4>{t('flow.todo')}</h4>
         {#if todoCount.errors || todoCount.warnings}
-          <p class="muted tiny">{t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })}</p>
+          <p class="muted tiny help">{t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })}</p>
           {@render todo()}
         {:else}
           <p class="muted small">{t('flow.todoNone')}</p>
@@ -442,7 +442,7 @@
     {#if graph.unreached.length}
       <details class="unreached">
         <summary class="small">{t('flow.unreached', { n: graph.unreached.length })}</summary>
-        <p class="muted tiny">{t('flow.unreachedHint')}</p>
+        <p class="muted tiny help">{t('flow.unreachedHint')}</p>
         <div class="chips">
           {#each graph.unreached as n (n)}<button class:active={selected === n} onclick={() => (selected = n)}>{title(n)}</button>{/each}
         </div>
@@ -459,6 +459,12 @@
         <input value={chapters[selected].title} maxlength="40" title={t('flow.renameHint')} onchange={(e) => rename((e.target as HTMLInputElement).value)} />
       </label>
       <img class="pixel detail-map" src={chapterMapUrl(selected)} alt="" />
+      <ol class="work">
+        {#if chapters[selected].map}<li><Mention kind="maps" id={chapters[selected].map}>{t('flow.step.map')}</Mention></li>{/if}
+        <li><Mention kind="chapters" id={String(selected)}>{t('flow.step.units')}</Mention></li>
+        <li><Mention kind="dialogues" id={String(selected)}>{t('flow.step.dialogues')}</Mention></li>
+        <li><button class="play" onclick={() => selected !== null && ontest(selected)} title={t('flow.testHint')}>▶ {t('flow.test')}</button></li>
+      </ol>
       {#if sheet?.index === selected}
         <div class="sheet-block">
           <h4>{t('flow.objective')}</h4>
@@ -479,11 +485,6 @@
           </div>
         {/if}
       {/if}
-      <div class="sheet-buttons">
-        <button class="play big" onclick={() => selected !== null && ontest(selected)} title={t('flow.testHint')}>▶ {t('flow.test')}</button>
-        <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
-        {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">{t('flow.openMap')}</span></Mention>{/if}
-      </div>
       <div class="music">
         <h4>{t('flow.music.title')}</h4>
         {#if music.bluePhase}
@@ -562,7 +563,7 @@
           <li><button class="link-button" onclick={() => (selected = i.from)}>{title(i.from)}</button> <span class="muted tiny">{t(`flow.kind.${i.link.kind}`)}{i.link.ending ? '' : ` · ${i.link.script}`}</span></li>
         {/each}
       </ul>
-      <p class="muted tiny">{t('flow.editHint')}</p>
+      <p class="muted tiny help">{t('flow.editHint')}</p>
     </section>
   {/if}
 </div>
@@ -593,6 +594,7 @@
   .switch-row input { width: 1.2rem; height: 1.2rem; flex: none; }
   .graph { position: relative; transform-origin: 0 0; }
   .zoom-hint { margin: 0.2rem 0; }
+  .work { margin: 0.6rem 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; font-weight: 700; }
   .graph svg { position: absolute; inset: 0; }
   .card { position: absolute; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; text-align: left; border: 3px solid var(--border); border-radius: var(--radius-big); background: var(--panel); overflow: hidden; }
   .card:hover:not(.active) { border-color: var(--accent); }
@@ -618,7 +620,6 @@
   .chip.enemy { background: var(--bad-soft); color: var(--bad); }
   .scene { display: block; padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; font-size: 0.85rem; }
   .sheet-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.8rem; }
-  button.big { min-height: 40px; padding: 0 1rem; font-size: 0.95rem; }
   .big-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 0.9rem; border-radius: var(--radius); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; }
   .detail-map { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; background: var(--panel-2); margin-bottom: 0.5rem; }
   .unreached { margin-top: 0.5rem; }

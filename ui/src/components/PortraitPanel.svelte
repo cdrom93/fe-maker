@@ -182,7 +182,7 @@
       <label class="small name">{t('portrait.name')}
         <input value={info.name} maxlength="40" onchange={(e) => rename((e.target as HTMLInputElement).value)} />
       </label>
-      <p class="muted tiny">{t('portrait.addedHint', { id: portraitId })}</p>
+      <p class="muted tiny help">{t('portrait.addedHint', { id: portraitId })}</p>
     {:else}
       <p class="small">
         {#if imported}<strong>{t('portrait.imported')}</strong>{:else}{t('portrait.game', { name: info?.name ?? '' })}{/if}
@@ -215,7 +215,7 @@
         <NumberField label={t('portrait.eyesY')} value={imported.eyes[1]} min={0} max={8} compact onchange={(v) => move('eyes', 1, v)} />
       </div>
     {/if}
-    <p class="muted tiny">{t('portrait.hint')}</p>
+    <p class="muted tiny help">{t('portrait.hint')}</p>
     {#if error}<p class="bad small">{error}</p>{/if}
     {#each myProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
   </div>

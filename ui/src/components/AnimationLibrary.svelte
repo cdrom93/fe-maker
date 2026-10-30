@@ -143,7 +143,7 @@
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}
-  {#if loading && weaponFilter.length}<p class="muted small">{t('banim.weaponFilterHint')}</p>{/if}
+  {#if loading && weaponFilter.length}<p class="muted small help">{t('banim.weaponFilterHint')}</p>{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}
@@ -190,7 +190,7 @@
         {/if}
         <p class="small">{t('banim.lib.authors')} : {picked.authors.join(', ') || t('banim.lib.seeCredits')} · {picked.license}</p>
         <a class="small" href={picked.url} target="_blank" rel="noreferrer">{t('banim.lib.open')} ↗</a>
-        <p class="muted tiny">{t('banim.import.hint')}</p>
+        <p class="muted tiny help">{t('banim.import.hint')}</p>
       {:else}
         <p class="muted small">{t('banim.lib.pick')}</p>
       {/if}

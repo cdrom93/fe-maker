@@ -47,7 +47,7 @@
 </script>
 
 <div class="local">
-  <p class="muted small">{t('banim.local.hint')}</p>
+  <p class="muted small help">{t('banim.local.hint')}</p>
   <div class="row">
     <label class="pick">
       <input type="file" webkitdirectory multiple onchange={chosen} />

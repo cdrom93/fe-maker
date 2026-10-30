@@ -1107,12 +1107,14 @@
           {#each info.chapters as c, k (c)}{#if k}, {/if}<Mention kind="chapters" id={String(c)}>{chapterTitle(c)}</Mention>{/each}
           {#if info.chapters.length > 1}<span class="warn"> — {t('maps.shared', { n: info.chapters.length })}</span>{/if}
         </p>
-        <p class="muted small">{t('maps.hint')}</p>
+        <p class="muted small help">{t('maps.hint')}</p>
+        <details class="map-settings" open={!!sizeProblem}>
+          <summary class="small">{t('maps.settings')}</summary>
         {#if layout}
           <div class="size">
             <NumberField label={t('maps.width')} value={width} min={MIN_WIDTH} max={MAX_SIDE} compact onchange={(v) => resize(v, height)} />
             <NumberField label={t('maps.height')} value={height} min={MIN_HEIGHT} max={MAX_SIDE} compact onchange={(v) => resize(width, v)} />
-            <span class="muted small">{t('maps.sizeHint')}</span>
+            <span class="muted small help">{t('maps.sizeHint')}</span>
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
           <details class="bases-panel">
@@ -1129,7 +1131,7 @@
                 </button>
               {/each}
             </div>
-            <p class="muted tiny">{t('maps.baseHint')}</p>
+            <p class="muted tiny help">{t('maps.baseHint')}</p>
           </details>
           {#if baseMissing.length}
             <p class="warn small">{t('maps.baseMissing', { terrains: baseMissing.map((m) => layout!.terrainNames[m] || `#${m}`).join(', ') })}</p>
@@ -1162,6 +1164,7 @@
           {/if}
           {#if tiledError}<p class="bad small">{tiledError}</p>{/if}
         {/if}
+        </details>
         {#if painted || changesEdited || objectsEdited || paletteEdited || chosenBase}
           <p class="small">
             <span class="edited">✎</span>
@@ -1344,7 +1347,7 @@
                 {#if pendingNudge}<span class="warn small">{t('maps.pendingNudge')}</span>{/if}
               </div>
             {/if}
-            {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny">{t('maps.transformHint')}</p>{/if}
+            {#if transformError}<p class="bad small">{transformError}</p>{:else}<p class="muted tiny help">{t('maps.transformHint')}</p>{/if}
             {#if addedSlots.length}
               {@const unused = addedSlots.filter((k) => !addedUsage.has(k))}
               <details class="added-tiles">
@@ -1361,7 +1364,7 @@
                     </div>
                   {/each}
                 </div>
-                <p class="muted tiny">{t('maps.addedTilesHint')}</p>
+                <p class="muted tiny help">{t('maps.addedTilesHint')}</p>
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
@@ -1377,7 +1380,7 @@
                     </button>
                   {/each}
                 </div>
-                <p class="muted tiny">{t('maps.piecesHint')}</p>
+                <p class="muted tiny help">{t('maps.piecesHint')}</p>
               </details>
             {/if}
             <label>
@@ -1407,7 +1410,7 @@
 {#snippet objectsPanel()}
   <div class="objects">
     <h3>{t('maps.objects', { n: objects.length })}</h3>
-    <p class="muted small">{t('maps.objectsHint')}</p>
+    <p class="muted small help">{t('maps.objectsHint')}</p>
     {#if objectsInfo && !objectsInfo.hasChangeLayer && objects.some((o) => o.new && CHANGE_KINDS.includes(o.kind))}
       <p class="warn small">{t('maps.obj.noChangeLayer')}</p>
     {/if}
@@ -1517,7 +1520,7 @@
                 <span>{t('maps.obj.text')}</span>
                 <textarea rows="3" value={st.text ?? ''} onchange={(e) => setObject(o, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
               </label>
-              <p class="muted tiny">{t('maps.obj.textHint')}</p>
+              <p class="muted tiny help">{t('maps.obj.textHint')}</p>
               {#each mapProblems.filter((p) => p.field === 'objects' && p.params.at === keyOf(o)) as pr, i (i)}<p class="bad small">{problemText(pr)}</p>{/each}
             {/if}
           {/if}
@@ -1531,6 +1534,7 @@
 {/snippet}
 
 <style>
+  .map-settings summary { cursor: pointer; font-weight: 700; margin-bottom: 0.4rem; }
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .id { font-size: 0.75rem; margin-left: 0.3rem; }

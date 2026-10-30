@@ -410,26 +410,7 @@
     <div class="detail">
       <section class="panel">
         <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span></h2>
-        <p class="muted small">
-          {t('chapter.editHint')}
-          {#if chapter.map}<Mention kind="maps" id={chapter.map}>{t('chapter.editMap')}</Mention>{/if}
-          <Mention kind="dialogues" id={String(chapter.index)}>{t('chapter.editDialogues')}</Mention>
-        </p>
-        <label class="check small convoy" title={t('chapter.convoyHint')}>
-          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
-          {t('chapter.convoy')}
-          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-        <label class="check small convoy" title={t('chapter.fogHint')}>
-          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
-          {t('chapter.fog')}
-          {#if fog > 0}
-            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
-              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
-            </select>
-          {/if}
-          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
+        <p class="muted small help">{t('chapter.editHint')}</p>
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
@@ -450,7 +431,7 @@
           {#if cutsceneGroups.length}
             <details class="cutscenes" bind:open={showCutscenes}>
               <summary>{t('chapter.cutsceneGroups', { n: cutsceneGroups.length })}</summary>
-              <p class="muted small">{t('chapter.cutsceneHint')}</p>
+              <p class="muted small help">{t('chapter.cutsceneHint')}</p>
               <div class="groups">
                 {#each cutsceneGroups as g (g.name)}{@render groupChip(g)}{/each}
               </div>
@@ -470,7 +451,7 @@
                   </label>
                   <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeReinforcements')}</button>
                 </div>
-                <p class="muted small">{t('chapter.newGroupHint')}</p>
+                <p class="muted small help">{t('chapter.newGroupHint')}</p>
               {/if}
               {#if !cutsceneGroups.some((g) => g.name === og) && unitsOf(og).length}
                 <button class="dup" title={t('chapter.duplicateGroupHint')} onclick={() => duplicateGroup(og)}>⧉ {t('chapter.duplicateGroup')}</button>
@@ -502,11 +483,6 @@
           {#each problems.filter((pr) => pr.kind === 'chapters' && groups.some((g) => pr.id === `${g.name}#`)) as pr, i (i)}
             <p class="bad small">{pr.id.replace('UnitDef_Event_', '').replace('#', '')} : {problemText(pr)}</p>
           {/each}
-        {/if}
-        {#if objective}
-          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
-            battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
-            originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
         {/if}
       </section>
 
@@ -640,6 +616,29 @@
           {/if}
         </section>
       </div>
+
+      <section class="panel">
+        {#if objective}
+          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
+            battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
+            originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
+        {/if}
+        <label class="check small convoy" title={t('chapter.convoyHint')}>
+          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
+          {t('chapter.convoy')}
+          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+        <label class="check small convoy" title={t('chapter.fogHint')}>
+          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
+          {t('chapter.fog')}
+          {#if fog > 0}
+            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
+            </select>
+          {/if}
+          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+      </section>
     </div>
   {/if}
 </div>

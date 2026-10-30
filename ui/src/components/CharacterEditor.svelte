@@ -119,7 +119,7 @@
             </span>
           </label>
           {#each mine.filter((p) => p.field === 'class') as p, i (i)}<p class="{p.severity} small">{problemText(p)}</p>{/each}
-          <p class="muted small">{t('field.classHint')}</p>
+          <p class="muted small help">{t('field.classHint')}</p>
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
@@ -154,7 +154,7 @@
 
       <section class="panel">
         <h3>{t('field.preview')}</h3>
-        <p class="muted small">{t('field.basesHint')}</p>
+        <p class="muted small help">{t('field.basesHint')}</p>
         <div class="table-wrap">
           <table>
             <thead>
@@ -190,17 +190,17 @@
         </div>
       </section>
 
-      <section class="panel">
-        <h3>{t('field.growths')}</h3>
+      <details class="panel fold">
+        <summary>{t('field.growths')}</summary>
         <div class="grid">
           {#each GROWTHS as s (s)}
             <NumberField label={t(`stat.${s}`)} value={ch.growths[s]} min={0} max={255} problem={problemFor(`growths.${s}`)} onchange={(v) => edit((c) => (c.growths[s] = v))} />
           {/each}
         </div>
-      </section>
+      </details>
 
-      <section class="panel">
-        <h3>{t('field.weaponRanks')}</h3>
+      <details class="panel fold">
+        <summary>{t('field.weaponRanks')}</summary>
         <div class="grid">
           {#each reference.rankableTypes as w (w)}
             <label title={problemFor(`weaponRanks.${w}`)}>
@@ -212,9 +212,11 @@
             </label>
           {/each}
         </div>
-        <p class="muted small">{t('field.noAnimationHint')} {t('field.inventoryLater')}</p>
-      </section>
+        <p class="muted small help">{t('field.noAnimationHint')} {t('field.inventoryLater')}</p>
+      </details>
 
+      <details class="panel fold">
+        <summary>{t('field.abilities')}</summary>
       <AbilitiesPanel
         abilities={ch.abilities ?? []}
         fromClass={cls?.abilities ?? []}
@@ -222,6 +224,7 @@
         convoy={{ on: ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.convoyAccess = on)) }}
         seize={{ on: ch.canSeize ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.canSeize = on)) }}
       />
+      </details>
 
       {#if isNew(ch.id)}
         <p class="small"><button class="link" onclick={removeCharacter}>{t('character.remove')}</button></p>

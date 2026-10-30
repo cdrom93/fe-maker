@@ -90,6 +90,9 @@ input, select, textarea {
 input[type='checkbox'], input[type='radio'] { flex: none; margin: 0; padding: 0; }
 /* a box and its text on one line (labels are columns by default) */
 label:has(> input[type='checkbox']), label:has(> input[type='radio']) { flex-direction: row; align-items: center; gap: 0.4em; }
+body:not(.show-help) .help { display: none; }
+details.fold > summary { cursor: pointer; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+details.fold[open] > summary { margin-bottom: 0.6rem; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input.invalid { border-color: var(--bad); background: var(--bad-soft); }
 

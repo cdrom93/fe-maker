@@ -1918,5 +1918,17 @@ def ticket_image(name: str):
 
 # FE_MAKER_UI_DIST: another build of the interface (a second dev server beside the user's one)
 UI_DIST = Path(os.environ.get("FE_MAKER_UI_DIST") or REPO_ROOT / "ui" / "dist")
+
+
+class _UiFiles(StaticFiles):
+    """The page is asked again each time: after an update, a browser would keep showing the old interface."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if path in (".", "index.html"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 if UI_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=UI_DIST, html=True), name="ui")
+    app.mount("/", _UiFiles(directory=UI_DIST, html=True), name="ui")

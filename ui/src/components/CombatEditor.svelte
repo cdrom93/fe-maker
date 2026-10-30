@@ -77,14 +77,14 @@
   <div class="combat">
     <section class="panel">
       <h3>{t('combat.triangle')}</h3>
-      <p class="muted small">{t('combat.triangleVisualHint')}</p>
+      <p class="muted small help">{t('combat.triangleVisualHint')}</p>
       <div class="triangles">
         <TriangleDiagram title={t('combat.weapons')} types={toTypes(PHYSICAL)} {advantage} onchange={setAdvantage} />
         <TriangleDiagram title={t('combat.magic')} types={toTypes(MAGIC)} {advantage} onchange={setAdvantage} />
       </div>
       <details class="advanced">
       <summary>{t('combat.allRules')}</summary>
-      <p class="muted small">{t('combat.triangleHint')}</p>
+      <p class="muted small help">{t('combat.triangleHint')}</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -117,7 +117,7 @@
 
     <section class="panel">
       <h3>{t('combat.effectiveness')}</h3>
-      <p class="muted small">{t('combat.effectivenessHint')}</p>
+      <p class="muted small help">{t('combat.effectivenessHint')}</p>
       <div class="lists">
         {#each reference.effectivenessLists as name (name)}
           <fieldset>

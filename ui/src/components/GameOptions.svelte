@@ -56,7 +56,7 @@
   {#if test}
     <section class="panel">
       <h3>{t('options.testTitle')}</h3>
-      <p class="muted small">{t('ws.startHint')}</p>
+      <p class="muted small help">{t('ws.startHint')}</p>
       <div class="grid">
         <label>
           <span>{t('ws.start')}</span>
@@ -69,14 +69,14 @@
       </div>
       <label class="switch" title={t('ws.simplePrologueHint')}>
         <input type="checkbox" checked={test.simplePrologue} onchange={(e) => setTest({ simplePrologue: (e.target as HTMLInputElement).checked })} />
-        <span><strong>{t('ws.simplePrologue')}</strong> <span class="muted small">{t('ws.simplePrologueHint')}</span></span>
+        <span><strong>{t('ws.simplePrologue')}</strong> <span class="muted small help">{t('ws.simplePrologueHint')}</span></span>
       </label>
     </section>
   {/if}
   {#if data}
     <section class="panel">
       <h3>{t('options.defaultsTitle')}</h3>
-      <p class="muted small">{t('options.defaultsHint')}</p>
+      <p class="muted small help">{t('options.defaultsHint')}</p>
       <div class="config">
         {#each Object.entries(data.defaults) as [key, d] (key)}
           <span class="option">{t(`options.${key}`)}</span>
@@ -90,12 +90,12 @@
           </div>
         {/each}
       </div>
-      <p class="muted small">{t('options.gameDefaultHint')}</p>
+      <p class="muted small help">{t('options.gameDefaultHint')}</p>
     </section>
 
     <section class="panel">
       <h3>{t('options.comfortTitle')}</h3>
-      <p class="muted small">{t('options.comfortHint')}</p>
+      <p class="muted small help">{t('options.comfortHint')}</p>
       {#each data.switches as key (key)}
         <label class="switch">
           <input type="checkbox" checked={!!data.options[key]} disabled={saving} onchange={(e) => set(key, (e.target as HTMLInputElement).checked)} />

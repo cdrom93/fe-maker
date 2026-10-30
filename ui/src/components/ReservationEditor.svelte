@@ -36,7 +36,7 @@
     {t('reserve.toggle')}
   </label>
   {#if res}
-    <p class="muted small">{t('reserve.hint')}</p>
+    <p class="muted small help">{t('reserve.hint')}</p>
     {#if !res.characters.length && !res.classes.length}<p class="warn small">{t('reserve.empty')}</p>{/if}
     <div class="cols">
       <div>

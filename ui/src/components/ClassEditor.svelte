@@ -205,8 +205,8 @@
         {/if}
       </section>
 
-      <section class="panel">
-        <h3>{t('class.stats')}</h3>
+      <details class="panel fold">
+        <summary>{t('class.stats')}</summary>
         <div class="table-wrap">
           <table>
             <thead>
@@ -256,11 +256,11 @@
             </tbody>
           </table>
         </div>
-        <p class="muted small">{t('class.statsHint')}</p>
-      </section>
+        <p class="muted small help">{t('class.statsHint')}</p>
+      </details>
 
-      <section class="panel">
-        <h3>{t('class.promotions')}</h3>
+      <details class="panel fold">
+        <summary>{t('class.promotions')}</summary>
         <div class="row">
           {#each [0, 1] as slot (slot)}
             <label title={problemFor('promotions')}>
@@ -279,10 +279,10 @@
             </label>
           {/each}
         </div>
-      </section>
+      </details>
 
-      <section class="panel">
-        <h3>{t('class.weaponRanks')}</h3>
+      <details class="panel fold">
+        <summary>{t('class.weaponRanks')}</summary>
         <div class="grid">
           {#each reference.rankableTypes as w (w)}
             <label title={problemFor(`weaponRanks.${w}`)}>
@@ -294,8 +294,8 @@
             </label>
           {/each}
         </div>
-        <p class="muted small">{t('class.weaponRanksHint')}</p>
-      </section>
+        <p class="muted small help">{t('class.weaponRanksHint')}</p>
+      </details>
 
       <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />
 

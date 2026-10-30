@@ -32,6 +32,17 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Liste de gauche : les scènes sans dialogue sont cachées, sauf ouverture, fin et scènes que tu as changées. Case « Afficher les scènes sans dialogue ».
 - [ ] Dis-moi si c'est assez simple : je n'ai pas touché au fonctionnement des événements, seulement à leur présentation.
 
+## Interface simplifiée et déroulé du travail
+
+- [ ] Un projet s'ouvre sur **Campagne**. Onglets dans l'ordre du travail : Campagne, Chapitres, puis les listes du jeu (Personnages, Classes, Objets, Combat) et Options.
+- [ ] Onglet **Chapitres** : il réunit trois vues, « Unités et objectif », « Carte », « Dialogues », et garde le même chapitre de l'une à l'autre. Choisir un chapitre dans Campagne le garde aussi.
+- [ ] Fiche d'un chapitre (Campagne) : quatre étapes dans l'ordre : dessiner la carte, placer les unités et fixer l'objectif, écrire les dialogues, tester.
+- [ ] Barre du haut allégée : Retour, Annuler, changements, Rétablir, Tester, menu **Projet** (exporter le patch, touches, explications, fermer). « Tester ce chapitre » apparaît dans Chapitres ; « Tester depuis le début » part toujours du début, le rappel « depuis le chapitre n » a disparu.
+- [ ] Les longues explications sont cachées : Projet → « Afficher les explications » les remet partout, et le choix est retenu.
+- [ ] Vue « Unités et objectif » : groupes et carte d'abord, objectif et réglages du chapitre en dessous. Vue « Carte » : la peinture d'abord, les réglages (taille, jeu de tuiles, palette, Tiled) repliés.
+- [ ] Fiches Personnage et Classe : croissances, rangs d'armes, capacités, statistiques et promotions repliés, un clic les ouvre.
+- [ ] Les avertissements ne sont plus en haut : ils restent dans « À faire » de la page Campagne. Les erreurs, qui bloquent le test, restent en haut.
+
 ## Historique des changements
 
 - [ ] #72 À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements **de tous les onglets** (heure, onglet, fiche) et reste visible en changeant d'onglet ; cliquer l'un d'eux va à son onglet et revient à avant ce changement. Il repart de zéro à chaque ouverture du projet.

@@ -22,7 +22,9 @@
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
   type Tab = NavKind
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'flow', 'maps', 'dialogues', 'options']
+  // The work follows the story: the campaign, then a chapter (its units, map and dialogues), then the game's lists.
+  const TABS: Tab[] = ['flow', 'chapters', 'characters', 'classes', 'items', 'combat', 'options']
+  const CHAPTER_VIEWS: Tab[] = ['chapters', 'maps', 'dialogues']
   let tab = $state<Tab>(firstTab())
 
   /** A project just created blank opens on what it keeps of the game. */
@@ -30,9 +32,9 @@
     try {
       const asked = sessionStorage.getItem('fe-maker.first-tab')
       sessionStorage.removeItem('fe-maker.first-tab')
-      return asked === 'options' ? 'options' : 'characters'
+      return asked === 'options' ? 'options' : 'flow'
     } catch {
-      return 'characters'
+      return 'flow'
     }
   }
   let reference = $state<Reference | null>(null)
@@ -40,7 +42,6 @@
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
   let start = $state('map')
-  let testChapter = $state(0)
   let focus = $state<Focus | null>(null)
 
   $effect(() => {
@@ -48,6 +49,44 @@
     appContext.detail = ''
   })
   onDestroy(resetAppContext)
+
+  // One chapter at a time: its units, map and dialogues stay on it.
+  let chapterList = $state<{ index: number; id: string; map: string | null; hidden?: boolean }[]>([])
+  let currentChapter = $state<number | null>(null)
+  $effect(() => {
+    const id = appContext.recordId
+    if (!id) return
+    if (tab === 'maps') currentChapter = chapterList.find((c) => c.map === id)?.index ?? currentChapter
+    else if ((tab === 'chapters' || tab === 'dialogues' || tab === 'flow') && /^\d+$/.test(id)) currentChapter = Number(id)
+  })
+
+  function openChapterView(view: Tab) {
+    const chapter = chapterList.find((c) => c.index === currentChapter)
+    navigator.open(view, chapter ? (view === 'maps' ? chapter.map : String(chapter.index)) : null)
+  }
+
+  // The explanations under the titles, for whoever wants them.
+  function readHelp(): boolean {
+    try {
+      return localStorage.getItem('fe-maker.show-help') === '1'
+    } catch {
+      return false
+    }
+  }
+  let showHelp = $state(readHelp())
+  $effect(() => {
+    document.body.classList.toggle('show-help', showHelp)
+    try {
+      localStorage.setItem('fe-maker.show-help', showHelp ? '1' : '0')
+    } catch {
+      // storage unavailable: the choice is just not remembered
+    }
+  })
+  let projectMenu = $state<HTMLDetailsElement>()
+  function fromMenu(action: () => void) {
+    if (projectMenu) projectMenu.open = false
+    action()
+  }
 
   const navigator = {
     open(kind: NavKind, id: string | null = null) {
@@ -153,7 +192,7 @@
 
   /** All the project's data (again after a change made by the server, such as an added chapter). */
   async function loadAll() {
-    const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts] = await Promise.all([
+    const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts, allChapters] = await Promise.all([
       api.reference(),
       api.getData<Character[]>('characters'),
       api.getData<ClassData[]>('classes'),
@@ -164,9 +203,10 @@
       api.getData<DialoguesData>('dialogues'),
       api.problems(),
       api.testOptions(),
+      api.chapters(),
     ])
+    chapterList = allChapters
     start = testOpts.start
-    testChapter = testOpts.chapter ?? 0
     reference = ref
     lists.characters.load(chars)
     lists.classes.load(cls)
@@ -196,11 +236,15 @@
     build = { launch }
   }
 
-  /** "Test this chapter" (Campaign page): the next tests start on that chapter's map. */
+  /** Test from a chapter's map ("Test this chapter"), or from the start of the game. */
   async function testFrom(index: number) {
     const opts = await api.setTestOptions({ start: 'map', chapter: index })
     start = opts.start
-    testChapter = opts.chapter ?? 0
+    await startBuild(true)
+  }
+
+  async function testFromStart() {
+    await api.setTestOptions({ chapter: 0 })
     await startBuild(true)
   }
 
@@ -251,17 +295,19 @@
       </details>
     {/if}
     <button onclick={() => active?.redo()} disabled={!active?.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
-    <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
-    {#if testChapter && start === 'map'}
-      <span class="from-chapter" title={t('ws.fromChapterHint')}>
-        {t('ws.fromChapter', { n: testChapter })}
-        <button class="link" aria-label={t('ws.fromStart')} title={t('ws.fromStart')}
-          onclick={async () => (testChapter = (await api.setTestOptions({ chapter: 0 })).chapter ?? 0)}>✕</button>
-      </span>
+    {#if CHAPTER_VIEWS.includes(tab) && currentChapter !== null}
+      <button class="play" onclick={() => testFrom(currentChapter!)} disabled={errors.length > 0} title={t('flow.testHint')}>▶ {t('ws.testChapter')}</button>
     {/if}
-    <button class="play" onclick={() => startBuild(true)} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
-    <button onclick={() => (showKeys = true)}>{t('keys.title')}</button>
-    <button onclick={close}>{t('ws.close')}</button>
+    <button class:play={!CHAPTER_VIEWS.includes(tab) || currentChapter === null} onclick={testFromStart} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
+    <details class="menu" bind:this={projectMenu}>
+      <summary>{t('ws.project')}</summary>
+      <div class="menu-items">
+        <button onclick={() => fromMenu(() => startBuild(false))} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
+        <button onclick={() => fromMenu(() => (showKeys = true))}>{t('keys.title')}</button>
+        <label><input type="checkbox" bind:checked={showHelp} /> {t('ws.showHelp')}</label>
+        <button onclick={() => fromMenu(close)}>{t('ws.close')}</button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -278,24 +324,30 @@
   </ul>
 {/snippet}
 
-{#if errors.length || warnings.length}
+{#if errors.length}
   <details class="summary">
-    <summary>
-      {#if errors.length}<span class="bad">{t('ws.problems', { n: errors.length })}</span>{/if}
-      {#if warnings.length}<span class="warn">{t('ws.warnings', { n: warnings.length })}</span>{/if}
-    </summary>
+    <summary><span class="bad">{t('ws.problems', { n: errors.length })}</span></summary>
     {@render problemList()}
   </details>
 {/if}
 
 <div class="tabs" role="tablist">
   {#each TABS as name (name)}
-    {@const count = problems.filter((p) => p.kind === name && p.severity === 'error').length}
-    <button role="tab" aria-selected={tab === name} class:active={tab === name} onclick={() => (tab = name)}>
+    {@const views = name === 'chapters' ? CHAPTER_VIEWS : [name]}
+    {@const count = problems.filter((p) => views.includes(p.kind as Tab) && p.severity === 'error').length}
+    {@const here = views.includes(tab)}
+    <button role="tab" aria-selected={here} class:active={here} onclick={() => (name === 'chapters' ? openChapterView('chapters') : (tab = name))}>
       {t(`ws.${name}`)}{#if count}<span class="badge">{count}</span>{/if}
     </button>
   {/each}
 </div>
+{#if CHAPTER_VIEWS.includes(tab)}
+  <div class="views" role="tablist">
+    {#each CHAPTER_VIEWS as view (view)}
+      <button role="tab" aria-selected={tab === view} class:active={tab === view} onclick={() => openChapterView(view)}>{t(`ws.view.${view}`)}</button>
+    {/each}
+  </div>
+{/if}
 
 {#if reference}
   {#if tab === 'characters'}
@@ -335,7 +387,13 @@
   .changes ol { position: absolute; z-index: 30; right: 0; min-width: 14rem; margin: 0.3rem 0 0; padding: 0.4rem 0.6rem; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
-  .from-chapter { font-size: 0.85rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0.2rem 0.6rem; }
+  .menu { position: relative; }
+  .menu summary { list-style: none; cursor: pointer; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; }
+  .menu-items { position: absolute; z-index: 30; right: 0; margin-top: 0.3rem; min-width: 14rem; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+  .menu-items label { color: var(--text); padding: 0.2rem 0.3rem; }
+  .views { display: flex; gap: 0.3rem; margin: -0.5rem 0 0.75rem; }
+  .views button { border: none; background: none; color: var(--muted); padding: 0.35rem 0.8rem; }
+  .views button.active { background: var(--accent-soft); color: var(--text); font-weight: 800; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
   .summary { margin: 0 0 0.75rem; font-size: 0.9rem; }
   .summary summary { cursor: pointer; display: flex; gap: 1rem; }
