@@ -143,6 +143,7 @@ Les plus gros blocs, sur 1,1 Mo au total :
 
 - Le dépôt de la décomp contient lui-même des assets extraits du jeu (2 322 PNG, 589 MIDI, 439 AIF…). Ils restent **dans le sous-module** et ne sont jamais copiés dans le dépôt FE Maker (règle 2.1 respectée).
 - Toujours **aucun fichier LICENSE** dans la décomp au commit audité. Conséquence pratique : les fichiers de la décomp modifiés par FE Maker (comme `data_characters.c` généré) ne doivent exister **que localement**, dans `build/`. Ils ne sont jamais commités ni distribués. Seuls le patch `.ups`/`.bps` et le projet JSON de l'utilisateur sont partagés.
+- Position des mainteneurs sur la licence (issues #728, 09/01/2026, et #750, 24/09/2026) : aucune licence ne sera ajoutée (seuls les outils de `scripts/` et `tools/` appartiennent sans ambiguïté aux contributeurs ; le reste est le code du jeu). Déclaration écrite de CT075 : FEU ne se considère titulaire d'aucun droit sur ce code et n'engagera pas de poursuites contre les usages dérivés. Le modèle « patchs appliqués à la copie de la décomp de l'utilisateur » est celui qu'ils jugent acceptable.
 - Les données importées depuis la décomp pour créer un projet (stats d'origine, etc.) sont produites sur la machine de l'utilisateur. Les tests automatiques de FE Maker utilisent des **données fictives** (cahier des charges, section 5).
 
 ## 7. Recommandations pour la phase 1

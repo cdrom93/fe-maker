@@ -59,7 +59,7 @@ Le projet doit pouvoir vivre publiquement sur GitHub sans risque. Règles :
    |---|---|---|
    | FEBuilderGBA | GPL-3.0 (déclarée dans le README) | Réutiliser / porter du code et des données à condition que FE Maker soit GPL-3.0 et que les auteurs soient crédités |
    | Patchs communautaires intégrés à FEBuilderGBA | **Propres à chaque auteur** (ne sont pas forcément couverts par la GPL de FEBuilderGBA) | Vérifier patch par patch auteur + conditions ; à défaut, ne pas intégrer et renvoyer vers la source |
-   | Décomp fireemblem8u | **Aucun fichier LICENSE trouvé** à la racine du dépôt | Par défaut, sans licence = tous droits réservés. On l'utilise **uniquement comme sous-module non modifié**. Toute redistribution de code modifié de la décomp (modules moteur, phase 6, version PC) est **bloquée tant que les mainteneurs n'ont pas donné leur accord écrit** (ouvrir une issue sur leur dépôt) |
+   | Décomp fireemblem8u | **Aucun fichier LICENSE trouvé** à la racine du dépôt | Par défaut, sans licence = tous droits réservés. On l'utilise **uniquement comme sous-module non modifié**. Toute redistribution de code modifié de la décomp (modules moteur, phase 6, version PC) est **bloquée tant que les mainteneurs n'ont pas donné leur accord écrit**. Réponse déjà donnée (issues [#728](https://github.com/FireEmblemUniverse/fireemblem8u/issues/728), 09/01/2026, et [#750](https://github.com/FireEmblemUniverse/fireemblem8u/issues/750), 24/09/2026) : pas de licence à venir (le code est au fond celui d'Intelligent Systems), mais déclaration écrite que FEU ne se considère titulaire d'aucun droit sur ce code et n'attaquera pas les projets dérivés. FE Maker garde son modèle : décomp jamais redistribuée, modifications seulement dans l'overlay local |
    | FE-Repo (graphismes) | F2E ou F2U selon la ressource, F2U par défaut | Voir point 5 |
    | FE-Repo-Music | À vérifier | Même règles que FE-Repo tant que non vérifié |
    | Lex Talionis | À vérifier | Inspiration ergonomique uniquement, aucune reprise de code sans vérification |
@@ -247,6 +247,18 @@ Trois pistes à évaluer le moment venu :
 - **Portage natif** du moteur de la décomp sur PC (sur le modèle des portages PC réalisés par la communauté Pokémon à partir de ses décomps), qui chargerait les assets depuis la ROM de l'utilisateur.
 - **Export vers Lex Talionis** (moteur Fire Emblem open source qui produit des jeux PC), si un format d'échange est réaliste.
 
+### Alpha publique (décidée le 30/10/2026)
+Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux et macOS plus tard, le code reste multiplateforme).
+1. **Préalables au passage en public** : historique git vérifié (aucune ROM, aucun asset du jeu) ; position des mainteneurs de fireemblem8u sur la licence (section 2).
+2. **Gel** : tickets en attente validés, playtests `tests/local` au vert, version `0.1.0-alpha`, liste des limites connues.
+3. **Paquet sans Node** : release GitHub avec l'interface déjà compilée ; la décomp n'est pas dans le paquet (pas de licence) : FE Maker la télécharge au premier lancement, au commit fixé.
+4. **Image Docker toute prête** sur ghcr.io (agbcc en GPL : lien vers ses sources dans CREDITS).
+5. **Premier lancement guidé** : vérification de Docker (démarré, virtualisation), de mGBA et de la ROM (somme de contrôle FE8 US), avec des messages clairs.
+6. **Retours des testeurs** : envoi d'un ticket en issue GitHub pré-remplie (version, onglet, journal).
+7. **Docs** : guide de démarrage FR/EN, limites connues, CHANGELOG.
+8. **Test sur une machine vierge** (Windows Sandbox, job CI d'installation depuis la release), tag, annonce sur FEU.
+- **État** : étape 1 faite le 30/10/2026 (historique propre : 189 fichiers, code et texte seulement, fixtures fictives dès le premier commit ; mainteneurs déjà prononcés, #728). Le dépôt peut passer en public quand l'utilisateur le décide. Suite : étape 2.
+
 ---
 
 ## 5. Exigences transverses
@@ -301,7 +313,7 @@ Trois pistes à évaluer le moment venu :
 ## 8. Décisions en attente
 
 - [x] Licence du code de FE Maker : GPL-3.0
-- [ ] Accord des mainteneurs de fireemblem8u pour la redistribution de code modifié (bloquant pour phases 6 et 7)
+- [x] Accord des mainteneurs de fireemblem8u pour la redistribution de code modifié : pas de licence, mais engagement écrit de ne pas attaquer les projets dérivés (#728, 09/01/2026) ; le risque restant vient des ayants droit du jeu, pas des mainteneurs (à peser pour les phases 6 et 7)
 - [x] Framework front-end : Svelte + TypeScript
 - [x] Format de patch : .ups (format habituel de la communauté et de l'auteur du projet)
 - [x] Compiler les jeux créés avec les corrections `BUGFIX` de la décomp : **accepté, mais désactivé par défaut** tant que 3 blocs `BUGFIX` de la décomp ne compilent pas (option `"bugfix"` dans `fe-maker.json`, voir `docs/audit-decomp.md`)

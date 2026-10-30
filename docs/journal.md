@@ -42,3 +42,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : ticket 53, import d'une animation de combat depuis le PC (dossier d'une arme ou .zip, `/api/animations/import/local`, `LocalAnimationImport.svelte`) ; cibles d'import partagées dans `ui/src/lib/animationTargets.ts`.
 - 30/10/2026 : ticket 54, plus d'emojis décoratifs devant les textes des boutons, liens, titres et phrases (ni dans le README) ; ceux qui servent d'icônes restent.
 - 30/10/2026 : règle ajoutée : illustrer d'abord avec les visuels du jeu (icônes d'armes et d'objets, portraits, sprites), avant un emoji.
+- 30/10/2026 : plan de l'alpha publique écrit (FEU, Windows d'abord, cahier section 4) ; étape 1 faite : historique git vérifié propre, position des mainteneurs de la décomp déjà donnée (#728, pas de licence, engagement de ne pas attaquer les projets dérivés).
