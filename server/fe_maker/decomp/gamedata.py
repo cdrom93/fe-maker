@@ -1086,6 +1086,18 @@ class DecompData:
         prefix = rel.rsplit("-", 1)[0] + "-"
         return sorted(r for r in self.event_sources if r.startswith(prefix))
 
+    def chapter_openings(self) -> list[str | None]:
+        """Each chapter's opening scene."""
+        self._load_chapter_events()
+        out = []
+        for chapter in self.chapter_settings["chapters"]:
+            symbol = self._chapter_event_symbol(chapter)
+            try:
+                out.append(objectives.event_group(self.event_sources, symbol or "").get("beginningSceneEvents"))
+            except objectives.ObjectiveError:
+                out.append(None)
+        return out
+
     def chapter_endings(self) -> list[str | None]:
         """Each chapter's ending scene: where the Campaign page links a chapter that leads nowhere (ticket 55)."""
         self._load_chapter_events()

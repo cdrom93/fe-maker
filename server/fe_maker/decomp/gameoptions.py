@@ -19,6 +19,9 @@ CONFIG_FILE = "src/bmio.c"
 CHAPTER_INTRO_FILE = "src/chapterintrofx.c"
 MOVE_SPEED_FILE = "src/mu.c"
 RANGE_DISPLAY_FILE = "src/playerphase.c"
+EXP_BAR_FILE = "src/mapanim_expbar.c"
+LEVEL_UP_FILE = "src/mapanim_lvup.c"
+BATTLE_FILE = "src/bmbattle.c"
 
 # Option -> (field of gPlaySt.config, the game's default, allowed values), in the order and with the choices of the
 # game's Configuration menu (gGameOptionsUiOrder, gGameOptions in src/uiconfig.c). Animation: 0 "1" without
@@ -40,7 +43,8 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "soundEffects": ("disableSoundEffects", 0, (0, 1)),
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
-SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp")
+SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
+            "noSupportAnimations")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -56,6 +60,25 @@ _RANGE_STATIONARY = ("    /* FE Maker: a unit that never moves (movement AI 3) s
                      "    GenerateUnitMovementMapExt(gActiveUnit,\n"
                      "        (UNIT_FACTION(gActiveUnit) != FACTION_BLUE && gActiveUnit->ai2 == 3)\n"
                      "        ? 0 : UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n")
+
+# FEBuilder "Display bar quickly when getting exp in map anime" and "Acceleration of growth status display of level
+# up": shorter waits in the map animations' scripts, by what the wait comes after.
+_EXP_WAIT = "    PROC_REPEAT(ProcMAExpBar_FrameAdvance),\n    PROC_SLEEP(0x14),\n"
+_EXP_WAIT_QUICK = "    PROC_REPEAT(ProcMAExpBar_FrameAdvance),\n    PROC_SLEEP(0x2),\n"
+_EXP_END = "    PROC_REPEAT(ProcMAExpBar_OnIncrement),\n    PROC_SLEEP(0x14),\n"
+_EXP_END_QUICK = "    PROC_REPEAT(ProcMAExpBar_OnIncrement),\n    PROC_SLEEP(0x4),\n"
+_LEVEL_TEXT = "    PROC_CALL(ManimLevelUp_StartLevelUpText),\n    PROC_SLEEP(70),\n"
+_LEVEL_TEXT_QUICK = "    PROC_CALL(ManimLevelUp_StartLevelUpText),\n    PROC_SLEEP(24),\n"
+_LEVEL_IN = "    PROC_REPEAT(ManimLevelUp_ScrollIn),\n    PROC_SLEEP(30),\n"
+_LEVEL_IN_QUICK = "    PROC_REPEAT(ManimLevelUp_ScrollIn),\n    PROC_SLEEP(8),\n"
+_LEVEL_GAINS = "    PROC_REPEAT(ManimLevelUp_PutStatGainLabels),\n    PROC_SLEEP(60),\n"
+_LEVEL_GAINS_QUICK = "    PROC_REPEAT(ManimLevelUp_PutStatGainLabels),\n    PROC_SLEEP(30),\n"
+# FEBuilder "ForceBattleOffWithDanceAndStaff": staves and dances stay on the map, even with animations on.
+_ANIM_TYPE = "int GetBattleAnimPreconfType(void) {\n"
+_ANIM_TYPE_NO_SUPPORT = (_ANIM_TYPE + "    /* FE Maker: no battle screen for staves and dances */\n"
+                         "    if (GetItemType(gBattleActor.weapon) == ITYPE_STAFF\n"
+                         "        || gActionData.unitActionType == UNIT_ACTION_DANCE)\n"
+                         "        return PLAY_ANIMCONF_OFF;\n\n")
 
 
 def validate(options: dict) -> str | None:
@@ -109,4 +132,13 @@ def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
         files[CHAPTER_INTRO_FILE] = _replace(current(CHAPTER_INTRO_FILE), _TITLE_WAIT, _TITLE_QUICK, CHAPTER_INTRO_FILE)
     if options.get("holdAToSpeedUp"):
         files[MOVE_SPEED_FILE] = _replace(current(MOVE_SPEED_FILE), _HOLD_A, _HOLD_A_ALWAYS, MOVE_SPEED_FILE)
+    if options.get("quickExpBar"):
+        source = _replace(current(EXP_BAR_FILE), _EXP_WAIT, _EXP_WAIT_QUICK, EXP_BAR_FILE)
+        files[EXP_BAR_FILE] = _replace(source, _EXP_END, _EXP_END_QUICK, EXP_BAR_FILE)
+    if options.get("quickLevelUp"):
+        source = _replace(current(LEVEL_UP_FILE), _LEVEL_TEXT, _LEVEL_TEXT_QUICK, LEVEL_UP_FILE)
+        source = _replace(source, _LEVEL_IN, _LEVEL_IN_QUICK, LEVEL_UP_FILE)
+        files[LEVEL_UP_FILE] = _replace(source, _LEVEL_GAINS, _LEVEL_GAINS_QUICK, LEVEL_UP_FILE)
+    if options.get("noSupportAnimations"):
+        files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
     return files

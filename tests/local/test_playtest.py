@@ -648,3 +648,72 @@ def test_blank_project_starts_on_its_empty_chapter(tmp_path):
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
         game.run(120)
         assert [u["character"] for u in game.units()] == [1] and game.units("Red") == [] and game.chapter() == 0
+
+
+def test_a_three_chapter_hack_from_a_blank_project_to_the_end(tmp_path):
+    """The alpha's witness hack: only what the interface does, played to the title screen."""
+    from fe_maker import newchapter
+    from fe_maker.decomp import story
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "hack", "Hack")
+    newchapter.start_blank(project, True, "Le Départ", "Aelis")
+    characters = project.load("characters")
+    hero = next(c for c in characters if c["id"] == newchapter.BLANK_LORD)
+    hero["bases"].update(pow=30, skl=30, spd=30)
+    friend = DecompData(project.decomp_dir).new_character(True, {c["id"] for c in characters}, True)
+    friend["name"] = "Bran"
+    project.save("characters", [*characters, friend])
+
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    army.append({**army[0], "slot": None, "character": friend["id"], "class": friend["class"], "x": 1, "y": 0, "endX": 1, "endY": 0,
+                 "items": []})
+    project.save("chapters", chapters)
+    second = newchapter.add_chapter(project, 0, 15, 10, "La Forêt")
+    third = newchapter.add_chapter(project, second, 15, 10, "Le Château")
+    chapters = project.load("chapters")
+    dialogues = project.load("dialogues")
+    data = DecompData(project.decomp_dir)
+    for index in (0, second, third):
+        opening = dialogues["scripts"][data.chapter_openings()[index]]
+        group = next(c["args"][1] for c in opening if c["op"] == "LOAD1")
+        chapters["unitGroups"][group] = [{
+            "slot": None, "character": "CHARACTER_SOLDIER_83", "class": "CLASS_SOLDIER", "level": 1, "autolevel": False,
+            "side": "enemy", "x": 0, "y": 1, "endX": 0, "endY": 1, "items": ["ITEM_LANCE_IRON"], "ai": [0, 0, 0, 0],
+            "fixedPath": False}]
+    project.save("chapters", chapters)
+    ending = data.chapter_endings()[third]
+    dialogues["scripts"][ending] = [{"op": "MNTS", "args": ["0"]}, {"op": "ENDA"}]
+    project.save("dialogues", dialogues)
+    assert not [p for p in project.validate() if p.severity == "error"]
+    assert story.links(dialogues["scripts"][ending])[0]["kind"] == "title"
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        for chapter in (0, second, third):
+            assert game.wait_until(lambda: game.chapter() == chapter and game.turn() == 1 and game.units("Red"), seconds=60,
+                                   tap="A")
+            game.run(60)
+            assert len(game.units()) == 2, "the army follows"
+            game.move_cursor(0, 0)
+            game.run(20)
+            game.press("A", wait=40)
+            game.press("A", wait=60)   # stays: the action menu, on Attack
+            game.press("A", wait=40)   # Attack
+            game.press("A", wait=40)   # the weapon
+            game.press("A", wait=40)   # the target
+            assert game.wait_until(lambda: not game.units("Red"), seconds=60, tap="A")
+        game.wait_until(lambda: False, seconds=40, tap="A")   # to the title screen, then its menu
+        game.screenshot().save(tmp_path / "end.png")
+        game.screenshot().save(tmp_path / "end.png")
+        print("screenshot (the save menu, seen 30/10/2026):", tmp_path / "end.png")
+
+
+def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
+    project = Project.create(tmp_path / "comfort", "Comfort")
+    project.set_game_options({"quickExpBar": True, "quickLevelUp": True, "noSupportAnimations": True, "objective": 1,
+                              "windowColor": 2})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)

@@ -14,9 +14,27 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] #65 Onglet « Options du jeu » : les réglages sont présentés comme le menu Configuration du jeu, dans le même ordre, avec tous ses choix (13 réglages, dont « 2 » pour Animation, Musique, Effets sonores, Couleur des fenêtres). Le point • marque le réglage d'origine. Les noms étaient faux pour Unité et Combat (Panneau / Bulle, Stratégique / Détail) : corrigés.
 - [ ] #65 Cases à cocher : alignées avec leur texte partout (règle commune). Si tu en vois une encore décalée, dis-moi où.
 - [ ] #66 Projet vierge (écran d'accueil, « Projet vierge » sous le nom) : un chapitre vide « Chapitre 1 » de 15 × 10, sans ennemis ni dialogues, 41 places libres pour tes chapitres, les chapitres du jeu cachés de Chapitres, Cartes, Dialogues et Campagne, sans carte du monde. Case « Retirer aussi les personnages » : il reste un Héros (Eirika renommée, Rapière et Vulnéraire) ; « + Allié » et « + Ennemi » reprennent les places des personnages retirés.
-- [ ] #66 En jeu (playtest fait) : le héros bat l'unique ennemi et arrive au chapitre ajouté. **Place au moins un ennemi** : sans ennemi, l'objectif « vaincre tous les ennemis » ne se déclenche jamais et on reste sur la carte.
+- [ ] #66 En jeu (playtest fait) : le héros bat l'unique ennemi et arrive au chapitre ajouté. **Place au moins un ennemi** : sans ennemi, le chapitre se termine dès la fin du premier tour.
 - [ ] #66 Limites : armes, objets et classes sont gardés (les retirer viendra plus tard) ; « Tous les chapitres » dans Dialogues liste encore les messages du jeu ; la liste des personnages garde les entrées sans nom du jeu.
-- [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre. Le dernier chapitre d'un hack en a besoin, sinon le jeu reste sur la carte.
+- [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre (playtest fait). Le menu propose ensuite « Reprendre le chapitre » sur ce dernier chapitre : à améliorer.
+
+## Hack témoin (étape 3 de l'alpha)
+
+Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : projet vierge, héros renommé, un compagnon réutilisé, deux chapitres ajoutés, un soldat par chapitre, fin du jeu. Il va du premier chapitre au menu de sauvegarde, l'armée suit d'un chapitre à l'autre. Il ne remplace pas ton gel : les cartes y sont vides et il n'y a pas de dialogues.
+
+- [ ] Le faire à la main, avec de vraies cartes et un dialogue par chapitre : c'est l'étape 3 du plan, et ce qui manque pour le gel.
+
+## Nouveaux réglages de confort
+
+- [ ] Onglet « Options du jeu », section Confort : « Barre d'expérience rapide », « Gain de niveau rapide », « Pas d'écran de combat pour les bâtons et les danses ». Playtest fait : le jeu compile et démarre avec les trois. **Leur effet n'a pas été vu en jeu** : soigne une unité avec les animations activées, gagne un niveau sur la carte.
+
+## Préparation de l'alpha (rien n'est publié)
+
+- [ ] Écran d'accueil : le panneau « À installer avant de commencer » n'apparaît que s'il manque quelque chose. Pour le voir : quitte Docker Desktop puis recharge la page ; message clair, « Vérifier à nouveau » après l'avoir relancé.
+- [ ] Ticket, bouton « Envoyer sur GitHub » : ouvre un signalement pré-rempli dans ton navigateur, rien ne part sans toi. Le dépôt étant privé, seul un compte qui y a accès peut l'ouvrir.
+- [ ] `docs/guide.md` et `docs/guide.en.md` : à relire ; c'est ce que liront les testeurs de FEU. `CHANGELOG.md` aussi.
+- [ ] Paquet : `python tools/make_release.py` donne `dist/fe-maker-0.1.0-alpha.zip`. Essai fait dans un dossier vide, sur ce PC : installation, décomp téléchargée (18 s), projet vierge, compilation et patch. Pas fait : le lanceur `.bat` lui-même, et un PC sans Python ni Docker.
+- [ ] Les workflows GitHub (`image.yml`, `release.yml`) n'ont jamais tourné : ils partiront au premier push. L'image de compilation est à publier avant l'annonce, sinon chaque testeur compile agbcc (une dizaine de minutes).
 
 ## Ticket 64 : où sont les conditions et les sauts
 

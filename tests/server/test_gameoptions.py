@@ -41,3 +41,11 @@ def test_the_goal_display_is_added_to_init_play_config():
     # InitPlayConfig does not set it: the cleared state leaves it at 0
     out = gameoptions.with_defaults(SOURCE, {"objective": 1})
     assert "    gPlaySt.config.gameSpeed = 0;\n    gPlaySt.config.disableGoalDisplay = 1;\n}\n\nvoid Other" in out
+
+
+def test_new_switches_are_known_and_stop_on_a_changed_decomp(tmp_path):
+    assert gameoptions.validate({"quickExpBar": True, "quickLevelUp": True, "noSupportAnimations": True}) is None
+    (tmp_path / "src").mkdir()
+    (tmp_path / gameoptions.EXP_BAR_FILE).write_text("nothing here")
+    with pytest.raises(TweakError):
+        gameoptions.apply(tmp_path, {"quickExpBar": True}, {})

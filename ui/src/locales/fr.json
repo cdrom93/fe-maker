@@ -1365,5 +1365,11 @@
   "checks.error.badArchive": "Le téléchargement est incomplet : réessayez.",
   "ticket.issue": "Envoyer sur GitHub",
   "ticket.issueHint": "Ouvre un signalement pré-rempli dans votre navigateur : vous le relisez avant de l'envoyer",
-  "ticket.issueImages": "({n} capture(s) à glisser ici à la main)"
+  "ticket.issueImages": "({n} capture(s) à glisser ici à la main)",
+  "options.quickExpBar": "Barre d'expérience rapide",
+  "options.quickExpBarHint": "la barre sur la carte se remplit sans les pauses d'origine",
+  "options.quickLevelUp": "Gain de niveau rapide",
+  "options.quickLevelUpHint": "la fenêtre de gain de niveau sur la carte reste moins longtemps",
+  "options.noSupportAnimations": "Pas d'écran de combat pour les bâtons et les danses",
+  "options.noSupportAnimationsHint": "ils se jouent sur la carte, même avec les animations de combat activées"
 }
