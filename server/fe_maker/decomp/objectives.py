@@ -268,8 +268,7 @@ def clear_events(sources: dict[str, str], symbol: str) -> dict[str, str]:
             continue
         rel, start, end = found
         lines = [line for line in sources[rel][start:end].split("\n")
-                 if _END_RE.search(line) or any(p.search(line + "
-") for p in keep)]
+                 if _END_RE.search(line) or any(p.search(line + "\n") for p in keep)]
         sources[rel] = sources[rel][:start] + "\n" + "\n".join(lines) + "\n" + sources[rel][end:]
     found = _block(sources, rf"EventListScr\s*\*\s*{re.escape(group.get('tutorialEvents', '-'))}\s*\[\s*\]\s*=\s*\{{")
     if found is not None:
