@@ -189,3 +189,14 @@ def test_only_filler_slots_count_as_removed_tiles():
     metatiles = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 2, 3, 4], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     tileset = SimpleNamespace(metatiles=metatiles, terrain=bytes(6), duplicates=[False, False, True, True, True, True])
     assert _filler_slots(tileset) == {3, 4, 5}
+
+
+def test_new_character_on_an_entry_the_game_uses(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    free, taken = d.new_character(True, set()), d.new_character(True, set())
+    free["name"], taken["name"] = "Aline", "Bea"
+    taken["id"] = "CHARACTER_NEW_02"   # entry of CHARACTER_TESTRIVAL
+    codes = _codes(validate([*chars, free, taken], d.export_items(), d))
+    assert ("CHARACTER_NEW_02", "id", "characterEntryTaken") in codes
+    assert not any(c[0] == "CHARACTER_NEW_03" and c[2] == "characterEntryTaken" for c in codes)

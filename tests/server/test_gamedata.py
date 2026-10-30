@@ -1,7 +1,9 @@
 import copy
 
+import pytest
+
 from fe_maker.decomp.cparse import parse_array, render_array
-from fe_maker.decomp.gamedata import DecompData
+from fe_maker.decomp.gamedata import DecompData, GameDataError
 from fe_maker.decomp.texts import TextFile
 
 
@@ -156,3 +158,49 @@ def test_item_icons(decomp_dir):
         "graphics/item_icon/item_icon_test_a.png",
         "graphics/item_icon/item_icon_test_b.png",
     ]
+
+
+def test_free_character_entries(decomp_dir):
+    # Raw-numbered entries no unit loads: 0x03 below ALLY_CHARACTER_END (playable), 0x50 after it.
+    assert DecompData(decomp_dir).free_character_numbers() == [0x3, 0x50]
+
+
+def test_new_character_takes_a_free_entry(decomp_dir):
+    d = DecompData(decomp_dir)
+    ally = d.new_character(True, set())
+    assert ally["id"] == "CHARACTER_NEW_03"
+    assert ally["level"] == 1 and ally["portraitId"] == 0 and ally["weaponRanks"] == {}
+    assert d.new_character(False, set())["id"] == "CHARACTER_NEW_50"
+    with pytest.raises(GameDataError, match="noFreeCharacter"):
+        d.new_character(True, {"CHARACTER_NEW_03"})
+
+
+def test_new_character_gets_a_constant_and_its_own_name(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    new = d.new_character(True, set())
+    new.update(name="Aline", portraitId=2, level=4)
+    chars.append(new)
+    d.apply_characters(chars)   # the raw record of entry 0x03 is still in the list: it is left out
+    files = d.changed_files()
+    header = files["include/constants/characters.h"]
+    assert "    CHARACTER_NEW_03 = 0x03,\n};\n\nenum event_autoload_pid_idx" in header
+    source = files["src/data_characters.c"]
+    entry = source[source.index("[CHARACTER_NEW_03 - 1]"):]
+    entry = entry[:entry.index("},")]
+    assert ".number = CHARACTER_NEW_03," in entry and ".baseLevel = 4," in entry and ".portraitId = 2," in entry
+    name_id = int(entry.split(".nameTextId = ")[1].split(",")[0], 16)
+    texts = TextFile(files["texts/texts.txt"])
+    assert texts.get_name(name_id) == "Aline"
+    assert texts.get_name(7) == "Enemy"   # the name the free entries share is untouched
+    assert source.count("[0x50 - 1]") == 1   # the other free entry too
+    assert d._character_constants()["CHARACTER_NEW_03"] == 3
+
+
+def test_new_character_on_a_used_entry_is_refused(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars = d.export_characters()
+    new = d.new_character(True, set())
+    new.update(id="CHARACTER_NEW_01", name="Aline")
+    with pytest.raises(GameDataError, match="used by the game"):
+        d.apply_characters([*chars, new])

@@ -367,3 +367,44 @@ def test_test_chapter_one_army(tmp_path):
         print("screenshot:", tmp_path / "ch1.png", "blue", blue)
         assert ok
         assert {1, 2} <= {u["character"] for u in blue if u["x"] >= 0}
+
+
+def test_added_characters_on_the_prologue_map(tmp_path):
+    """An ally and an enemy the project adds (free entries 0x1B and 0x55 of the character table)."""
+    import copy
+
+    from fe_maker.decomp import units
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "added", "Added")
+    data = DecompData(project.decomp_dir)
+    chars = project.load("characters")
+    ally = data.new_character(True, {c["id"] for c in chars})
+    ally.update(name="Aliénor", portraitId=2, level=3, **{"class": "CLASS_MYRMIDON_F"})
+    ally["bases"]["hp"] = 4
+    ally["weaponRanks"] = {"sword": "C"}
+    enemy = data.new_character(False, {c["id"] for c in chars})
+    enemy.update(name="Morgane", level=5, **{"class": "CLASS_FIGHTER"})
+    project.save("characters", [*chars, ally, enemy])
+    groups = units.read_unit_groups(project.decomp_dir)
+    allies = copy.deepcopy(groups["UnitDef_Event_PrologueAlly"].units)
+    allies.append({**copy.deepcopy(allies[1]), "slot": None, "character": ally["id"], "class": "CLASS_MYRMIDON_F",
+                   "level": 3, "x": 9, "y": 6, "endX": 9, "endY": 6, "items": ["ITEM_SWORD_IRON"]})
+    enemies = copy.deepcopy(groups["UnitDef_Event_PrologueEnemy"].units)
+    enemies[1]["character"] = enemy["id"]
+    project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueAlly": allies,
+                                             "UnitDef_Event_PrologueEnemy": enemies}, "objectives": {}})
+    myrmidon = next(c for c in project.load("classes") if c["id"] == "CLASS_MYRMIDON_F")
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        new_ally = next(u for u in game.units() if u["character"] == 0x1B)
+        assert (new_ally["x"], new_ally["y"], new_ally["level"]) == (9, 6, 3)
+        assert new_ally["maxHP"] == 4 + myrmidon["bases"]["hp"]
+        assert any(u["character"] == 0x55 for u in game.units("Red"))
+        game.move_cursor(9, 6)
+        game.run(30)
+        game.screenshot().save(tmp_path / "added.png")
+        print("screenshot:", tmp_path / "added.png")

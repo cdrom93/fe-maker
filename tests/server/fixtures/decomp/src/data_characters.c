@@ -31,4 +31,15 @@ CONST_DATA struct CharacterData gCharacterData[] = {
         .baseLevel = 5,
         .baseDef = 7,
     },
+    [0x3 - 1] = {
+        .nameTextId = 0x7,
+        .number = 0x3,
+        .defaultClass = CLASS_TESTKNIGHT,
+        .growthHP  = 40,
+    },
+    [0x50 - 1] = {
+        .nameTextId = 0x7,
+        .number = 0x50,
+        .defaultClass = CLASS_TESTKNIGHT,
+    },
 };

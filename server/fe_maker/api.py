@@ -45,7 +45,17 @@ from .decomp import (
 )
 from .decomp.assets import face_preview, item_icon_preview, portrait_names, portrait_preview
 from .decomp.assets import map_sprite as map_sprite_png
-from .decomp.gamedata import ABILITIES, AFFINITIES, RANK_VALUES, RANKABLE_TYPES, WEAPON_TYPES, DecompData, GameDataError
+from .decomp.cparse import parse_int
+from .decomp.gamedata import (
+    ABILITIES,
+    AFFINITIES,
+    NEW_CHARACTER_PREFIX,
+    RANK_VALUES,
+    RANKABLE_TYPES,
+    WEAPON_TYPES,
+    DecompData,
+    GameDataError,
+)
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import ANIMATIONS_DIR, DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
 from .rom import InvalidRomError
@@ -194,6 +204,26 @@ def get_data(kind: str):
     if kind not in DATA_FILES:
         raise HTTPException(404)
     return state.require_project().load(kind)
+
+
+class NewCharacterIn(BaseModel):
+    ally: bool
+
+
+@app.post("/api/characters/new")
+def new_character(body: NewCharacterIn):
+    """Sheet of a character to add, on a free entry of the game's table, and the raw-numbered sheet of that
+    entry it replaces in the project's list."""
+    project = state.require_project()
+    characters = project.load("characters")
+    try:
+        record = DecompData(project.decomp_dir).new_character(body.ally, {c["id"] for c in characters})
+    except GameDataError as e:
+        raise HTTPException(409, str(e)) from e
+    number = int(record["id"].removeprefix(NEW_CHARACTER_PREFIX), 16)
+    replaces = next((c["id"] for c in characters
+                     if not c["id"].startswith("CHARACTER_") and parse_int(c["id"]) == number), None)
+    return {"record": record, "replaces": replaces}
 
 
 @app.put("/api/project/data/{kind}")

@@ -21,6 +21,7 @@ from .decomp.gamedata import (
     AFFINITIES_REV,
     CLASS_STATS,
     GROWTHS,
+    NEW_CHARACTER_PREFIX,
     PROMO_STATS,
     RANK_VALUES,
     RANKABLE_TYPES,
@@ -125,12 +126,16 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     added_portraits = {int(k) for k in (portraits or {}) if str(k).isdigit() and int(k) >= first_new}
 
     _duplicates(problems, "characters", characters)
+    free_numbers = set(decomp.free_character_numbers())
     for ch in characters:
         rid = ch["id"]
         _name(problems, "characters", rid, ch.get("name"))
+        if rid.startswith(NEW_CHARACTER_PREFIX) and int(rid.removeprefix(NEW_CHARACTER_PREFIX), 16) not in free_numbers:
+            problems.append(Problem("error", "characters", rid, "id", "characterEntryTaken", {},
+                                    f"{rid}: this entry of the character table is used by the game"))
         if ch.get("class") not in class_ids:
             problems.append(Problem("error", "characters", rid, "class", "unknownClass", {}, f"{rid}: unknown class"))
-        elif rid in original and ch["class"] != original[rid]["class"] and ch["class"] not in used_classes:
+        elif (rid not in original or ch["class"] != original[rid]["class"]) and ch["class"] not in used_classes:
             problems.append(Problem("warning", "characters", rid, "class", "unusedClass", {},
                                     f"{rid}: this class is never used in the original game, its graphics may be incomplete"))
         _range(problems, "characters", rid, "level", ch.get("level"), 0, 127)  # 0 for generic units

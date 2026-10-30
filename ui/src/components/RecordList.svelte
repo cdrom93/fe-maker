@@ -14,6 +14,7 @@
     icon,
     suffix,
     extraFilter,
+    actions,
   }: {
     records: T[]
     selected: number
@@ -27,6 +28,8 @@
     icon?: Snippet<[T]>
     suffix?: Snippet<[T]>
     extraFilter?: Snippet
+    /** Buttons under the search (add a record...). */
+    actions?: Snippet
   } = $props()
 
   let query = $state('')
@@ -81,6 +84,7 @@
 <div class="list panel">
   <input type="search" bind:value={query} placeholder={t('ws.search')} aria-label={t('ws.search')} />
   {#if extraFilter}{@render extraFilter()}{/if}
+  {#if actions}<div class="actions">{@render actions()}</div>{/if}
   <div class="scroll" bind:this={listEl}>
     <ul>
       {#each main as { r, i } (r.id)}{@render row(r, i)}{/each}
@@ -103,6 +107,7 @@
   .list { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
   .scroll { overflow-y: auto; max-height: calc(100vh - 260px); }
   ul { list-style: none; margin: 0; padding: 0; }
+  .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   li button {
     display: flex; align-items: center; gap: 0.5rem; width: 100%;
     border: none; background: none; padding: 0.3rem 0.4rem; text-align: left; border-radius: 6px;

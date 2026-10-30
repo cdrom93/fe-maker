@@ -31,13 +31,14 @@ from . import (
     units,
 )
 from .cparse import (
+    Entry,
     parse_array,
     parse_designated_list,
     parse_int,
     render_array,
     render_designated_list,
 )
-from .texts import TextFile, textdefs_with
+from .texts import TextFile, name_message, textdefs_with
 
 CHARACTERS_FILE = "src/data_characters.c"
 CLASSES_FILE = "src/data_classes.c"
@@ -46,6 +47,13 @@ TEXTS_FILE = "texts/texts.txt"
 ITEM_ICONS_FILE = "data/data_item_icon.s"
 BATTLE_ANIM_CONF_FILE = "src/data_banimconf.c"
 BATTLE_ANIM_TABLE_FILE = "src/banim_data.c"
+CHARACTER_CONSTANTS_FILE = "include/constants/characters.h"
+# A character the project adds takes a free entry of the table (the game's are numbered 1-0xFF, no room
+# to grow): "CHARACTER_NEW_1B" is entry 0x1B, given that constant in characters.h at build time.
+NEW_CHARACTER_PREFIX = "CHARACTER_NEW_"
+# BWL_ARRAY_NUM (include/bmsave.h): only characters below it keep their battle stats in the save
+# (epilogue, support points): playable characters take a number below it.
+ALLY_CHARACTER_END = 0x46
 # Unit placements of every chapter (struct UnitDefinition arrays)
 UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
 # Chapter event groups and their event lists (objectives); unit definition files excluded.
@@ -214,6 +222,7 @@ class DecompData:
         self.support_talks: str | None = None
         self.new_support_blocks: list[str] = []
         self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
+        self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -1143,9 +1152,10 @@ class DecompData:
     def _character_constants(self) -> dict[str, int]:
         header = self.decomp_dir / "include/constants/characters.h"
         if not header.is_file():
-            return {}
-        return {name: int(value, 0) for name, value in
-                re.findall(r"\b(CHARACTER_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read("include/constants/characters.h"))}
+            return dict(self.new_characters)
+        return {**{name: int(value, 0) for name, value in
+                   re.findall(r"\b(CHARACTER_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read(CHARACTER_CONSTANTS_FILE))},
+                **self.new_characters}
 
     def apply_objective(self, index: int, new: dict) -> None:
         current = self.read_objective(index)
@@ -1283,27 +1293,77 @@ class DecompData:
             f["baseRanks"] = render_designated_list({k: _rank_to_c(v) for k, v in new.items()})
 
     def export_characters(self) -> list[dict]:
-        result = []
-        for entry in self.characters.entries:
-            f = entry.fields
-            ranks = parse_designated_list(f.get("baseRanks", "{ }"))
-            result.append({
-                "id": f["number"],
-                "name": self._text_name(f),
-                "class": f["defaultClass"],
-                "level": _int_field(f, "baseLevel"),
-                "portraitId": _int_field(f, "portraitId"),
-                "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s], signed=True) for s in STATS},
-                "growths": {s: _int_field(f, "growth" + STAT_SUFFIX[s]) for s in GROWTHS},
-                "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
-                "affinity": AFFINITIES.get(f.get("affinity", "0")),
-                "abilities": _abilities(f.get("attributes", "0")),
-                # opens the convoy, with the units next to them (ticket 29, see convoy.py)
-                "convoyAccess": f["number"] in convoy.DEFAULT_OPENERS,
-                # can seize (the route's lord in the game, ticket 37, see seize.py)
-                "canSeize": f["number"] in seize.DEFAULT_SEIZERS,
-            })
-        return result
+        return [self._character_record(entry) for entry in self.characters.entries]
+
+    def free_character_numbers(self) -> list[int]:
+        """Entries of the table the game never uses (no constant, loaded by no unit): a new character takes one."""
+        used = set()
+        for source in self._original_unit_defs.values():
+            used |= {parse_int(n) for n in re.findall(r"\.charIndex\s*=\s*(0x[0-9A-Fa-f]+|\d+)", source)}
+        numbers = (e.original_fields["number"] for e in self.characters.entries)
+        return sorted(n for n in (parse_int(k) for k in numbers if not k.startswith("CHARACTER_"))
+                      if 0 < n < 0xFF and n not in used)
+
+    def new_character(self, ally: bool, taken: set[str]) -> dict:
+        """Sheet of a character to add: the first free entry for an ally (below ALLY_CHARACTER_END) or an enemy
+        (from it); `taken` are the ids already in the project."""
+        for n in self.free_character_numbers():
+            new_id = f"{NEW_CHARACTER_PREFIX}{n:02X}"
+            if (n < ALLY_CHARACTER_END) == ally and new_id not in taken:
+                entry = next(e for e in self.characters.entries if e.original_fields["number"] != "0"
+                             and not e.original_fields["number"].startswith("CHARACTER_")
+                             and parse_int(e.original_fields["number"]) == n)
+                record = self._character_record(entry)
+                record.update(id=new_id, name="", level=1, portraitId=0, weaponRanks={},
+                              bases={s: 0 for s in STATS}, affinity=None, abilities=[])
+                return record
+        raise GameDataError("noFreeCharacter")
+
+    def _activate_character(self, new_id: str) -> Entry:
+        """Give a free entry the constant of a character the project adds, with its own name and help texts."""
+        n = int(new_id.removeprefix(NEW_CHARACTER_PREFIX), 16)
+        if n not in self.free_character_numbers():
+            raise GameDataError(f"{new_id}: entry 0x{n:02X} is used by the game")
+        entry = next(e for e in self.characters.entries if e.fields["number"] != "0"
+                     and not e.fields["number"].startswith("CHARACTER_") and parse_int(e.fields["number"]) == n)
+        entry.key = f"{new_id} - 1"
+        f = entry.fields
+        f["number"] = new_id
+        f["nameTextId"] = hex(self.texts.add(name_message("")))
+        f["descTextId"] = hex(self.texts.add(name_message("")))
+        f["sort_order"] = hex(n)   # place in the unit lists; the game's characters use their own number too
+        self.new_characters[new_id] = n
+        return entry
+
+    def _constants_with_new_characters(self) -> str:
+        """characters.h with the constants of the characters the project adds, at the end of their enum."""
+        source = self._read(CHARACTER_CONSTANTS_FILE)
+        m = re.search(r"\bCHARACTER_\w+\s*=\s*(?:0x[0-9A-Fa-f]+|\d+)\s*,?[^}]*?\n\}", source)
+        if m is None:
+            raise GameDataError(f"Character constants not found in {CHARACTER_CONSTANTS_FILE}")
+        lines = "".join(f"    {name} = 0x{n:02X},\n" for name, n in sorted(self.new_characters.items(), key=lambda kv: kv[1]))
+        close = m.end() - 1
+        return source[:close] + "\n" + lines + source[close:]
+
+    def _character_record(self, entry: Entry) -> dict:
+        f = entry.fields
+        ranks = parse_designated_list(f.get("baseRanks", "{ }"))
+        return {
+            "id": f["number"],
+            "name": self._text_name(f),
+            "class": f["defaultClass"],
+            "level": _int_field(f, "baseLevel"),
+            "portraitId": _int_field(f, "portraitId"),
+            "bases": {s: _int_field(f, "base" + STAT_SUFFIX[s], signed=True) for s in STATS},
+            "growths": {s: _int_field(f, "growth" + STAT_SUFFIX[s]) for s in GROWTHS},
+            "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
+            "affinity": AFFINITIES.get(f.get("affinity", "0")),
+            "abilities": _abilities(f.get("attributes", "0")),
+            # opens the convoy, with the units next to them (ticket 29, see convoy.py)
+            "convoyAccess": f["number"] in convoy.DEFAULT_OPENERS,
+            # can seize (the route's lord in the game, ticket 37, see seize.py)
+            "canSeize": f["number"] in seize.DEFAULT_SEIZERS,
+        }
 
     def export_items(self) -> list[dict]:
         result = []
@@ -1342,8 +1402,14 @@ class DecompData:
         seizers = [ch["id"] for ch in characters if ch.get("canSeize", ch["id"] in seize.DEFAULT_SEIZERS)]
         if set(seizers) != {k for k in entries if k in seize.DEFAULT_SEIZERS}:
             self.seizers = seizers
+        # A free entry a new character takes is no longer edited under its raw number.
+        taken = {int(ch["id"].removeprefix(NEW_CHARACTER_PREFIX), 16) for ch in characters
+                 if ch["id"].startswith(NEW_CHARACTER_PREFIX)}
+        characters = [ch for ch in characters if ch["id"].startswith("CHARACTER_") or parse_int(ch["id"]) not in taken]
         for ch in characters:
             entry = entries.get(ch["id"])
+            if entry is None and ch["id"].startswith(NEW_CHARACTER_PREFIX):
+                entry = entries[ch["id"]] = self._activate_character(ch["id"])
             if entry is None:
                 raise GameDataError(f"Unknown character {ch['id']}")
             f = entry.fields
@@ -1597,6 +1663,8 @@ class DecompData:
             externs = "".join(f"extern CONST_DATA struct BattleAnimDef {n}[];\n" for n in self.new_anim_confs)
             include = '#include "ekrbattle.h"\n'
             out[CLASSES_FILE] = out[CLASSES_FILE].replace(include, include + externs, 1)
+        if self.new_characters:
+            out[CHARACTER_CONSTANTS_FILE] = self._constants_with_new_characters()
         if self.support_source is not None:
             out[supports.SUPPORTS_FILE] = self.support_source
         if self.support_talks is not None:

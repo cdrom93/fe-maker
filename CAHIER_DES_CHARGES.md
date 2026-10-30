@@ -250,14 +250,15 @@ Trois pistes à évaluer le moment venu :
 ### Alpha publique (décidée le 30/10/2026)
 Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux et macOS plus tard, le code reste multiplateforme).
 1. **Préalables au passage en public** : historique git vérifié (aucune ROM, aucun asset du jeu) ; position des mainteneurs de fireemblem8u sur la licence (section 2).
-2. **Gel** : tickets en attente validés, playtests `tests/local` au vert, version `0.1.0-alpha`, liste des limites connues.
-3. **Paquet sans Node** : release GitHub avec l'interface déjà compilée ; la décomp n'est pas dans le paquet (pas de licence) : FE Maker la télécharge au premier lancement, au commit fixé.
-4. **Image Docker toute prête** sur ghcr.io (agbcc en GPL : lien vers ses sources dans CREDITS).
-5. **Premier lancement guidé** : vérification de Docker (démarré, virtualisation), de mGBA et de la ROM (somme de contrôle FE8 US), avec des messages clairs.
-6. **Retours des testeurs** : envoi d'un ticket en issue GitHub pré-remplie (version, onglet, journal).
-7. **Docs** : guide de démarrage FR/EN, limites connues, CHANGELOG.
-8. **Test sur une machine vierge** (Windows Sandbox, job CI d'installation depuis la release), tag, annonce sur FEU.
-- **État** : étape 1 faite le 30/10/2026 (historique propre : 189 fichiers, code et texte seulement, fixtures fictives dès le premier commit ; mainteneurs déjà prononcés, #728). Le dépôt peut passer en public quand l'utilisateur le décide. Suite : étape 2.
+2. **Fonctions à faire avant le gel** (décision du 30/10/2026, dans cet ordre) : ajouter un personnage, un objet, une classe (ticket 44 étape 4), un chapitre avec une carte neuve ; formulaires des conditions et des sauts dans l'éditeur d'événements ; sprites de carte (FE-Repo et PC) ; musique (FE-Repo-Music) ; patchs de confort (phase 6, `docs/patchs-qol.md`). La carte du monde reste seulement désactivable.
+3. **Gel** : un hack témoin de 3 chapitres fait uniquement avec FE Maker et joué jusqu'au bout ; tickets en attente validés, playtests `tests/local` au vert, version `0.1.0-alpha`, liste des limites connues.
+4. **Paquet sans Node** : release GitHub avec l'interface déjà compilée ; la décomp n'est pas dans le paquet (pas de licence) : FE Maker la télécharge au premier lancement, au commit fixé.
+5. **Image Docker toute prête** sur ghcr.io (agbcc en GPL : lien vers ses sources dans CREDITS).
+6. **Premier lancement guidé** : vérification de Docker (démarré, virtualisation), de mGBA et de la ROM (somme de contrôle FE8 US), avec des messages clairs.
+7. **Retours des testeurs** : envoi d'un ticket en issue GitHub pré-remplie (version, onglet, journal).
+8. **Docs** : guide de démarrage FR/EN, limites connues, CHANGELOG.
+9. **Test sur une machine vierge** (Windows Sandbox, job CI d'installation depuis la release), tag, annonce sur FEU.
+- **État** : étape 1 faite le 30/10/2026 (historique propre : 189 fichiers, code et texte seulement, fixtures fictives dès le premier commit ; mainteneurs déjà prononcés, #728). Le dépôt peut passer en public quand l'utilisateur le décide. Étape 2 : ajout de personnages fait (alliés et ennemis sur les places libres de la table du jeu, vérifié en jeu par playtest) ; suite : objets.
 
 ---
 

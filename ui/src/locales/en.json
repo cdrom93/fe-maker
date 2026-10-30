@@ -1166,5 +1166,15 @@
   "banim.local.zip": "Choose a .zip…",
   "banim.local.name": "Animation name",
   "banim.local.files": "{n} files chosen",
-  "banim.import.error.badZip": "this .zip does not open"
+  "banim.import.error.badZip": "this .zip does not open",
+  "character.addAlly": "Ally",
+  "character.addEnemy": "Enemy",
+  "character.addAllyHint": "Add a playable character (16 free places in the game)",
+  "character.addEnemyHint": "Add an enemy or a non-playable character: boss, NPC…",
+  "character.newAlly": "New ally",
+  "character.newEnemy": "New enemy",
+  "character.noFree": "No free place left in the game's character table for this kind.",
+  "character.remove": "Remove this character",
+  "character.removeConfirm": "Remove {name}? The chapters and dialogues using them will be flagged.",
+  "problem.characterEntryTaken": "this character's place in the game's table is used by the game: remove it and create it again"
 }

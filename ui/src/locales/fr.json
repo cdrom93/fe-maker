@@ -1166,5 +1166,15 @@
   "banim.local.zip": "Choisir un .zip…",
   "banim.local.name": "Nom de l'animation",
   "banim.local.files": "{n} fichiers choisis",
-  "banim.import.error.badZip": "ce .zip ne s'ouvre pas"
+  "banim.import.error.badZip": "ce .zip ne s'ouvre pas",
+  "character.addAlly": "Allié",
+  "character.addEnemy": "Ennemi",
+  "character.addAllyHint": "Ajouter un personnage jouable (16 places libres dans le jeu)",
+  "character.addEnemyHint": "Ajouter un ennemi ou un personnage non jouable : chef, PNJ…",
+  "character.newAlly": "Nouvel allié",
+  "character.newEnemy": "Nouvel ennemi",
+  "character.noFree": "Plus de place libre dans la table des personnages du jeu pour ce type.",
+  "character.remove": "Supprimer ce personnage",
+  "character.removeConfirm": "Supprimer {name} ? Les chapitres et dialogues qui l'utilisent seront signalés.",
+  "problem.characterEntryTaken": "la place de ce personnage dans la table du jeu est utilisée par le jeu : supprimez-le et recréez-le"
 }

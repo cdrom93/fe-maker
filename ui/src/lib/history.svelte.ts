@@ -39,6 +39,17 @@ export class EditableList<T> {
     this.scheduleSave()
   }
 
+  /** Change the list itself (records added or removed), as one undo step. */
+  change(change: (records: T[]) => T[]) {
+    this.past.push(JSON.stringify(this.records))
+    if (this.past.length > 200) this.past.shift()
+    this.lastEdit = { index: -1, time: 0 }
+    this.future = []
+    this.records = change(structuredClone($state.snapshot(this.records)) as T[])
+    this.sync()
+    this.scheduleSave()
+  }
+
   undo() {
     const previous = this.past.pop()
     if (previous === undefined) return

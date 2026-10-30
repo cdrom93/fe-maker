@@ -103,6 +103,9 @@ class TextFile:
         return "\n".join(self.lines[msg.body_start:msg.body_end]).strip("\n")
 
     def set_raw(self, index: int, body: str) -> None:
+        if index in self.added:
+            self.added[index] = body
+            return
         if index not in self.messages:
             raise KeyError(f"Unknown message 0x{index:X}")
         if body != self.raw(index) or index in self.edits:

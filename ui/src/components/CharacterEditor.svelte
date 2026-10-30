@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { portraitUrl } from '../lib/api'
+  import { api, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassStatKey, ClassView, Item, Problem, Reference, StatKey } from '../lib/types'
@@ -51,6 +51,29 @@
     list.update(selected, change)
   }
 
+  /** Characters the project adds (server: gamedata.NEW_CHARACTER_PREFIX), the only ones that can be removed. */
+  const isNew = (id: string) => id.startsWith('CHARACTER_NEW_')
+  let addError = $state('')
+
+  async function addCharacter(ally: boolean) {
+    addError = ''
+    try {
+      const { record, replaces } = await api.newCharacter(ally)
+      record.name = t(ally ? 'character.newAlly' : 'character.newEnemy')
+      list.change((records) => [...records.filter((r) => r.id !== replaces), record])
+      selected = list.records.length - 1
+    } catch (e) {
+      addError = String(e).includes('noFreeCharacter') ? t('character.noFree') : String(e)
+    }
+  }
+
+  function removeCharacter() {
+    if (!ch || !isNew(ch.id) || !confirm(t('character.removeConfirm', { name: ch.name }))) return
+    const id = ch.id
+    list.change((records) => records.filter((r) => r.id !== id))
+    selected = Math.max(0, selected - 1)
+  }
+
   function setRank(wtype: string, rank: string) {
     edit((c) => {
       if (rank) c.weaponRanks[wtype] = rank
@@ -68,6 +91,11 @@
     secondaryLabel={t('list.genericCharacters')}
     {problemIds}
   >
+    {#snippet actions()}
+      <button onclick={() => addCharacter(true)} title={t('character.addAllyHint')}>+ {t('character.addAlly')}</button>
+      <button onclick={() => addCharacter(false)} title={t('character.addEnemyHint')}>+ {t('character.addEnemy')}</button>
+      {#if addError}<p class="bad small">{addError}</p>{/if}
+    {/snippet}
     {#snippet icon(c: Character)}
       <img class="pixel mini" src={portraitUrl(c.portraitId)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
     {/snippet}
@@ -192,6 +220,10 @@
         convoy={{ on: ch.convoyAccess ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.convoyAccess = on)) }}
         seize={{ on: ch.canSeize ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.canSeize = on)) }}
       />
+
+      {#if isNew(ch.id)}
+        <p class="small"><button class="link" onclick={removeCharacter}>{t('character.remove')}</button></p>
+      {/if}
 
       {#if mine.length}
         <section class="panel issues">

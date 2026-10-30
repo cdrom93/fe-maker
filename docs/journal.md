@@ -43,3 +43,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : ticket 54, plus d'emojis décoratifs devant les textes des boutons, liens, titres et phrases (ni dans le README) ; ceux qui servent d'icônes restent.
 - 30/10/2026 : règle ajoutée : illustrer d'abord avec les visuels du jeu (icônes d'armes et d'objets, portraits, sprites), avant un emoji.
 - 30/10/2026 : plan de l'alpha publique écrit (FEU, Windows d'abord, cahier section 4) ; étape 1 faite : historique git vérifié propre, position des mainteneurs de la décomp déjà donnée (#728, pas de licence, engagement de ne pas attaquer les projets dérivés).
+- 30/10/2026 : ajout de personnages (boutons « + Allié » / « + Ennemi » de l'onglet Personnages) : une place libre de la table du jeu (16 pour les alliés sous 0x46, 93 pour les ennemis), constante `CHARACTER_NEW_xx` ajoutée à characters.h, nom à part ; vérifié en jeu (playtest : allié et ennemi ajoutés au prologue).
