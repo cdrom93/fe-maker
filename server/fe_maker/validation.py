@@ -23,6 +23,7 @@ from .decomp.gamedata import (
     GROWTHS,
     LAST_ITEM_NUMBER,
     NEW_CHARACTER_PREFIX,
+    NEW_CLASS_PREFIX,
     NEW_ITEM_PREFIX,
     PROMO_STATS,
     RANK_VALUES,
@@ -120,10 +121,16 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     _font = fonts.widths(decomp.decomp_dir)
     problems: list[Problem] = []
     class_ids = {e.fields["number"] for e in decomp.classes.entries}
+    # Classes the project adds have their model's battle animations, plus the ones the project gives them.
+    new_classes = {c["id"]: c.get("model") for c in classes or [] if c["id"].startswith(NEW_CLASS_PREFIX)}
+    class_ids |= set(new_classes)
+    for class_id, model in new_classes.items():
+        known = _animated.setdefault(class_id, [])
+        known += [w for w in _animated.get(model, []) if w not in known]
     icon_count = len(decomp.item_icon_files())
     weapon_types = set(WEAPON_TYPES.values())
     original = {c["id"]: c for c in decomp.export_characters()}
-    used_classes = decomp.classes_used_in_game()
+    used_classes = decomp.classes_used_in_game() | set(new_classes)
     first_new = decomp_portraits.first_new_id(decomp.decomp_dir)
     added_portraits = {int(k) for k in (portraits or {}) if str(k).isdigit() and int(k) >= first_new}
 
@@ -824,7 +831,11 @@ def _validate_classes(problems, classes, decomp, class_ids, weapon_types):
     _duplicates(problems, "classes", classes)
     for cl in classes:
         rid = cl["id"]
-        if cl.get("name"):  # some engine-only classes have no name in the original game
+        if rid.startswith(NEW_CLASS_PREFIX):
+            _name(problems, "classes", rid, cl.get("name"))
+            if cl.get("model") not in original:
+                problems.append(Problem("error", "classes", rid, "model", "unknownModel", {}, f"{rid}: unknown model class"))
+        elif cl.get("name"):  # some engine-only classes have no name in the original game
             _name(problems, "classes", rid, cl["name"])
         for s in CLASS_STATS:
             _range(problems, "classes", rid, f"bases.{s}", cl["bases"].get(s), 0, 127)

@@ -55,6 +55,8 @@ export type ClassStatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'con'
 export interface ClassData {
   id: string
   name: string
+  /** classes the project adds (CLASS_NEW_xx): the game's class they copy (sprites, animations) */
+  model?: string
   bases: Record<ClassStatKey, number>
   mov: number
   maxes: Record<ClassStatKey, number>

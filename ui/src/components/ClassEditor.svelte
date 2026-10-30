@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mapSpriteUrl } from '../lib/api'
+  import { api, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
@@ -50,6 +50,28 @@
   function label(k: ClassView): string {
     const sign = k.gender ? ` ${GENDER_SIGN[k.gender]}` : ''
     return `${k.name || k.id}${sign}`
+  }
+
+  let addError = $state('')
+
+  async function addClass() {
+    if (!cl) return
+    addError = ''
+    try {
+      const record = await api.newClass(cl.id)
+      record.name = t('item.copyName', { name: cl.name })
+      list.change((records) => [...records, record])
+      selected = list.records.length - 1
+    } catch (e) {
+      addError = String(e).includes('noFreeClass') ? t('class.noFree') : String(e)
+    }
+  }
+
+  function removeClass() {
+    if (!cl?.model || !confirm(t('class.removeConfirm', { name: cl.name }))) return
+    const id = cl.id
+    list.change((records) => records.filter((r) => r.id !== id))
+    selected = Math.max(0, selected - 1)
   }
 
   function setPromotion(slot: number, id: string) {
@@ -104,6 +126,17 @@
           {t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}{#if cl.gender} · {t('class.gender')} : <GenderSign gender={cl.gender} />{/if}
         </p>
         <ReservedWeapons {items} classId={cl.id} className={cl.name} />
+        {#if cl.model}
+          <p class="muted small">
+            {t('class.copyOf')} <Mention kind="classes" id={cl.model}>{classes.find((k) => k.id === cl.model)?.name ?? cl.model}</Mention>
+            <button class="link" onclick={removeClass}>{t('class.remove')}</button>
+          </p>
+        {:else}
+          <p class="small">
+            <button onclick={addClass} title={t('class.newFromHint')}>+ {t('class.newFrom')}</button>
+            {#if addError}<span class="bad">{addError}</span>{/if}
+          </p>
+        {/if}
       </section>
 
       <section class="panel">

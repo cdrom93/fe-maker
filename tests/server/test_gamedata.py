@@ -225,3 +225,24 @@ def test_new_weapon_copies_its_model_after_the_game_items(decomp_dir):
 def test_only_weapons_can_be_copied(decomp_dir):
     with pytest.raises(GameDataError, match="notAWeapon"):
         DecompData(decomp_dir).new_item("ITEM_NONE", set())
+
+
+def test_new_class_copies_its_model_after_the_game_classes(decomp_dir):
+    d = DecompData(decomp_dir)
+    classes = d.export_classes()
+    new = d.new_class("CLASS_TESTKNIGHT", set())
+    assert new["id"] == "CLASS_NEW_80" and new["model"] == "CLASS_TESTKNIGHT"
+    assert new["promotions"] == ["CLASS_TESTLORD"]   # promotes like its model
+    other = d.new_class("CLASS_TESTLORD", {"CLASS_NEW_80"})
+    other.update(name="Duc", promotions=[])
+    new["name"] = "Garde"
+    d.apply_classes([*classes, new, other])
+    files = d.changed_files()
+    source = files["src/data_classes.c"]
+    assert "[CLASS_NEW_80 - 1] = {" in source and "[CLASS_NEW_81 - 1] = {" in source   # keyed like the game's
+    assert ".number = CLASS_NEW_80," in source
+    promotions = files["src/classchg-data.c"]
+    assert "{CLASS_TESTLORD}" in promotions.split("[CLASS_NEW_80]")[1].split("\n")[0]
+    # the last new class has a row even without promotions: the engine reads gPromoJidLut[class]
+    assert "{0}" in promotions.split("[CLASS_NEW_81]")[1].split("\n")[0]
+    assert "gSomethingElse" in promotions

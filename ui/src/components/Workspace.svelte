@@ -87,7 +87,8 @@
   const classes = $derived<ClassView[]>(
     reference
       ? lists.classes.records.map((c) => {
-          const facts = reference!.classFacts[c.id]
+          // a class the project adds has its model's animations and gender, and is listed with the used ones
+          const facts = reference!.classFacts[c.id] ?? { ...reference!.classFacts[c.model ?? ''], usedInGame: true }
           return { ...c, ...facts, usedInGame: facts.usedInGame || usedInProject.has(c.id) }
         })
       : [],

@@ -1185,5 +1185,11 @@
   "item.remove": "Supprimer cette arme",
   "item.removeConfirm": "Supprimer {name} ? Les unités, coffres et magasins qui l'ont seront signalés.",
   "problem.itemNumberTaken": "ce numéro d'objet est utilisé par le jeu : supprimez l'arme et recréez-la",
-  "problem.unknownModel": "l'arme dont celle-ci est la copie n'existe pas"
+  "problem.unknownModel": "l'arme dont celle-ci est la copie n'existe pas",
+  "class.newFrom": "Nouvelle classe d'après celle-ci",
+  "class.newFromHint": "Ajoute une classe au jeu, copie de celle-ci : mêmes sprites, animations de combat et promotions, à régler ensuite",
+  "class.copyOf": "Classe ajoutée, copie de",
+  "class.noFree": "Plus de place libre après les classes du jeu.",
+  "class.remove": "Supprimer cette classe",
+  "class.removeConfirm": "Supprimer {name} ? Les personnages et unités qui l'ont seront signalés."
 }

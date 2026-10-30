@@ -60,6 +60,12 @@ SPELL_ASSOC_FILE = "src/spellassoc-data.c"
 # battle animations, chosen by item number). Item numbers are one byte; 0xFF is left out.
 NEW_ITEM_PREFIX = "ITEM_NEW_"
 LAST_ITEM_NUMBER = 0xFE
+CLASS_CONSTANTS_FILE = "include/constants/classes.h"
+MOVING_SPRITES_FILE = "src/unit_icon_move_data.c"
+# A class the project adds copies a model class (stats, battle animations, map sprites, promotions), numbered
+# from 0x80 after the game's classes. unit_icon_move_table has one row per class, in order: new classes follow.
+NEW_CLASS_PREFIX = "CLASS_NEW_"
+FIRST_NEW_CLASS, LAST_NEW_CLASS = 0x80, 0xFE
 # Unit placements of every chapter (struct UnitDefinition arrays)
 UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
 # Chapter event groups and their event lists (objectives); unit definition files excluded.
@@ -230,6 +236,7 @@ class DecompData:
         self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
+        self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -1261,10 +1268,72 @@ class DecompData:
         """Movement cost table families used by classes (HorseT2, Fly, Armor...)."""
         return sorted({_movement_group(e.fields.get("pMovCostTable", "")) for e in self.classes.entries} - {None})
 
+    def new_class(self, model: str, taken: set[str]) -> dict:
+        """Sheet of a class to add, copying `model`; `taken` are the ids already in the project."""
+        record = next((r for r in self.export_classes() if r["id"] == model), None)
+        if record is None:
+            raise GameDataError("unknownClass")
+        for n in range(FIRST_NEW_CLASS, LAST_NEW_CLASS + 1):
+            new_id = f"{NEW_CLASS_PREFIX}{n:02X}"
+            if new_id not in taken:
+                return {**record, "id": new_id, "name": "", "model": model}
+        raise GameDataError("noFreeClass")
+
+    def _add_class(self, new_id: str, model: str | None) -> Entry:
+        """A class the project adds: an entry after the game's ones, with the fields of its model."""
+        n = int(new_id.removeprefix(NEW_CLASS_PREFIX), 16)
+        if not FIRST_NEW_CLASS <= n <= LAST_NEW_CLASS:
+            raise GameDataError(f"{new_id}: not after the game's classes")
+        source = next((e for e in self.classes.entries if e.original_fields and e.fields["number"] == model), None)
+        if source is None:
+            raise GameDataError(f"{new_id}: unknown model class {model}")
+        fields = dict(source.original_fields)
+        fields["number"] = new_id
+        fields["nameTextId"] = hex(self.texts.add(name_message("")))
+        if "descTextId" in fields:   # its own help text, starting as the model's
+            fields["descTextId"] = hex(self.texts.add(self.texts.raw(_int_field(source.original_fields, "descTextId"))))
+        close = self.classes.source.rindex("};")
+        start = self.classes.source.rfind("\n", 0, close) + 1
+        key = re.sub(rf"\b{re.escape(model)}\b", new_id, source.key)   # "CLASS_X - 1" in the class table
+        entry = Entry(key=key, fields=fields, start=start, end=start, indent=source.indent)
+        self.classes.entries.append(entry)
+        self.new_classes[new_id] = (n, model)
+        self.animated_weapons[new_id] = self.animated_weapons.get(model, [])
+        return entry
+
+    def _with_new_class_files(self, out: dict[str, str | bytes]) -> None:
+        """Constants of the classes the project adds and their moving map sprites (their models')."""
+        if (self.decomp_dir / CLASS_CONSTANTS_FILE).is_file():
+            out[CLASS_CONSTANTS_FILE] = self._enum_with(CLASS_CONSTANTS_FILE, "CLASS_",
+                                                        {c: n for c, (n, _m) in self.new_classes.items()})
+        if not (self.decomp_dir / MOVING_SPRITES_FILE).is_file():
+            return
+        models = {n: model for n, model in self.new_classes.values()}
+        game_numbers = {e.fields["number"]: i + 1 for i, e in enumerate(e for e in self.classes.entries if e.original_fields)}
+        source = self._read(MOVING_SPRITES_FILE)
+        rows = re.findall(r"^[ \t]*\{[^{}\n]*\},[^\n]*$", source, re.MULTILINE)
+        added = []
+        for n in range(len(rows) + 1, max(models) + 1):   # a gap left by a removed class takes the first row
+            row = rows[game_numbers.get(models.get(n, ""), 1) - 1]
+            added.append(re.sub(r"//.*$", f"// {n - 1}", row))
+        close = source.rindex("};")
+        out[MOVING_SPRITES_FILE] = source[:close] + "\n".join(added) + "\n" + source[close:]
+
+    def _new_class_promotions(self) -> None:
+        """New classes promote like their models unless the project says otherwise; the last one gets a row even
+        without promotions, so the engine's gPromoJidLut[class] lookup stays inside the table."""
+        if self.promotions is None or not self.new_classes:
+            return
+        last = max(self.new_classes, key=lambda c: self.new_classes[c][0])
+        if not self.promotions.get(last):
+            self.promotions[last] = ["0"]
+
     def apply_classes(self, classes: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.classes.entries}
         for cl in classes:
             entry = entries.get(cl["id"])
+            if entry is None and cl["id"].startswith(NEW_CLASS_PREFIX):
+                entry = entries[cl["id"]] = self._add_class(cl["id"], cl.get("model"))
             if entry is None:
                 raise GameDataError(f"Unknown class {cl['id']}")
             f = entry.fields
@@ -1342,15 +1411,15 @@ class DecompData:
         self.new_characters[new_id] = n
         return entry
 
-    def _constants_with_new_characters(self) -> str:
-        """characters.h with the constants of the characters the project adds, at the end of their enum."""
-        source = self._read(CHARACTER_CONSTANTS_FILE)
-        m = re.search(r"\bCHARACTER_\w+\s*=\s*(?:0x[0-9A-Fa-f]+|\d+)\s*,?[^}]*?\n\}", source)
+    def _enum_with(self, rel: str, prefix: str, constants: dict[str, int]) -> str:
+        """A constants header with `constants` added at the end of the first enum of `prefix` constants."""
+        source = self._read(rel)
+        m = re.search(rf"\b{prefix}\w+\s*=", source)
         if m is None:
-            raise GameDataError(f"Character constants not found in {CHARACTER_CONSTANTS_FILE}")
-        lines = "".join(f"    {name} = 0x{n:02X},\n" for name, n in sorted(self.new_characters.items(), key=lambda kv: kv[1]))
-        close = m.end() - 1
-        return source[:close] + "\n" + lines + source[close:]
+            raise GameDataError(f"No {prefix} constants in {rel}")
+        close = source.index("\n};", m.start())
+        lines = "".join(f"\n    {name} = 0x{n:02X}," for name, n in sorted(constants.items(), key=lambda kv: kv[1]))
+        return source[:close] + lines + source[close:]
 
     def _character_record(self, entry: Entry) -> dict:
         f = entry.fields
@@ -1614,7 +1683,8 @@ class DecompData:
             fields["descTextId"] = hex(self.texts.add(self.texts.raw(_int_field(source.original_fields, "descTextId"))))
         close = self.items.source.rindex("};")
         start = self.items.source.rfind("\n", 0, close) + 1
-        entry = Entry(key=new_id, fields=fields, start=start, end=start, indent=source.indent)
+        key = re.sub(rf"\b{re.escape(model)}\b", new_id, source.key)   # "CLASS_X - 1" in the class table
+        entry = Entry(key=key, fields=fields, start=start, end=start, indent=source.indent)
         self.items.entries.append(entry)
         self.new_items[new_id] = (n, model)
         return entry
@@ -1623,9 +1693,7 @@ class DecompData:
         """Constants of the weapons the project adds, and the copies of their models' spells and own animations."""
         news = sorted(self.new_items.items(), key=lambda kv: kv[1][0])
         if (self.decomp_dir / ITEM_CONSTANTS_FILE).is_file():
-            header = self._read(ITEM_CONSTANTS_FILE)
-            close = header.index("\n};", header.index("ITEM_NONE"))
-            out[ITEM_CONSTANTS_FILE] = header[:close] + "".join(f"\n    {i} = 0x{n:02X}," for i, (n, _m) in news) + header[close:]
+            out[ITEM_CONSTANTS_FILE] = self._enum_with(ITEM_CONSTANTS_FILE, "ITEM_", {i: n for i, (n, _m) in news})
         for rel, pattern in ((SPELL_ASSOC_FILE, r"^[ \t]*SPELL_ASSOC_DATA\w*\(\s*{model}\s*,.*\n"),
                              (BATTLE_ANIM_CONF_FILE, r"^[ \t]*\{{\s*\.wtype\s*=\s*{model}\s*,\s*\.index\s*=\s*\w+\s*,\s*\}},\n")):
             if not (self.decomp_dir / rel).is_file():
@@ -1731,7 +1799,7 @@ class DecompData:
             include = '#include "ekrbattle.h"\n'
             out[CLASSES_FILE] = out[CLASSES_FILE].replace(include, include + externs, 1)
         if self.new_characters:
-            out[CHARACTER_CONSTANTS_FILE] = self._constants_with_new_characters()
+            out[CHARACTER_CONSTANTS_FILE] = self._enum_with(CHARACTER_CONSTANTS_FILE, "CHARACTER_", self.new_characters)
         if self.support_source is not None:
             out[supports.SUPPORTS_FILE] = self.support_source
         if self.support_talks is not None:
@@ -1756,6 +1824,9 @@ class DecompData:
             out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
         if self.no_convoy is not None:
             out[convoy.CONTAINER_FILE] = convoy.with_chapters(self._read(convoy.CONTAINER_FILE), self.no_convoy)
+        if self.new_classes:
+            self._with_new_class_files(out)
+            self._new_class_promotions()
         if self.promotions is not None and self.promotions != self._original_promotions:
             out[combat.PROMOTIONS_FILE] = combat.render_promotions(self._sources[combat.PROMOTIONS_FILE], self.promotions)
         if self.effectiveness is not None and self.effectiveness != self._original_effectiveness:

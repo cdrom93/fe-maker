@@ -433,3 +433,36 @@ def test_added_weapon_in_seth_inventory(tmp_path):
         assert seth["items"][0] == 0xCE
         item = game.address("gItemData") + 0xCE * 36
         assert game.read(item, 0x15) == 11   # might
+
+
+def test_added_class_moves_on_the_map(tmp_path):
+    """Seth in a class the project adds (a copy of the paladin, class 0x80): his moving map sprite comes from
+    the extended unit_icon_move_table, his promotion row from gPromoJidLut."""
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "klass", "Klass")
+    classes = project.load("classes")
+    knight = DecompData(project.decomp_dir).new_class("CLASS_PALADIN", {c["id"] for c in classes})
+    knight.update(name="Templier", mov=9)
+    project.save("classes", [*classes, knight])
+    chars = project.load("characters")
+    next(c for c in chars if c["id"] == "CHARACTER_SETH")["class"] = knight["id"]
+    project.save("characters", chars)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        assert seth["class"] == 0x80
+        game.move_cursor(seth["x"], seth["y"])
+        game.press("A")
+        game.move_cursor(seth["x"] - 2, seth["y"])
+        game.press("A")
+        game.run(60)
+        game.screenshot().save(tmp_path / "moved.png")
+        print("screenshot:", tmp_path / "moved.png")
+        game.press("UP")     # the menu wraps: its last line, Wait
+        game.press("A")
+        game.run(30)
+        moved = next(u for u in game.units() if u["character"] == 2)
+        assert (moved["x"], moved["y"]) == (seth["x"] - 2, seth["y"])

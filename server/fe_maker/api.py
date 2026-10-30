@@ -50,6 +50,7 @@ from .decomp.gamedata import (
     ABILITIES,
     AFFINITIES,
     NEW_CHARACTER_PREFIX,
+    NEW_CLASS_PREFIX,
     RANK_VALUES,
     RANKABLE_TYPES,
     WEAPON_TYPES,
@@ -224,6 +225,20 @@ def new_character(body: NewCharacterIn):
     replaces = next((c["id"] for c in characters
                      if not c["id"].startswith("CHARACTER_") and parse_int(c["id"]) == number), None)
     return {"record": record, "replaces": replaces}
+
+
+class NewClassIn(BaseModel):
+    model: str
+
+
+@app.post("/api/classes/new")
+def new_class(body: NewClassIn):
+    """Sheet of a class to add after the game's classes, copying a model class."""
+    project = state.require_project()
+    try:
+        return DecompData(project.decomp_dir).new_class(body.model, {c["id"] for c in project.load("classes")})
+    except GameDataError as e:
+        raise HTTPException(409, str(e)) from e
 
 
 class NewItemIn(BaseModel):
@@ -822,9 +837,16 @@ def chapter_objective(index: int):
     return state.get_decomp().read_objective(index)
 
 
+def _game_class(class_id: str):
+    """The game's class entry for a class id; a class the project adds shows its model's sprites and animations."""
+    if class_id.startswith(NEW_CLASS_PREFIX) and state.project is not None:
+        class_id = next((c.get("model") for c in state.project.load("classes") if c["id"] == class_id), class_id)
+    return next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
+
+
 @app.get("/api/assets/map-sprite/{class_id}")
 def map_sprite(class_id: str, side: str = "player", trim: bool = False):
-    entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
+    entry = _game_class(class_id)
     if entry is None:
         raise HTTPException(404)
     try:
@@ -863,7 +885,7 @@ def _animation_source(ref: str) -> tuple[Path, str]:
 def class_animations(class_id: str):
     """The class's battle animations, by weapon type or item (ticket 44), with the project's changes: an
     animation imported for a weapon type ("ref" "new-<key>") or another game animation."""
-    entry = next((e for e in state.get_decomp().classes.entries if e.fields["number"] == class_id), None)
+    entry = _game_class(class_id)
     if entry is None:
         raise HTTPException(404)
     conf = entry.fields.get("pBattleAnimDef", "").lstrip("&").strip()
