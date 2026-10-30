@@ -206,6 +206,8 @@
   }
 
   /** How a link really goes: without the world map, MNCH goes straight to its chapter. */
+  /** Where a link leads: the end of the game for the game's ending, and for a chapter's ending scene back to the title screen. */
+  const targetOf = (l: ChapterLink) => (l.kind === 'ending' || (l.kind === 'title' && l.ending) ? END : l.to)
   const shownKind = (l: ChapterLink) => (!worldMap && l.kind === 'worldMap' ? 'direct' : l.kind)
 
   $effect(() => {
@@ -263,7 +265,7 @@
         if (from === END) continue
         const next = [...(links[from] ?? [])].sort((a, b) => Number(b.ending) - Number(a.ending))
         for (const l of next) {
-          const to = l.kind === 'ending' ? END : l.to
+          const to = targetOf(l)
           if (to === null || depth.has(to) || (to !== END && !chapters[to])) continue
           depth.set(to, depth.get(from)! + 1)
           order.push(to)
@@ -286,7 +288,7 @@
     for (const n of order) {
       if (n === END) continue
       for (const l of links[n] ?? []) {
-        const to = l.kind === 'ending' ? END : l.to
+        const to = targetOf(l)
         if (to !== null && pos.has(to)) edges.push({ from: n, to, link: l })
       }
     }
@@ -341,7 +343,7 @@
     return `M${from.x + NODE_W},${from.y + NODE_H / 2} C${side},${from.y + NODE_H / 2} ${side},${to.y + NODE_H / 2} ${to.x + NODE_W},${to.y + NODE_H / 2}`
   }
 
-  const incoming = $derived(selected === null ? [] : links.flatMap((ls, i) => ls.filter((l) => (l.kind === 'ending' ? END : l.to) === selected).map((l) => ({ from: i, link: l }))))
+  const incoming = $derived(selected === null ? [] : links.flatMap((ls, i) => ls.filter((l) => (targetOf(l)) === selected).map((l) => ({ from: i, link: l }))))
 
   /** Change where a command leads, or how (world map, straight, without saving, game ending). */
   async function setLink(link: ChapterLink, change: { op?: string; to?: number }) {
@@ -583,7 +585,7 @@
   .edge.worldMap { stroke: var(--accent); }
   .edge.direct { stroke: var(--good); }
   .edge.noSave { stroke: var(--warn); stroke-dasharray: 6 4; }
-  .edge.ending { stroke: var(--warn); }
+  .edge.ending, .edge.title { stroke: var(--warn); }
   .edge.other { stroke-dasharray: 3 4; opacity: 0.5; }
   .edge.lit { stroke-width: 3; opacity: 1; }
   .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; align-items: flex-start; }

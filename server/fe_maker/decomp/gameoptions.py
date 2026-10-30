@@ -91,7 +91,15 @@ _MENU_ORDER = "    [12] = GAME_OPTION_WINDOW_COLOR,\n"
 _MENU_TABLE_END = "        .icon = 0x20,\n        .func = GenericOptionChangeHandler,\n    }\n};\n"
 _MENU_GET = "    case GAME_OPTION_RANK_DISPLAY:\n        value = gPlaySt.config.rankDisplay;\n\n        break;\n"
 _MENU_SET = "    case GAME_OPTION_RANK_DISPLAY:\n        gPlaySt.config.rankDisplay = newValue;\n\n        break;\n"
-MENU_TEXTS = {"label": "Staff & Dance", "help": "Show staves and dances on the battle screen"}
+MENU_TEXTS = {"label": "Staff & Dance", "help": "Animate staves and dances"}
+# The menu's rows start on tile row 5, two rows each: a 14th row would end past the 32 rows of its tilemap, its lower half
+# lost. They start one row higher and the layer is shifted down by as much (ticket 77).
+_MENU_ROW_BASE = (("        int y = (i * 2) + 5;\n\n        DrawGameOptionIcon(i, 5);\n",
+                   "        int y = (i * 2) + 4;\n\n        DrawGameOptionIcon(i, 4);\n"),
+                  ("selectedIdx % 7, selectedIdx * 2 + 5);", "selectedIdx % 7, selectedIdx * 2 + 4);"),
+                  ("    int y = ((selectedIdx * 2) + 5) & 0x1f;\n", "    int y = ((selectedIdx * 2) + 4) & 0x1f;\n"),
+                  ("    DrawGameOptionIcon(selectedIdx, 5);\n", "    DrawGameOptionIcon(selectedIdx, 4);\n"))
+_MENU_LAYER = "BG_SetPosition(BG_1, 0, gConfigUiState->bg1YOffset);"
 
 
 def _menu_line(label: int, on_help: int) -> str:
@@ -250,6 +258,11 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
                                              _MENU_ENUM + "    GAME_OPTION_FEM_SUPPORT_ANIM = 17,\n", OPTION_MENU_HEADER)
         source = current(OPTION_MENU_FILE)
         source = _replace(source, _MENU_ORDER, _MENU_ORDER + "    [13] = GAME_OPTION_FEM_SUPPORT_ANIM,\n", OPTION_MENU_FILE)
+        for old, new in _MENU_ROW_BASE:
+            source = _replace(source, old, new, OPTION_MENU_FILE)
+        if source.count(_MENU_LAYER) != 2:
+            raise TweakError(f"A game option does not match this version of the decomp ({OPTION_MENU_FILE})")
+        source = source.replace(_MENU_LAYER, "BG_SetPosition(BG_1, 0, gConfigUiState->bg1YOffset - 8);")
         table_end = _MENU_TABLE_END.replace("    }\n};\n", "    },\n\n") + _menu_line(label, on_help) + "};\n"
         source = _replace(source, _MENU_TABLE_END, table_end, OPTION_MENU_FILE)
         source = _replace(source, _MENU_GET, _MENU_GET + "\n    case GAME_OPTION_FEM_SUPPORT_ANIM:\n"

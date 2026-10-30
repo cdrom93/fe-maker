@@ -29,6 +29,8 @@ piège dans sa section.
 - `validation.weapon_problem` mirrors `CanUnitUseWeapon`; unusable weapons are reported only when the project changed something (`_validate_unit_weapons`), on the edited unit or once on the changed sheet.
 - A character's own battle palette (`gAnimCharaPalConfig`, Seth as a Paladin) is drawn over whatever animation his class plays: imported animations skip it (`banim_import.without_unique_palettes`, in `banim-ekrmain.c`). Battle animation playtests: the right side's animation index is `gBanimIdx` + 2 (16 bits); Seth attacks with his first weapon, a sword.
 
+- Menu Configuration du jeu : les lignes commencent à la rangée 5 du tilemap, deux rangées chacune, et les rangées bouclent à 32 : une 14e ligne perdrait sa moitié basse. FE Maker les décale d'une rangée (ticket 77). Une 15e ligne demanderait de revoir le dessin.
+
 ## Cartes
 
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.

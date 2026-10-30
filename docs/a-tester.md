@@ -2,6 +2,10 @@
 
 Liste tenue pendant le travail en autonomie du 30/10/2026. Relancer FE Maker avant de tester (interface reconstruite).
 Chaque point a déjà été vérifié par un playtest automatique quand c'est indiqué ; il reste ton regard (interface, en jeu).
+## Tickets 77 et 78
+
+- [ ] #77 Menu Configuration du jeu, tout en bas : la ligne « Staff & Dance » s'affiche en entier, et son aide tient sur la ligne (« Animate staves and dances »). Recompile pour le voir.
+- [ ] #78 Page Campagne : un chapitre qui se termine sur « Terminer le jeu ici » mène à une case « Fin du jeu » dans le graphe.
 
 ## Scripts plus simples (ticket 70)
 
@@ -11,13 +15,6 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 
 ## Interface simplifiée et déroulé du travail
 
-- [ ] Un projet s'ouvre sur **Campagne**. Onglets dans l'ordre du travail : Campagne, Chapitres, puis les listes du jeu (Personnages, Classes, Objets, Combat) et Options.
-- [ ] Onglet **Chapitres** : il réunit trois vues, « Unités et objectif », « Carte », « Dialogues », et garde le même chapitre de l'une à l'autre. Choisir un chapitre dans Campagne le garde aussi.
-- [ ] Fiche d'un chapitre (Campagne) : quatre étapes dans l'ordre : dessiner la carte, placer les unités et fixer l'objectif, écrire les dialogues, tester.
-- [ ] Barre du haut allégée : Retour, Annuler, changements, Rétablir, Tester, menu **Projet** (exporter le patch, touches, fermer). « Tester ce chapitre » apparaît dans Chapitres ; « Tester depuis le début » part toujours du début, le rappel « depuis le chapitre n » a disparu.
-- [ ] Les explications sont dans des infobulles : un petit « i » à côté d'un titre ou d'une option, à survoler. Les textes visibles ont été raccourcis. Dis-moi s'il en reste de trop longs, ou si une explication utile manque.
-- [ ] Vue « Unités et objectif » : groupes et carte d'abord, objectif et réglages du chapitre en dessous. Vue « Carte » : la peinture d'abord, les réglages (taille, jeu de tuiles, palette, Tiled) repliés.
-- [ ] Fiches Personnage et Classe : croissances, rangs d'armes, capacités, statistiques et promotions repliés, un clic les ouvre.
 - [ ] Les avertissements ne sont plus en haut : ils restent dans « À faire » de la page Campagne. Les erreurs, qui bloquent le test, restent en haut.
 
 ## À faire sur les chapitres
@@ -25,39 +22,11 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Page Campagne, « À faire » : un chapitre ajouté ou vierge sans ennemi, ou qui ne mène nulle part, est signalé avec son nom. Cliquer le nom ouvre le chapitre.
 - [ ] « À faire » ne montre plus les avertissements sur ce que le jeu d'origine fait déjà (noms de balistes trop longs...) : seulement ce que ton projet a changé.
 
-## Historique des changements
-
-- [ ] #72 À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements **de tous les onglets** (heure, onglet, fiche) et reste visible en changeant d'onglet ; cliquer l'un d'eux va à son onglet et revient à avant ce changement. Il repart de zéro à chaque ouverture du projet.
-
-## Campagne et chapitres
-
-- [ ] #74 Tous les chapitres se renomment dans leur fiche de la page Campagne, ceux du jeu aussi : texte et image de titre. Champ vidé : le titre d'origine revient.
-- [ ] #76 Page Campagne : l'enchaînement se lit de haut en bas, la molette zoome autour du pointeur, glisser le fond déplace la vue, le pourcentage remet à 100 %.
-- [ ] #73 Zone de danger et portée d'un ennemi : l'IA compte. Un ennemi réglé « ne bouge pas » ou « agit sans se déplacer » ne frappe que depuis sa case ; un ennemi réglé « n'agit pas » ne frappe pas. Les autres réglages (suit son chef, attend une porte...) restent comptés comme s'il avançait.
-
-## Portée sur la carte d'un chapitre
-
-- [ ] Onglet Chapitres : cliquer une unité colore sur la carte où elle peut aller (bleu) et frapper (rouge), selon sa classe, ses armes et le terrain peint. Case « Zone de danger des ennemis » : tout ce que les ennemis peuvent frapper. Les autres unités ne bloquent pas le chemin dans ce calcul. Déplacer l'unité met à jour la zone.
-
-## Titres de chapitre et descriptions
-
-- [ ] Image de titre : les chapitres ajoutés utilisent maintenant les vraies lettres du jeu, lues dans ses images de titre au moment de compiler. Seules G, J, K, N, P, Q, U, X, Y, Z, j, q, x viennent de l'ancienne méthode, le jeu ne les écrivant pas assez dans ses titres ; accents ajoutés sur les minuscules, pas sur les capitales (É reste E). Essai vu sur une planche de comparaison ; à voir en jeu et dans le menu de sauvegarde.
-- [ ] Description (touche R) : nouveau champ dans les fiches Personnage, Classe et Objet, avec un avertissement si le texte dépasse deux lignes d'environ 32 caractères (playtest fait : description de Seth avec accents, lue en jeu). Vide pour un personnage ajouté, celle du modèle pour une arme ou une classe ajoutée tant que tu n'y touches pas.
-
 ## Hack témoin (étape 3 de l'alpha)
 
 Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : projet vierge, héros renommé, un compagnon réutilisé, deux chapitres ajoutés, un soldat par chapitre, fin du jeu. Il va du premier chapitre au menu de sauvegarde, l'armée suit d'un chapitre à l'autre. Il ne remplace pas ton gel : les cartes y sont vides et il n'y a pas de dialogues.
 
 - [ ] Le faire à la main, avec de vraies cartes et un dialogue par chapitre : c'est l'étape 3 du plan, et ce qui manque pour le gel.
-
-## Nouveaux réglages de confort
-
-- [ ] Onglet « Options du jeu », section Confort : « Barre d'expérience rapide », « Gain de niveau rapide ». Playtest fait : le jeu compile et démarre. **Leur effet n'a pas été vu en jeu** : gagne un niveau sur la carte.
-- [ ] #68 « Ligne bâtons et danses dans le menu du jeu » : nouvelle ligne « Staff & Dance » ON / OFF en bas du menu Configuration du jeu, comme le patch FEBuilder, sur OFF en début de partie (playtest fait : ligne vue, OFF). **Son effet reste à voir** : soigne une unité avec les animations activées, puis repasse sur ON.
-
-- [ ] #69 « Barres de PV sur la carte » : même dessin que le patch HPbars de FEBuilder (14 pixels, vert, jaune, orange, rouge sur fond bleu sombre, au pied de l'unité ; playtest fait : Seth à 8 PV sur 30). **La petite bulle n'a pas été vue en jeu** : sélectionne une unité qui a une conversation « Parler » disponible, la bulle doit apparaître sur l'autre unité. Si tu parlais d'autre chose avec la bulle, dis-le-moi.
-
-- [ ] « Mode débutant » : une unité vaincue revient au chapitre suivant, soutiens gardés (playtest fait : unité marquée morte, de retour sur la carte suivante). Toujours actif s'il est coché, pas un choix du joueur en début de partie. À voir sur une vraie mort.
 
 ## Préparation de l'alpha (rien n'est publié)
 
@@ -81,54 +50,11 @@ Essai simple : dans l'ouverture du prologue, ajoute « Si un personnage est viva
 
 - #56 musique : en pause, à ta demande. #67 (chapitre d'après une fiche du wiki) : noté dans le cahier pour plus tard. Je les laisse ouverts.
 
-## Chapitres ajoutés (décision 1 : places libres)
-
-- [ ] Page Campagne, fiche d'un chapitre : « + Ajouter un chapitre après celui-ci » (titre, largeur, hauteur ; 21 places libres au départ : étages de la tour et des ruines, chapitres de test). Le nouveau chapitre apparaît dans le graphe juste après, avec son titre.
-- [ ] Il a une carte vide (à peindre dans l'onglet Cartes), l'armée du chapitre d'avant en haut à gauche, un groupe d'ennemis vide (onglet Chapitres) et l'objectif « vaincre tous les ennemis » : **placer des ennemis avant de tester**, sinon il est gagné tout de suite.
-- [ ] Le chapitre d'avant mène au nouveau, qui mène où allait celui d'avant (playtest fait : chapitre ajouté après le prologue, armée Eirika et Seth, carte 15 × 10, sa fin mène au chapitre 1).
-- [ ] Ticket 55 : la fiche d'un chapitre ajouté montre « Ce chapitre mène à » avec le choix du chapitre suivant, et la flèche apparaît dans le graphe (il faut relancer FE Maker).
-- [ ] Image du titre : l'écran d'ouverture du chapitre affiche son nom, écrit par FE Maker dans le style du jeu, accents compris (playtest fait : « Le Fort de l'Aube » vu en jeu). À voir aussi dans le menu de sauvegarde.
-- [ ] La fiche d'un chapitre ajouté permet de changer son titre ; un titre trop long pour l'image donne un avertissement.
-
 ## Musique (première démo)
 
 - [ ] Page Campagne, fiche d'un chapitre, « Musique de la phase du joueur » : « Importer un MIDI », le nom du morceau s'affiche, « Revenir à celle du jeu ».
 - [ ] En jeu : le morceau joue pendant la phase du joueur de ce chapitre (playtest fait : le lecteur de musique joue bien le morceau ajouté, mais personne ne l'a écouté).
 - [ ] À écouter : le MIDI est joué avec les instruments des musiques de carte du jeu ; selon le fichier, certains instruments peuvent sonner faux ou manquer. Limites : seulement la phase du joueur, pas d'aperçu dans FE Maker, pas encore les morceaux de FE-Repo-Music (ils demandent le jeu d'instruments NIMAP2).
-
-## Corrections des tickets 55 et 57 (à relancer FE Maker)
-
-- [ ] Ticket 55 : un chapitre sans sortie propose « Relier à un chapitre existant » ; un chapitre de l'histoire du jeu n'est plus pris comme place libre. Dans ton projet « test », « Truc » a pris la place du chapitre 1 avant cette correction : le contenu de ce chapitre 1 reste remplacé dans ce projet.
-- [ ] Ticket 57 : la carte et le portrait d'origine venaient d'un croisement avec un de mes playtests (même heure, même copie de travail) ; reproduit sans problème sur une copie de ton projet. Une seule compilation à la fois désormais. Options de test rangées dans « Options du jeu ».
-
-## Correction trouvée en route
-
-- [ ] Après un projet avec une animation de combat importée, le build suivant (autre projet, animation retirée) gardait les
-  anciennes animations. Corrigé ; vérifié par playtest (un projet non modifié redonne la ROM d'origine).
-
-## Personnages ajoutés
-
-- [ ] Onglet Personnages : les boutons « + Allié » et « + Ennemi » sous la recherche créent « Nouvel allié » / « Nouvel ennemi » en bas de la liste, sélectionné. Annuler (Ctrl+Z) le retire.
-- [ ] Le renommer (avec un accent), lui donner une classe, un portrait, des stats ; « Supprimer ce personnage » n'apparaît que pour les personnages ajoutés.
-- [ ] Onglet Chapitres : le placer dans un chapitre (allié dans les unités de départ, ennemi en chef) ; il est proposé partout où on choisit un personnage (dialogues, objectif « vaincre le chef », soutiens, conversations « Parler »).
-- [ ] En jeu : il est sur la carte avec son nom, son portrait et ses stats (playtest fait : allié et ennemi ajoutés au prologue) ; écran de statut, R sur son nom (description vide pour l'instant).
-- [ ] Un allié ajouté qui meurt / survit : écran de fin de chapitre et soutiens (seuls 16 alliés peuvent être ajoutés pour ça).
-
-## Armes ajoutées
-
-- [ ] Onglet Objets, sur une arme du jeu : « + Nouvelle arme d'après celle-ci » crée « <nom> 2 » en bas de la liste (pas proposé pour les fioles, bâtons et objets à usage, dont l'effet est codé par numéro dans le jeu).
-- [ ] La fiche d'une arme ajoutée affiche « Arme ajoutée, copie de <modèle> » (cliquable) et « Supprimer cette arme ».
-- [ ] La donner à une unité (inventaire d'un chapitre), la mettre dans un coffre, un village ou un magasin.
-- [ ] En jeu : nom, icône, stats dans l'inventaire (playtest fait : copie du javelot chez Seth, puissance 11) ; description (R) = celle du modèle pour l'instant.
-- [ ] En combat : une copie de hachette se lance comme la hachette (animation de jet), une copie de Feu lance le sort de Feu, une copie de javelot se lance aussi.
-
-## Classes ajoutées
-
-- [ ] Onglet Classes, sur une classe : « + Nouvelle classe d'après celle-ci » crée « <nom> 2 » (même sprite sur la carte, mêmes animations de combat, mêmes promotions), dans la liste principale.
-- [ ] La fiche affiche « Classe ajoutée, copie de <modèle> » et « Supprimer cette classe » ; le sprite de la liste et les animations jouées dans la fiche sont ceux du modèle.
-- [ ] La donner à un personnage, à une unité générique d'un chapitre ; changer ses stats, ses armes, ses promotions (ou aucune) ; lui importer une animation de combat (FE-Repo ou PC).
-- [ ] En jeu : l'unité a le nom de la classe (fiche de statut, R pour la description, celle du modèle pour l'instant), se déplace avec le sprite du modèle (playtest fait : Seth en copie de Paladin se déplace), combat avec ses animations.
-- [ ] Promotion : un personnage d'une classe ajoutée avec un objet de promotion promeut vers les classes choisies ; sans promotion choisie, l'objet ne s'utilise pas.
 
 ## Conditions et sauts dans les événements
 
@@ -137,17 +63,6 @@ Essai simple : dans l'ouverture du prologue, ajoute « Si un personnage est viva
 - [ ] Les scripts du jeu s'affichent avec ces formulaires (plus de blocs « tel quel » pour BEQ, LABEL, CALL…) et en retrait dans leurs conditions ; « → bloc n » mène à l'étiquette, « étiquette absente » si elle manque.
 - [ ] En jeu : un dialogue qui ne s'affiche que si un personnage est vivant (playtest fait : le prologue démarre avec une condition ajoutée à son ouverture ; le comportement de la condition reste à voir).
 
-## Sprites de carte
-
-- [ ] Fiche d'une classe, panneau « Sprite sur la carte » : le sprite dans les trois couleurs (joueur, ennemi, allié), « Celui du jeu ».
-- [ ] « Bibliothèque FE-Repo » : recherche par nom (le nom de la classe est proposé), dossiers, auteurs et licence ; « sans animation de marche » quand FE-Repo n'a que l'image immobile ; « Utiliser » importe le sprite.
-- [ ] « Importer depuis le PC » : choisir une image immobile (16 × 48, 16 × 96 ou 32 × 96) et, si on l'a, la marche (32 × 480) ; une mauvaise taille donne un message clair.
-- [ ] Le nouveau sprite apparaît dans la liste des classes, dans les trois couleurs, et sur les cartes des chapitres ; les auteurs FE-Repo sont dans CREDITS.txt du projet ; « Revenir à celui du jeu ».
-- [ ] En jeu : les unités de la classe ont le sprite importé, immobiles et en marche (playtest fait : la classe Paladin avec les images de l'archer, Seth immobile et en marche) ; un sprite 16 × 32 (cavalier) ou 32 × 32 (monstre).
-
 ## Options du jeu
 
-- [ ] Nouvel onglet « Options du jeu » : réglages d'une nouvelle partie (animations, vitesse du texte et du jeu, curseur, fin de tour, fenêtres, prévisions), la valeur du jeu d'origine indiquée dans chaque liste.
-- [ ] Section « Confort » : « Pas de zone de déplacement pour les unités immobiles » (playtest fait : O'Neill, chef du prologue, ne montre que sa portée d'attaque), « Passer l'ouverture », « Titre de chapitre rapide », « A maintenu accélère les déplacements ».
-- [ ] En jeu, avec « Démarrage normal » dans les options de test : le jeu démarre sur le menu de sauvegarde ; nouvelle partie : menu Options avec les réglages choisis (playtest fait : texte rapide et curseur coupé lus dans la mémoire) ; titre de chapitre passable tout de suite ; A maintenu accélère.
 - [ ] Le patch exporté (.ups) garde ces options.

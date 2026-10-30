@@ -719,6 +719,29 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
 
+def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
+    project = Project.create(tmp_path / "menu", "Menu")
+    project.set_game_options({"noSupportAnimations": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        game.move_cursor(0, 0)
+        game.run(20)
+        game.press("A", wait=30)
+        for _ in range(2):   # Unit, Status, then Options
+            game.press("DOWN", wait=12)
+        game.press("A", wait=90)
+        for _ in range(13):
+            game.press("DOWN", wait=14)
+        game.run(30)
+        game.screenshot().save(tmp_path / "menu.png")
+        print("screenshot:", tmp_path / "menu.png")
+        tilemap = game.address("gBG1TilemapBuffer")
+        name = [[game.read(tilemap, (y * 32 + x) * 2, width=16) for x in range(2, 14)] for y in (30, 31)]
+        assert all(any(half) for half in name)   # both halves of the 14th row
+
+
 def test_hp_bars_under_wounded_units(tmp_path):
     project = Project.create(tmp_path / "bars", "Bars")
     project.set_game_options({"hpBars": True})

@@ -71,3 +71,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : interface simplifiée : Campagne d'abord, Chapitres réunit unités, carte et dialogues sur le même chapitre, menu Projet, explications cachées par défaut, fiches repliées ; la page web n'est plus gardée en cache.
 - 30/10/2026 : explications rangées dans des infobulles (`Help.svelte`), textes raccourcis en français et en anglais.
 - 30/10/2026 : « À faire » signale les chapitres ajoutés sans ennemi ou sans suite.
+- 30/10/2026 : tickets 77 (14e ligne du menu Configuration entière) et 78 (case « Fin du jeu » pour un retour à l'écran titre).
