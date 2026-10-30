@@ -39,9 +39,10 @@ Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : pr
 
 ## Nouveaux réglages de confort
 
-- [ ] Onglet « Options du jeu », section Confort : « Barre d'expérience rapide », « Gain de niveau rapide », « Pas d'écran de combat pour les bâtons et les danses ». Playtest fait : le jeu compile et démarre avec les trois. **Leur effet n'a pas été vu en jeu** : soigne une unité avec les animations activées, gagne un niveau sur la carte.
+- [ ] Onglet « Options du jeu », section Confort : « Barre d'expérience rapide », « Gain de niveau rapide ». Playtest fait : le jeu compile et démarre. **Leur effet n'a pas été vu en jeu** : gagne un niveau sur la carte.
+- [ ] #68 « Ligne bâtons et danses dans le menu du jeu » : nouvelle ligne « Staff & Dance » ON / OFF en bas du menu Configuration du jeu, comme le patch FEBuilder, sur OFF en début de partie (playtest fait : ligne vue, OFF). **Son effet reste à voir** : soigne une unité avec les animations activées, puis repasse sur ON.
 
-- [ ] « Barres de PV sur la carte » : une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV, verte au-dessus (playtest fait : Seth à 5 PV sur 30). À voir : barres pendant les menus et après un combat, en brouillard de guerre, et si leurs couleurs te vont.
+- [ ] #69 « Barres de PV sur la carte » : même dessin que le patch HPbars de FEBuilder (14 pixels, vert, jaune, orange, rouge sur fond bleu sombre, au pied de l'unité ; playtest fait : Seth à 8 PV sur 30). **La petite bulle n'a pas été vue en jeu** : sélectionne une unité qui a une conversation « Parler » disponible, la bulle doit apparaître sur l'autre unité. Si tu parlais d'autre chose avec la bulle, dis-le-moi.
 
 - [ ] « Mode débutant » : une unité vaincue revient au chapitre suivant, soutiens gardés (playtest fait : unité marquée morte, de retour sur la carte suivante). Toujours actif s'il est coché, pas un choix du joueur en début de partie. À voir sur une vraie mort.
 

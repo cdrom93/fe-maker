@@ -224,10 +224,13 @@ class Project:
         data.apply_animations(self.load("animations"), self.root / "assets")
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
         data.apply_music(self.load("music"), self.root / "assets")
+        menu_texts = (0, 0)
+        if self.game_options.get("noSupportAnimations"):
+            menu_texts = data.add_texts(gameoptions.MENU_TEXTS["label"], gameoptions.MENU_TEXTS["help"])
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
-        files = gameoptions.apply(decomp_dir, self.game_options, files)
+        files = gameoptions.apply(decomp_dir, self.game_options, files, menu_texts)
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:

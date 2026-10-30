@@ -64,3 +64,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : option « Mode débutant » (C, d'après le comportement du patch CasualMode).
 - 30/10/2026 : portée de l'unité choisie et zone de danger des ennemis sur la carte de l'onglet Chapitres (`decomp/reach.py`).
 - 30/10/2026 : historique visible des changements à côté d'Annuler.
+- 30/10/2026 : tickets 68-69 : ligne « Staff & Dance » dans le menu Configuration du jeu, barres de PV au dessin du patch HPbars, bulle sur l'unité à qui parler.

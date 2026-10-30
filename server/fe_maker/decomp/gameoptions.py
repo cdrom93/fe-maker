@@ -76,59 +76,98 @@ _LEVEL_IN = "    PROC_REPEAT(ManimLevelUp_ScrollIn),\n    PROC_SLEEP(30),\n"
 _LEVEL_IN_QUICK = "    PROC_REPEAT(ManimLevelUp_ScrollIn),\n    PROC_SLEEP(8),\n"
 _LEVEL_GAINS = "    PROC_REPEAT(ManimLevelUp_PutStatGainLabels),\n    PROC_SLEEP(60),\n"
 _LEVEL_GAINS_QUICK = "    PROC_REPEAT(ManimLevelUp_PutStatGainLabels),\n    PROC_SLEEP(30),\n"
-# FEBuilder "ForceBattleOffWithDanceAndStaff": staves and dances stay on the map, even with animations on.
+# FEBuilder "ForceBattleOffWithDanceAndStaff" (7743), which reuses the Subtitle Help line: here a line of its own in the
+# game's Configuration menu, on a free bit of the options, ON (battle screen) or OFF, starting OFF: staves and dances
+# stay on the map, even with animations on.
 _ANIM_TYPE = "int GetBattleAnimPreconfType(void) {\n"
-_ANIM_TYPE_NO_SUPPORT = (_ANIM_TYPE + "    /* FE Maker: no battle screen for staves and dances */\n"
-                         "    if (GetItemType(gBattleActor.weapon) == ITYPE_STAFF\n"
-                         "        || gActionData.unitActionType == UNIT_ACTION_DANCE)\n"
+_ANIM_TYPE_NO_SUPPORT = (_ANIM_TYPE + "    /* FE Maker: the player can leave staves and dances on the map */\n"
+                         "    if (gPlaySt.config.unk41_6 && (GetItemType(gBattleActor.weapon) == ITYPE_STAFF\n"
+                         "        || gActionData.unitActionType == UNIT_ACTION_DANCE))\n"
                          "        return PLAY_ANIMCONF_OFF;\n\n")
-# HP bars under wounded units, after FEBuilder's "HPbars" (its behavior, written in C): six small pictures, in free
-# object tiles at the end of row 3, drawn at each load of the map's object graphics; colors of the first object
-# palette: 15 dark, 12 red, 11 green.
-_HP_TILE = 0x72
+OPTION_MENU_FILE = "src/uiconfig.c"
+OPTION_MENU_HEADER = "include/uiconfig.h"
+_MENU_ENUM = "    GAME_OPTION_RANK_DISPLAY   = 16,\n"
+_MENU_ORDER = "    [12] = GAME_OPTION_WINDOW_COLOR,\n"
+_MENU_TABLE_END = "        .icon = 0x20,\n        .func = GenericOptionChangeHandler,\n    }\n};\n"
+_MENU_GET = "    case GAME_OPTION_RANK_DISPLAY:\n        value = gPlaySt.config.rankDisplay;\n\n        break;\n"
+_MENU_SET = "    case GAME_OPTION_RANK_DISPLAY:\n        gPlaySt.config.rankDisplay = newValue;\n\n        break;\n"
+MENU_TEXTS = {"label": "Staff & Dance", "help": "Show staves and dances on the battle screen"}
+
+
+def _menu_line(label: int, on_help: int) -> str:
+    selector = ("            {{\n                0x{help:X},\n                {text},\n                {x},\n                2\n"
+                "            }},\n")
+    empty = ("            {\n                MSG_000,\n                MSG_000,\n                190,\n"
+             "                0\n            },\n")
+    return (f"    [GAME_OPTION_FEM_SUPPORT_ANIM] =\n    {{\n        .msgId = 0x{label:X},\n        .selectors =\n        {{\n"
+            + selector.format(help=on_help, text="MSG_0BD", x=112) + selector.format(help=on_help, text="MSG_0BE", x=135)
+            + empty + empty + "        },\n        .icon = 0x0,\n        .func = GenericOptionChangeHandler,\n    },\n")
+
+
+# HP bars under wounded units, drawn like FEBuilder's "HPbars_simple" (Circles and Zane; its behavior and look, written
+# in C): a bar 14 pixels wide, its 12 inner pixels green, then yellow, orange, red as they empty, on dark blue. Eleven
+# 16 x 8 pictures in free object tiles (rows 0 and 1, from column 0x12), drawn at each load of the map's object
+# graphics; colors of the first object palette. Like that patch's talk warning, a unit the selected one can talk to
+# shows a small bubble (the game's own silence bubble picture).
 _OBJ_UI_LOAD = "void LoadObjUIGfx(void) {\n"
 _OBJ_UI_LOAD_BARS = """/* FE Maker: the HP bars' tiles */
 static void FemLoadHpBars(void) {
-    u32* tile = (u32*) (0x06010000 + 0x%X * 0x20);
-    int level, x, row;
+    int length, x;
 
-    for (level = 1; level <= 6; ++level, tile += 8) {
-        u32 fill = 0;
+    for (length = 1; length <= 11; ++length) {
+        u32 fill[2] = { 0, 0 };
+        int color = length >= 9 ? 0xB : length >= 7 ? 0x1 : length >= 5 ? 0x3 : length >= 3 ? 0x4 : 0xC;
+        int tile = length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2;
+        u32* left = (u32*) (0x06010000 + tile * 0x20);
+        u32* right = left + 8;
 
+        for (x = 1; x < 15; ++x)
+            fill[x / 8] |= (u32) ((x >= 2 && x <= 13) ? (x - 1 <= length ? color : 0xD) : 0xF) << ((x % 8) * 4);
         for (x = 0; x < 8; ++x)
-            fill |= (u32) ((x >= 1 && x <= level) ? (level <= 2 ? 0xC : 0xB) : 0xF) << (x * 4);
-        for (row = 0; row < 5; ++row)
-            tile[row] = 0;
-        tile[5] = 0xFFFFFFFF;
-        tile[6] = fill;
-        tile[7] = 0xFFFFFFFF;
+            left[x] = right[x] = 0;
+        left[4] = left[6] = 0xFFFFFFF0;
+        right[4] = right[6] = 0x0FFFFFFF;
+        left[5] = fill[0];
+        right[5] = fill[1];
     }
 }
 
 void LoadObjUIGfx(void) {
     FemLoadHpBars();
-""" % _HP_TILE
+"""
 _ICONS = "void PutUnitSpriteIconsOam(void)\n{\n"
-_ICONS_BARS = """/* FE Maker: a bar under a wounded unit, one of six lengths */
+_ICONS_BARS = """#include "eventinfo.h"
+
+/* FE Maker: a bar under a wounded unit; a bubble on a unit the selected one can talk to */
 static void FemPutHpBar(struct Unit * unit)
 {
     int x = unit->xPos * 16 - gBmSt.camera.x;
     int y = unit->yPos * 16 - gBmSt.camera.y;
 
-    if (unit->curHP >= unit->maxHP || unit->maxHP == 0)
-        return;
     if (x < -16 || x > DISPLAY_WIDTH || y < -16 || y > DISPLAY_HEIGHT)
         return;
     if (gBmMapFog[unit->yPos][unit->xPos] == 0)
         return;
 
-    CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 4), OAM0_Y(0x100 + y + 9), gObject_8x8,
-        OAM2_CHR(0x%X + (unit->curHP * 6 + unit->maxHP - 1) / unit->maxHP - 1) + OAM2_LAYER(1));
+    if (unit->curHP < unit->maxHP && unit->maxHP != 0) {
+        int length = unit->curHP * 12 / unit->maxHP;
+
+        if (length < 1)
+            length = 1;
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x), OAM0_Y(0x100 + y + 10), gObject_16x8,
+            OAM2_CHR(length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2) + OAM2_LAYER(1));
+    }
+
+    if (gActiveUnit && gActiveUnit != unit && (gActiveUnit->state & US_HIDDEN)
+        && UNIT_FACTION(gActiveUnit) == FACTION_BLUE && gActiveUnit->pCharacterData
+        && CheckForCharacterEvents(gActiveUnit->pCharacterData->number, unit->pCharacterData->number))
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 6), OAM0_Y(0x100 + y - 8), sSilenceIconSprites[0], 0);
 }
 
-""" % _HP_TILE + _ICONS
+""" + _ICONS
 _ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_POISON:\n"
 _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
+
 # Casual mode, after FEBuilder's "CasualMode" (its behavior, written in C, always on rather than a choice in the game):
 # a fallen player unit leaves the map, keeps its supports and comes back for the next chapter.
 _DEATH_CLEANUP = ("            if (UNIT_CATTRIBUTES(unit) & CA_SUPPLY)\n"
@@ -174,8 +213,9 @@ def _replace(source: str, old: str, new: str, rel: str) -> str:
     return source.replace(old, new, 1)
 
 
-def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
-    """Add the project's game options to `files` (decomp-relative path -> content)."""
+def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, int] = (0, 0)) -> dict:
+    """Add the project's game options to `files` (decomp-relative path -> content); `menu_texts`: the messages of the
+    Configuration menu's new line (MENU_TEXTS), added to the texts before they are written."""
     def current(rel: str) -> str:
         return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
 
@@ -204,5 +244,19 @@ def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BARS, MAP_SPRITES_FILE)
     if options.get("noSupportAnimations"):
+        label, on_help = menu_texts
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
+        files[OPTION_MENU_HEADER] = _replace(current(OPTION_MENU_HEADER), _MENU_ENUM,
+                                             _MENU_ENUM + "    GAME_OPTION_FEM_SUPPORT_ANIM = 17,\n", OPTION_MENU_HEADER)
+        source = current(OPTION_MENU_FILE)
+        source = _replace(source, _MENU_ORDER, _MENU_ORDER + "    [13] = GAME_OPTION_FEM_SUPPORT_ANIM,\n", OPTION_MENU_FILE)
+        table_end = _MENU_TABLE_END.replace("    }\n};\n", "    },\n\n") + _menu_line(label, on_help) + "};\n"
+        source = _replace(source, _MENU_TABLE_END, table_end, OPTION_MENU_FILE)
+        source = _replace(source, _MENU_GET, _MENU_GET + "\n    case GAME_OPTION_FEM_SUPPORT_ANIM:\n"
+                          "        value = gPlaySt.config.unk41_6;\n\n        break;\n", OPTION_MENU_FILE)
+        files[OPTION_MENU_FILE] = _replace(source, _MENU_SET, _MENU_SET + "\n    case GAME_OPTION_FEM_SUPPORT_ANIM:\n"
+                                           "        gPlaySt.config.unk41_6 = newValue;\n\n        break;\n", OPTION_MENU_FILE)
+        start = "    gPlaySt.config.unk41_5 = 0;\n"
+        files[CONFIG_FILE] = _replace(current(CONFIG_FILE), start,
+                                      start + "    gPlaySt.config.unk41_6 = 1; /* FE Maker: staves on the map */\n", CONFIG_FILE)
     return files

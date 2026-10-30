@@ -1564,6 +1564,10 @@ class DecompData:
         if index and text != self._description(fields):
             self.texts.set_raw(index, name_message(text.strip().replace("\n", "[LF]\n")))
 
+    def add_texts(self, *bodies: str) -> tuple[int, ...]:
+        """New short messages; their numbers."""
+        return tuple(self.texts.add(name_message(body)) for body in bodies)
+
     def export_characters(self) -> list[dict]:
         return [self._character_record(entry) for entry in self.characters.entries]
 
