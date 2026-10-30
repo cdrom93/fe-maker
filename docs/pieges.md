@@ -31,6 +31,8 @@ piège dans sa section.
 
 - Menu Configuration du jeu : les lignes commencent à la rangée 5 du tilemap, deux rangées chacune, et les rangées bouclent à 32 : une 14e ligne perdrait sa moitié basse. FE Maker les décale d'une rangée (ticket 77). Une 15e ligne demanderait de revoir le dessin.
 
+- Danser sur la carte demande une 6e animation au sprite de marche, que seuls les sprites de danseuse ont : donner « Danse » à une autre classe brouille l'écran dans le jeu d'origine aussi, animations coupées ou non (`danceanim.py`).
+
 ## Cartes
 
 - Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.

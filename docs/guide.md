@@ -31,6 +31,8 @@ Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un ch
 | Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes |
 | Options du jeu | Réglages de départ, confort, options de test, ce que garde le projet |
 
+Dans un chapitre, une **scène** est un moment du jeu : son déclencheur dit quand elle arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché.
+
 Un petit **i** à côté d'un titre ou d'une option donne son explication : survolez-le.
 
 **▶ Tester** compile et lance le jeu dans mGBA. Le menu **Projet** contient **Exporter le patch**, qui donne le `.ups` à partager.

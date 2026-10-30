@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, tick } from 'svelte'
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api, type DataKind } from '../lib/api'
   import { EditableList } from '../lib/history.svelte'
@@ -17,6 +17,7 @@
   import GameOptions from './GameOptions.svelte'
   import KeysDialog from './KeysDialog.svelte'
   import MapEditor from './MapEditor.svelte'
+  import AddChapter from './AddChapter.svelte'
   import Mention from './Mention.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
@@ -54,6 +55,8 @@
   // One chapter at a time: its units, map and dialogues stay on it.
   let chapterList = $state<{ index: number; id: string; title: string; map: string | null; hidden?: boolean }[]>([])
   let currentChapter = $state<number | null>(null)
+  /** The editors of the Chapters tab read their lists once: a new chapter opens them again. */
+  let added = $state(0)
   $effect(() => {
     const id = appContext.recordId
     if (!id) return
@@ -61,8 +64,8 @@
     else if ((tab === 'chapters' || tab === 'dialogues' || tab === 'flow') && /^\d+$/.test(id)) currentChapter = Number(id)
   })
 
-  function openChapterView(view: Tab) {
-    const chapter = chapterList.find((c) => c.index === currentChapter)
+  function openChapterView(view: Tab, index = currentChapter) {
+    const chapter = chapterList.find((c) => c.index === index)
     navigator.open(view, chapter ? (view === 'maps' ? chapter.map : String(chapter.index)) : null)
   }
 
@@ -329,6 +332,11 @@
     {#each CHAPTER_VIEWS as view (view)}
       <button role="tab" aria-selected={tab === view} class:active={tab === view} onclick={() => openChapterView(view)}>{t(`ws.view.${view}`)}</button>
     {/each}
+    <span class="view-add">
+      <AddChapter after={currentChapter ?? 0} label={t(tab === 'maps' ? 'ws.newMap' : 'flow.add.button')}
+                  flush={async () => { await lists.chapters.flush(); await lists.dialogues.flush(); await lists.maps.flush() }}
+                  onadded={async (index) => { await loadAll(); added++; await tick(); openChapterView(tab, index) }} />
+    </span>
   </div>
 {/if}
 
@@ -342,15 +350,15 @@
   {:else if tab === 'combat'}
     <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'chapters'}
-    <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
+    {#key added}<ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />{/key}
   {:else if tab === 'flow'}
     <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} onreload={loadAll} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
-    <MapEditor list={lists.maps} items={lists.items.records} {problems} />
+    {#key added}<MapEditor list={lists.maps} items={lists.items.records} {problems} />{/key}
   {:else if tab === 'options'}
     <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} scopeFirst={startsBlank} />
   {:else}
-    <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
+    {#key added}<DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />{/key}
   {/if}
 {/if}
 
@@ -374,6 +382,9 @@
   .menu summary { list-style: none; cursor: pointer; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; }
   .menu-items { position: absolute; z-index: 30; right: 0; margin-top: 0.3rem; min-width: 14rem; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   .views { display: flex; gap: 0.3rem; margin: -0.5rem 0 0.75rem; }
+  .view-add { margin-left: auto; }
+  .view-add :global(button) { border: 1px solid var(--border); color: var(--text); }
+  .views { flex-wrap: wrap; align-items: flex-start; }
   .views button { border: none; background: none; color: var(--muted); padding: 0.35rem 0.8rem; }
   .views button.active { background: var(--accent-soft); color: var(--text); font-weight: 800; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }

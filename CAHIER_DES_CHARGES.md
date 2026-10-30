@@ -227,7 +227,7 @@ Priorités proposées :
 1. Tester un chapitre donné : bouton ▶ sur chaque chapitre, avec ses unités, sans repasser par le prologue. **Fait.**
 2. Unités et objets glissés sur la carte, zones de mouvement et de danger visibles pendant l'édition. **Fait pour les unités et les zones** ; les objets se posent en peignant leur tuile ou un bâtiment entier.
 3. Pinceaux de terrain qui se raccordent tout seuls (raccords appris des cartes du jeu). **Fait, refait après son retour du 30/10** (panneau « Terrains » de la carte, `autotile.py`) : solveur de contraintes sur les bords des tuiles ; bon sur rivières, montagnes et côtes, moyen sur les routes.
-4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs. **Frise et vue simple des scènes faites** ; reste à modifier les déclencheurs en phrases.
+4. Événements en phrases cliquables ; scènes sur une frise avec les acteurs. **Fait** : frise, vue simple des scènes, déclencheurs de tour et de « Parler » modifiables en phrases, vocabulaire unique (scène, déroulé, dialogue).
 5. Vérification avant export par un test automatique ; petits tutoriels au bon moment. **À faire.**
 
 Maquettes cliquables (25/10/2026) : https://claude.ai/artifact/MKewiQUGuDhGbfbYt1UGsL.
@@ -239,7 +239,7 @@ Choix de l'utilisateur (25/10/2026) :
 - **Thème** (fait le 25/10/2026) : l'appli entière prend l'apparence des maquettes : fond clair chaud, barre du haut sombre, police Nunito (OFL, fournie avec l'appli), gros boutons arrondis, onglets en pastilles, bouton « Tester » vert. La disposition des écrans ne change pas encore : chaque écran rejoindra sa maquette quand il sera refait.
 - **Fait** : page Campagne (graphe de haut en bas avec zoom et glisser, fiche du chapitre avec ses étapes, liste « À faire », « ▶ Tester ce chapitre », case « Fin du jeu ») ; onglet Chapitres en trois vues sur un même chapitre ; explications en infobulles et textes courts ; fiches longues repliées ; effets du terrain, portée et zone de danger ; historique des changements ; vue simple des scripts.
 - **Reste** : créer un embranchement de routes depuis le graphe, à concevoir avec l'utilisateur ; unités de l'onglet Chapitres rangées par camp et par tour d'arrivée (ticket 6).
-- **Déclencheurs** : les phrases (direction A) suivent la structure du jeu (listes d'événements du chapitre : tours, conversations, cases, zones et drapeaux, puis un script) ; à confirmer.
+- **Déclencheurs** : phrases aux mots cliquables (direction A, confirmée le 30/10/2026) pour les tours et « Parler », `TriggerPhrase.svelte`, `dialogues.with_trigger`, `data/dialogues.json` « triggers » ; villages, zones et drapeaux restent en lecture.
 
 ### Phase 7 — Version PC (à redéfinir)
 Trois pistes à évaluer le moment venu :

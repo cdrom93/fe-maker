@@ -17,6 +17,7 @@ from . import (
     chaptitle,
     combat,
     convoy,
+    danceanim,
     dialogues,
     events,
     fonts,
@@ -232,6 +233,7 @@ class DecompData:
         # Who can seize, when the project changes it (seize.py)
         self.seizers: list[str] | None = None
         self.other_ranges = False   # a weapon has a range the game does not list (weaponrange.py)
+        self.other_dancers = False  # a class or character without a dancer's sprite dances (danceanim.py)
         self.no_convoy: list[int] | None = None
         # Ids of the portraits the project adds (their text codes go to textdefs.txt)
         self.new_faces: list[int] = []
@@ -821,6 +823,11 @@ class DecompData:
             self._add_turn_scene(n, scene)
         if data.get("scripts"):
             self._apply_scripts(data["scripts"], scene_ids)
+        if data.get("triggers"):
+            self._load_event_sources()
+            for script, change in data["triggers"].items():
+                self.event_sources = {rel: dialogues.with_trigger(source, script, change)
+                                      for rel, source in self.event_sources.items()}
         conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
         if data.get("supports") is not None:
             self._apply_supports(data["supports"], conversations)
@@ -1503,6 +1510,8 @@ class DecompData:
             self.promotions[last] = ["0"]
 
     def apply_classes(self, classes: list[dict]) -> None:
+        self.other_dancers |= any(danceanim.ABILITIES & set(cl.get("abilities", []))
+                                  and cl["id"] not in danceanim.DANCER_CLASSES for cl in classes)
         entries = {e.fields["number"]: e for e in self.classes.entries}
         for cl in classes:
             entry = entries.get(cl["id"])
@@ -1687,6 +1696,8 @@ class DecompData:
 
     def apply_characters(self, characters: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.characters.entries}
+        self.other_dancers |= any(danceanim.ABILITIES & set(ch.get("abilities", []))
+                                  and ch.get("class") not in danceanim.DANCER_CLASSES for ch in characters)
         openers = [ch["id"] for ch in characters if ch.get("convoyAccess", ch["id"] in convoy.DEFAULT_OPENERS)]
         if set(openers) != {k for k in entries if k in convoy.DEFAULT_OPENERS}:
             self.convoy_openers = openers
@@ -2042,6 +2053,8 @@ class DecompData:
             out[convoy.MENU_FILE] = convoy.with_openers(self._read(convoy.MENU_FILE), self.convoy_openers)
         if self.seizers is not None:
             out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
+        if self.other_dancers:
+            out[danceanim.FILE] = danceanim.with_guard(self._read(danceanim.FILE))
         if self.other_ranges:
             out[weaponrange.ITEM_FILE] = weaponrange.with_item_ranges(self._read(weaponrange.ITEM_FILE))
             out[weaponrange.RANGE_MAP_FILE] = weaponrange.with_range_map(self._read(weaponrange.RANGE_MAP_FILE))

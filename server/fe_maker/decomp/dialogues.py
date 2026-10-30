@@ -370,7 +370,7 @@ def scene_triggers(group: dict[str, str], lists: dict[str, str], scripts: set[st
             rest = parts[k + 1:]
             if macro == "TURN" and rest:
                 out[script] = {"kind": "turn", "turn": rest[0], "faction": rest[2] if len(rest) > 2 else ""}
-            elif macro in ("CHAR", "CHAR_") and len(rest) >= 2:
+            elif macro in ("CHAR", "CHAR_", "CharacterEventBothWays") and len(rest) >= 2:
                 out[script] = {"kind": "talk", "a": rest[0], "b": rest[1]}
             elif macro in ("Village", "House") and len(rest) >= 2:
                 out[script] = {"kind": macro.lower(), "x": rest[0], "y": rest[1]}
@@ -381,6 +381,28 @@ def scene_triggers(group: dict[str, str], lists: dict[str, str], scripts: set[st
             else:
                 out[script] = {"kind": "other"}
     return out
+
+
+def with_trigger(source: str, script: str, change: dict) -> str:
+    """The event lists of `source` where `script` starts as `change` says: "turn", "faction", "a", "b"."""
+    def edit(found: re.Match) -> str:
+        args = [a.strip() for a in found[3].split(",")]
+        k = args.index(script)
+        if found[2] == "TURN":
+            if "turn" in change:
+                start, end, turn = int(args[k + 1], 0), int(args[k + 2], 0), int(change["turn"], 0)
+                args[k + 1] = str(turn)
+                # one turn stays one turn; a range ("from turn 1 on") keeps its end, 0 meaning no end
+                args[k + 2] = str(turn if end == start else 0 if end == 0 else max(end, turn))
+            if change.get("faction"):
+                args[k + 3] = change["faction"]
+        else:
+            args[k + 1] = change.get("a") or args[k + 1]
+            args[k + 2] = change.get("b") or args[k + 2]
+        return f"{found[1]}{found[2]}({', '.join(args)})"
+
+    entry = rf"^([ \t]*)(TURN|CHAR_?|CharacterEventBothWays)\(([^\n]*\b{re.escape(script)}\b[^\n]*)\)"
+    return re.sub(entry, edit, source, flags=re.M)
 
 
 SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")

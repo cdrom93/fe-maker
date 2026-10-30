@@ -744,6 +744,56 @@ def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
         assert all(any(half) for half in name)   # both halves of the 14th row
 
 
+def test_a_priest_given_the_dance_dances_without_breaking_the_game(tmp_path):
+    from fe_maker.decomp import units
+
+    project = Project.create(tmp_path / "dance", "Dance")
+    project.set_game_options({"noSupportAnimations": True})
+    characters = project.load("characters")
+    seth = next(c for c in characters if c["id"] == "CHARACTER_SETH")
+    seth.update({"abilities": [*seth.get("abilities", []), "dance"], "class": "CLASS_PRIEST",
+                 "weaponRanks": dict.fromkeys(seth["weaponRanks"], 0)})
+    project.save("characters", characters)
+    chapters = project.load("chapters")
+    groups = units.read_unit_groups(project.decomp_dir)
+    army = [dict(u) for u in groups["UnitDef_Event_PrologueAlly"].units]
+    next(u for u in army if u["character"] == "CHARACTER_SETH").update({"class": "CLASS_PRIEST", "items": ["ITEM_STAFF_HEAL"]})
+    chapters.setdefault("unitGroups", {})["UnitDef_Event_PrologueAlly"] = army
+    project.save("chapters", chapters)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        found = game.units()
+        dancer = next(u for u in found if u["character"] == 2)
+        friend = game.address("gUnitArrayBlue") + 0x48 * found.index(next(u for u in found if u["character"] == 1))
+        game.write(friend, game.read(friend, 0x0C, width=32) | 0x42, offset=0x0C, width=32)   # she has acted
+        game.run(10)
+        game.move_cursor(dancer["x"], dancer["y"])
+        game.run(20)
+        for _ in range(4):   # the dancer, stays, Dance, the only target
+            game.press("A", wait=30)
+        game.run(240)
+        game.screenshot().save(tmp_path / "danced.png")
+        print("screenshot:", tmp_path / "danced.png")
+        assert not game.read(friend, 0x0C, width=32) & 0x42   # she can act again
+        assert 0 < game.units()[0]["x"] < 40                  # the game still runs on its units
+
+
+def test_a_scene_moved_to_another_turn_builds_and_plays(tmp_path):
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "turn", "Turn")
+    scene = next(s for s in DecompData(project.decomp_dir).chapter_dialogues(0)
+                 if s["trigger"]["kind"] == "turn" and not s["trigger"].get("via"))
+    dialogues = project.load("dialogues")
+    dialogues["triggers"] = {scene["script"]: {"turn": "4", "faction": "FACTION_RED"}}
+    project.save("dialogues", dialogues)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
 def test_hp_bars_under_wounded_units(tmp_path):
     project = Project.create(tmp_path / "bars", "Bars")
     project.set_game_options({"hpBars": True})

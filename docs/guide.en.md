@@ -31,6 +31,8 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes |
 | Game options | Starting settings, comfort, test options, what the project keeps |
 
+In a chapter, a **scene** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown.
+
 A small **i** next to a title or an option holds its explanation: hover over it.
 
 **▶ Test** compiles and starts the game in mGBA. The **Project** menu holds **Export patch**, which gives the `.ups` to share.

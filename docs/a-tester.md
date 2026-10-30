@@ -6,6 +6,16 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
 - [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
+## Tickets 70, 79 et 80
+
+- [ ] #70 Vocabulaire : partout, une scène a un déclencheur, un déroulé (l'ancien « script ») et des dialogues. Le mot « conversation » a disparu, la vue en bulles s'appelle « Bulles ». Dis-moi s'il reste un mot qui te gêne.
+- [ ] #70 Onglet Dialogues, liste des scènes : les scènes de tour et « Parler » du jeu s'écrivent en phrase modifiable : « Début du tour [3] [joueur] », « [Seth] parle à [Franz] ». Change un mot, recompile, et vérifie en jeu que la scène suit.
+- [ ] #79 #80 Onglet Chapitres, à droite des trois vues : « + Ajouter un chapitre » ; dans la vue Carte : « + Nouvelle carte », qui crée un chapitre avec sa carte vide, puisque chaque chapitre a la sienne. Le nouveau chapitre s'ouvre tout de suite.
+
+## Ticket 81
+
+- [ ] #81 Une classe qui n'est pas Danseuse peut danser (ta Prêtresse Healot) sans brouiller l'écran. Elle n'a pas d'animation de danse sur la carte, faute de sprite prévu : seuls le son et l'effet jouent. Le jeu d'origine plantait aussi (écran noir). Recompile pour le voir.
+
 ## Tickets 77 et 78
 
 - [ ] #77 Menu Configuration du jeu : la ligne « Staff & Dance » est juste sous « Animation » (2e ligne), son aide tient sur la ligne (« Animate staves and dances ») et la dernière ligne, « Window Color », s'affiche en entier. Recompile pour le voir.
@@ -26,11 +36,26 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Page Campagne, « À faire » : un chapitre ajouté ou vierge sans ennemi, ou qui ne mène nulle part, est signalé avec son nom. Cliquer le nom ouvre le chapitre.
 - [ ] « À faire » ne montre plus les avertissements sur ce que le jeu d'origine fait déjà (noms de balistes trop longs...) : seulement ce que ton projet a changé.
 
-## Hack témoin (étape 3 de l'alpha)
+## Le hack d'essai : « La Fuite de Lorn » (gel de l'alpha)
 
-Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : projet vierge, héros renommé, un compagnon réutilisé, deux chapitres ajoutés, un soldat par chapitre, fin du jeu. Il va du premier chapitre au menu de sauvegarde, l'armée suit d'un chapitre à l'autre. Il ne remplace pas ton gel : les cartes y sont vides et il n'y a pas de dialogues.
+Trois chapitres à faire toi-même, de bout en bout, pour toucher à presque tout. Compte une à deux heures. Note ce qui coince avec le bouton Ticket : c'est le but.
 
-- [ ] Le faire à la main, avec de vraies cartes et un dialogue par chapitre : c'est l'étape 3 du plan, et ce qui manque pour le gel.
+- [ ] Préparation : nouveau projet, « Projet vierge », case « Retirer aussi les personnages ». Héros « Lorn » (nom, stats, description avec la touche R).
+- [ ] Options du jeu : coche les barres de PV, un réglage de confort au choix, et « Staff & Dance ».
+- [ ] Personnages : « + Allié » Mira, une soigneuse, avec un portrait et un bâton ; « + Allié » Bran ; « + Ennemi » Vorgan, le chef.
+- [ ] Classe : « + Nouvelle classe » d'après le Chevalier, « Garde », pour Bran, avec un sprite de carte et une animation de combat de FE-Repo.
+- [ ] Arme : « + Nouvelle arme » d'après un javelot, « Lance longue », portée 1-3, réservée à Vorgan.
+- [ ] Chapitre 1, « Le Village », 15 × 10 : carte au panneau Terrains (rivière, forêt, montagne), un village en bâtiment entier et un coffre. Objectif « Vaincre tous les ennemis », trois ou quatre ennemis.
+- [ ] Chapitre 1, dialogues : un dialogue d'ouverture en bulles, un dialogue de fin, et ce que donne le village.
+- [ ] Teste le chapitre 1 avec « ▶ Tester ce chapitre ». Regarde la zone de danger avant de placer tes unités.
+- [ ] Chapitre 2, « Le Pont », avec « + Ajouter un chapitre » : objectif « S'emparer d'une case » sur une porte de château, un coffre derrière une porte.
+- [ ] Chapitre 2, combat : Vorgan en chef, avec la Lance longue et sa réplique de combat. Ses dernières paroles, puis des « Renforts » au tour 3.
+- [ ] Chapitre 2, scènes : une scène de tour écrite au tour 2, puis change son tour dans la phrase. Un dialogue « Parler » qui recrute un allié vert.
+- [ ] Soutien : « Nouveau soutien » entre Lorn et Mira, avec son dialogue C.
+- [ ] Chapitre 3, « La Fuite » : objectif « Survivre » 6 tours, une armurerie et un magasin. Pour la fin du chapitre, un déroulé avec une condition « Si un personnage est vivant… » sur Mira.
+- [ ] Campagne : « Terminer le jeu ici » sur le chapitre 3, renomme un chapitre, vérifie la liste « À faire ».
+- [ ] Joue tout d'un coup avec « ▶ Tester depuis le début » : l'armée doit suivre d'un chapitre à l'autre, et les soutiens aussi.
+- [ ] Menu Projet, « Exporter le patch », puis applique le `.ups` sur une ROM propre et lance-la dans mGBA.
 
 ## Préparation de l'alpha (rien n'est publié)
 

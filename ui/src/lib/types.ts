@@ -392,6 +392,8 @@ export interface DialoguesData {
   supports?: SupportPair[]
   /** event scripts edited in the visual editor, by script name (server: decomp/events.py) */
   scripts?: Record<string, EventCommand[]>
+  /** What the project changed in what starts the game's scenes, by scene. */
+  triggers?: Record<string, Partial<DialogueScene['trigger']>>
 }
 
 /** A command of an event script: a macro and its arguments (no args: a bare macro);

@@ -17,6 +17,7 @@
   import FacePicker from './FacePicker.svelte'
   import SupportList from './SupportList.svelte'
   import TalkBubble from './TalkBubble.svelte'
+  import TriggerPhrase from './TriggerPhrase.svelte'
 
   let { list, characters, problems }: { list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[] } = $props()
 
@@ -142,9 +143,24 @@
 
   const hex = (id: string | number) => `0x${Number(id).toString(16).toUpperCase()}`
 
+  /** A scene's trigger, with what the project changed. */
+  const triggerOf = (s: DialogueScene) => ({ ...s.trigger, ...list.records[0]?.triggers?.[s.script] })
+  /** Scenes the game's event lists start: their trigger can be changed, unless another scene calls them. */
+  const canEditTrigger = (s: DialogueScene) => ['turn', 'talk'].includes(s.trigger.kind) && !s.trigger.via && s.file?.startsWith('src/events')
+
+  function setTrigger(s: DialogueScene, change: Partial<DialogueScene['trigger']>) {
+    list.update(0, (d) => {
+      d.triggers ??= {}
+      const next = { ...d.triggers[s.script], ...change }
+      for (const [k, v] of Object.entries(next)) if (v === s.trigger[k as keyof typeof s.trigger]) delete next[k as keyof typeof next]
+      if (Object.keys(next).length) d.triggers[s.script] = next
+      else delete d.triggers[s.script]
+    })
+  }
+
   /** What starts a scene, in a few words. */
   function sceneLabel(s: DialogueScene): string {
-    const tr = s.trigger
+    const tr = triggerOf(s)
     switch (tr.kind) {
       case 'turn': return t(tr.faction === 'FACTION_RED' ? 'dlg.trigger.enemyTurn' : 'dlg.trigger.turn', { n: tr.turn ?? '?' })
       case 'talk': return t('dlg.trigger.talk', { a: charName(tr.a ?? ''), b: charName(tr.b ?? '') })
@@ -504,7 +520,11 @@
       {#each visibleScenes as scene (scene.script)}
         <div class="scene">
           <div class="scene-title">
-            <span class="kind {scene.trigger.kind}">{sceneLabel(scene)}</span>
+            {#if canEditTrigger(scene)}
+              <TriggerPhrase trigger={triggerOf(scene)} {characters} {charName} onchange={(c) => setTrigger(scene, c)} />
+            {:else}
+              <span class="kind {scene.trigger.kind}">{sceneLabel(scene)}</span>
+            {/if}
             {#if scene.trigger.via}<span class="muted tiny" title={scene.script}>{t('dlg.via')}</span>{/if}
             <button class="script-button" class:active={scriptName === scene.script} title={t('ev.open', { name: scene.script })}
                     onclick={() => { scriptName = scene.script; messageId = null }}>⚙{#if list.records[0]?.scripts?.[scene.script]}<span class="edited">✎</span>{/if}</button>
