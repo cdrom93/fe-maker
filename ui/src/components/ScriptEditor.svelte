@@ -218,6 +218,91 @@
     selected = null
   }
 
+  // The simple view (ticket 70): a scene told as steps, the game's technical commands left out of sight; a step opens
+  // on its commands, the detailed view shows them all.
+  const TECHNICAL = new Set(['', '#', 'NoFade', 'ENDA', 'ENUN', 'LABEL', 'SVAL', 'STAL', 'STAL2', 'STAL3', 'CURE', 'FADI', 'FADU', 'FAWI', 'FAWU', 'GOTO'])
+  const TEXT_OPS = new Set(['TEXTSTART', 'Text', 'Text_BG', 'TEXTSHOW', 'TEXTCONT', 'TEXTEND', 'REMA'])
+  type Step = { start: number; end: number; icon: string; text: string; message: string }
+
+  function readAdvanced(): boolean {
+    try {
+      return localStorage.getItem('fe-maker.script-detail') === '1'
+    } catch {
+      return false
+    }
+  }
+  let advanced = $state(readAdvanced())
+  let openStep = $state<number | null>(null)
+  function setAdvanced(on: boolean) {
+    advanced = on
+    openStep = null
+    try {
+      localStorage.setItem('fe-maker.script-detail', on ? '1' : '0')
+    } catch {
+      // storage unavailable: the view is just not remembered
+    }
+  }
+
+  /** The values a command's step shows: names rather than constants. */
+  function summary(c: EventCommand): string {
+    const spec = reference?.commands[c.op] ?? []
+    return spec.flatMap((a, k) => {
+      const v = c.args?.[k] ?? ''
+      if (a.kind === 'character') return [charName(v)]
+      if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
+      if (a.kind === 'song') return [pretty(v, 'SONG_')]
+      if (a.kind === 'background') return [pretty(v, 'BG_')]
+      if (a.kind === 'x' || a.kind === 'y') return [v]
+      return []
+    }).join(', ')
+  }
+
+  const steps = $derived.by(() => {
+    const out: Step[] = []
+    let i = 0
+    while (i < commands.length) {
+      const c = commands[i]
+      if (TEXT_OPS.has(c.op)) {
+        const start = i
+        let message = ''
+        while (i < commands.length && (TEXT_OPS.has(commands[i].op) || commands[i].op === '')) {
+          if (commands[i].args?.length && !message) message = commands[i].args![0]
+          i++
+        }
+        const ref = messageRef(message)
+        out.push({ start, end: i - 1, icon: '💬', text: (ref && firstLine(ref)) || t('ev.op.Text'), message: ref })
+      } else if (c.op.startsWith('CHECK_')) {
+        let end = i
+        while (end < Math.min(i + 4, commands.length - 1) && !BRANCHES.includes(commands[end].op)) end++
+        const what = c.op.startsWith('CHECK_EVENTID') ? t('ev.simple.flag') : label(c.op).replace(/^[^:]*:\s*/, '')
+        const detail = summary(c)
+        out.push({ start: i, end, icon: '❓', text: t('ev.simple.if', { what: detail ? `${what} (${detail})` : what }), message: '' })
+        i = end + 1
+      } else if (TECHNICAL.has(c.op)) {
+        i++
+      } else {
+        const detail = summary(c)
+        out.push({ start: i, end: i, icon: ICONS[c.op] ?? '•', text: detail ? `${label(c.op)} : ${detail}` : label(c.op), message: '' })
+        i++
+      }
+    }
+    return out
+  })
+  const hiddenCount = $derived(commands.length - steps.reduce((n, s) => n + s.end - s.start + 1, 0))
+
+  function openOf(s: Step) {
+    openStep = openStep === s.start ? null : s.start
+    selected = s.end
+  }
+
+  function removeStep(s: Step) {
+    const branch = commands[s.end]
+    const end = BRANCHES.includes(branch?.op) ? labels.get(labelNumber(branch.args?.[0] ?? '')) : undefined
+    save(commands.filter((_, n) => (n < s.start || n > s.end) && n !== end))
+    selected = null
+    openStep = null
+  }
+
   function resetScript() {
     list.update(0, (d) => {
       if (d.scripts) delete d.scripts[name]
@@ -241,12 +326,14 @@
       <span class="tiny muted">{t(sceneKind === 'ending' ? 'ev.simpleEndingHint' : 'ev.simpleHint')}</span>
     </p>
   {/if}
-  <p class="muted small">{t('ev.hint')} <span class="tiny">{file}</span></p>
+  <div class="view">
+    <p class="muted small">{advanced ? t('ev.hint') : t('ev.simple.hint')}</p>
+    <button class="link small" onclick={() => setAdvanced(!advanced)}>{advanced ? t('ev.simple.toSimple') : t('ev.simple.toDetail', { n: hiddenCount })}</button>
+  </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#each scriptProblems.filter((p) => p.id === `script:${name}`) as pr, k (k)}<p class="bad small">{problemText(pr)}</p>{/each}
 
-  <ol class="blocks">
-    {#each commands as c, i (i)}
+  {#snippet block(c: EventCommand, i: number)}
       {#if c.op === ''}
         <li class="gap" aria-hidden="true"></li>
       {:else}
@@ -330,7 +417,26 @@
           </div>
         </li>
       {/if}
-    {/each}
+  {/snippet}
+
+  <ol class="blocks">
+    {#if advanced}
+      {#each commands as c, i (i)}{@render block(c, i)}{/each}
+    {:else}
+      {#each steps as s (s.start)}
+        <li class="step" class:active={openStep === s.start} style:margin-left="{depths[s.start] * 1.2}rem">
+          <button class="row" onclick={() => openOf(s)} title={t('ev.simple.open')}>
+            <span>{s.icon}</span> <span class="what">{s.text}</span>
+          </button>
+          {#if s.message}<button class="link" onclick={() => onopenmessage(s.message)} title={t('ev.openMessage')}>{t('ev.simple.edit')}</button>{/if}
+          <button class="danger" onclick={() => removeStep(s)} title={t('dlg.remove')}>✕</button>
+        </li>
+        {#if openStep === s.start}
+          {#each commands.slice(s.start, s.end + 1) as c, k (k)}{@render block(c, s.start + k)}{/each}
+        {/if}
+      {/each}
+      {#if !steps.length}<li class="muted small">{t('ev.simple.empty')}</li>{/if}
+    {/if}
   </ol>
   <datalist id="ev-groups">{#each groups as g (g)}<option value={g}></option>{/each}</datalist>
   <datalist id="ev-scripts">{#each reference?.scripts ?? [] as s (s)}<option value={s}></option>{/each}</datalist>
@@ -379,6 +485,11 @@
   .actions { display: flex; gap: 0.15rem; flex-shrink: 0; }
   .actions button { padding: 0 0.35rem; font-size: 0.8rem; }
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .view { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+  .blocks li.step { align-items: center; }
+  .row { flex: 1; display: flex; gap: 0.4rem; align-items: center; min-width: 0; border: none; background: none; padding: 0.15rem; text-align: left; font-weight: 600; }
+  .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step .danger { padding: 0 0.35rem; font-size: 0.8rem; }
   .open { font-size: 0.8rem; }
   .simple { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .quote { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

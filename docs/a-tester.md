@@ -26,6 +26,12 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] Retirer des chapitres : un chapitre gardé mène au suivant gardé, les étapes retirées sont sautées (par exemple le château de Frélia) ; la carte du monde est désactivée. Un chapitre retiré devient une place libre.
 - [ ] À voir : un personnage retiré mais encore cité dans un dialogue gardé reste dans le jeu sans apparaître dans la liste.
 
+## Scripts plus simples (ticket 70)
+
+- [ ] Dialogues, ⚙ d'une scène : la scène se lit maintenant étape par étape (« Dialogue », « Selon : ... », « Faire venir un groupe : ... »), les commandes techniques cachées. Cliquer une étape montre ses commandes ; « Modifier le texte » ouvre la conversation ; ✕ retire l'étape (pour une condition, seul le test part, ce qu'elle contenait reste). « Vue détaillée » rend l'ancienne vue, et le choix est retenu.
+- [ ] Liste de gauche : les scènes sans dialogue sont cachées, sauf ouverture, fin et scènes que tu as changées. Case « Afficher les scènes sans dialogue ».
+- [ ] Dis-moi si c'est assez simple : je n'ai pas touché au fonctionnement des événements, seulement à leur présentation.
+
 ## Historique des changements
 
 - [ ] À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements de l'onglet (heure, fiche) ; cliquer l'un d'eux revient à avant ce changement, et « Rétablir » refait le chemin. La liste est par onglet et repart de zéro à chaque ouverture du projet.

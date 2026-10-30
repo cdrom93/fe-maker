@@ -1398,5 +1398,14 @@
   "scope.confirm": "Appliquer ces choix au projet ? Une copie de ses données sera faite avant.",
   "scope.done": "C'est fait. Copie des données dans {path}. {n} élément(s) gardé(s) parce qu'un chapitre gardé en a besoin.",
   "scope.needed": "Un chapitre gardé l'utilise : il restera",
-  "scope.neededShort": "utilisé"
+  "scope.neededShort": "utilisé",
+  "ev.simple.hint": "La scène étape par étape. Cliquez une étape pour la modifier ; les commandes techniques du jeu restent cachées.",
+  "ev.simple.toDetail": "Vue détaillée ({n} commandes cachées)",
+  "ev.simple.toSimple": "Vue simple",
+  "ev.simple.if": "Selon : {what}",
+  "ev.simple.open": "Voir et modifier cette étape",
+  "ev.simple.edit": "Modifier le texte",
+  "ev.simple.empty": "Cette scène n'a pas d'étape visible : ajoutez-en une, ou passez en vue détaillée.",
+  "dlg.showEmpty": "Afficher les scènes sans dialogue",
+  "ev.simple.flag": "un drapeau"
 }

@@ -1398,5 +1398,14 @@
   "scope.confirm": "Apply these choices to the project? Its data is copied first.",
   "scope.done": "Done. Data copied to {path}. {n} element(s) kept because a kept chapter needs them.",
   "scope.needed": "A kept chapter uses it: it stays",
-  "scope.neededShort": "used"
+  "scope.neededShort": "used",
+  "ev.simple.hint": "The scene step by step. Click a step to change it; the game's technical commands stay hidden.",
+  "ev.simple.toDetail": "Detailed view ({n} commands hidden)",
+  "ev.simple.toSimple": "Simple view",
+  "ev.simple.if": "Depending on: {what}",
+  "ev.simple.open": "See and change this step",
+  "ev.simple.edit": "Edit the text",
+  "ev.simple.empty": "This scene has no visible step: add one, or switch to the detailed view.",
+  "dlg.showEmpty": "Show scenes without dialogue",
+  "ev.simple.flag": "a flag"
 }

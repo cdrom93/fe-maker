@@ -82,7 +82,10 @@
   // New quotes of this chapter, with their place in the project list.
   const chapterQuotes = $derived(newQuotes.map((q, i) => ({ q, i })).filter(({ q }) => q.chapter === chapterNumber))
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
-  const visibleScenes = $derived(scenes.filter((s) => showTutorials || s.trigger.kind !== 'tutorial'))
+  let showEmpty = $state(false)
+  // A scene without dialogue only matters to whoever looks for it, unless the project changed it.
+  const visibleScenes = $derived(scenes.filter((s) => (showTutorials || s.trigger.kind !== 'tutorial')
+    && (showEmpty || s.messages.length || ['beginning', 'ending'].includes(s.trigger.kind) || list.records[0]?.scripts?.[s.script])))
   // Problems of the message (new quotes are "new<n>" on the server).
   const problemKey = $derived(messageId?.startsWith(NEW) ? `new${messageId.slice(NEW.length)}` : messageId)
   const messageProblems = $derived(problemKey ? problems.filter((p) => p.kind === 'dialogues' && p.id.split('#')[0] === problemKey) : [])
@@ -495,6 +498,9 @@
           <button onclick={() => addQuote('turn')} title={t('dlg.addTurnHint')}>＋ {t('dlg.addTurn')}</button>
         {/if}
       </div>
+      {#if scenes.some((s) => !s.messages.length)}
+        <label class="tiny empty-scenes"><input type="checkbox" bind:checked={showEmpty} /> {t('dlg.showEmpty')}</label>
+      {/if}
       {#each visibleScenes as scene (scene.script)}
         <div class="scene">
           <div class="scene-title">
@@ -717,6 +723,7 @@
 </div>
 
 <style>
+  .empty-scenes { font-weight: 400; margin: 0.3rem 0; }
   .editor { display: grid; grid-template-columns: 240px 1fr; gap: 1rem; align-items: start; }
   .detail { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 1rem; align-items: start; min-width: 0; }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
