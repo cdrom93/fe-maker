@@ -412,6 +412,19 @@ class DecompData:
             self._load_chapter_events()
             for index, level in fog.items():
                 self.chapter_settings["chapters"][index]["initialFogLevel"] = max(0, min(level, 15))
+        # Titles of the chapters the project adds (newchapter.py): a text of their own, the slot's may be shared
+        titles = {int(k): str(v) for k, v in chapters.get("titles", {}).items()}
+        if titles:
+            self._load_chapter_events()
+            settings = self.chapter_settings["chapters"]
+            for index, title in titles.items():
+                text = name_message(title)
+                for key in ("chapTitleTextId", "chapTitleTextIdInHectorStory"):
+                    current = settings[index].get(key, 0)
+                    if current and sum(1 for c in settings if key in c and c[key] == current) == 1:
+                        self.texts.set_raw(current, text)
+                    else:
+                        settings[index][key] = self.texts.add(text)
         # Chapters with or without convoy, changed from the game's rule (ticket 29)
         edited = {int(k): bool(v) for k, v in chapters.get("convoy", {}).items()}
         if any(convoy.has_convoy(k) != v for k, v in edited.items()):

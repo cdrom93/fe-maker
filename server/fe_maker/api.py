@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import emulator, ferepo, validation
+from . import emulator, ferepo, newchapter, validation
 from .builder import BuildError
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
@@ -351,6 +351,8 @@ def _event_symbol(chapter: dict) -> str | None:
 @app.get("/api/chapters")
 def list_chapters():
     d = state.get_decomp()
+    # titles of the chapters the project adds (newchapter.py)
+    titles = state.project.load("chapters").get("titles", {}) if state.project is not None else {}
     result = []
     for i, ch in enumerate(maps.chapter_settings(DECOMP_DIR)):
         title_id = ch.get("chapTitleTextId", 0)
@@ -361,13 +363,41 @@ def list_chapters():
         result.append({
             "index": i,
             "id": ch.get("internalName", str(i)),
-            "title": d.texts.get_name(title_id) if title_id in d.texts.messages else "",
+            "title": titles.get(str(i)) or (d.texts.get_name(title_id) if title_id in d.texts.messages else ""),
+            "added": str(i) in titles,
             "map": layout,
             "events": _event_symbol(ch),
             "convoy": convoy.has_convoy(i),   # in the game (ticket 29)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
         })
     return result
+
+
+class NewChapterIn(BaseModel):
+    after: int
+    width: int = 15
+    height: int = 10
+    title: str = ""
+
+
+@app.post("/api/chapters/new")
+def new_chapter(body: NewChapterIn):
+    """A chapter after `after`, on a free slot of the game's chapters (newchapter.py)."""
+    project = state.require_project()
+    try:
+        index = newchapter.add_chapter(project, body.after, body.width, body.height, body.title)
+    except newchapter.ChapterError as e:
+        raise HTTPException(409, str(e)) from e
+    return {"index": index, "problems": [p.to_dict() for p in project.validate()]}
+
+
+@app.get("/api/chapters/free")
+def free_chapters():
+    """How many chapters can still be added."""
+    project = state.require_project()
+    taken = {int(k) for k in project.load("chapters").get("added", {})}
+    return {"free": len(newchapter.free_slots(DecompData(project.decomp_dir), project.load("dialogues").get("scripts", {}),
+                                               taken))}
 
 
 @app.get("/api/chapters/overview")

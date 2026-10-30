@@ -555,3 +555,23 @@ def test_stationary_enemy_shows_no_movement_range(tmp_path):
         game.screenshot().save(tmp_path / "range.png")
         print("screenshot:", tmp_path / "range.png")
         assert reachable == 1
+
+
+def test_added_chapter(tmp_path):
+    """A chapter added after the prologue (a free slot, the tower's first floor): "Test this chapter" starts on its
+    empty 15 x 10 map with the army in a block at the top left."""
+    from fe_maker import newchapter
+
+    project = Project.create(tmp_path / "added", "Added")
+    index = newchapter.add_chapter(project, 0, 15, 10, "Le Fort")
+    project.set_test_options({"start": "map", "chapter": index})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        ok = game.wait_until(lambda: game.chapter() == index and game.turn() == 1 and game.units(), seconds=300, step=30,
+                             tap="A")
+        game.run(120)
+        game.screenshot().save(tmp_path / "added.png")
+        print("screenshot:", tmp_path / "added.png", "units", game.units())
+        assert ok
+        assert (game.read("gBmMapSize", 0, width=16), game.read("gBmMapSize", 2, width=16)) == (15, 10)
+        assert all(u["y"] == 0 for u in game.units())

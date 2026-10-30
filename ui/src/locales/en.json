@@ -1295,5 +1295,14 @@
   "options.holdAToSpeedUp": "Hold A to speed up movement",
   "options.holdAToSpeedUpHint": "from the first playthrough (the original game waits until it has been finished once)",
   "options.stationaryRange": "No movement range for units that never move",
-  "options.stationaryRangeHint": "an enemy whose AI stays shows only what it can attack from where it stands (\"Null Move Display\" patch)"
+  "options.stationaryRangeHint": "an enemy whose AI stays shows only what it can attack from where it stands (\"Null Move Display\" patch)",
+  "flow.add.button": "Add a chapter after this one",
+  "flow.add.title": "Title",
+  "flow.add.width": "Width",
+  "flow.add.height": "Height",
+  "flow.add.confirm": "Add",
+  "flow.add.cancel": "Cancel",
+  "flow.add.hint": "The new chapter takes a free slot of the game (tower and ruins floors, test chapters): an empty map to paint, no enemies, objective \"defeat all enemies\". Slots left: {n}.",
+  "flow.add.noFreeChapter": "no free slot left for a chapter",
+  "flow.add.badMapSize": "the map must be from 15 × 10 to 64 × 64"
 }

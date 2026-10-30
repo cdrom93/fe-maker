@@ -11,10 +11,12 @@
   // and how each one leads to the next. Each chapter's scripts end with a command that starts the next
   // one (server: decomp/story.py). Edited scripts are kept with the dialogues' scripts.
   // chapterList: the project's chapter edits (objectives, unit groups), shown over the game's in the sheet
-  let { list, chapterList, ontest, todo, todoCount }: {
+  let { list, chapterList, ontest, onreload, todo, todoCount }: {
     list: EditableList<DialoguesData>; chapterList: EditableList<ChaptersData>
     /** "Test this chapter": a test build that starts on it */
     ontest: (index: number) => void
+    /** load the project's data again (after a chapter is added) */
+    onreload: () => Promise<void>
     /** the project's problems, as listed under the header ("To do for this project") */
     todo?: Snippet
     todoCount?: { errors: number; warnings: number }
@@ -40,15 +42,45 @@
   /** false: the project goes from chapter to chapter without the world map (ticket 39) */
   let worldMap = $state(true)
 
-  onMount(async () => {
+  onMount(() => loadFlow())
+
+  async function loadFlow() {
     // an older server has no world map option: the world map stays
-    const [all, info, wm] = await Promise.all([api.chapters(), api.chapterLinks(), api.worldMap().catch(() => ({ worldMap: true }))])
+    const [all, info, wm, free] = await Promise.all([api.chapters(), api.chapterLinks(), api.worldMap().catch(() => ({ worldMap: true })),
+      api.freeChapters().catch(() => ({ free: 0 }))])
     chapters = all
     original = info.links
     kinds = info.kinds
     toChapter = info.toChapter
     worldMap = wm.worldMap
-  })
+    freeChapters = free.free
+  }
+
+  // A new chapter after the selected one (server: newchapter.py, a free slot of the game's chapters).
+  let freeChapters = $state(0)
+  let adding = $state(false)
+  let newTitle = $state('')
+  let newWidth = $state(15)
+  let newHeight = $state(10)
+  let addError = $state('')
+
+  async function addChapter() {
+    if (selected === null || selected < 0) return
+    addError = ''
+    try {
+      await list.flush()
+      await chapterList.flush()
+      const { index } = await api.newChapter(selected, newWidth, newHeight, newTitle)
+      await onreload()
+      await loadFlow()
+      selected = index
+      adding = false
+      newTitle = ''
+    } catch (e) {
+      const code = String(e).match(/(noFreeChapter|badMapSize)/)?.[1]
+      addError = code ? t(`flow.add.${code}`) : String(e)
+    }
+  }
 
   async function setWorldMap(on: boolean) {
     error = ''
@@ -338,6 +370,19 @@
         <Mention kind="chapters" id={String(selected)}><span class="big-link">{t('dlg.openChapter')}</span></Mention>
         {#if chapters[selected].map}<Mention kind="maps" id={chapters[selected].map}><span class="big-link">{t('flow.openMap')}</span></Mention>{/if}
       </div>
+      <div class="add-chapter">
+        {#if adding}
+          <label>{t('flow.add.title')} <input bind:value={newTitle} maxlength="40" /></label>
+          <label>{t('flow.add.width')} <input type="number" bind:value={newWidth} min="15" max="64" /></label>
+          <label>{t('flow.add.height')} <input type="number" bind:value={newHeight} min="10" max="64" /></label>
+          <button class="primary" onclick={addChapter}>{t('flow.add.confirm')}</button>
+          <button class="link" onclick={() => (adding = false)}>{t('flow.add.cancel')}</button>
+          <p class="tiny muted">{t('flow.add.hint', { n: freeChapters })}</p>
+        {:else}
+          <button onclick={() => (adding = true)} disabled={!freeChapters} title={t('flow.add.hint', { n: freeChapters })}>+ {t('flow.add.button')}</button>
+        {/if}
+        {#if addError}<p class="bad small">{addError}</p>{/if}
+      </div>
       <h4>{t('flow.next')}</h4>
       {#if !mine.length}<p class="muted small">{t('flow.noNext')}</p>{/if}
       {#each mine as l, k (k)}
@@ -450,4 +495,7 @@
   .incoming { list-style: none; padding: 0; margin: 0; }
   code { font-size: 0.72rem; }
   @media (max-width: 1000px) { .flow { grid-template-columns: 1fr; } }
+  .add-chapter { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.6rem 0; }
+  .add-chapter label { display: flex; gap: 0.3rem; align-items: center; font-size: 0.85rem; }
+  .add-chapter input[type='number'] { width: 4rem; }
 </style>

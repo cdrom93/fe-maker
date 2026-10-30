@@ -58,6 +58,9 @@ export const api = {
   gameOptions: () => request<GameOptionsData>('GET', '/api/project/game-options'),
   setGameOptions: (options: Record<string, number | boolean>) => request<GameOptionsData>('PUT', '/api/project/game-options', options),
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
+  newChapter: (after: number, width: number, height: number, title: string) =>
+    request<{ index: number; problems: Problem[] }>('POST', '/api/chapters/new', { after, width, height, title }),
+  freeChapters: () => request<{ free: number }>('GET', '/api/chapters/free'),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chaptersOverview: () =>
     request<Record<string, { objective: Objective | null; groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[] }>>('GET', '/api/chapters/overview'),

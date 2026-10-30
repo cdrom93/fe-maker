@@ -19,6 +19,13 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
    d'où le télécharger. Les morceaux faits pour les instruments du jeu, eux, marcheraient tout de suite. Veux-tu que je
    commence par NIMAP2 ?
 
+## Chapitres ajoutés (décision 1 : places libres)
+
+- [ ] Page Campagne, fiche d'un chapitre : « + Ajouter un chapitre après celui-ci » (titre, largeur, hauteur ; 21 places libres au départ : étages de la tour et des ruines, chapitres de test). Le nouveau chapitre apparaît dans le graphe juste après, avec son titre.
+- [ ] Il a une carte vide (à peindre dans l'onglet Cartes), l'armée du chapitre d'avant en haut à gauche, un groupe d'ennemis vide (onglet Chapitres) et l'objectif « vaincre tous les ennemis » : **placer des ennemis avant de tester**, sinon il est gagné tout de suite.
+- [ ] Le chapitre d'avant mène au nouveau, qui mène où allait celui d'avant (playtest fait : chapitre ajouté après le prologue, armée Eirika et Seth, carte 15 × 10, sa fin mène au chapitre 1).
+- [ ] Limites : l'image du titre affichée au début du chapitre reste celle de la place prise (« Tour de Valni »…) ; le texte du titre (menu de sauvegarde) est le bon.
+
 ## Correction trouvée en route
 
 - [ ] Après un projet avec une animation de combat importée, le build suivant (autre projet, animation retirée) gardait les

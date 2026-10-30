@@ -1295,5 +1295,14 @@
   "options.holdAToSpeedUp": "A maintenu accélère les déplacements",
   "options.holdAToSpeedUpHint": "dès la première partie (le jeu d'origine attend qu'on l'ait fini une fois)",
   "options.stationaryRange": "Pas de zone de déplacement pour les unités immobiles",
-  "options.stationaryRangeHint": "un ennemi dont l'IA ne bouge pas montre seulement ce qu'il peut attaquer d'où il est (patch « Null Move Display »)"
+  "options.stationaryRangeHint": "un ennemi dont l'IA ne bouge pas montre seulement ce qu'il peut attaquer d'où il est (patch « Null Move Display »)",
+  "flow.add.button": "Ajouter un chapitre après celui-ci",
+  "flow.add.title": "Titre",
+  "flow.add.width": "Largeur",
+  "flow.add.height": "Hauteur",
+  "flow.add.confirm": "Ajouter",
+  "flow.add.cancel": "Annuler",
+  "flow.add.hint": "Le nouveau chapitre prend une place libre du jeu (étages de la tour, des ruines, chapitres de test) : carte vide à peindre, sans ennemis, objectif « vaincre tous les ennemis ». Places restantes : {n}.",
+  "flow.add.noFreeChapter": "plus de place libre pour un chapitre",
+  "flow.add.badMapSize": "la carte doit faire de 15 × 10 à 64 × 64"
 }

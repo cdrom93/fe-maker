@@ -107,7 +107,10 @@
     problems = probs.problems
   }
 
-  onMount(async () => {
+  onMount(() => loadAll())
+
+  /** All the project's data (again after a change made by the server, such as an added chapter). */
+  async function loadAll() {
     const [ref, chars, cls, items, combat, chaptersData, mapsData, dialoguesData, probs, testOpts] = await Promise.all([
       api.reference(),
       api.getData<Character[]>('characters'),
@@ -132,7 +135,7 @@
     lists.maps.load([mapsData])
     lists.dialogues.load([dialoguesData])
     problems = probs.problems
-  })
+  }
 
   const flushAll = () => Promise.all(allLists.map((l) => l.flush()))
 
@@ -259,7 +262,7 @@
   {:else if tab === 'chapters'}
     <ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />
   {:else if tab === 'flow'}
-    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
+    <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} onreload={loadAll} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
   {:else if tab === 'options'}
