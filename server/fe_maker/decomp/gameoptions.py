@@ -22,6 +22,8 @@ RANGE_DISPLAY_FILE = "src/playerphase.c"
 EXP_BAR_FILE = "src/mapanim_expbar.c"
 LEVEL_UP_FILE = "src/mapanim_lvup.c"
 BATTLE_FILE = "src/bmbattle.c"
+MAP_UI_FILE = "src/bm.c"
+MAP_SPRITES_FILE = "src/bmudisp.c"
 
 # Option -> (field of gPlaySt.config, the game's default, allowed values), in the order and with the choices of the
 # game's Configuration menu (gGameOptionsUiOrder, gGameOptions in src/uiconfig.c). Animation: 0 "1" without
@@ -44,7 +46,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
 SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
-            "noSupportAnimations")
+            "noSupportAnimations", "hpBars")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -79,6 +81,53 @@ _ANIM_TYPE_NO_SUPPORT = (_ANIM_TYPE + "    /* FE Maker: no battle screen for sta
                          "    if (GetItemType(gBattleActor.weapon) == ITYPE_STAFF\n"
                          "        || gActionData.unitActionType == UNIT_ACTION_DANCE)\n"
                          "        return PLAY_ANIMCONF_OFF;\n\n")
+# HP bars under wounded units, after FEBuilder's "HPbars" (its behavior, written in C): six small pictures, in free
+# object tiles at the end of row 3, drawn at each load of the map's object graphics; colors of the first object
+# palette: 15 dark, 12 red, 11 green.
+_HP_TILE = 0x72
+_OBJ_UI_LOAD = "void LoadObjUIGfx(void) {\n"
+_OBJ_UI_LOAD_BARS = """/* FE Maker: the HP bars' tiles */
+static void FemLoadHpBars(void) {
+    u32* tile = (u32*) (0x06010000 + 0x%X * 0x20);
+    int level, x, row;
+
+    for (level = 1; level <= 6; ++level, tile += 8) {
+        u32 fill = 0;
+
+        for (x = 0; x < 8; ++x)
+            fill |= (u32) ((x >= 1 && x <= level) ? (level <= 2 ? 0xC : 0xB) : 0xF) << (x * 4);
+        for (row = 0; row < 5; ++row)
+            tile[row] = 0;
+        tile[5] = 0xFFFFFFFF;
+        tile[6] = fill;
+        tile[7] = 0xFFFFFFFF;
+    }
+}
+
+void LoadObjUIGfx(void) {
+    FemLoadHpBars();
+""" % _HP_TILE
+_ICONS = "void PutUnitSpriteIconsOam(void)\n{\n"
+_ICONS_BARS = """/* FE Maker: a bar under a wounded unit, one of six lengths */
+static void FemPutHpBar(struct Unit * unit)
+{
+    int x = unit->xPos * 16 - gBmSt.camera.x;
+    int y = unit->yPos * 16 - gBmSt.camera.y;
+
+    if (unit->curHP >= unit->maxHP || unit->maxHP == 0)
+        return;
+    if (x < -16 || x > DISPLAY_WIDTH || y < -16 || y > DISPLAY_HEIGHT)
+        return;
+    if (gBmMapFog[unit->yPos][unit->xPos] == 0)
+        return;
+
+    CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 4), OAM0_Y(0x100 + y + 9), gObject_8x8,
+        OAM2_CHR(0x%X + (unit->curHP * 6 + unit->maxHP - 1) / unit->maxHP - 1) + OAM2_LAYER(1));
+}
+
+""" % _HP_TILE + _ICONS
+_ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_POISON:\n"
+_ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
 
 
 def validate(options: dict) -> str | None:
@@ -139,6 +188,10 @@ def apply(decomp_dir: Path, options: dict, files: dict) -> dict:
         source = _replace(current(LEVEL_UP_FILE), _LEVEL_TEXT, _LEVEL_TEXT_QUICK, LEVEL_UP_FILE)
         source = _replace(source, _LEVEL_IN, _LEVEL_IN_QUICK, LEVEL_UP_FILE)
         files[LEVEL_UP_FILE] = _replace(source, _LEVEL_GAINS, _LEVEL_GAINS_QUICK, LEVEL_UP_FILE)
+    if options.get("hpBars"):
+        files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BARS, MAP_UI_FILE)
+        source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)
+        files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BARS, MAP_SPRITES_FILE)
     if options.get("noSupportAnimations"):
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
     return files

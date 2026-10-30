@@ -1373,5 +1373,7 @@
   "options.noSupportAnimations": "Pas d'écran de combat pour les bâtons et les danses",
   "options.noSupportAnimationsHint": "ils se jouent sur la carte, même avec les animations de combat activées",
   "field.description": "Description (touche R en jeu)",
-  "field.descriptionLong": "Le jeu affiche deux lignes d'environ {n} caractères : ce texte risque de déborder."
+  "field.descriptionLong": "Le jeu affiche deux lignes d'environ {n} caractères : ce texte risque de déborder.",
+  "options.hpBars": "Barres de PV sur la carte",
+  "options.hpBarsHint": "une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV"
 }

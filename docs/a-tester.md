@@ -9,7 +9,7 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] #59 Portée libre : une arme 1-10 montre ses cases rouges et « Rng 1-10 » (playtest fait : losange complet autour de Seth, écran vu). Toute autre portée marche aussi (2-5, 4-4...). Regarder FluDiBernar : les cases rouges au survol d'« Attaquer » et la fiche. Les bâtons gardent leur portée d'origine.
 - [ ] #60 Classe ajoutée : le sprite du modèle s'affiche tout de suite, dans la liste et la fiche, avec « Celui de Pirate tant que vous n'en importez pas un autre ».
 - [ ] #61 Animations : la bibliothèque reste ouverte et garde son choix après un import ; cliquer le nom de l'animation importée la rouvre en dessous. Une animation importée depuis le PC n'a pas de source : son nom reste du texte.
-- [ ] #62 Bouton « ← Retour » à gauche de « Annuler » (ou Alt + flèche gauche) : revient à l'onglet et à la fiche d'avant. Limite : sur la page Campagne, il ramène à la page mais pas au chapitre sélectionné.
+- [ ] #62 Bouton « ← Retour » à gauche de « Annuler » (ou Alt + flèche gauche) : revient à l'onglet et à la fiche d'avant. Sur la page Campagne, il ramène aussi au chapitre sélectionné.
 - [ ] #63 Sprite Pirate 2 : le carré gris autour du sprite sélectionné venait du fond de la planche FE-Repo. J'ai corrigé les deux images dans ton projet « test » ; les prochains imports sont bons. À revoir en jeu (sélection et marche).
 - [ ] #65 Onglet « Options du jeu » : les réglages sont présentés comme le menu Configuration du jeu, dans le même ordre, avec tous ses choix (13 réglages, dont « 2 » pour Animation, Musique, Effets sonores, Couleur des fenêtres). Le point • marque le réglage d'origine. Les noms étaient faux pour Unité et Combat (Panneau / Bulle, Stratégique / Détail) : corrigés.
 - [ ] #65 Cases à cocher : alignées avec leur texte partout (règle commune). Si tu en vois une encore décalée, dis-moi où.
@@ -32,6 +32,8 @@ Un test automatique joue un hack de 3 chapitres fait comme dans l'interface : pr
 ## Nouveaux réglages de confort
 
 - [ ] Onglet « Options du jeu », section Confort : « Barre d'expérience rapide », « Gain de niveau rapide », « Pas d'écran de combat pour les bâtons et les danses ». Playtest fait : le jeu compile et démarre avec les trois. **Leur effet n'a pas été vu en jeu** : soigne une unité avec les animations activées, gagne un niveau sur la carte.
+
+- [ ] « Barres de PV sur la carte » : une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV, verte au-dessus (playtest fait : Seth à 5 PV sur 30). À voir : barres pendant les menus et après un combat, en brouillard de guerre, et si leurs couleurs te vont.
 
 ## Préparation de l'alpha (rien n'est publié)
 

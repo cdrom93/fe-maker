@@ -1373,5 +1373,7 @@
   "options.noSupportAnimations": "No battle screen for staves and dances",
   "options.noSupportAnimationsHint": "they play on the map, even with battle animations on",
   "field.description": "Description (R key in game)",
-  "field.descriptionLong": "The game shows two lines of about {n} characters: this text may overflow."
+  "field.descriptionLong": "The game shows two lines of about {n} characters: this text may overflow.",
+  "options.hpBars": "HP bars on the map",
+  "options.hpBarsHint": "a small bar under each wounded unit, red below a third of its HP"
 }

@@ -717,3 +717,18 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
     out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
+def test_hp_bars_under_wounded_units(tmp_path):
+    project = Project.create(tmp_path / "bars", "Bars")
+    project.set_game_options({"hpBars": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        seth = next(i for i, u in enumerate(game.units()) if u["character"] == 2)
+        unit = game.address("gUnitArrayBlue") + seth * 0x48
+        game.write(unit, 5, offset=0x13)
+        game.run(30)
+        game.screenshot().save(tmp_path / "bar.png")
+        print("screenshot:", tmp_path / "bar.png", game.units())

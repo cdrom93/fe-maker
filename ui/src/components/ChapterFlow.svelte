@@ -4,6 +4,7 @@
   import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t } from '../lib/i18n.svelte'
+  import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import type { ChapterInfo, ChapterLink, ChaptersData, DialogueScene, DialoguesData, EventCommand, Objective, UnitGroup } from '../lib/types'
   import Mention from './Mention.svelte'
 
@@ -45,6 +46,9 @@
   let worldMap = $state(true)
 
   onMount(() => loadFlow())
+
+  // Back to this page ("Back" button): its chapter again.
+  followFocus('flow', useNavigator(), () => chapters.map((c) => String(c.index)), (i) => (selected = i))
 
   async function loadFlow() {
     // an older server has no world map option: the world map stays
@@ -202,7 +206,11 @@
 
   $effect(() => {
     appContext.detail = selected !== null && selected >= 0 ? title(selected) : ''
-    return () => (appContext.detail = '')
+    appContext.recordId = selected !== null ? String(selected) : ''
+    return () => {
+      appContext.detail = ''
+      appContext.recordId = ''
+    }
   })
 
   const title = (i: number) => (i === END ? t('flow.end') : chapters[i]?.title || chapters[i]?.id || `#${i}`)
