@@ -12,10 +12,11 @@ import sys
 import tempfile
 import threading
 import urllib.parse
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
@@ -917,60 +918,53 @@ def _download_frames(files: list[dict], names: list[str]) -> dict[str, Image.Ima
 _FACTION_FILES = {"enemy": ("enemy", "red"), "ally": ("green", "ally", "npc"), "other": ("purple", "other", "4th")}
 
 
+def _palette_pictures(names, read, found: dict[str, list[int]]) -> None:
+    """Add to found the palettes of the palette pictures among the file names (read(name): the file's bytes)."""
+    for original in names:
+        name = original.lower()
+        if not name.endswith(".png") or name[:1].isdigit() and "_" in name:
+            continue
+        for faction, words in _FACTION_FILES.items():
+            if faction not in found and any(w in name for w in words):
+                try:
+                    image = Image.open(io.BytesIO(read(original)))
+                except (ferepo.FeRepoError, OSError):
+                    continue
+                if image.mode == "P" and image.getpalette():
+                    found[faction] = image.getpalette()[:48]
+
+
 def _faction_palettes(*folders: str) -> dict[str, list[int]]:
     """The animation's own palettes for the other armies, read from the palette pictures of its folders."""
     found: dict[str, list[int]] = {}
     for folder in folders:
         try:
-            files = ferepo.folder_files(folder)
+            files = {f["name"]: f["url"] for f in ferepo.folder_files(folder) if f["type"] == "file"}
         except ferepo.FeRepoError:
             continue
-        for f in files:
-            name = f["name"].lower()
-            if f["type"] != "file" or not name.endswith(".png") or name[:1].isdigit() and "_" in name:
-                continue
-            for faction, words in _FACTION_FILES.items():
-                if faction not in found and any(w in name for w in words):
-                    try:
-                        image = Image.open(io.BytesIO(ferepo.fetch(f["url"])))
-                    except (ferepo.FeRepoError, OSError):
-                        continue
-                    if image.mode == "P" and image.getpalette():
-                        found[faction] = image.getpalette()[:48]
+        _palette_pictures(files, lambda n, files=files: ferepo.fetch(files[n]), found)
     return found
 
 
-@app.post("/api/animations/import")
-def import_animation(body: AnimationImportIn):
-    """Download a FE-Repo animation (one weapon), convert it to the decomp's format, keep it in the project and
-    give it to the class for that weapon type (ticket 44). The authors go to the project's CREDITS.txt."""
-    project = state.require_project()
-    if not _animation_target(body.wtype):
-        raise HTTPException(400, "unknownWeaponType")
+def _script_of(names, read) -> str:
+    """The animation script among the files: a .txt with FEditor's modes (the one without comments first)."""
+    scripts = [n for n in names if n.lower().endswith(".txt") and n.lower() not in ("readme.txt", "credits.txt")]
+    for name in sorted(scripts, key=lambda n: "without_comment" not in n.lower()):
+        text = read(name)
+        if "/// - Mode" in text:
+            return text
+    raise banim_import.ImportError_("noScript")
+
+
+def _new_animation_key(project) -> tuple[dict, str]:
     data = project.load("animations")
     data.setdefault("animations", {})
     data.setdefault("classes", {})
-    key = str(max((int(k) for k in data["animations"]), default=0) + 1)
-    try:
-        files = ferepo.folder_files(body.url)
-        scripts = [f for f in files if f["type"] == "file" and f["name"].lower().endswith(".txt")
-                   and f["name"].lower() not in ("readme.txt", "credits.txt")]
-        script_text = None
-        for f in sorted(scripts, key=lambda f: "without_comment" not in f["name"].lower()):
-            text = ferepo.fetch_text(f["url"])
-            if "/// - Mode" in text:
-                script_text = text
-                break
-        if script_text is None:
-            raise banim_import.ImportError_("noScript")
-        script = banim_import.parse_script(script_text)
-        frames = _download_frames(files, script.files)
-        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames,
-                                         _faction_palettes(body.animation, body.url))
-    except ferepo.FeRepoError as e:
-        raise HTTPException(503 if str(e) in ("unreachable", "rateLimited") else 400, str(e)) from e
-    except banim_import.ImportError_ as e:
-        raise HTTPException(400, e.args[0]) from e
+    return data, str(max((int(k) for k in data["animations"]), default=0) + 1)
+
+
+def _keep_animation(project, data: dict, key: str, converted, entry: dict, class_id: str, wtype: str) -> dict:
+    """Keep a converted animation in the project and give it to the class for that weapon type (or group)."""
     folder = project.root / "assets" / ANIMATIONS_DIR / key
     if folder.exists():
         shutil.rmtree(folder)
@@ -981,17 +975,91 @@ def import_animation(body: AnimationImportIn):
             path.write_bytes(content)
         else:
             path.write_text(content, encoding="utf-8", newline="\n")
-    source = ferepo.describe(body.animation)
-    if not source["authors"]:
-        source["credits"] = ferepo.folder_credits(body.animation)
-    weapon_folder = urllib.parse.unquote(body.url.rstrip("/")).split("/")[-1]
-    data["animations"][key] = {"name": source["name"], "weapon": weapon_folder, "frames": converted.frames,
-                               "sheets": len(converted.sheets), "source": source}
-    banim_import.set_class_animation(data["classes"].setdefault(body.classId, {}), body.wtype, f"new:{key}")
+    data["animations"][key] = {**entry, "frames": converted.frames, "sheets": len(converted.sheets)}
+    banim_import.set_class_animation(data["classes"].setdefault(class_id, {}), wtype, f"new:{key}")
     problems = project.save("animations", data)
     project.update_credits()
     banim.clear_caches()
     return {"key": key, "problems": [p.to_dict() for p in problems]}
+
+
+@app.post("/api/animations/import")
+def import_animation(body: AnimationImportIn):
+    """Download a FE-Repo animation (one weapon), convert it to the decomp's format, keep it in the project and
+    give it to the class for that weapon type (ticket 44). The authors go to the project's CREDITS.txt."""
+    project = state.require_project()
+    if not _animation_target(body.wtype):
+        raise HTTPException(400, "unknownWeaponType")
+    data, key = _new_animation_key(project)
+    try:
+        files = ferepo.folder_files(body.url)
+        urls = {f["name"]: f["url"] for f in files if f["type"] == "file"}
+        script_text = _script_of(urls, lambda n: ferepo.fetch_text(urls[n]))
+        script = banim_import.parse_script(script_text)
+        frames = _download_frames(files, script.files)
+        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames,
+                                         _faction_palettes(body.animation, body.url))
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503 if str(e) in ("unreachable", "rateLimited") else 400, str(e)) from e
+    except banim_import.ImportError_ as e:
+        raise HTTPException(400, e.args[0]) from e
+    source = ferepo.describe(body.animation)
+    if not source["authors"]:
+        source["credits"] = ferepo.folder_credits(body.animation)
+    weapon_folder = urllib.parse.unquote(body.url.rstrip("/")).split("/")[-1]
+    return _keep_animation(project, data, key, converted, {"name": source["name"], "weapon": weapon_folder, "source": source},
+                           body.classId, body.wtype)
+
+
+def _local_files(uploads: list[tuple[str, bytes]]) -> dict[str, bytes]:
+    """The files of an animation chosen on the user's PC, by name without folders: a weapon's folder, or a .zip."""
+    files: dict[str, bytes] = {}
+    for name, content in uploads:
+        if name.lower().endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                    for info in archive.infolist():
+                        if not info.is_dir() and info.file_size < 8_000_000:
+                            files.setdefault(info.filename.replace("\\", "/").split("/")[-1], archive.read(info))
+            except zipfile.BadZipFile as e:
+                raise banim_import.ImportError_("badZip") from e
+        else:
+            files.setdefault(name.replace("\\", "/").split("/")[-1], content)
+    return files
+
+
+@app.post("/api/animations/import/local")
+async def import_local_animation(classId: str = Form(...), wtype: str = Form(...), name: str = Form(""),  # noqa: N803
+                                 files: list[UploadFile] = File(...)):
+    """An animation from the user's PC (ticket 53): a weapon's folder (FEditor script and frames) or its .zip,
+    converted and given to the class like a FE-Repo one."""
+    project = state.require_project()
+    if not _animation_target(wtype):
+        raise HTTPException(400, "unknownWeaponType")
+    try:
+        local = _local_files([(f.filename or "", await f.read()) for f in files])
+        by_lower = {n.lower(): n for n in local}
+        data, key = _new_animation_key(project)
+        script_text = _script_of(local, lambda n: local[n].decode("utf-8", errors="replace"))
+        script = banim_import.parse_script(script_text)
+        missing = [n for n in script.files if n.lower() not in by_lower]
+        if missing:
+            raise banim_import.ImportError_("missingFrames", ", ".join(missing[:5]))
+        frames = {}
+        for n in script.files:
+            image = Image.open(io.BytesIO(local[by_lower[n.lower()]]))
+            image.load()
+            frames[n] = image
+        palettes: dict[str, list[int]] = {}
+        _palette_pictures(local, local.__getitem__, palettes)
+        converted = banim_import.convert(banim_import.symbol_of(key), script_text, frames, palettes)
+    except banim_import.ImportError_ as e:
+        raise HTTPException(400, e.args[0]) from e
+    except OSError as e:
+        raise HTTPException(400, "notIndexed") from e
+    title = name.strip()[:60] or Path(files[0].filename or "animation").stem
+    return _keep_animation(project, data, key, converted, {"name": title, "weapon": "", "local": True},
+                           classId, wtype)
 
 
 @app.delete("/api/animations/project/{key}")

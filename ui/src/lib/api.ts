@@ -83,6 +83,14 @@ export const api = {
         + `&wtype=${encodeURIComponent(options.wtype ?? '')}`),
   importAnimation: (body: { url: string; animation: string; classId: string; wtype: string }) =>
     request<{ key: string; problems: Problem[] }>('POST', '/api/animations/import', body),
+  importLocalAnimation: (classId: string, wtype: string, name: string, files: File[]) => {
+    const form = new FormData()
+    form.append('classId', classId)
+    form.append('wtype', wtype)
+    form.append('name', name)
+    for (const file of files) form.append('files', file)
+    return request<{ key: string; problems: Problem[] }>('POST', '/api/animations/import/local', form)
+  },
   removeAnimation: (key: string) => request<{ problems: Problem[] }>('DELETE', `/api/animations/project/${key}`),
   setClassAnimation: (classId: string, wtype: string, animation: string | number | null) =>
     request<{ problems: Problem[] }>('PUT', `/api/classes/${classId}/animations`, { wtype, animation }),

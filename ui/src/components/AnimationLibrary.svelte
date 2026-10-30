@@ -6,6 +6,7 @@
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import type { FeRepoAnimation, FeRepoEntry } from '../lib/types'
+  import { animationTargets, guessTarget, targetLabel } from '../lib/animationTargets'
 
   let { initial = '', classId, wtypes, onimported }: {
     /** a suggested search (the class's name) */
@@ -16,23 +17,8 @@
     onimported: () => void
   } = $props()
 
-  /** FEditor's numbered weapon folders ("1. Sword", "6. Magic") -> weapon type. */
-  const FOLDER_WTYPES: [RegExp, string][] = [
-    [/staff|staves/i, 'staff'], [/light/i, 'light'], [/dark|flux/i, 'dark'], [/magic|anima|tome/i, 'tomes'],
-    [/hand ?axe|throw|tomahawk|hatchet/i, 'throwing_axes'], [/axe/i, 'axe'], [/bow|arrow/i, 'bow'], [/lance|spear|javelin/i, 'lance'], [/sword|blade|knife/i, 'sword'],
-    [/unarmed|item|refresh|dance|play/i, 'item'],
-  ]
-  // Linked weapons (tickets 49, 51): the three tomes, the three throwing axes, set at once (one of them can still
-  // get its own); server: banim_import.GROUPS.
-  const GROUPS: Record<string, string[]> = { tomes: ['anima', 'light', 'dark'], throwing_axes: ['axe'] }
-  const targets = $derived([
-    ...Object.keys(GROUPS).filter((g) => GROUPS[g].some((w) => wtypes.includes(w))),
-    ...wtypes,
-  ])
-  function guessWtype(folderName: string): string {
-    const found = FOLDER_WTYPES.find(([re]) => re.test(folderName))?.[1]
-    return found && targets.includes(found) ? found : wtypes[0] ?? 'sword'
-  }
+  const targets = $derived(animationTargets(wtypes))
+  const guessWtype = (folderName: string) => guessTarget(folderName, wtypes)
   let chosenWtype = $state<Record<string, string>>({})
   let importing = $state('')
   let importError = $state('')
@@ -178,7 +164,7 @@
               <div class="weapon">
                 <span class="small">{w}</span>
                 <select value={chosenWtype[w] ?? guessWtype(w)} onchange={(e) => (chosenWtype[w] = (e.target as HTMLSelectElement).value)} aria-label={t('banim.weapon')}>
-                  {#each targets as wt (wt)}<option value={wt}>{wt in GROUPS ? t(`banim.group.${wt}`) : t(`wtype.${wt}`)}</option>{/each}
+                  {#each targets as wt (wt)}<option value={wt}>{targetLabel(wt)}</option>{/each}
                 </select>
                 <button class="play" disabled={!!importing} onclick={() => importWeapon(w)}>
                   {importing === w ? t('banim.import.busy') : t('banim.import.use')}

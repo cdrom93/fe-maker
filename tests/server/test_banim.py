@@ -162,3 +162,26 @@ def test_tomes_share_their_animation():
     assert bi.with_groups({"anima": "new:4", "sword": "new:3"}) == \
         {"anima": "new:4", "light": "new:4", "dark": "new:4", "sword": "new:3"}
     assert bi.with_groups({"staff": "new:1"}) == {"staff": "new:1"}
+
+
+def test_local_animation_files():
+    """Ticket 53: an animation chosen on the PC, as a weapon's folder or a .zip; the script is found among its files."""
+    import zipfile
+
+    import pytest
+
+    from fe_maker import api
+    from fe_maker.decomp import banim_import as bi
+
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("Mage/1. Tome/Script_without_comment.txt", "/// - Mode 1\n")
+        z.writestr("Mage/1. Tome/A.png", b"png")
+        z.writestr("Mage/readme.txt", "/// - Mode 1\n")
+    files = api._local_files([("mage.zip", archive.getvalue()), ("B.png", b"png2")])
+    assert sorted(files) == ["A.png", "B.png", "Script_without_comment.txt", "readme.txt"]
+    assert api._script_of(files, lambda n: files[n].decode()) == "/// - Mode 1\n"
+    with pytest.raises(bi.ImportError_, match="noScript"):
+        api._script_of({"A.png": b""}, lambda n: "")
+    with pytest.raises(bi.ImportError_, match="badZip"):
+        api._local_files([("broken.zip", b"not a zip")])

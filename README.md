@@ -10,7 +10,7 @@
 
 | | Français | English |
 |---|---|---|
-| 🧙 Unités | Personnages, classes (animations de combat, import depuis le FE-Repo), objets et armes réservées, triangle des armes, efficacités | Characters, classes (battle animations, FE-Repo import), items and reserved weapons, weapon triangle, effectiveness |
+| 🧙 Unités | Personnages, classes (animations de combat, import depuis le FE-Repo ou le PC), objets et armes réservées, triangle des armes, efficacités | Characters, classes (battle animations, FE-Repo or PC import), items and reserved weapons, weapon triangle, effectiveness |
 | 🗺️ Cartes | Peinture de tuiles, terrains et leurs effets, taille, bâtiments entiers, changements de carte, villages / coffres / portes automatiques, tuiles tournées, palettes et jeux de tuiles, brouillard de guerre, aller-retour avec Tiled | Tile painting, terrains and their effects, size, whole buildings, map changes, automatic villages / chests / doors, turned tiles, palettes and tile sheets, fog of war, round trip with Tiled |
 | ⚔️ Chapitres | Unités (placement, IA, inventaire, renforts), objectifs, page Campagne (enchaînement des chapitres, option sans carte du monde, liste « À faire ») | Units (placement, AI, items, reinforcements), objectives, Campaign page (story flow, no world map option, to-do list) |
 | 💬 Dialogues | Conversations (mise en page automatique, accents), scènes et éditeur d'événements visuel, répliques de combat, soutiens | Conversations (automatic layout, accented letters), scenes and visual event editor, battle quotes, supports |

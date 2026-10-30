@@ -3,6 +3,7 @@
   import { api, animationUrl } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import AnimationLibrary from './AnimationLibrary.svelte'
+  import LocalAnimationImport from './LocalAnimationImport.svelte'
   import type { ClassAnimation, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
@@ -12,6 +13,7 @@
     onchanged?: () => void
   } = $props()
   let showLibrary = $state(false)
+  let showLocal = $state(false)
 
   const MODES = ['stand', 'attack_close', 'attack_close_critical', 'attack_range', 'attack_range_critical', 'dodge_close', 'attack_miss'] as const
   const PALETTES = ['player', 'enemy', 'ally'] as const
@@ -180,8 +182,12 @@
       </p>
     {/if}
     <p class="muted small">{t('banim.hint')}</p>
-    <button class="library-toggle" onclick={() => (showLibrary = !showLibrary)}>📚 {t('banim.lib.title')}</button>
+    <div class="sources">
+      <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>📚 {t('banim.lib.title')}</button>
+      <button class:active={showLocal} onclick={() => { showLocal = !showLocal; showLibrary = false }}>💻 {t('banim.local.title')}</button>
+    </div>
     {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} onimported={changed} />{/if}
+    {#if showLocal}<LocalAnimationImport {classId} {wtypes} onimported={changed} />{/if}
   </section>
 {/if}
 
@@ -196,5 +202,6 @@
   .stage canvas { image-rendering: pixelated; display: block; }
   .controls { display: flex; flex-direction: column; gap: 0.5rem; }
   .small { font-size: 0.8rem; margin: 0.5rem 0 0; }
-  .library-toggle { margin-top: 0.6rem; }
+  .sources { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  .sources button.active { background: var(--accent-soft); border-color: var(--accent); }
 </style>

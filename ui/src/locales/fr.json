@@ -1159,5 +1159,12 @@
   "banim.weaponFilterHint": "Recherche des armes de chaque animation : la première fois, FE Maker les demande à GitHub (quelques secondes, jusqu'à une minute pour « Tous les dossiers »), puis c'est gardé une semaine. Cochées à plusieurs, les armes doivent toutes être présentes.",
   "banim.missingFolders": "{n} dossier(s) pas encore vérifié(s) : GitHub limite à 60 demandes par heure. Leurs animations manquent dans la liste ; réessayez plus tard.",
   "banim.group.tomes": "Magie (anima, lumière, ténèbres)",
-  "banim.group.throwing_axes": "Haches de lancer (les 3)"
+  "banim.group.throwing_axes": "Haches de lancer (les 3)",
+  "banim.local.title": "Depuis mon PC",
+  "banim.local.hint": "Choisissez le dossier d'une arme (le script FEditor .txt et ses images, comme sur FE-Repo) ou son .zip. Pensez à noter ses auteurs dans le CREDITS.txt du projet.",
+  "banim.local.folder": "Choisir un dossier…",
+  "banim.local.zip": "Choisir un .zip…",
+  "banim.local.name": "Nom de l'animation",
+  "banim.local.files": "{n} fichiers choisis",
+  "banim.import.error.badZip": "ce .zip ne s'ouvre pas"
 }

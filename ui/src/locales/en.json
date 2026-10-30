@@ -1159,5 +1159,12 @@
   "banim.weaponFilterHint": "Looking up each animation's weapons: the first time, FE Maker asks GitHub (a few seconds, up to a minute for \"All folders\"), then it is kept for a week. When several are ticked, the animation must have them all.",
   "banim.missingFolders": "{n} folder(s) not checked yet: GitHub allows 60 requests an hour. Their animations are missing from the list; try again later.",
   "banim.group.tomes": "Magic (anima, light, dark)",
-  "banim.group.throwing_axes": "Throwing axes (all 3)"
+  "banim.group.throwing_axes": "Throwing axes (all 3)",
+  "banim.local.title": "From my PC",
+  "banim.local.hint": "Choose a weapon's folder (the FEditor .txt script and its frames, as on FE-Repo) or its .zip. Remember to write its authors in the project's CREDITS.txt.",
+  "banim.local.folder": "Choose a folder…",
+  "banim.local.zip": "Choose a .zip…",
+  "banim.local.name": "Animation name",
+  "banim.local.files": "{n} files chosen",
+  "banim.import.error.badZip": "this .zip does not open"
 }
