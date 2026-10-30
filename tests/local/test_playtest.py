@@ -522,3 +522,15 @@ def test_imported_map_sprite(tmp_path):
         moved = next(u for u in game.units() if u["character"] == 2)
         assert (moved["x"], moved["y"]) == (seth["x"] - 2, seth["y"])
         print("screenshots:", tmp_path)
+
+
+def test_game_options(tmp_path):
+    """Game options page: a new game starts with fast text and no auto cursor; the comfort changes compile."""
+    project = Project.create(tmp_path / "options", "Options")
+    project.set_game_options({"textSpeed": 2, "autoCursor": 1, "skipOpening": True, "quickChapterTitle": True,
+                              "holdAToSpeedUp": True})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        bits = game.read("gPlaySt", 0x40)   # PlaySt_OptionBits: autoCursor bit 4, textSpeed bits 5-6
+        assert (bits >> 5) & 3 == 2 and (bits >> 4) & 1 == 1

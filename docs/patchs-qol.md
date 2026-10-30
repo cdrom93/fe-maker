@@ -63,6 +63,10 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 - *Danger Radius* et *Droppable Item Marker* (objets que lâchent les ennemis), version de Vesly avec les objets à voler.
 - *Convoy Partition and Item Combination* (Tequila) : fusionner les objets en double en les rangeant (L).
 
+## Fait (30/10/2026)
+
+Onglet « Options du jeu » (`server/fe_maker/decomp/gameoptions.py`) : réglages d'une nouvelle partie (vitesse du texte, curseur, animations…), passer l'ouverture, titre de chapitre sans attente, A maintenu accélère dès la première partie.
+
 ## Ordre de travail proposé
 
 1. Une page « Options du jeu » dans FE Maker (onglet ou section du projet) qui liste ces patchs par priorité, avec une description en français et la source.

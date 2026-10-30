@@ -14,6 +14,7 @@
   import DialogueEditor from './DialogueEditor.svelte'
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
+  import GameOptions from './GameOptions.svelte'
   import KeysDialog from './KeysDialog.svelte'
   import MapEditor from './MapEditor.svelte'
   import Mention from './Mention.svelte'
@@ -21,7 +22,7 @@
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
 
   type Tab = NavKind
-  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'flow', 'maps', 'dialogues']
+  const TABS: Tab[] = ['characters', 'classes', 'items', 'combat', 'chapters', 'flow', 'maps', 'dialogues', 'options']
   let tab = $state<Tab>('characters')
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
@@ -97,7 +98,7 @@
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
   const saving = $derived(allLists.some((l) => l.saving))
   // the story flow edits the dialogues' scripts: its undo is theirs
-  const active = $derived(lists[tab === 'flow' ? 'dialogues' : tab])
+  const active = $derived(tab === 'options' ? undefined : lists[tab === 'flow' ? 'dialogues' : tab])
 
   /** A class's battle animations changed: the weapons each class animates and the problems follow (ticket 50). */
   async function refreshAnimated() {
@@ -261,6 +262,8 @@
     <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
     <MapEditor list={lists.maps} items={lists.items.records} {problems} />
+  {:else if tab === 'options'}
+    <GameOptions />
   {:else}
     <DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />
   {/if}

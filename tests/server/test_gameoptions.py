@@ -1,0 +1,37 @@
+import pytest
+
+from fe_maker.decomp import gameoptions
+from fe_maker.decomp.tweaks import TweakError
+
+# Fictional excerpt in the shape of the decomp's InitPlayConfig (src/bmio.c).
+SOURCE = """void InitPlayConfig(int isDifficult, s8 unk) {
+    gPlaySt.config.animationType = 0;
+    gPlaySt.config.autoCursor = 0;
+    gPlaySt.config.textSpeed = 1; // a comment
+    gPlaySt.config.gameSpeed = 0;
+}
+
+void Other(void) {
+    gPlaySt.config.textSpeed = 1;
+}
+"""
+
+
+def test_new_game_defaults_only_in_init_play_config():
+    out = gameoptions.with_defaults(SOURCE, {"textSpeed": 2, "autoCursor": 1})
+    assert "gPlaySt.config.textSpeed = 2; // a comment" in out and "gPlaySt.config.autoCursor = 1;" in out
+    assert out.endswith("void Other(void) {\n    gPlaySt.config.textSpeed = 1;\n}\n")   # other functions untouched
+    with pytest.raises(TweakError):
+        gameoptions.with_defaults("void Something(void) {}", {"textSpeed": 2})
+
+
+def test_options_are_checked():
+    assert gameoptions.validate({"textSpeed": 3, "skipOpening": True}) is None
+    assert gameoptions.validate({"textSpeed": 9}) == "badGameOption"
+    assert gameoptions.validate({"skipOpening": 1}) == "badGameOption"
+    assert gameoptions.validate({"somethingElse": True}) == "unknownGameOption"
+
+
+def test_no_option_no_file(tmp_path):
+    assert gameoptions.apply(tmp_path, {}, {}) == {}
+    assert gameoptions.apply(tmp_path, {"textSpeed": 1}, {}) == {}   # the game's own default

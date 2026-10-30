@@ -32,6 +32,7 @@ from .decomp import (
     dialogues,
     events,
     fonts,
+    gameoptions,
     mapobjects,
     maps,
     mapsprites,
@@ -1599,6 +1600,23 @@ def put_world_map(body: WorldMapIn):
     project = state.require_project()
     project.set_world_map(body.worldMap)
     return {"worldMap": project.world_map}
+
+
+@app.get("/api/project/game-options")
+def get_game_options():
+    """Options of the built game the project changes, and what can be set (decomp/gameoptions.py)."""
+    return {"options": state.require_project().game_options, "switches": list(gameoptions.SWITCHES),
+            "defaults": {k: {"game": game, "values": list(values)} for k, (_f, game, values) in gameoptions.DEFAULTS.items()}}
+
+
+@app.put("/api/project/game-options")
+def put_game_options(options: dict):
+    project = state.require_project()
+    try:
+        project.set_game_options(options)
+    except ProjectError as e:
+        raise HTTPException(400, str(e)) from e
+    return get_game_options()
 
 
 class BuildIn(BaseModel):

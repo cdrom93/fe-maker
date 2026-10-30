@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import builder, ferepo, ups
-from .decomp import tweaks
+from .decomp import gameoptions, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .paths import DECOMP_DIR
@@ -172,6 +172,21 @@ class Project:
         self.meta["worldMap"] = bool(on)
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    @property
+    def game_options(self) -> dict:
+        """Options of the built game the project changes (decomp/gameoptions.py): defaults of a new save's options,
+        comfort changes."""
+        return dict(self.meta.get("gameOptions", {}))
+
+    def set_game_options(self, options: dict) -> None:
+        problem = gameoptions.validate(options)
+        if problem:
+            raise ProjectError(problem)
+        self.meta["gameOptions"] = {k: v for k, v in options.items()
+                                    if k in gameoptions.SWITCHES and v or k in gameoptions.DEFAULTS
+                                    and v != gameoptions.DEFAULTS[k][1]}
+        (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
     def update_credits(self) -> None:
         """CREDITS.txt lists the community resources the project uses (imported from FE-Repo), after
         what the user wrote."""
@@ -205,6 +220,7 @@ class Project:
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
+        files = gameoptions.apply(decomp_dir, self.game_options, files)
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:

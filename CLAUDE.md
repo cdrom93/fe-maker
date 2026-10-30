@@ -63,6 +63,7 @@ Spanish and Italian (`es.json`, `it.json`) are set aside, frozen and not loaded,
   - `tiled.py`: .tmx export / import in the community's tmx2ea layout; files in the project's `tiled/` folder.
   - `assets.py`: portraits, item icons, map sprites; `face_preview` = big dialogue portrait.
   - `tweaks.py`: test start modes.
+  - `gameoptions.py`: options of the built game ("Game options" tab, fe-maker.json `gameOptions`): defaults of a new save in `InitPlayConfig`, comfort switches rewritten from FEBuilder SYSTEM patches; only what the project changes is written.
 - `changed_files()` values are text, or bytes for binary files (`.mar` map layouts); the overlay writer handles both.
 - UI theme (25/10/2026, from the clickable mockups https://claude.ai/artifact/MKewiQUGuDhGbfbYt1UGsL): colors, radii and the header colors are CSS variables in `ui/src/app.css` (`--header*`, `--radius-big`, light and dark); the font is Nunito, bundled with `@fontsource-variable/nunito` (no network). Use the variables, not new hard-coded colors; `button.play` is the green "Test" button. The screens' layouts follow the mockups one by one, when each screen is redone.
 - `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab (the dialogue editor has a "conversation" view, `ConversationThread.svelte` + `FacePicker.svelte`, and the steps view) (`MapEditor.svelte` paints on a canvas from the tileset sheet `/api/maps/{id}/tileset.png`), `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).

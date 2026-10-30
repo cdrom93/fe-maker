@@ -1,6 +1,12 @@
 import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { BuildStatus, Character, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
+/** Options of the built game (server: decomp/gameoptions.py) */
+type GameOptionsData = {
+  options: Record<string, number | boolean>
+  switches: string[]
+  defaults: Record<string, { game: number; values: number[] }>
+}
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
 
 export class ApiError extends Error {
@@ -49,6 +55,8 @@ export const api = {
   newItem: (model: string) => request<Item>('POST', '/api/items/new', { model }),
   newCharacter: (ally: boolean) =>
     request<{ record: Character; replaces: string | null }>('POST', '/api/characters/new', { ally }),
+  gameOptions: () => request<GameOptionsData>('GET', '/api/project/game-options'),
+  setGameOptions: (options: Record<string, number | boolean>) => request<GameOptionsData>('PUT', '/api/project/game-options', options),
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chaptersOverview: () =>
