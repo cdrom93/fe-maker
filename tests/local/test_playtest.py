@@ -667,8 +667,8 @@ def test_a_three_chapter_hack_from_a_blank_project_to_the_end(tmp_path):
 
     chapters = project.load("chapters")
     army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
-    army.append({**army[0], "slot": None, "character": friend["id"], "class": friend["class"], "x": 1, "y": 0, "endX": 1, "endY": 0,
-                 "items": []})
+    army.append({**army[0], "slot": None, "character": friend["id"], "class": friend["class"], "x": 1, "y": 0, "endX": 1,
+                 "endY": 0, "items": []})
     project.save("chapters", chapters)
     second = newchapter.add_chapter(project, 0, 15, 10, "La Forêt")
     third = newchapter.add_chapter(project, second, 15, 10, "Le Château")
