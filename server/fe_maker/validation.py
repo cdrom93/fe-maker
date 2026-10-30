@@ -21,7 +21,9 @@ from .decomp.gamedata import (
     AFFINITIES_REV,
     CLASS_STATS,
     GROWTHS,
+    LAST_ITEM_NUMBER,
     NEW_CHARACTER_PREFIX,
+    NEW_ITEM_PREFIX,
     PROMO_STATS,
     RANK_VALUES,
     RANKABLE_TYPES,
@@ -172,9 +174,18 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
                                         f"{rid}: the class has no battle animation for {wtype} (the game may crash)"))
 
     _duplicates(problems, "items", items)
+    original_items = {i["id"] for i in decomp.export_items()}
+    item_numbers = range(decomp.last_item_number() + 1, LAST_ITEM_NUMBER + 1)
     for it in items:
         rid = it["id"]
         _name(problems, "items", rid, it.get("name"))
+        if rid.startswith(NEW_ITEM_PREFIX):
+            if int(rid.removeprefix(NEW_ITEM_PREFIX), 16) not in item_numbers:
+                problems.append(Problem("error", "items", rid, "id", "itemNumberTaken", {},
+                                        f"{rid}: this item number is used by the game"))
+            if it.get("model") not in original_items:
+                problems.append(Problem("error", "items", rid, "model", "unknownModel", {},
+                                        f"{rid}: unknown model weapon"))
         if it.get("weaponType") not in weapon_types:
             problems.append(Problem("error", "items", rid, "weaponType", "unknownWeaponType",
                                     {"type": it.get("weaponType")}, f"{rid}: unknown weapon type"))

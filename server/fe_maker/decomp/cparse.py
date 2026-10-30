@@ -143,7 +143,9 @@ def render_array(parsed: ParsedArray) -> str:
     out, last = [], 0
     for entry in parsed.entries:
         out.append(parsed.source[last:entry.start])
-        if entry.fields == entry.original_fields:
+        if entry.start == entry.end:   # an entry added at the end of the array (start: the line of its "};")
+            out.append(entry.indent + render_entry(entry) + "\n")
+        elif entry.fields == entry.original_fields:
             out.append(parsed.source[entry.start:entry.end])
         else:
             out.append(render_entry(entry))

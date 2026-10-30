@@ -204,3 +204,24 @@ def test_new_character_on_a_used_entry_is_refused(decomp_dir):
     new.update(id="CHARACTER_NEW_01", name="Aline")
     with pytest.raises(GameDataError, match="used by the game"):
         d.apply_characters([*chars, new])
+
+
+def test_new_weapon_copies_its_model_after_the_game_items(decomp_dir):
+    d = DecompData(decomp_dir)
+    items = d.export_items()
+    new = d.new_item("ITEM_TESTBLADE", set())
+    assert new["id"] == "ITEM_NEW_02" and new["model"] == "ITEM_TESTBLADE" and new["might"] == 3
+    assert d.new_item("ITEM_TESTBLADE", {"ITEM_NEW_02"})["id"] == "ITEM_NEW_03"
+    new.update(name="Lame", might=8)
+    d.apply_items([*items, new])
+    source = d.changed_files()["src/data_items.c"]
+    original = (decomp_dir / "src" / "data_items.c").read_text(encoding="utf-8")
+    assert source.startswith(original[:original.rindex("};")])   # the game's entries are untouched
+    added = source[source.index("\t[ITEM_NEW_02] = {"):]
+    assert ".number = ITEM_NEW_02," in added and ".might = 8," in added and added.endswith("\t},\n};\n")
+    assert "IA_LOCK_4" in added   # reserved like its model
+
+
+def test_only_weapons_can_be_copied(decomp_dir):
+    with pytest.raises(GameDataError, match="notAWeapon"):
+        DecompData(decomp_dir).new_item("ITEM_NONE", set())

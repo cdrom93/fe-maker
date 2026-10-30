@@ -226,6 +226,20 @@ def new_character(body: NewCharacterIn):
     return {"record": record, "replaces": replaces}
 
 
+class NewItemIn(BaseModel):
+    model: str
+
+
+@app.post("/api/items/new")
+def new_item(body: NewItemIn):
+    """Sheet of a weapon to add after the game's items, copying a model weapon."""
+    project = state.require_project()
+    try:
+        return DecompData(project.decomp_dir).new_item(body.model, {i["id"] for i in project.load("items")})
+    except GameDataError as e:
+        raise HTTPException(409, str(e)) from e
+
+
 @app.put("/api/project/data/{kind}")
 def put_data(kind: str, records: list[dict] | dict):
     if kind not in DATA_FILES:

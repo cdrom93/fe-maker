@@ -54,6 +54,12 @@ NEW_CHARACTER_PREFIX = "CHARACTER_NEW_"
 # BWL_ARRAY_NUM (include/bmsave.h): only characters below it keep their battle stats in the save
 # (epilogue, support points): playable characters take a number below it.
 ALLY_CHARACTER_END = 0x46
+ITEM_CONSTANTS_FILE = "include/constants/items.h"
+SPELL_ASSOC_FILE = "src/spellassoc-data.c"
+# An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
+# battle animations, chosen by item number). Item numbers are one byte; 0xFF is left out.
+NEW_ITEM_PREFIX = "ITEM_NEW_"
+LAST_ITEM_NUMBER = 0xFE
 # Unit placements of every chapter (struct UnitDefinition arrays)
 UNIT_DEF_FILES = ["src/events_udefs.c", "src/events/*-eventudefs.h"]
 # Chapter event groups and their event lists (objectives); unit definition files excluded.
@@ -223,6 +229,7 @@ class DecompData:
         self.new_support_blocks: list[str] = []
         self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
+        self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         # Map layouts painted in the project (decomp-relative path -> .mar bytes or .json text)
         self.map_files: dict[str, bytes | str] = {}
         # Chapter settings and events, loaded on first use (objectives).
@@ -1575,10 +1582,70 @@ class DecompData:
                     ordered = [t for t in tokens if t not in ABILITIES] + [t for t in ABILITIES if t in known]
                     e.fields["attributes"] = " | ".join(ordered) if ordered else "0"
 
+    def last_item_number(self) -> int:
+        """Number of the game's last item (its table goes up to it)."""
+        if not (self.decomp_dir / ITEM_CONSTANTS_FILE).is_file():
+            return len(self.items.entries) - 1
+        return max(int(v, 0) for v in re.findall(r"\bITEM_\w+\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read(ITEM_CONSTANTS_FILE)))
+
+    def new_item(self, model: str, taken: set[str]) -> dict:
+        """Sheet of a weapon to add, copying `model`; `taken` are the ids already in the project."""
+        record = next((r for r in self.export_items() if r["id"] == model), None)
+        if record is None or record["weaponType"] not in set(RANKABLE_TYPES) - {"staff"}:
+            raise GameDataError("notAWeapon")
+        for n in range(self.last_item_number() + 1, LAST_ITEM_NUMBER + 1):
+            new_id = f"{NEW_ITEM_PREFIX}{n:02X}"
+            if new_id not in taken:
+                return {**record, "id": new_id, "name": "", "model": model}
+        raise GameDataError("noFreeItem")
+
+    def _add_item(self, new_id: str, model: str | None) -> Entry:
+        """A weapon the project adds: an entry after the game's ones, with the fields of its model."""
+        n = int(new_id.removeprefix(NEW_ITEM_PREFIX), 16)
+        if not self.last_item_number() < n <= LAST_ITEM_NUMBER:
+            raise GameDataError(f"{new_id}: not after the game's items")
+        source = next((e for e in self.items.entries if e.original_fields and e.fields["number"] == model), None)
+        if source is None:
+            raise GameDataError(f"{new_id}: unknown model weapon {model}")
+        fields = dict(source.original_fields)
+        fields["number"] = new_id
+        fields["nameTextId"] = hex(self.texts.add(name_message("")))
+        if "descTextId" in fields:   # its own help text, starting as the model's
+            fields["descTextId"] = hex(self.texts.add(self.texts.raw(_int_field(source.original_fields, "descTextId"))))
+        close = self.items.source.rindex("};")
+        start = self.items.source.rfind("\n", 0, close) + 1
+        entry = Entry(key=new_id, fields=fields, start=start, end=start, indent=source.indent)
+        self.items.entries.append(entry)
+        self.new_items[new_id] = (n, model)
+        return entry
+
+    def _with_new_item_copies(self, out: dict[str, str | bytes]) -> None:
+        """Constants of the weapons the project adds, and the copies of their models' spells and own animations."""
+        news = sorted(self.new_items.items(), key=lambda kv: kv[1][0])
+        if (self.decomp_dir / ITEM_CONSTANTS_FILE).is_file():
+            header = self._read(ITEM_CONSTANTS_FILE)
+            close = header.index("\n};", header.index("ITEM_NONE"))
+            out[ITEM_CONSTANTS_FILE] = header[:close] + "".join(f"\n    {i} = 0x{n:02X}," for i, (n, _m) in news) + header[close:]
+        for rel, pattern in ((SPELL_ASSOC_FILE, r"^[ \t]*SPELL_ASSOC_DATA\w*\(\s*{model}\s*,.*\n"),
+                             (BATTLE_ANIM_CONF_FILE, r"^[ \t]*\{{\s*\.wtype\s*=\s*{model}\s*,\s*\.index\s*=\s*\w+\s*,\s*\}},\n")):
+            if not (self.decomp_dir / rel).is_file():
+                continue
+            text = out.get(rel) or self._read(rel)
+            if isinstance(text, bytes):
+                continue
+            for new_id, (_n, model) in news:
+                text = re.sub(pattern.format(model=re.escape(model)),
+                              lambda m, i=new_id, mo=model: m.group(0) + re.sub(rf"\b{re.escape(mo)}\b", i, m.group(0)),
+                              text, flags=re.MULTILINE)
+            if text != self._read(rel):
+                out[rel] = text
+
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}
         for it in items:
             entry = entries.get(it["id"])
+            if entry is None and it["id"].startswith(NEW_ITEM_PREFIX):
+                entry = entries[it["id"]] = self._add_item(it["id"], it.get("model"))
             if entry is None:
                 raise GameDataError(f"Unknown item {it['id']}")
             f = entry.fields
@@ -1705,6 +1772,8 @@ class DecompData:
                 out[maps.CHAPTER_SETTINGS_FILE] = settings
             if self.defeat_talks != self._original_defeat_talks:
                 out[objectives.DEFEAT_TALK_FILE] = self.defeat_talks
+        if self.new_items:
+            self._with_new_item_copies(out)
         return out
 
     # ---------- assets ----------

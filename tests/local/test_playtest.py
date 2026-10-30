@@ -408,3 +408,28 @@ def test_added_characters_on_the_prologue_map(tmp_path):
         game.run(30)
         game.screenshot().save(tmp_path / "added.png")
         print("screenshot:", tmp_path / "added.png")
+
+
+def test_added_weapon_in_seth_inventory(tmp_path):
+    """A weapon the project adds (a copy of the javelin, item 0xCE) carried by Seth in the prologue."""
+    import copy
+
+    from fe_maker.decomp import units
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "weapon", "Weapon")
+    items = project.load("items")
+    axe = DecompData(project.decomp_dir).new_item("ITEM_LANCE_JAVELIN", {i["id"] for i in items})
+    axe.update(name="Pilum", might=11)
+    project.save("items", [*items, axe])
+    allies = copy.deepcopy(units.read_unit_groups(project.decomp_dir)["UnitDef_Event_PrologueAlly"].units)
+    allies[0]["items"] = [axe["id"], "ITEM_SWORD_STEEL"]
+    project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueAlly": allies}, "objectives": {}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        assert seth["items"][0] == 0xCE
+        item = game.address("gItemData") + 0xCE * 36
+        assert game.read(item, 0x15) == 11   # might

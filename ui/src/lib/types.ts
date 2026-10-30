@@ -20,6 +20,8 @@ export interface Character {
 export interface Item {
   id: string
   name: string
+  /** weapons the project adds (ITEM_NEW_xx): the game's weapon they copy (spell, own animations) */
+  model?: string
   weaponType: string
   might: number
   hit: number

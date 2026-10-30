@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { itemIconUrl } from '../lib/api'
+  import { api, itemIconUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
@@ -38,6 +38,30 @@
   function edit(change: (i: Item) => void) {
     list.update(selected, change)
   }
+
+  /** Weapons can be copied into new ones (server: gamedata.new_item); consumables and staves act by item number. */
+  const copiable = $derived(!!it && !it.model && reference.rankableTypes.includes(it.weaponType) && it.weaponType !== 'staff')
+  let addError = $state('')
+
+  async function addWeapon() {
+    if (!it) return
+    addError = ''
+    try {
+      const record = await api.newItem(it.id)
+      record.name = t('item.copyName', { name: it.name })
+      list.change((records) => [...records, record])
+      selected = list.records.length - 1
+    } catch (e) {
+      addError = String(e).includes('noFreeItem') ? t('item.noFree') : String(e)
+    }
+  }
+
+  function removeWeapon() {
+    if (!it?.model || !confirm(t('item.removeConfirm', { name: it.name }))) return
+    const id = it.id
+    list.change((records) => records.filter((r) => r.id !== id))
+    selected = Math.max(0, selected - 1)
+  }
 </script>
 
 <div class="editor">
@@ -56,6 +80,17 @@
             {t('field.name')}
             <input value={it.name} class:invalid={!!problemFor('name')} oninput={(e) => edit((i) => (i.name = (e.target as HTMLInputElement).value))} />
           </label>
+          {#if it.model}
+            <p class="muted small">
+              {t('item.copyOf')} <Mention kind="items" id={it.model}>{list.records.find((r) => r.id === it.model)?.name ?? it.model}</Mention>
+              <button class="link" onclick={removeWeapon}>{t('item.remove')}</button>
+            </p>
+          {:else if copiable}
+            <p class="small">
+              <button onclick={addWeapon} title={t('item.newFromHint')}>+ {t('item.newFrom')}</button>
+              {#if addError}<span class="bad">{addError}</span>{/if}
+            </p>
+          {/if}
           <div class="row">
             <label>
               {t('field.weaponType')}

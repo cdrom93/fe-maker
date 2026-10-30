@@ -1176,5 +1176,14 @@
   "character.noFree": "Plus de place libre dans la table des personnages du jeu pour ce type.",
   "character.remove": "Supprimer ce personnage",
   "character.removeConfirm": "Supprimer {name} ? Les chapitres et dialogues qui l'utilisent seront signalés.",
-  "problem.characterEntryTaken": "la place de ce personnage dans la table du jeu est utilisée par le jeu : supprimez-le et recréez-le"
+  "problem.characterEntryTaken": "la place de ce personnage dans la table du jeu est utilisée par le jeu : supprimez-le et recréez-le",
+  "item.newFrom": "Nouvelle arme d'après celle-ci",
+  "item.newFromHint": "Ajoute une arme au jeu, copie de celle-ci : même sort et mêmes animations de combat, à régler ensuite (49 places après les objets du jeu)",
+  "item.copyName": "{name} 2",
+  "item.copyOf": "Arme ajoutée, copie de",
+  "item.noFree": "Plus de place libre après les objets du jeu.",
+  "item.remove": "Supprimer cette arme",
+  "item.removeConfirm": "Supprimer {name} ? Les unités, coffres et magasins qui l'ont seront signalés.",
+  "problem.itemNumberTaken": "ce numéro d'objet est utilisé par le jeu : supprimez l'arme et recréez-la",
+  "problem.unknownModel": "l'arme dont celle-ci est la copie n'existe pas"
 }
