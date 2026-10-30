@@ -732,11 +732,13 @@ def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
         for _ in range(2):   # Unit, Status, then Options
             game.press("DOWN", wait=12)
         game.press("A", wait=90)
-        for _ in range(13):
+        game.press("DOWN", wait=14)
+        game.screenshot().save(tmp_path / "second.png")   # the added line, under Animation
+        for _ in range(12):
             game.press("DOWN", wait=14)
         game.run(30)
         game.screenshot().save(tmp_path / "menu.png")
-        print("screenshot:", tmp_path / "menu.png")
+        print("screenshots:", tmp_path / "second.png", tmp_path / "menu.png")
         tilemap = game.address("gBG1TilemapBuffer")
         name = [[game.read(tilemap, (y * 32 + x) * 2, width=16) for x in range(2, 14)] for y in (30, 31)]
         assert all(any(half) for half in name)   # both halves of the 14th row

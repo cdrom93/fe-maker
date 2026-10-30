@@ -1,10 +1,9 @@
-# À tester en jeu (alpha, étape 2)
+# À tester avant le gel de l'alpha
 
-Liste tenue pendant le travail en autonomie du 30/10/2026. Relancer FE Maker avant de tester (interface reconstruite).
-Chaque point a déjà été vérifié par un playtest automatique quand c'est indiqué ; il reste ton regard (interface, en jeu).
+Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/artifact/GcH46bW4mcrDoGaEMZj8Hb. Un point « playtest fait » a déjà tourné en automatique : il reste ton regard.
 ## Tickets 77 et 78
 
-- [ ] #77 Menu Configuration du jeu, tout en bas : la ligne « Staff & Dance » s'affiche en entier, et son aide tient sur la ligne (« Animate staves and dances »). Recompile pour le voir.
+- [ ] #77 Menu Configuration du jeu : la ligne « Staff & Dance » est juste sous « Animation » (2e ligne), son aide tient sur la ligne (« Animate staves and dances ») et la dernière ligne, « Window Color », s'affiche en entier. Recompile pour le voir.
 - [ ] #78 Page Campagne : un chapitre qui se termine sur « Terminer le jeu ici » mène à une case « Fin du jeu » dans le graphe.
 
 ## Scripts plus simples (ticket 70)

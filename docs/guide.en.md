@@ -22,20 +22,20 @@ FE Maker is an easy editor for making a rom hack of Fire Emblem: The Sacred Ston
 - **New project**: the original game, to change.
 - **Blank project**: a single empty chapter, with no enemies or dialogue, to write your own story. The game's weapons, items and classes stay; you can also remove the characters.
 
-The tabs:
+A project opens on **Campaign**, the graph of your chapters. A chapter's sheet gives the steps in order: draw the map, place the units and set the objective, write the dialogues, test.
 
 | Tab | What for |
 |---|---|
+| Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
+| Chapters | One chapter in three views: units and objective, map, dialogues |
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes |
-| Chapters | Units, inventories, objective, reinforcements |
-| Campaign | How chapters follow each other; add a chapter, end the game |
-| Maps | Paint, import or export to Tiled |
-| Dialogues | Conversations, supports, scenes and their events (a scene's ⚙ button) |
-| Game options | Starting settings, comfort, test options |
+| Game options | Starting settings, comfort, test options, what the project keeps |
 
-**▶ Test** compiles and starts the game in mGBA. **Export patch** gives the `.ups` to share.
+A small **i** next to a title or an option holds its explanation: hover over it.
 
-The header's **Ticket** button notes a problem; "Send to GitHub" opens a filled-in report, which you read before sending it.
+**▶ Test** compiles and starts the game in mGBA. The **Project** menu holds **Export patch**, which gives the `.ups` to share.
+
+The **Ticket** button in the header notes a problem; "Send to GitHub" opens a filled-in report that you read before sending.
 
 ## Known limits of the alpha
 
@@ -43,6 +43,8 @@ The header's **Ticket** button notes a problem; "Send to GitHub" opens a filled-
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
+- "End the game here" goes back to the title screen; the menu then offers to resume the last chapter.
+- The copies in a project's `backups/` folder are restored by hand.
 - The game must be recompiled to show a change; there is no live preview.
 
 This project is not affiliated with Nintendo or Intelligent Systems. Never share a ROM: share the patch.

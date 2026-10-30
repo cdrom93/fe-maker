@@ -22,18 +22,18 @@ FE Maker est un éditeur simple pour créer un rom hack de Fire Emblem: The Sacr
 - **Nouveau projet** : le jeu d'origine, à modifier.
 - **Projet vierge** : un seul chapitre vide, sans ennemis ni dialogues, pour écrire votre histoire. Vous gardez les armes, les objets et les classes du jeu ; vous pouvez aussi retirer les personnages.
 
-Les onglets :
+Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un chapitre donne les étapes dans l'ordre : dessiner la carte, placer les unités et fixer l'objectif, écrire les dialogues, tester.
 
 | Onglet | Pour quoi faire |
 |---|---|
+| Campagne | L'enchaînement des chapitres, ajouter un chapitre, terminer le jeu, la liste « À faire » |
+| Chapitres | Le même chapitre en trois vues : unités et objectif, carte, dialogues |
 | Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes |
-| Chapitres | Unités, inventaires, objectif, renforts |
-| Campagne | L'enchaînement des chapitres ; ajouter un chapitre, terminer le jeu |
-| Cartes | Peindre, importer ou exporter vers Tiled |
-| Dialogues | Conversations, soutiens, scènes et leurs événements (bouton ⚙ d'une scène) |
-| Options du jeu | Réglages de départ, confort, options de test |
+| Options du jeu | Réglages de départ, confort, options de test, ce que garde le projet |
 
-**▶ Tester** compile et lance le jeu dans mGBA. **Exporter le patch** donne le `.ups` à partager.
+Un petit **i** à côté d'un titre ou d'une option donne son explication : survolez-le.
+
+**▶ Tester** compile et lance le jeu dans mGBA. Le menu **Projet** contient **Exporter le patch**, qui donne le `.ups` à partager.
 
 Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » ouvre un signalement pré-rempli, que vous relisez avant de l'envoyer.
 
@@ -43,6 +43,8 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
+- « Terminer le jeu ici » ramène à l'écran titre ; le menu propose ensuite de reprendre le dernier chapitre.
+- Les copies du dossier `backups/` d'un projet se restaurent à la main.
 - Le jeu doit recompiler pour montrer un changement ; il n'y a pas d'aperçu en direct.
 
 Le projet n'est pas affilié à Nintendo ni à Intelligent Systems. Ne partagez jamais de ROM : partagez le patch.

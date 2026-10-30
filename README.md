@@ -14,7 +14,8 @@ En développement / *In development* — avancement détaillé : [cahier des cha
 | Cartes | Peinture de tuiles, terrains et leurs effets, taille, bâtiments entiers, changements de carte, villages / coffres / portes automatiques, tuiles tournées, palettes et jeux de tuiles, brouillard de guerre, aller-retour avec Tiled | Tile painting, terrains and their effects, size, whole buildings, map changes, automatic villages / chests / doors, turned tiles, palettes and tile sheets, fog of war, round trip with Tiled |
 | Chapitres | Unités (placement, IA, inventaire, renforts), objectifs, page Campagne (enchaînement des chapitres, option sans carte du monde, liste « À faire ») | Units (placement, AI, items, reinforcements), objectives, Campaign page (story flow, no world map option, to-do list) |
 | Dialogues | Conversations (mise en page automatique, accents), scènes et éditeur d'événements visuel, répliques de combat, soutiens | Conversations (automatic layout, accented letters), scenes and visual event editor, battle quotes, supports |
-| Ressources | Import et ajout de portraits, bibliothèque FE-Repo (portraits, animations de combat), crédits automatiques | Portrait import and new portraits, FE-Repo library (portraits, battle animations), automatic credits |
+| Ressources | Import et ajout de portraits, bibliothèque FE-Repo (portraits, animations de combat, sprites de carte), crédits automatiques | Portrait import and new portraits, FE-Repo library (portraits, battle animations, map sprites), automatic credits |
+| Options du jeu | Réglages de départ, confort (barres de PV, mode débutant, animations rapides...), ce que garde le projet | Starting settings, comfort (HP bars, beginner mode, quick animations...), what the project keeps |
 | Tester | Bouton « Tester » (depuis le début ou un chapitre choisi), export en patch .ups | "Test" button (from the start or a chosen chapter), .ups patch export |
 
 Interface en français et en anglais (espagnol et italien plus tard). / *Interface in French and English (Spanish and Italian later).*
@@ -64,6 +65,8 @@ L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lance
 
 ## Documentation
 
+- [Guide de démarrage](docs/guide.md) / [Getting started](docs/guide.en.md)
+- [Changelog](CHANGELOG.md)
 - [Cahier des charges](CAHIER_DES_CHARGES.md) (en français)
 - [Audit de la décomp / Decomp audit](docs/audit-decomp.md) (en français) : ce qui est éditable, limites et bugs connus du jeu d'origine
 - [Crédits / Credits](CREDITS.md)

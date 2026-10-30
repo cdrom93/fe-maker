@@ -87,7 +87,11 @@ _ANIM_TYPE_NO_SUPPORT = (_ANIM_TYPE + "    /* FE Maker: the player can leave sta
 OPTION_MENU_FILE = "src/uiconfig.c"
 OPTION_MENU_HEADER = "include/uiconfig.h"
 _MENU_ENUM = "    GAME_OPTION_RANK_DISPLAY   = 16,\n"
-_MENU_ORDER = "    [12] = GAME_OPTION_WINDOW_COLOR,\n"
+_MENU_ORDER = ("    [ 1] = GAME_OPTION_GAME_SPEED,\n    [ 2] = GAME_OPTION_TEXT_SPEED,\n    [ 3] = GAME_OPTION_TERRAIN,\n"
+               "    [ 4] = GAME_OPTION_UNIT,\n    [ 5] = GAME_OPTION_COMBAT,\n    [ 6] = GAME_OPTION_OBJECTIVE,\n"
+               "    [ 7] = GAME_OPTION_SUBTITLE_HELP,\n    [ 8] = GAME_OPTION_AUTOCURSOR,\n"
+               "    [ 9] = GAME_OPTION_AUTOEND_TURNS,\n    [10] = GAME_OPTION_MUSIC,\n"
+               "    [11] = GAME_OPTION_SOUND_EFFECTS,\n    [12] = GAME_OPTION_WINDOW_COLOR,\n")
 _MENU_TABLE_END = "        .icon = 0x20,\n        .func = GenericOptionChangeHandler,\n    }\n};\n"
 _MENU_GET = "    case GAME_OPTION_RANK_DISPLAY:\n        value = gPlaySt.config.rankDisplay;\n\n        break;\n"
 _MENU_SET = "    case GAME_OPTION_RANK_DISPLAY:\n        gPlaySt.config.rankDisplay = newValue;\n\n        break;\n"
@@ -100,6 +104,13 @@ _MENU_ROW_BASE = (("        int y = (i * 2) + 5;\n\n        DrawGameOptionIcon(i
                   ("    int y = ((selectedIdx * 2) + 5) & 0x1f;\n", "    int y = ((selectedIdx * 2) + 4) & 0x1f;\n"),
                   ("    DrawGameOptionIcon(selectedIdx, 5);\n", "    DrawGameOptionIcon(selectedIdx, 4);\n"))
 _MENU_LAYER = "BG_SetPosition(BG_1, 0, gConfigUiState->bg1YOffset);"
+
+
+def _menu_order() -> str:
+    """The game's order with the added line second, under Animation."""
+    lines = _MENU_ORDER.splitlines(keepends=True)
+    moved = [re.sub(r"\[ *(\d+)\]", lambda m: f"[{int(m[1]) + 1:2}]", line) for line in lines]
+    return "    [ 1] = GAME_OPTION_FEM_SUPPORT_ANIM,\n" + "".join(moved)
 
 
 def _menu_line(label: int, on_help: int) -> str:
@@ -257,7 +268,7 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[OPTION_MENU_HEADER] = _replace(current(OPTION_MENU_HEADER), _MENU_ENUM,
                                              _MENU_ENUM + "    GAME_OPTION_FEM_SUPPORT_ANIM = 17,\n", OPTION_MENU_HEADER)
         source = current(OPTION_MENU_FILE)
-        source = _replace(source, _MENU_ORDER, _MENU_ORDER + "    [13] = GAME_OPTION_FEM_SUPPORT_ANIM,\n", OPTION_MENU_FILE)
+        source = _replace(source, _MENU_ORDER, _menu_order(), OPTION_MENU_FILE)
         for old, new in _MENU_ROW_BASE:
             source = _replace(source, old, new, OPTION_MENU_FILE)
         if source.count(_MENU_LAYER) != 2:

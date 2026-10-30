@@ -67,6 +67,8 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 
 Onglet « Options du jeu » (`server/fe_maker/decomp/gameoptions.py`) : réglages d'une nouvelle partie (vitesse du texte, curseur, animations…), passer l'ouverture, titre de chapitre sans attente, A maintenu accélère dès la première partie, pas de zone de déplacement pour les unités immobiles (« Null Move Display »).
 
+Ensuite : barres de PV sur la carte, mode débutant, barre d'expérience et gain de niveau rapides, ligne « Staff & Dance » sous « Animation » dans le menu Configuration du jeu.
+
 ## Ordre de travail proposé
 
 1. Une page « Options du jeu » dans FE Maker (onglet ou section du projet) qui liste ces patchs par priorité, avec une description en français et la source.
