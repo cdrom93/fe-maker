@@ -52,6 +52,7 @@
   // "Back" (ticket 62): the places seen, a place being a tab and its record.
   type Place = { tab: Tab; id: string }
   let trail = $state<Place[]>([])
+  let changes = $state<HTMLDetailsElement>()
   let here: Place = { tab: 'characters', id: '' }
   let settle: ReturnType<typeof setTimeout> | undefined
   $effect(() => {
@@ -221,6 +222,18 @@
   <div class="row">
     <button onclick={back} disabled={!trail.length} title={t('ws.backHint')}>← {t('ws.back')}</button>
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
+    {#if active?.steps.length}
+      <details class="changes" bind:this={changes}>
+        <summary title={t('ws.changesHint')}>{t('ws.changes', { n: active.steps.length })}</summary>
+        <ol>
+          {#each [...active.steps.keys()].reverse().slice(0, 15) as k (k)}
+            <li><button class="link" title={t('ws.changesBack')} onclick={() => { active?.undoTo(k); if (changes) changes.open = false }}>
+              {active.steps[k].time} · {active.steps[k].name || t(`ws.${tab}`)}
+            </button></li>
+          {/each}
+        </ol>
+      </details>
+    {/if}
     <button onclick={() => active?.redo()} disabled={!active?.canRedo} title="Ctrl+Y">↷ {t('ws.redo')}</button>
     <button onclick={() => startBuild(false)} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
     {#if testChapter && start === 'map'}
@@ -301,6 +314,9 @@
 <style>
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
   .title { display: flex; align-items: baseline; gap: 0.75rem; }
+  .changes { position: relative; font-size: 0.8rem; align-self: center; }
+  .changes summary { cursor: pointer; color: var(--muted); }
+  .changes ol { position: absolute; z-index: 30; right: 0; min-width: 14rem; margin: 0.3rem 0 0; padding: 0.4rem 0.6rem; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
   .from-chapter { font-size: 0.85rem; font-weight: 700; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0.2rem 0.6rem; }

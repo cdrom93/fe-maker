@@ -7,6 +7,9 @@ export class EditableList<T> {
   saving = $state(false)
   private past: string[] = []
   private future: string[] = []
+  /** what each step of `past` changed, for the list of changes: the record's name and the time */
+  steps = $state<{ name: string; time: string }[]>([])
+  private futureSteps: { name: string; time: string }[] = []
   private timer: ReturnType<typeof setTimeout> | undefined
   canUndo = $state(false)
   canRedo = $state(false)
@@ -17,7 +20,20 @@ export class EditableList<T> {
     this.records = records
     this.past = []
     this.future = []
+    this.steps = []
+    this.futureSteps = []
     this.sync()
+  }
+
+  private record(index: number) {
+    const name = (this.records[index] as { name?: string } | undefined)?.name ?? ''
+    this.past.push(JSON.stringify(this.records))
+    this.steps.push({ name, time: new Date().toTimeString().slice(0, 5) })
+    this.futureSteps = []
+    if (this.past.length > 200) {
+      this.past.shift()
+      this.steps.shift()
+    }
   }
 
   private lastEdit = { index: -1, time: 0 }
@@ -26,10 +42,7 @@ export class EditableList<T> {
    *  Quick successive edits of the same record (typing) form a single undo step. */
   update(index: number, change: (record: T) => void) {
     const now = Date.now()
-    if (index !== this.lastEdit.index || now - this.lastEdit.time > 1000) {
-      this.past.push(JSON.stringify(this.records))
-      if (this.past.length > 200) this.past.shift()
-    }
+    if (index !== this.lastEdit.index || now - this.lastEdit.time > 1000) this.record(index)
     this.lastEdit = { index, time: now }
     this.future = []
     const copy = structuredClone($state.snapshot(this.records)) as T[]
@@ -41,8 +54,7 @@ export class EditableList<T> {
 
   /** Change the list itself (records added or removed), as one undo step. */
   change(change: (records: T[]) => T[]) {
-    this.past.push(JSON.stringify(this.records))
-    if (this.past.length > 200) this.past.shift()
+    this.record(-1)
     this.lastEdit = { index: -1, time: 0 }
     this.future = []
     this.records = change(structuredClone($state.snapshot(this.records)) as T[])
@@ -54,6 +66,7 @@ export class EditableList<T> {
     const previous = this.past.pop()
     if (previous === undefined) return
     this.future.push(JSON.stringify(this.records))
+    this.futureSteps.push(this.steps.pop()!)
     this.records = JSON.parse(previous)
     this.sync()
     this.scheduleSave()
@@ -63,9 +76,15 @@ export class EditableList<T> {
     const next = this.future.pop()
     if (next === undefined) return
     this.past.push(JSON.stringify(this.records))
+    this.steps.push(this.futureSteps.pop()!)
     this.records = JSON.parse(next)
     this.sync()
     this.scheduleSave()
+  }
+
+  /** Undo down to a step of the list of changes, that one included. */
+  undoTo(step: number) {
+    while (this.steps.length > step) this.undo()
   }
 
   async flush() {

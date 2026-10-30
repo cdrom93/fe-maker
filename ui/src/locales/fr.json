@@ -1378,5 +1378,8 @@
   "options.hpBarsHint": "une petite barre sous chaque unité blessée, rouge sous un tiers de ses PV",
   "options.casualMode": "Mode débutant",
   "options.casualModeHint": "une unité vaincue quitte la carte et revient au chapitre suivant ; le jeu est toujours perdu si le héros tombe",
-  "chapter.dangerZone": "Zone de danger des ennemis (sans tenir compte des autres unités)"
+  "chapter.dangerZone": "Zone de danger des ennemis (sans tenir compte des autres unités)",
+  "ws.changes": "{n} changement(s)",
+  "ws.changesHint": "Les derniers changements de cet onglet",
+  "ws.changesBack": "Revenir à avant ce changement"
 }

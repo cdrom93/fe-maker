@@ -63,3 +63,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : option « Barres de PV sur la carte » (C, d'après le comportement du patch HPbars).
 - 30/10/2026 : option « Mode débutant » (C, d'après le comportement du patch CasualMode).
 - 30/10/2026 : portée de l'unité choisie et zone de danger des ennemis sur la carte de l'onglet Chapitres (`decomp/reach.py`).
+- 30/10/2026 : historique visible des changements à côté d'Annuler.

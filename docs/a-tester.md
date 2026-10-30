@@ -18,6 +18,10 @@ Chaque point a déjà été vérifié par un playtest automatique quand c'est in
 - [ ] #66 Limites : armes, objets et classes sont gardés (les retirer viendra plus tard) ; « Tous les chapitres » dans Dialogues liste encore les messages du jeu ; la liste des personnages garde les entrées sans nom du jeu.
 - [ ] Nouveau : « Terminer le jeu ici » sur un chapitre sans sortie (page Campagne) ramène à l'écran titre à la fin du chapitre (playtest fait). Le menu propose ensuite « Reprendre le chapitre » sur ce dernier chapitre : à améliorer.
 
+## Historique des changements
+
+- [ ] À côté d'« Annuler » : « n changement(s) » déroule les 15 derniers changements de l'onglet (heure, fiche) ; cliquer l'un d'eux revient à avant ce changement, et « Rétablir » refait le chemin. La liste est par onglet et repart de zéro à chaque ouverture du projet.
+
 ## Portée sur la carte d'un chapitre
 
 - [ ] Onglet Chapitres : cliquer une unité colore sur la carte où elle peut aller (bleu) et frapper (rouge), selon sa classe, ses armes et le terrain peint. Case « Zone de danger des ennemis » : tout ce que les ennemis peuvent frapper. Les autres unités ne bloquent pas le chemin dans ce calcul. Déplacer l'unité met à jour la zone.
