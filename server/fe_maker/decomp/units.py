@@ -200,9 +200,11 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
     fields (such as its AI) but not its movement path. When the units keep their order
     and none is added or removed, only the edited fields of the edited units are
     re-rendered, so unedited units stay byte-identical. A unit that enters the map
-    along a path keeps its path; its battle position is the path's end point.
+    along a path keeps it until it is moved: it then appears at its place, since the
+    game corrupts its memory when a path cannot be walked (ticket 108).
     """
     sources = dict(sources)
+    path_ends = _path_ends(sources)
     for name, new_units in edits.items():
         rel = next((r for r, s in sources.items() if _array_body_span(_blank_comments(s), "UnitDefinition", name)), None)
         if rel is None:
@@ -219,7 +221,6 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
         if len(set(kept)) != len(kept):
             raise UnitEditError(f"{name}: a unit appears twice")
 
-        reda_moves: list[tuple[str, int, int]] = []
         rendered: list[str | None] = []  # None: the original text is kept
         for slot, unit in zip(slots, new_units):
             if slot is None:
@@ -229,7 +230,7 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
                 s, e = spans[slot]
                 fields = parse_fields(clean[s + 1: e - 1])
                 original = dict(fields)
-            _apply_unit_fields(fields, unit, name, reda_moves, is_new=slot is None, macros=macros or {})
+            _apply_unit_fields(fields, unit, name, path_ends, is_new=slot is None, macros=macros or {})
             rendered.append(None if fields == original else _render_unit(fields, INDENT_MARK))
 
         if slots == list(range(len(spans))):
@@ -244,8 +245,6 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
             sources[rel] = "".join(out)
         else:
             sources[rel] = _rewrite_array(source, clean, start, end, spans, slots, rendered)
-        for path, x, y in reda_moves:
-            sources = _move_path_end(sources, path, x, y)
     return sources
 
 
@@ -271,7 +270,7 @@ def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name:
     return fields
 
 
-def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves: list, is_new: bool,
+def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, path_ends: dict[str, tuple[int, int]], is_new: bool,
                        macros: dict[str, list[int]]) -> None:
     """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
     character_changed = fields.get("charIndex", "0") != unit["character"]
@@ -308,7 +307,12 @@ def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, reda_moves
         if (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != position:
             raise UnitEditError(f"{name}: this unit follows a movement path that cannot be edited yet")
     elif path:
-        reda_moves.append((path, *position))
+        if path not in path_ends:
+            raise UnitEditError(f"Movement path {path} not found")
+        if path_ends[path] != position:
+            fields["xPosition"], fields["yPosition"] = str(position[0]), str(position[1])
+            fields.pop("redaCount", None)
+            fields.pop("redas", None)
     elif is_new or (_int(fields.get("xPosition")), _int(fields.get("yPosition"))) != position:
         fields["xPosition"], fields["yPosition"] = str(position[0]), str(position[1])
 
@@ -339,7 +343,7 @@ def render_new_group(name: str, new_units: list[dict], macros: dict[str, list[in
     entries = []
     for unit in new_units:
         fields = {"charIndex": "0", "classIndex": "0", "allegiance": "FACTION_ID_RED", "level": "1"}
-        _apply_unit_fields(fields, unit, name, [], is_new=True, macros=macros or {})
+        _apply_unit_fields(fields, unit, name, {}, is_new=True, macros=macros or {})
         if unit.get("autolevel"):
             fields["autolevel"] = "1"
         entries.append(_render_unit(fields, "    "))
@@ -347,15 +351,21 @@ def render_new_group(name: str, new_units: list[dict], macros: dict[str, list[in
     return f"\nCONST_DATA struct UnitDefinition {name}[] = {{\n{body}    {{ 0 }},\n}};\n"
 
 
-def place_at_destination(sources: dict[str, str], group: str) -> dict[str, str]:
-    """Units of a group appear directly where their entry path ends, without walking in."""
-    redas: dict[str, tuple[int, int]] = {}
+def _path_ends(sources: dict[str, str]) -> dict[str, tuple[int, int]]:
+    """Where each entry path ends."""
+    ends: dict[str, tuple[int, int]] = {}
     for source in sources.values():
         for name, body in _arrays(_blank_comments(source), "REDA"):
             entries = [e for e in _entries(body) if e.strip()]
             if entries:
                 f = parse_fields(entries[-1])
-                redas[name] = (_int(f.get("x")), _int(f.get("y")))
+                ends[name] = (_int(f.get("x")), _int(f.get("y")))
+    return ends
+
+
+def place_at_destination(sources: dict[str, str], group: str) -> dict[str, str]:
+    """Units of a group appear directly where their entry path ends, without walking in."""
+    redas = _path_ends(sources)
     sources = dict(sources)
     for rel, source in sources.items():
         clean = _blank_comments(source)
@@ -376,28 +386,6 @@ def place_at_destination(sources: dict[str, str], group: str) -> dict[str, str]:
         sources[rel] = "".join(out) + source[last:]
         return sources
     raise UnitEditError(f"Unit group {group} not found")
-
-
-def _move_path_end(sources: dict[str, str], path: str, x: int, y: int) -> dict[str, str]:
-    for rel, source in sources.items():
-        clean = _blank_comments(source)
-        span = _array_body_span(clean, "REDA", path)
-        if span is None:
-            continue
-        spans = _entry_spans(clean, *span)
-        if not spans:
-            return sources
-        s, e = spans[-1]
-        fields = parse_fields(clean[s + 1: e - 1])
-        if _int(fields.get("x")) == x and _int(fields.get("y")) == y:
-            return sources
-        fields["x"], fields["y"] = str(x), str(y)
-        line_start = clean.rfind("\n", 0, s) + 1
-        indent = clean[line_start:s] if clean[line_start:s].strip() == "" else "    "
-        new = dict(sources)
-        new[rel] = source[:s] + _render_unit(fields, indent) + source[e:]
-        return new
-    raise UnitEditError(f"Movement path {path} not found")
 
 
 @lru_cache(maxsize=4)

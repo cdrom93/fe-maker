@@ -48,6 +48,8 @@ piège dans sa section.
 
 ## Événements et enchaînement des chapitres
 
+- Chemin d'entrée impossible (REDA, ticket 108) : si une unité ne peut pas atteindre sa destination, `GenerateBestMovementScript` écrit des pas sans fin et écrase l'EWRAM (procs compris), plantage quelques secondes plus tard. Une unité déplacée perd donc son chemin, et les groupes d'une carte repeinte apparaissent à leur place (`DecompData.apply_maps`). Une commande MOVE d'un déroulé vers une case impossible a le même défaut.
+
 - Opening scenes often load units on other maps (cutscenes): `chapter_unit_groups` marks groups loaded before the last `LOMA` as "cutscene"; editing them does not change the battle.
 - Test builds' simplified prologue skips the scene that gives Eirika the Rapier: she has no weapon unless the project gives her one (story-tied, left as is; told the user 24/10/2026).
 - Changing where a chapter leads works in game (playtest); the prologue sent straight to chapter 2 showed its title, then stayed black (24/10/2026): the game took chapter 2 for a skirmish (ticket 39, see the world map pitfall below and docs/audit-decomp.md item 57); fixed when the project goes without the world map.

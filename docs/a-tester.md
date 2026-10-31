@@ -27,6 +27,7 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] #102 Options du jeu : les personnages des groupes vidés (Seth, Franz...) peuvent être décochés.
 - [ ] #95 Un village affiche bien le portrait choisi (Vorgan), plus le vieil homme.
 - [ ] #103 Déroulé d'une scène : « Si un personnage est vivant… » puis « Donner un objet » dans la condition.
+- [ ] #108 Test direct du chapitre 2 (Le Pont) : plus de plantage ; les unités apparaissent à leur place, sans marcher.
 - [ ] #106 Projet vierge ou chapitre ajouté : le convoi est disponible dès le premier chapitre, sans cocher.
 - [ ] #105 Cartes : les jeux de tuiles portent leurs noms (Fields, Village, Castle...).
 - [ ] #104 Plus d'erreur « message new:… inconnu » à la réouverture du projet ; supprimer un dialogue de scène l'enlève aussi de son déroulé.

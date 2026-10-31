@@ -498,6 +498,12 @@ class DecompData:
         if not painted and not changes and not settings and not tilesets and not palettes and not bases:
             return
         known = maps.layouts(self.decomp_dir)
+        # The game's entry paths may not exist on another map: its units appear at their places (ticket 108).
+        for layout_id in (set(painted) | set(bases)) & set(known):
+            for chapter in known[layout_id]["chapters"]:
+                for group in self._chapter_groups(chapter):
+                    if any(f"{group}[]" in source for source in self.unit_defs.values()):
+                        self.unit_defs = units.place_at_destination(self.unit_defs, group)
         # Another tile sheet of the game, for every chapter on the layout (ticket 21).
         for layout_id, symbol in bases.items():
             base = maps.base_of(self.decomp_dir, symbol)
@@ -1240,6 +1246,10 @@ class DecompData:
         talks = self.decomp_dir / objectives.DEFEAT_TALK_FILE
         self.defeat_talks = self._read(objectives.DEFEAT_TALK_FILE) if talks.is_file() else ""
         self._original_defeat_talks = self.defeat_talks
+
+    def _chapter_groups(self, index: int) -> list[str]:
+        symbol = self._chapter_event_symbol(maps.chapter_settings(self.decomp_dir)[index])
+        return [g["name"] for g in units.chapter_unit_groups(self.decomp_dir, symbol)] if symbol else []
 
     def _chapter_event_symbol(self, chapter: dict) -> str | None:
         table = maps.asset_table(self.decomp_dir)

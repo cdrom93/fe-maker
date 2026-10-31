@@ -147,6 +147,22 @@ def test_edit_unit_ai(tmp_path, decomp_dir):
     assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]
 
 
+def test_a_moved_unit_no_longer_walks_in():
+    source = """CONST_DATA struct REDA REDAs_Test[] = {
+    { .x = 2, .y = 3 },
+};
+CONST_DATA struct UnitDefinition UnitDef_Test[] = {
+    { .charIndex = CHARACTER_TESTHERO, .level = 1, .xPosition = 9, .yPosition = 9, .redaCount = 1, .redas = REDAs_Test },
+    { 0 },
+};
+"""
+    sources = {"a.h": source}
+    unit = {"slot": 0, "character": "CHARACTER_TESTHERO", "class": "0", "level": 1, "items": [], "endX": 2, "endY": 3}
+    assert units.apply_unit_groups(sources, {"UnitDef_Test": [unit]}) == sources   # still at the end of its path
+    moved = units.apply_unit_groups(sources, {"UnitDef_Test": [{**unit, "endX": 4}]})["a.h"]
+    assert ".xPosition = 4" in moved and ".yPosition = 3" in moved and ".redas" not in moved.split("UnitDefinition")[1]
+
+
 def test_cutscene_groups(decomp_dir):
     units._event_sources.cache_clear()
     assert units.chapter_unit_groups(decomp_dir, "TestCutsceneChapterEvents") == [
@@ -200,6 +216,7 @@ def test_painted_layout_reaches_the_overlay(tmp_path, decomp_dir, monkeypatch):
     rel = "graphics/map/layout/Map.mar"
     # The fixture decomp has no chapters: point the layout table at the fictional map.
     monkeypatch.setattr(maps, "layouts", lambda _d: {"Map": {"mar": rel, "chapters": [0], "assets": assets, "changes": None}})
+    monkeypatch.setattr("fe_maker.decomp.gamedata.DecompData._chapter_groups", lambda _s, _c: [])
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp)
     assert project.load("maps") == {"layouts": {}, "changes": {}, "objects": {}}
     project.save("maps", {"layouts": {"Map": {"rows": [[1, 0]]}}})
