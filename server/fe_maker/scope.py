@@ -30,7 +30,8 @@ def _used(project, kept_chapters: set[int], data: DecompData) -> tuple[set[str],
             continue
         for group in units.chapter_unit_groups(project.decomp_dir, symbol):
             name = group["name"]
-            for unit in edits.get(name) or (groups[name].units if name in groups else []):
+            # an emptied group stays empty (ticket 102)
+            for unit in edits[name] if name in edits else (groups[name].units if name in groups else []):
                 characters.add(unit.get("character"))
                 classes.add(unit.get("class"))
                 items.update(unit.get("items") or [])

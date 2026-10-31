@@ -43,3 +43,18 @@ def test_reached_chapters_follow_the_links_from_the_first():
 def test_the_story_order_follows_the_links():
     links = [[{"to": 2, "ending": True}], [], [{"to": 1, "ending": False}, {"to": 3, "ending": True}], []]
     assert newchapter.story_order(links) == [0, 2, 3, 1]
+
+
+def test_an_emptied_group_does_not_need_the_game_s_units(monkeypatch):
+    from types import SimpleNamespace
+
+    from fe_maker import scope
+    from fe_maker.decomp import units
+
+    game = {"Emptied": SimpleNamespace(units=[{"character": "CHARACTER_SETH"}]),
+            "Kept": SimpleNamespace(units=[{"character": "CHARACTER_FRANZ"}])}
+    monkeypatch.setattr(units, "read_unit_groups", lambda decomp: game)
+    monkeypatch.setattr(units, "chapter_unit_groups", lambda decomp, symbol: [{"name": "Emptied"}, {"name": "Kept"}])
+    project = SimpleNamespace(decomp_dir=None, load=lambda name: {"unitGroups": {"Emptied": []}})
+    data = SimpleNamespace(chapter_settings={"chapters": [{}]}, _chapter_event_symbol=lambda settings: "Group")
+    assert scope._used(project, {0}, data)[0] == {"CHARACTER_FRANZ"}

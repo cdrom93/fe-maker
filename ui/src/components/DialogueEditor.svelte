@@ -1,6 +1,13 @@
+<script lang="ts" module>
+  import type { Focus } from '../lib/navigation.svelte'
+
+  /** The last request for a character's last words: the tab opened again later does not repeat it. */
+  let shownFocus: Focus | null = null
+</script>
+
 <script lang="ts">
   import Help from './Help.svelte'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -32,6 +39,7 @@
   const ANY_CHAPTER = 255
   const SUPPORTS = -2 // index of the "Supports" entry of the list
   const NEW = 'new:' // id prefix of a new quote in the editor
+  const DEATH = 'death:' // navigator id: a character's last words
   const SCALE = 2
 
   let chapters = $state<(ChapterInfo & { name: string })[]>([])
@@ -96,6 +104,25 @@
 
   const nav = useNavigator()
   followFocus('dialogues', nav, () => chapters.map((c) => c.id), (i) => load(i))
+  // From a character's sheet (ticket 101): their last words, written here if they have none yet.
+  const asksLastWords = () => nav.focus?.kind === 'dialogues' && !!nav.focus.id?.startsWith(DEATH) && nav.focus !== shownFocus
+  $effect(() => {
+    if (!chapters.length || !asksLastWords()) return
+    shownFocus = nav.focus
+    const id = nav.focus!.id!
+    untrack(() => openLastWords(id.slice(DEATH.length)))
+  })
+
+  async function openLastWords(character: string) {
+    const mine = newQuotes.find((q) => q.kind === 'death' && q.a === character && q.chapter === ANY_CHAPTER)
+      ?? newQuotes.find((q) => q.kind === 'death' && q.a === character)
+    const number = mine?.chapter ?? ANY_CHAPTER
+    await load(Math.max(0, chapters.findIndex((c) => (c.index < 0 ? ANY_CHAPTER : c.index) === number)))
+    if (mine) return pick(`${NEW}${newQuotes.indexOf(mine)}`)
+    const game = scenes.find((s) => s.trigger.kind === 'death' && s.trigger.a === character)
+    if (game) pick(String(game.messages[0]))
+    else addQuote('death', character)
+  }
 
   $effect(() => {
     appContext.detail = chapter ? `${chapter.name}${messageId ? ` · ${t('dlg.message', { id: hex(messageId) })}` : ''}` : ''
@@ -112,7 +139,7 @@
       ...list_.filter((c) => !c.hidden).map((c) => ({ ...c, id: String(c.index), name: c.title || c.id })),
     ]
     const asked = nav.focus?.kind === 'dialogues' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1
-    if (chapters.length) await load(Math.max(0, asked))
+    if (chapters.length && !asksLastWords()) await load(Math.max(0, asked))
   })
 
   async function load(index: number) {
@@ -261,7 +288,7 @@
   /** Portrait code of a character (its portrait id in the texts' list). */
   const faceOf = (pid: string) => faces.find((f) => f.portrait === characters.find((c) => c.id === pid)?.portraitId)?.id ?? faces[0]?.id ?? 'FID_Eirika'
 
-  function addQuote(kind: NewQuote['kind']) {
+  function addQuote(kind: NewQuote['kind'], character = '') {
     // The chapter's boss (who already has a battle quote), else the first character.
     const boss = scenes.find((s) => s.trigger.kind === 'battle')?.trigger.a
     const named = characters.filter((c) => c.id.startsWith('CHARACTER_'))
@@ -282,7 +309,7 @@
         ],
       }
     } else {
-      const a = boss || named[0]?.id || ''
+      const a = character || boss || named[0]?.id || ''
       quote = {
         kind, chapter: chapterNumber, a, b: '',
         steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],

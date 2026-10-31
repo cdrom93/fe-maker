@@ -549,6 +549,8 @@
   "list.otherChapters": "Cartes sans titre et emplacements libres ({n})",
   "ticket.showClosedShort": "Voir aussi les fermés",
   "ticket.confirmDeleteShort": "Supprimer définitivement",
+  "field.lastWordsLink": "Dernières paroles",
+  "field.lastWordsHint": "Ce que dit ce personnage quand il tombe. Ouvre sa réplique dans les dialogues, créée s'il n'en a pas encore.",
   "ticket.reply": "Répondre",
   "ticket.replyPlaceholder": "Ce que vous voulez ajouter… Ctrl+V pour coller une capture.",
   "ticket.replySend": "Envoyer",

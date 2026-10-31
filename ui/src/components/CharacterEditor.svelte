@@ -144,7 +144,11 @@
             </label>
           </div>
           <DescriptionField value={ch.description ?? reference.descriptions.characters[ch.id] ?? ''} onchange={(text) => edit((c) => (c.description = text))} />
-          <p class="small"><Mention kind="dialogues" id="supports">{t('field.supportsLink')}</Mention></p>
+          <p class="small links">
+            <Mention kind="dialogues" id="supports">{t('field.supportsLink')}</Mention>
+            <Mention kind="dialogues" id={`death:${ch.id}`}>{t('field.lastWordsLink')}</Mention>
+            <Help text={t('field.lastWordsHint')} />
+          </p>
           <details class="portrait-details" open={ch.portraitId === 0}>
             <summary>{ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
               ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })
@@ -261,6 +265,7 @@
   tbody th { text-align: left; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
   tr.total td { font-weight: 700; border-top: 1px solid var(--border); }
   .small { font-size: 0.8rem; margin: 0 0 0.5rem; }
+  .links { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
   .issues p { margin: 0.2rem 0; }
   .noanim { color: var(--warn); }
   .open { font-size: 1.1rem; }

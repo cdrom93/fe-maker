@@ -950,6 +950,10 @@ def common_dialogues():
     """Quotes of every chapter (the playable characters' last words...), like a chapter's dialogues."""
     decomp = state.get_decomp()
     scenes = decomp.quote_scenes(quotes.ANY_CHAPTER)
+    if state.project is not None:
+        # those of characters out of the project's list stay in the game, nobody meets them (ticket 100)
+        kept = {c["id"] for c in state.project.load("characters")}
+        scenes = [s for s in scenes if all(not who or who in kept for who in (s["trigger"].get("a"), s["trigger"].get("b")))]
     messages = {str(i): dialogues.parse(decomp.texts.raw(i)) for s in scenes for i in s["messages"] if i in decomp.texts.messages}
     return {"scenes": scenes, "messages": messages}
 

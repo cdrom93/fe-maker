@@ -549,6 +549,8 @@
   "list.otherChapters": "Untitled maps and free slots ({n})",
   "ticket.showClosedShort": "Show closed too",
   "ticket.confirmDeleteShort": "Delete for good",
+  "field.lastWordsLink": "Last words",
+  "field.lastWordsHint": "What this character says when they fall. Opens their line in the dialogues, created if they have none yet.",
   "ticket.reply": "Reply",
   "ticket.replyPlaceholder": "What you want to add… Ctrl+V to paste a screenshot.",
   "ticket.replySend": "Send",
