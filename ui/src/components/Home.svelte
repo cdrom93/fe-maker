@@ -22,7 +22,7 @@
       await action()
       onOpened()
     } catch (e) {
-      error = e instanceof ApiError ? e.detail : String(e)
+      error = !(e instanceof ApiError) ? String(e) : e.detail.startsWith('project.') ? t(e.detail) : e.detail
     } finally {
       busy = false
     }

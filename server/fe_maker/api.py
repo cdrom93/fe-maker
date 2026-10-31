@@ -244,7 +244,7 @@ def open_project(body: OpenProjectIn):
         newchapter.tidy_scripts(project)
         return _open(project)
     except ProjectError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, e.code or str(e))
 
 
 @app.post("/api/projects/close")

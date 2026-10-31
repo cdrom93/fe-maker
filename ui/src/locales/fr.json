@@ -1419,6 +1419,8 @@
   "home.blankHint": "Un seul chapitre vide, puis vous choisissez ce que vous gardez du jeu.",
   "home.blankTitle": "Chapitre 1",
   "home.blankHero": "Héros",
+  "project.tooNew": "Ce projet vient d'une version plus récente de FE Maker : mettez FE Maker à jour pour l'ouvrir. Le projet n'a pas été modifié.",
+  "project.migrationFailed": "Ce projet n'a pas pu être converti pour cette version : il a été remis comme avant, et une copie est dans son dossier backups.",
   "flow.endGame": "Terminer le jeu ici",
   "flow.endGameHint": "La fin de ce chapitre ramène à l'écran titre",
   "checks.title": "À installer avant de commencer",

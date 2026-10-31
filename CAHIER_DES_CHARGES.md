@@ -265,6 +265,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux 
   - Étape 2 : faite. Personnages, armes, classes et chapitres ajoutés, conditions et sauts, sprites de carte, démo de musique, patchs de confort (d'autres restent dans `docs/patchs-qol.md`).
   - Étape 3 : faite le 31/10/2026 pour le hack et les tickets : l'utilisateur a joué « La Fuite de Lorn » (`docs/a-tester.md`), fonctionnel dans l'ensemble, et aucun ticket n'est ouvert. Le hack témoin automatique passe (`tests/local`). Reste à décider le gel de la version `0.1.0-alpha`.
   - Étapes 4 à 8 : préparées, rien n'est publié. `tools/make_release.py`, lanceurs, `release.yml` (brouillon sur tag), image par hash et `image.yml`, `checks.py`, « Envoyer sur GitHub », guide FR/EN, CHANGELOG. Premier push du 30/10/2026 : CI et `image.yml` passés (l'image n'est montée qu'au second essai, « denied » au premier), `release.yml` n'a pas encore tourné (il attend un tag). L'image est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
+  - Passage d'une version à l'autre : fait le 31/10/2026 (`migrations.py`) : projet plus récent refusé, conversions en chaîne après une copie dans `backups/`, projet remis en état si l'une échoue, projet de référence au format 1 dans les tests, section « Mettre à jour » du guide. Aucune conversion n'existe encore : le mécanisme n'a tourné que dans les tests.
   - Étape 9 : à faire. Passer le dépôt en public, pousser, vérifier les workflows, tester sur une machine vierge, tag et annonce sont des décisions de l'utilisateur.
 
 ---

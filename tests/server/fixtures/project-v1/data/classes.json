@@ -1,0 +1,146 @@
+[
+  {
+    "id": "CLASS_TESTLORD",
+    "name": "Testlord",
+    "bases": {
+      "hp": 10,
+      "pow": 2,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "con": 0
+    },
+    "mov": 5,
+    "maxes": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "promotionGains": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0
+    },
+    "relativePower": 0,
+    "weaponRanks": {},
+    "abilities": [
+      "lord"
+    ],
+    "promotions": [
+      "CLASS_TESTKNIGHT"
+    ],
+    "movement": "CommonT1",
+    "terrainBonus": "Common"
+  },
+  {
+    "id": "CLASS_TESTKNIGHT",
+    "name": "Testknight",
+    "bases": {
+      "hp": 12,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 6,
+      "res": 0,
+      "con": 0
+    },
+    "mov": 4,
+    "maxes": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "promotionGains": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0
+    },
+    "relativePower": 0,
+    "weaponRanks": {},
+    "abilities": [],
+    "promotions": [
+      "CLASS_TESTLORD"
+    ],
+    "movement": "Armor",
+    "terrainBonus": "Common"
+  },
+  {
+    "id": "CLASS_TESTUNUSED",
+    "name": "Testknight",
+    "bases": {
+      "hp": 15,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "con": 0
+    },
+    "mov": 0,
+    "maxes": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "promotionGains": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0
+    },
+    "relativePower": 0,
+    "weaponRanks": {},
+    "abilities": [],
+    "promotions": [],
+    "movement": null,
+    "terrainBonus": null
+  }
+]

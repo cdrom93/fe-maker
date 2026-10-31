@@ -1,0 +1,120 @@
+[
+  {
+    "id": "CHARACTER_TESTHERO",
+    "name": "Testhero",
+    "class": "CLASS_TESTLORD",
+    "level": 1,
+    "portraitId": 1,
+    "bases": {
+      "hp": 33,
+      "pow": 1,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 4,
+      "con": 0
+    },
+    "growths": {
+      "hp": 50,
+      "pow": 25,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "weaponRanks": {
+      "sword": "E"
+    },
+    "convoyAccess": false,
+    "canSeize": false
+  },
+  {
+    "id": "CHARACTER_TESTRIVAL",
+    "name": "Testrival",
+    "class": "CLASS_TESTKNIGHT",
+    "level": 5,
+    "portraitId": 2,
+    "bases": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 7,
+      "res": 0,
+      "lck": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "weaponRanks": {},
+    "convoyAccess": false,
+    "canSeize": false
+  },
+  {
+    "id": "0x3",
+    "name": "Enemy",
+    "class": "CLASS_TESTKNIGHT",
+    "level": 0,
+    "portraitId": 0,
+    "bases": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 40,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "weaponRanks": {},
+    "convoyAccess": false,
+    "canSeize": false
+  },
+  {
+    "id": "0x50",
+    "name": "Enemy",
+    "class": "CLASS_TESTKNIGHT",
+    "level": 0,
+    "portraitId": 0,
+    "bases": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0,
+      "con": 0
+    },
+    "growths": {
+      "hp": 0,
+      "pow": 0,
+      "skl": 0,
+      "spd": 0,
+      "def": 0,
+      "res": 0,
+      "lck": 0
+    },
+    "weaponRanks": {},
+    "convoyAccess": false,
+    "canSeize": false
+  }
+]

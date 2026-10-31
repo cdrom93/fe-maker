@@ -1,0 +1,25 @@
+{
+  "triangle": [
+    {
+      "attacker": "sword",
+      "defender": "axe",
+      "hit": 10,
+      "damage": 2
+    },
+    {
+      "attacker": "axe",
+      "defender": "sword",
+      "hit": -10,
+      "damage": -2
+    }
+  ],
+  "effectiveness": {
+    "ItemEffectiveness_TestKnights": [
+      "CLASS_TESTKNIGHT"
+    ],
+    "ItemEffectiveness_TestEveryone": [
+      "CLASS_TESTLORD",
+      "CLASS_TESTKNIGHT"
+    ]
+  }
+}

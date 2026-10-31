@@ -17,6 +17,13 @@ FE Maker is an easy editor for making a rom hack of Fire Emblem: The Sacred Ston
 3. Give your ROM. The home page shows what is still missing: the "Download" button fetches the game's code (a few minutes, once).
 4. The first build prepares the tools: it can take several minutes.
 
+## Update
+
+1. Unzip the new version into another folder and start it. Once all is well, delete the old one.
+2. Your projects stay where they are: in `FE Maker Projects`, in your user folder, outside the app's folder. Your settings are kept too.
+3. A project made by an older version is converted when opened if needed, after a copy of `data/` into `backups/`. A project saved by a newer version does not open: install that version.
+4. A game started on an old test may stop working once the hack has changed: test on a new game.
+
 ## Make a hack
 
 - **New project**: the original game, to change.

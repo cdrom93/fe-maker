@@ -10,15 +10,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import builder, ferepo, newchapter, ups
+from . import builder, ferepo, migrations, newchapter, ups
 from .decomp import gameoptions, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
+from .migrations import FORMAT_VERSION, PROJECT_FILE, ProjectError
 from .paths import DECOMP_COMMIT, DECOMP_DIR
 from .validation import Problem, validate
 
-FORMAT_VERSION = 1
-PROJECT_FILE = "fe-maker.json"
 # Project data file -> DecompData method exporting it from the original game.
 DATA_FILES = {
     "characters": "export_characters",
@@ -42,10 +41,6 @@ FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effect
 RESOURCES_HEADER = "Community resources (written by FE Maker)\n----------------------------------------\n"
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
-
-
-class ProjectError(Exception):
-    pass
 
 
 def decomp_commit() -> str | None:
@@ -77,6 +72,7 @@ class Project:
         if not meta_path.is_file():
             raise ProjectError(f"Not an FE Maker project: {root}")
         self.meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        migrations.migrate(root, self.meta)
 
     # ---------- creation ----------
 

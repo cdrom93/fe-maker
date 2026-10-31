@@ -8,14 +8,9 @@ backups/<time>/.
 
 from __future__ import annotations
 
-import shutil
-import time
-
-from . import newchapter
+from . import migrations, newchapter
 from .decomp import units
 from .decomp.gamedata import DecompData
-
-BACKUPS_DIR = "backups"
 
 
 def _used(project, kept_chapters: set[int], data: DecompData) -> tuple[set[str], set[str], set[str]]:
@@ -78,9 +73,7 @@ def contents(project) -> dict:
 
 
 def _backup(project) -> str:
-    target = project.root / BACKUPS_DIR / time.strftime("%Y-%m-%d-%H%M%S")
-    shutil.copytree(project.root / "data", target)
-    return str(target)
+    return str(migrations.backup(project.root))
 
 
 def _keep(records: list[dict], game: list[dict], kept: set[str], managed: set[str] | None = None) -> list[dict]:

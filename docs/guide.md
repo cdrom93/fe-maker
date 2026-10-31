@@ -17,6 +17,13 @@ FE Maker est un éditeur simple pour créer un rom hack de Fire Emblem: The Sacr
 3. Donnez votre ROM. L'accueil indique ce qui manque encore : le bouton « Télécharger » récupère le code du jeu (quelques minutes, une seule fois).
 4. La première compilation prépare les outils : elle peut prendre plusieurs minutes.
 
+## Mettre à jour
+
+1. Dézippez la nouvelle version dans un autre dossier et lancez-la. Quand tout va bien, supprimez l'ancienne.
+2. Vos projets ne bougent pas : ils sont dans `FE Maker Projects`, dans votre dossier utilisateur, hors du dossier de l'appli. Vos réglages sont gardés aussi.
+3. Un projet créé par une version plus ancienne est converti à son ouverture si besoin, après une copie de `data/` dans `backups/`. Un projet enregistré par une version plus récente ne s'ouvre pas : installez cette version.
+4. Une partie commencée sur un ancien essai peut ne plus marcher quand le hack a changé : testez sur une nouvelle partie.
+
 ## Créer un hack
 
 - **Nouveau projet** : le jeu d'origine, à modifier.

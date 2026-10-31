@@ -14,5 +14,6 @@ First public test version, Windows first.
 - Game options and comfort patches, by category: HP bars, beginner mode, quick experience and level up, acting after Talk, no story intro, a Staff & Dance line in the game's Configuration menu.
 - Choose what a project keeps of the game: chapters, characters, classes, items.
 - Test in mGBA, export as a `.ups` patch.
+- Projects carry over between versions: converted when opened, after a copy in `backups/`; a project from a newer version is refused.
 
 See [the guide](docs/guide.en.md) for what you need and the known limits.

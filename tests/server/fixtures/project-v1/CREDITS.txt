@@ -1,0 +1,5 @@
+Credits
+=======
+
+Made with FE Maker, on the Fire Emblem: The Sacred Stones decompilation
+(https://github.com/FireEmblemUniverse/fireemblem8u).

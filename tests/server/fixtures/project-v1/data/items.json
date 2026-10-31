@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ITEM_TESTBLADE",
+    "name": "Test Blade",
+    "weaponType": "sword",
+    "might": 3,
+    "hit": 80,
+    "crit": 0,
+    "weight": 4,
+    "range": {
+      "min": 1,
+      "max": 2
+    },
+    "uses": 20,
+    "pricePerUse": 7,
+    "weaponRank": "D",
+    "iconId": 1
+  }
+]

@@ -1419,6 +1419,8 @@
   "home.blankHint": "A single empty chapter, then you choose what you keep of the game.",
   "home.blankTitle": "Chapter 1",
   "home.blankHero": "Hero",
+  "project.tooNew": "This project comes from a newer version of FE Maker: update FE Maker to open it. The project was not changed.",
+  "project.migrationFailed": "This project could not be converted for this version: it was put back as it was, and a copy is in its backups folder.",
   "flow.endGame": "End the game here",
   "flow.endGameHint": "The end of this chapter goes back to the title screen",
   "checks.title": "To install before you start",
