@@ -6,7 +6,7 @@
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { Character, DialoguesData, EventCommand, EventsReference, Problem } from '../lib/types'
+  import type { Character, DialoguesData, EventCommand, EventsReference, Memory, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
 
   let {
@@ -53,7 +53,10 @@
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
   const BRANCHES = ['GOTO', 'BEQ', 'BNE', 'BGE', 'BGT', 'BLE', 'BLT']
   // Ready-made conditions: a check, a branch past the block when it fails, and the block's end label.
-  const CONDITIONS = ['if:alive', 'if:flag', 'if:turn']
+  const CONDITIONS = ['if:alive', 'if:memory', 'if:notMemory', 'if:flag', 'if:turn']
+  // Memories: the player's past choices, named here; their flag numbers stay out of sight (server: events.MEMORY_FLAGS).
+  const MEMORY_ACTIONS = ['ask', 'memory:set', 'memory:forget']
+  const NEW_MEMORY = 'new'
 
   let reference = $state<EventsReference | null>(null)
   let original = $state<EventCommand[]>([])
@@ -63,6 +66,8 @@
   let groupOrigins = $state<{ name: string; origin: string }[]>([])
   let selected = $state<number | null>(null)
   let adding = $state('')
+  /** The memory whose name is being typed (its flag). */
+  let renaming = $state<number | null>(null)
 
   const commands = $derived<EventCommand[]>(list.records[0]?.scripts?.[name] ?? original)
   const edited = $derived(!!list.records[0]?.scripts?.[name])
@@ -71,6 +76,9 @@
   const itemName = (id: string) => reference?.items.find((i) => i.id === id)?.name || id.replace('ITEM_', '')
   const pretty = (constant: string, prefix: string) =>
     constant.replace(prefix, '').toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+  const memories = $derived(list.records[0]?.memories ?? [])
+  const memoryName = (flag: string) => memories.find((m) => String(m.flag) === flag.trim())?.name
+  const isMemoryCommand = (c: EventCommand) => ['ENUT', 'ENUF', 'CHECK_EVENTID'].includes(c.op) && memoryName(c.args?.[0] ?? '') !== undefined
   const scriptProblems = $derived(problems.filter((p) => p.kind === 'dialogues' && (p.id === `script:${name}` || p.id.startsWith(`script:${name}#`))))
   const problemsAt = (i: number) => scriptProblems.filter((p) => p.id === `script:${name}#${i}`)
 
@@ -101,9 +109,19 @@
     }
   })
 
-  function save(next: EventCommand[]) {
+  /** A memory to add with the next save, with a name to change; null when all its numbers are taken. */
+  function freshMemory(): Memory | null {
+    const [first, last] = reference?.memoryFlags ?? [0, -1]
+    for (let flag = first; flag <= last; flag++) {
+      if (!memories.some((m) => m.flag === flag)) return { flag, name: t('ev.memory.default', { n: memories.length + 1 }) }
+    }
+    return null
+  }
+
+  function save(next: EventCommand[], memory?: Memory | null) {
     const same = JSON.stringify(next) === JSON.stringify(original)
     list.update(0, (d) => {
+      if (memory) (d.memories ??= []).push({ ...memory })
       d.scripts ??= {}
       if (same) delete d.scripts[name]
       else d.scripts[name] = JSON.parse(JSON.stringify(next))
@@ -125,8 +143,30 @@
   })
   const nextLabel = () => Math.max(-1, ...[...labels.keys()].filter((n) => !isNaN(n))) + 1
 
-  function setArg(i: number, k: number, value: string) {
-    save(commands.map((c, n) => (n === i ? { ...c, args: (c.args ?? []).map((a, j) => (j === k ? value : a)) } : c)))
+  function setArg(i: number, k: number, value: string, memory?: Memory | null) {
+    save(commands.map((c, n) => (n === i ? { ...c, args: (c.args ?? []).map((a, j) => (j === k ? value : a)) } : c)), memory)
+  }
+
+  function pickMemory(i: number, k: number, value: string) {
+    if (value !== NEW_MEMORY) return setArg(i, k, value)
+    const memory = freshMemory()
+    if (!memory) return
+    setArg(i, k, String(memory.flag), memory)
+    renaming = memory.flag
+  }
+
+  function renameMemory(flag: number, name: string) {
+    renaming = null
+    if (!name.trim()) return
+    list.update(0, (d) => {
+      const memory = d.memories?.find((m) => m.flag === flag)
+      if (memory) memory.name = name.trim()
+    })
+  }
+
+  const focused = (input: HTMLInputElement) => {
+    input.focus()
+    input.select()
   }
 
   function move(i: number, by: number) {
@@ -168,7 +208,28 @@
         { op: 'LABEL', args: [label] }]
     }
     const check = kind === 'if:alive' ? fresh('CHECK_ALIVE') : fresh('CHECK_EVENTID')
-    return [check, { op: 'BEQ', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_0'] }, { op: 'LABEL', args: [label] }]
+    // CHECK_EVENTID leaves 1 when the flag is set: "not" skips the block then
+    return [check, { op: kind === 'if:notMemory' ? 'BNE' : 'BEQ', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_0'] }, { op: 'LABEL', args: [label] }]
+  }
+
+  /** A question of the player, Yes / No: "yes" is kept as a new memory, for later scenes to look at. */
+  function ask(at: number) {
+    const memory = freshMemory()
+    if (!memory) return
+    const label = `0x${nextLabel().toString(16)}`
+    withNewMessage((ref) => [
+      ...commands.slice(0, at),
+      { op: 'Text', args: [ref] },
+      { op: 'SVAL', args: ['EVT_SLOT_1', '1'] },
+      { op: 'BNE', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_1'] },
+      { op: 'ENUT', args: [String(memory.flag)] },
+      { op: 'LABEL', args: [label] },
+      ...commands.slice(at),
+    ], { question: true, memory })
+    selected = null   // what follows comes after the question
+    openStep = at + 3
+    renaming = memory.flag
+    adding = ''
   }
 
   /** New command after the selected one, else before the script's end (NoFade, ENDA). */
@@ -177,11 +238,19 @@
     let at = selected !== null ? selected + 1 : commands.length
     // before the end of the scene: nothing runs once the chapter changes
     if (selected === null) while (at > 0 && ['NoFade', 'ENDA', '', ...CHANGE_OPS].includes(commands[at - 1].op)) at--
-    const added = CONDITIONS.includes(adding) ? condition(adding) : [fresh(adding)]
+    if (adding === 'ask') return ask(at)
+    const remembering = adding.includes('emory')
+    const memory = remembering && !memories.length ? freshMemory() : null
+    const flag = String(memory?.flag ?? memories.at(-1)?.flag ?? '')
+    if (remembering && !flag) return
+    const op = adding === 'memory:set' ? 'ENUT' : adding === 'memory:forget' ? 'ENUF' : adding
+    const added = CONDITIONS.includes(op) ? condition(op) : [fresh(op)]
+    if (remembering) added[0].args = [flag]
     // what a condition on someone holds is usually for them
     const about = inCondition ? commands.slice(0, at).reverse().find((c) => c.op === 'CHECK_ALIVE')?.args?.[0] : undefined
     if (adding === 'GiveItem' && about) added[0].args![0] = about
-    save([...commands.slice(0, at), ...added, ...commands.slice(at)])
+    save([...commands.slice(0, at), ...added, ...commands.slice(at)], memory)
+    if (memory) renaming = memory.flag
     // a condition: select its branch, the next command added goes inside it
     selected = at + added.length - (CONDITIONS.includes(adding) ? 2 : 1)
     openStep = at
@@ -190,12 +259,13 @@
 
   /** A new message of the project for a script (an empty conversation to write), and the commands
    *  using it, saved together (one undo step). */
-  function withNewMessage(build: (ref: string) => EventCommand[]) {
+  function withNewMessage(build: (ref: string) => EventCommand[], extra: { question?: boolean; memory?: Memory } = {}) {
     const key = `s${Date.now().toString(36)}`
     const next = build(`${NEW_MESSAGE}${key}`)
     list.update(0, (d) => {
       d.quotes ??= []
-      d.quotes.push({ kind: 'scene', key, chapter, a: '', steps: [] })
+      d.quotes.push({ kind: 'scene', key, chapter, a: '', steps: [], ...(extra.question ? { question: true } : {}) })
+      if (extra.memory) (d.memories ??= []).push({ ...extra.memory })
       d.scripts ??= {}
       d.scripts[name] = JSON.parse(JSON.stringify(next))
     })
@@ -261,6 +331,7 @@
       if (a.kind === 'song') return [pretty(v, 'SONG_')]
       if (a.kind === 'background') return [pretty(v, 'BG_')]
       if (a.kind === 'x' || a.kind === 'y') return [v]
+      if (a.kind === 'flag' && memoryName(v) !== undefined) return [memoryName(v)!]
       return []
     }).join(', ')
   }
@@ -268,6 +339,9 @@
   /** The sentence of a condition made by `condition()`, whose block runs when it holds. */
   function readyMade(start: number, end: number): string | null {
     const [check, branch] = [commands[start], commands[end]]
+    if (isMemoryCommand(check) && ['BEQ', 'BNE'].includes(branch.op) && branch.args?.[1] === 'EVT_SLOT_C' && branch.args?.[2] === 'EVT_SLOT_0') {
+      return t(branch.op === 'BEQ' ? 'ev.simple.ifMemory' : 'ev.simple.ifNotMemory', { name: summary(check) })
+    }
     if (check.op === 'CHECK_ALIVE' && branch.op === 'BEQ' && branch.args?.[1] === 'EVT_SLOT_C' && branch.args?.[2] === 'EVT_SLOT_0') {
       return t('ev.simple.ifAlive', { name: summary(check) })
     }
@@ -275,6 +349,13 @@
       return t('ev.simple.ifTurn', { n: commands[start + 1].args?.[1] ?? '' })
     }
     return null
+  }
+
+  /** The test of a question's answer, made by `ask()`. */
+  const isYes = (i: number) => {
+    const [value, branch] = [commands[i], commands[i + 1]]
+    return value.op === 'SVAL' && value.args?.[1] === '1' && branch?.op === 'BNE'
+      && branch.args?.[1] === 'EVT_SLOT_C' && branch.args?.[2] === value.args?.[0]
   }
 
   const steps = $derived.by(() => {
@@ -286,6 +367,7 @@
         const start = i
         let message = ''
         while (i < commands.length && (TEXT_OPS.has(commands[i].op) || commands[i].op === '')) {
+          if (message && commands[i].op.startsWith('Text')) break   // one step per dialogue
           if (commands[i].args?.length && !message) message = commands[i].args![0]
           i++
         }
@@ -298,11 +380,14 @@
         const detail = summary(c)
         out.push({ start: i, end, icon: '❓', text: readyMade(i, end) ?? t('ev.simple.if', { what: detail ? `${what} (${detail})` : what }), message: '' })
         i = end + 1
+      } else if (isYes(i)) {
+        out.push({ start: i, end: i + 1, icon: '❓', text: t('ev.simple.ifYes'), message: '' })
+        i += 2
       } else if (TECHNICAL.has(c.op)) {
         i++
       } else {
         const detail = summary(c)
-        out.push({ start: i, end: i, icon: ICONS[c.op] ?? '•', text: detail ? `${label(c.op)} : ${detail}` : label(c.op), message: '' })
+        out.push({ start: i, end: i, icon: ICONS[c.op] ?? '•', text: detail ? `${commandLabel(c)} : ${detail}` : commandLabel(c), message: '' })
         i++
       }
     }
@@ -321,7 +406,8 @@
   const inCondition = $derived(selected !== null && (BRANCHES.includes(commands[selected]?.op) || depths[selected] > 0))
   // The simple view leaves out what only the detailed view explains.
   const offered = $derived((reference?.addable ?? []).filter((op) => advanced
-    || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || op === 'CALL')))
+    || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || ['CALL', 'ENUT', 'ENUF'].includes(op))))
+  const conditions = $derived(advanced ? CONDITIONS : CONDITIONS.filter((c) => c !== 'if:flag'))
 
   function removeStep(s: Step) {
     const branch = commands[s.end]
@@ -338,6 +424,7 @@
   }
 
   const label = (op: string) => (t(`ev.op.${op}`) === `ev.op.${op}` ? op : t(`ev.op.${op}`))
+  const commandLabel = (c: EventCommand) => (isMemoryCommand(c) ? t(`ev.memory.${c.op}`) : label(c.op))
   const isMessage = (v: string) => /^(0x[0-9a-f]+|\d+)$/i.test(v.trim())
   /** The message a value opens: a game message by number, or a message of the project */
   const messageRef = (v: string) => (v.startsWith(NEW_MESSAGE) ? v : isMessage(v) ? String(Number(v)) : '')
@@ -372,12 +459,25 @@
             {#if c.op === '#'}
               <span class="tiny">{c.text}</span>
             {:else if spec}
-              <span class="op">{ICONS[c.op] ?? '•'} {label(c.op)}</span>
+              <span class="op">{ICONS[c.op] ?? '•'} {commandLabel(c)}</span>
               {#each spec as a, k (k)}
                 {@const v = c.args?.[k] ?? ''}
                 <label class="arg">
-                  <span class="tiny muted">{t(`ev.arg.${a.name}`)}</span>
-                  {#if a.kind === 'song' && reference}
+                  <span class="tiny muted">{isMemoryCommand(c) ? t('ev.memory.name') : t(`ev.arg.${a.name}`)}</span>
+                  {#if isMemoryCommand(c) && renaming === Number(v)}
+                    <input use:focused value={memoryName(v)} aria-label={t('ev.memory.name')}
+                      onchange={(e) => renameMemory(Number(v), (e.target as HTMLInputElement).value)}
+                      onblur={() => (renaming = null)}
+                      onkeydown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+                  {:else if isMemoryCommand(c)}
+                    <span class="inline">
+                      <select value={v} onchange={(e) => pickMemory(i, k, (e.target as HTMLSelectElement).value)}>
+                        {#each memories as m (m.flag)}<option value={String(m.flag)}>{m.name}</option>{/each}
+                        <option value={NEW_MEMORY}>{t('ev.memory.new')}</option>
+                      </select>
+                      <button class="link" onclick={() => (renaming = Number(v))} title={t('ev.memory.rename')}>✎</button>
+                    </span>
+                  {:else if a.kind === 'song' && reference}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
                       {#if !reference.songs.includes(v)}<option value={v}>{v}</option>{/if}
                       {#each reference.songs as s (s)}<option value={s}>{pretty(s, 'SONG_')}</option>{/each}
@@ -487,7 +587,10 @@
       <select bind:value={adding} aria-label={t('ev.add')}>
         <option value="">{t('ev.add')}</option>
         <optgroup label={t('ev.conditions')}>
-          {#each CONDITIONS as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
+          {#each conditions as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
+        </optgroup>
+        <optgroup label={t('ev.memories')}>
+          {#each MEMORY_ACTIONS as op (op)}<option value={op}>{t(`ev.${op.replace(':', '.')}`)}</option>{/each}
         </optgroup>
         <optgroup label={t('ev.commands')}>
           {#each offered as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}

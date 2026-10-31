@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fe_maker.decomp import chapterflags
+from fe_maker.decomp import chapterflags, dialogues, events
 
 SOURCE = """void ResetChapterFlags(void) {
     int i;
@@ -16,6 +16,16 @@ int GetChapterFlagBitsSize(void) {
     return 5;
 }
 """
+
+
+def test_a_question_ends_on_the_games_choice():
+    assert dialogues.as_question("Sauver Mira ?[A][X]\n") == "Sauver Mira ?[Yes][X]"
+    assert dialogues.as_question("Sauver Mira ?[X]") == "Sauver Mira ?[Yes][X]"
+
+
+def test_memories_are_flags_the_game_leaves_free():
+    first, last = events.MEMORY_FLAGS
+    assert first > 235 and last == 300    # the game's last one; 25 bytes of permanent flags from 101
 
 
 def test_only_flags_past_the_games_count():

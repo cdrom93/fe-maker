@@ -399,6 +399,12 @@ export interface DialogueFace {
   name?: string
 }
 
+/** A past choice of the player, a name for a permanent flag of the game (server: events.MEMORY_FLAGS). */
+export interface Memory {
+  flag: number
+  name: string
+}
+
 export interface DialoguesData {
   /** edited messages by id (decimal), as steps */
   messages: Record<string, DialogueStep[]>
@@ -408,6 +414,7 @@ export interface DialoguesData {
   supports?: SupportPair[]
   /** event scripts edited in the visual editor, by script name (server: decomp/events.py) */
   scripts?: Record<string, EventCommand[]>
+  memories?: Memory[]
   /** What the project changed in what starts the game's scenes, by scene. */
   triggers?: Record<string, Partial<DialogueScene['trigger']>>
   /** scenes of the game nothing starts any more */
@@ -423,6 +430,8 @@ export interface EventCommand {
 }
 
 export interface EventsReference {
+  /** first and last flag for memories */
+  memoryFlags: [number, number]
   /** known commands: their arguments (name, kind: song, message, character, group, x, y, frames, ...) */
   commands: Record<string, { name: string; kind: string }[]>
   /** commands the editor offers to add */
@@ -446,6 +455,8 @@ export interface SupportPair {
 export interface NewQuote {
   /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
   kind: 'battle' | 'death' | 'talk' | 'turn' | 'support' | 'scene'
+  /** a scene's message ending on a Yes / No choice */
+  question?: boolean
   /** message of an event script ("scene"): scripts refer to it as "new:<key>" */
   key?: string
   /** support conversation: 1 = C, 2 = B, 3 = A */

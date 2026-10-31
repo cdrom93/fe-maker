@@ -835,7 +835,11 @@ class DecompData:
                 self.texts.set_raw(index, body)
         new_quotes = [q for q in data.get("quotes", []) if q.get("a") and q.get("kind") not in ("talk", "scene")]
         # Messages made for event scripts: their ids replace "new:<key>" in the scripts
-        scene_ids = {q["key"]: self.texts.add(self._message(q.get("steps") or []))
+        def scene_message(q: dict) -> str:
+            body = self._message(q.get("steps") or [])
+            return dialogues.as_question(body) if q.get("question") else body
+
+        scene_ids = {q["key"]: self.texts.add(scene_message(q))
                      for q in data.get("quotes", []) if q.get("kind") == "scene" and q.get("key")}
         talks = [q for q in data.get("quotes", []) if q.get("kind") == "talk" and q.get("a") and q.get("b")]
         for n, talk in enumerate(talks):

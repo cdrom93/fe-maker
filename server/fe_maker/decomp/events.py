@@ -95,6 +95,9 @@ ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "C
            "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
            "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
            "GiveItem", "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+# Memories, the player's past choices: permanent event flags the game does not use (saved with the game, flags up to
+# 300), named in data/dialogues.json "memories" [{flag, name}]; scripts hold their number (ENUT, ENUF, CHECK_EVENTID).
+MEMORY_FLAGS = (240, 300)
 _SLOT_RE = re.compile(r"EVT_SLOT_[0-9A-D]|0x[0-9A-Da-d]|1[0-3]|[0-9]")
 _LABEL_RE = re.compile(r"0x[0-9A-Fa-f]+|\d+")
 

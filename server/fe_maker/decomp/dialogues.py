@@ -269,6 +269,11 @@ def _text_runs(text: str) -> str:
     return out
 
 
+def as_question(body: str) -> str:
+    """A message ending on the game's Yes / No choice: the answer is in slot C after it (1 yes, 2 no, 0 cancelled)."""
+    return re.sub(r"(\[A\])?\s*\[X\]\s*$", "[Yes][X]", body)
+
+
 def render(steps: list[dict]) -> str:
     """Message body (ending with [X]) of a list of steps."""
     out = ""
