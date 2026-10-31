@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from fe_maker.decomp import gameoptions
@@ -49,3 +51,13 @@ def test_new_switches_are_known_and_stop_on_a_changed_decomp(tmp_path):
     (tmp_path / gameoptions.EXP_BAR_FILE).write_text("nothing here")
     with pytest.raises(TweakError):
         gameoptions.apply(tmp_path, {"quickExpBar": True}, {})
+
+
+def test_the_danger_zone_is_written_with_the_other_range_option():
+    source = (Path(__file__).parents[2] / "decomp" / gameoptions.RANGE_DISPLAY_FILE)
+    if not source.exists():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(source.parents[1], {"dangerZone": True, "stationaryRange": True}, {})
+    text = files[gameoptions.RANGE_DISPLAY_FILE]
+    assert "Select shows the enemies' range" in text and "movement AI 3" in text
+    assert "if (gActiveUnit && (gActiveUnit->state & US_HAS_MOVED))" in text

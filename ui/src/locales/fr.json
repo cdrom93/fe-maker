@@ -1397,6 +1397,8 @@
   "options.hpBarsHint": "Barre sous les unités blessées, bulle sur l'unité à qui parler.",
   "options.casualMode": "Mode débutant",
   "options.casualModeHint": "Une unité vaincue revient au chapitre suivant.",
+  "options.dangerZone": "Zone de danger avec Select",
+  "options.dangerZoneHint": "Select montre les cases que les ennemis peuvent frapper ; Select ou B pour revenir.",
   "chapter.dangerZone": "Zone de danger des ennemis",
   "ws.changes": "{n} changement(s)",
   "ws.changesHint": "Les derniers changements de tous les onglets",

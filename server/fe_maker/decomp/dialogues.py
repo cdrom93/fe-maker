@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 from .fonts import char_byte
-from .texts import text_size
+from .texts import pad_text
 
 # A message made for an event script (data/dialogues.json "quotes" of kind "scene", by their "key"):
 # a script argument "new:<key>" becomes the new message's id at build time.
@@ -158,8 +158,7 @@ def _say(items: list[tuple[str, str]], pos: str | None, opened: bool = True) -> 
 
 def _pad(run: str) -> str:
     """Text run padded to an even number of bytes."""
-    size = sum(text_size(value) if kind == "text" else 1 for kind, value in tokens(run))
-    return run + ("[.]" if size % 2 else "")
+    return pad_text(run)
 
 
 # ---------- layout: lines that fit in the box ----------

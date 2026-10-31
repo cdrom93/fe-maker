@@ -1397,6 +1397,8 @@
   "options.hpBarsHint": "A bar under wounded units, a bubble on the unit to talk to.",
   "options.casualMode": "Casual mode",
   "options.casualModeHint": "A fallen unit comes back for the next chapter.",
+  "options.dangerZone": "Danger zone with Select",
+  "options.dangerZoneHint": "Select shows the tiles enemies can strike; Select or B to go back.",
   "chapter.dangerZone": "Enemies' danger zone",
   "ws.changes": "{n} change(s)",
   "ws.changesHint": "The latest changes of all tabs",

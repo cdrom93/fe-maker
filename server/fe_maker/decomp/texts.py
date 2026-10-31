@@ -28,8 +28,33 @@ def name_message(name: str) -> str:
     misses and keeps reading the next message (seen in game: "Rapieros enH-e3
     Sord"). The original game pads such names with [.], e.g. "Gilliam[.][X]".
     """
-    padding = "[.]" if text_size(name) % 2 else ""
-    return f"{name}{padding}[X]"
+    return f"{pad_text(name)}[X]"
+
+
+_CODE_RE = re.compile(r"\[[^\]]*\]")
+_ALONE_BYTES = {0x23, 0x7F, 0xE9}   # packed alone at the start of a pair, the others of 0x20 and more two by two
+
+
+def pad_text(text: str) -> str:
+    """`text` with a [.] when packing it two by two would leave its last byte alone, to be packed with what follows
+    (same walk as scripts/texttools/textprocess.py: an é at the start of a pair moves all the pairs after it)."""
+    parts = _CODE_RE.split(text.replace(chr(10), ""))
+    data: list[int] = []
+    for k, part in enumerate(parts):
+        if k:
+            data.append(0x01)   # a text code: a control byte
+        for ch in part:
+            byte = char_byte(ch)
+            data.extend([byte] if byte is not None else ch.encode("utf-8"))
+    pos = 0
+    while pos < len(data):
+        if data[pos] < 0x20 or data[pos] in _ALONE_BYTES:
+            pos += 1
+        elif pos + 1 == len(data):
+            return text + "[.]"
+        else:
+            pos += 2
+    return text
 
 
 def text_size(text: str) -> int:

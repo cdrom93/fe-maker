@@ -7,7 +7,7 @@ piège dans sa section.
 ## Build et décomp
 
 - The decomp checkout must use LF line endings (`core.autocrlf=false`, `core.eol=lf`), or the Linux build breaks.
-- Text compression packs 2 bytes per symbol: odd-length names need `[.]` padding (`name_message`).
+- Text compression packs 2 bytes per symbol: a text that ends on a byte alone is read past its end (`pad_text`, used by names, dialogues, objectives, descriptions). 0x23 `#`, 0x7F, 0xE9 `é` at the start of a pair and bytes below 0x20 are packed alone: counting characters is not enough.
 - C code FE Maker writes into the decomp: no `static const` tables in a function of a file whose `.rodata` the link script discards (`bmcontainer.o`, others): the link fails with "defined in discarded section `.rodata`". Write comparisons; compile with `tests/local` before telling the user it works.
 - Docker fails to start when CPU virtualization is off in the BIOS (happened several times on the user's PC).
 - C-SkillSys prototype (ticket 27, stopped 24/10/2026, removed from the repo 29/10/2026, still in git history): it rebuilt every game text from its own copy and replaced item/spell tables, so it would erase FE Maker's edits: see `docs/separation-force-magie.md` before going further. Builds also output `fireemblem8.elf`.

@@ -879,3 +879,29 @@ def test_a_project_keeps_only_what_is_chosen(tmp_path):
     out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
+def test_select_shows_the_danger_zone(tmp_path):
+    project = Project.create(tmp_path / "danger", "Danger")
+    project.set_game_options({"dangerZone": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        def range_shown():
+            return bool(game.read("gBmSt", offset=4) & 8)   # BM_FLAG_3
+
+        _on_map(game)
+        game.screenshot().save(tmp_path / "before.png")
+        assert not range_shown()
+        game.press("SELECT", wait=60)
+        assert range_shown()
+        game.screenshot().save(tmp_path / "danger.png")
+        game.press("R", wait=30)   # no stat screen from here: there is no active unit
+        game.screenshot().save(tmp_path / "danger-r.png")
+        assert range_shown()
+        game.press("B", wait=60)
+        assert not range_shown()
+        game.screenshot().save(tmp_path / "danger-b.png")
+        game.press("SELECT", wait=60)
+        game.press("SELECT", wait=60)
+        assert not range_shown()
+        print("screenshot:", tmp_path / "danger.png")

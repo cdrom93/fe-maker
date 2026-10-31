@@ -1527,6 +1527,7 @@ class DecompData:
                 raise GameDataError(f"Unknown class {cl['id']}")
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), cl["name"])
+            self._set_description(f, cl)
             for s in CLASS_STATS:
                 _set_int(f, "base" + STAT_SUFFIX[s], cl["bases"][s], signed=True)
                 _set_int(f, "max" + STAT_SUFFIX[s], cl["maxes"][s], signed=True)

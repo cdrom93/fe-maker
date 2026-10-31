@@ -38,7 +38,7 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 | Vrais nombres dans les descriptions d'objets (soin d'un Vulnéraire…) | pas un patch : texte | FE Maker : proposer les valeurs dans l'éditeur de descriptions |
 | Mode Débutant (Casual) en option | `CasualMode`, `CasualMode_Gameoption`, `CasualModeMenu2.en` | C : les unités vaincues reviennent au chapitre suivant |
 | Plusieurs marqueurs de sortie / repères sur la carte | `MultiTileMarker` | C, et un outil de l'éditeur de cartes |
-| Zone de danger des ennemis (Select) | `Danger Zone` | C ; demande des palettes de brouillard adaptées (FE Maker peut les générer) |
+| Zone de danger des ennemis (Select) | `Danger Zone` | **Fait** (`dangerZone`) : l'affichage du jeu lui-même, sans toucher aux palettes |
 
 ## Priorité 3 : changements de règles appréciés (option, décochés)
 

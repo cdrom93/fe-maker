@@ -47,7 +47,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
 SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
-            "noSupportAnimations", "hpBars", "casualMode")
+            "noSupportAnimations", "hpBars", "casualMode", "dangerZone")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -63,6 +63,34 @@ _RANGE_STATIONARY = ("    /* FE Maker: a unit that never moves (movement AI 3) s
                      "    GenerateUnitMovementMapExt(gActiveUnit,\n"
                      "        (UNIT_FACTION(gActiveUnit) != FACTION_BLUE && gActiveUnit->ai2 == 3)\n"
                      "        ? 0 : UNIT_MOV(gActiveUnit) - gActionData.moveCount);\n")
+# Select shows the enemies' range: the game has this display, only its map menu command was left out
+# (MapMenu_DangerZone_UnusedEffect). It has no active unit, which the display idle reads for B and R.
+_DANGER_LABEL = "PROC_LABEL(12),\n    PROC_CALL(PlayerPhase_DisplayDangerZone),\n"
+_DANGER_LABEL_WAIT = ("PROC_LABEL(12),\n    PROC_CALL(EndPlayerPhaseSideWindows),\n\n    PROC_WHILE(DoesBMXFADEExist),\n\n"
+                      "    PROC_CALL(PlayerPhase_DisplayDangerZone),\n")
+_DANGER_AFTER = ("                StartMinimapPlayerPhase();\n\n                Proc_Goto(proc, 9);\n\n"
+                 "                return;\n            }\n")
+_DANGER_SELECT = _DANGER_AFTER + (
+    "\n            /* FE Maker: Select shows the enemies' range */\n"
+    "            if (gKeyStatusPtr->newKeys & SELECT_BUTTON)\n"
+    "            {\n"
+    "                struct Unit * unit = GetUnit(gBmMapUnit[gBmSt.playerCursor.y][gBmSt.playerCursor.x]);\n\n"
+    "                if (unit)\n"
+    "                {\n"
+    "                    EndAllMus();\n"
+    "                    ShowUnitSprite(unit);\n"
+    "                }\n\n"
+    "                gActiveUnit = NULL;\n"
+    "                gBmSt.swapActionRangeCount = 0;\n\n"
+    "                Proc_Goto(proc, 12);\n\n"
+    "                return;\n"
+    "            }\n")
+_DANGER_B = ("        if (gKeyStatusPtr->newKeys & B_BUTTON)\n        {\n            if (gActiveUnit->state & US_HAS_MOVED)\n")
+_DANGER_B_SAFE = ("        if (gKeyStatusPtr->newKeys & (gActiveUnit ? B_BUTTON : B_BUTTON | SELECT_BUTTON))\n"
+                  "        {\n            if (gActiveUnit && (gActiveUnit->state & US_HAS_MOVED))\n")
+_DANGER_R = "        else if (gKeyStatusPtr->newKeys & R_BUTTON)\n        {\n            action = ACT_INFOSCREEN;\n"
+_DANGER_R_SAFE = ("        else if (gActiveUnit && (gKeyStatusPtr->newKeys & R_BUTTON))\n"
+                  "        {\n            action = ACT_INFOSCREEN;\n")
 
 # FEBuilder "Display bar quickly when getting exp in map anime" and "Acceleration of growth status display of level
 # up": shorter waits in the map animations' scripts, by what the wait comes after.
@@ -242,6 +270,12 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[CONFIG_FILE] = with_defaults(current(CONFIG_FILE), {k: v for k, v in options.items() if k in DEFAULTS})
     if options.get("stationaryRange"):
         files[RANGE_DISPLAY_FILE] = _replace(current(RANGE_DISPLAY_FILE), _RANGE, _RANGE_STATIONARY, RANGE_DISPLAY_FILE)
+    if options.get("dangerZone"):
+        source = current(RANGE_DISPLAY_FILE)
+        for old, new in ((_DANGER_LABEL, _DANGER_LABEL_WAIT), (_DANGER_AFTER, _DANGER_SELECT), (_DANGER_B, _DANGER_B_SAFE),
+                         (_DANGER_R, _DANGER_R_SAFE)):
+            source = _replace(source, old, new, RANGE_DISPLAY_FILE)
+        files[RANGE_DISPLAY_FILE] = source
     if options.get("skipOpening"):
         files[GAME_CONTROL_FILE] = skip_intro(current(GAME_CONTROL_FILE))
     if options.get("quickChapterTitle"):

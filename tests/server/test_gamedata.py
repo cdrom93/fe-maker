@@ -261,6 +261,15 @@ def test_a_description_is_written_only_when_it_changes(decomp_dir):
         assert d._description(d.characters.entries[0].fields) == "Un jeune héros\nvenu du nord"
 
 
+def test_a_class_description_is_written(decomp_dir, monkeypatch):
+    d = DecompData(decomp_dir)
+    written = []
+    monkeypatch.setattr(d, "_set_description", lambda fields, record: written.append(record["id"]))
+    classes = d.export_classes()
+    d.apply_classes(classes)
+    assert written == [c["id"] for c in classes]
+
+
 def _description_index(d):
     from fe_maker.decomp.gamedata import _int_field
 

@@ -6,7 +6,7 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
 - [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
-## Tickets 82 à 95
+## Tickets 82 à 99
 
 - [ ] #94 Dialogues : un portrait porté par un de tes personnages affiche son nom (Lorn, Mira), dans le choix des portraits comme dans le dialogue.
 - [ ] #95 Objets de la carte, village ou maison : « Autre personnage… » fait parler n'importe quel portrait, tes personnages en tête.
@@ -20,6 +20,9 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] #82 Onglet Chapitres : l'objectif est en haut, sous le titre du chapitre, avec le convoi et le brouillard.
 - [ ] #83 Projet vierge : plus d'avertissement sur les unités des chapitres du jeu que ton projet n'utilise pas.
 - [ ] #84 Nouveau personnage : le portrait importé s'affiche tout de suite, sans rafraîchir la page.
+- [ ] #96 Une description avec des accents (« Le héro de ce hack de test ! ») s'affiche sans lettres en trop en jeu. Vaut aussi pour les dialogues et les objectifs.
+- [ ] #97 La description d'une classe modifiée apparaît en jeu.
+- [ ] #99 Options du jeu, « Zone de danger avec Select » : Select montre la portée des ennemis, Select ou B revient à la carte, A passe aux portées de bâton si des ennemis en ont.
 
 ## Tickets 70, 79 et 80
 

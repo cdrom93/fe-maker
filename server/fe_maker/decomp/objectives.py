@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 
 from .cparse import _blank_comments, _match_brace, parse_fields
-from .texts import text_size
+from .texts import pad_text
 
 TYPES = ("seize", "defeat_all", "defeat_boss", "defense", "area")
 SEIZE_LABELS = {"throne": 417, "gate": 415}
@@ -63,7 +63,7 @@ def status_message(text: str) -> str:
     game pads with [.], e.g. "Guard Mansel for 13[.][LF]".
     """
     lines = [line.strip() for line in text.strip().split("\n")]
-    padded = [line + ("[.]" if text_size(line) % 2 else "") for line in lines]
+    padded = [pad_text(line) for line in lines]
     return "[LF]\n".join(padded) + "[X]"
 
 

@@ -117,6 +117,10 @@ def test_accented_letters_are_written_as_codes():
     from fe_maker.decomp.texts import TextFile, encode_special, name_message, textdefs_with
 
     assert name_message("Léa") == "Léa[.][X]"   # 3 bytes in the game: é is one byte
+    # An é at the start of a pair is packed alone (textprocess.py): the pairs after it move, seen in help boxes (ticket 96).
+    assert name_message("Le héro de ce hack de test !") == "Le héro de ce hack de test ![.][X]"
+    assert name_message("Leé") == "Leé[X]"
+    assert name_message("Le héro") == "Le héro[X]"
     assert encode_special("Allons-y, Léa ! ☃") == "Allons-y, L[é]a ! ☃"
     assert textdefs_with("[X] = 0x00\n", {"é", "à"}).endswith("[à] = 0xE0\n[é] = 0xE9\n")
     tf = TextFile("#0x1\nOld[X]\n")
