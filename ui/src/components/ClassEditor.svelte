@@ -299,7 +299,7 @@
 
       <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />
 
-      <AbilitiesPanel abilities={cl.abilities} fromClass={[]} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
+      <AbilitiesPanel abilities={cl.abilities} fromClass={[]} fixed={cl.gender ? { female: cl.gender === 'female' } : {}} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 
       {#if mine.length}
         <section class="panel issues">

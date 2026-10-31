@@ -6,12 +6,15 @@
     abilities,
     fromClass,
     onchange,
+    fixed = {},
     convoy,
     seize,
   }: {
     abilities: string[]
     fromClass: string[]
     onchange: (abilities: string[]) => void
+    /** boxes that show a fact instead of a setting: key -> ticked or not */
+    fixed?: Record<string, boolean>
     /** character sheets: "Opens the convoy", shown next to the convoy carrier */
     convoy?: { on: boolean; onchange: (on: boolean) => void }
     /** character sheets: "Can seize", shown next to the lord */
@@ -44,10 +47,11 @@
 
 {#snippet ability(key: string)}
   {@const inherited = fromClass.includes(key)}
-  <label class="ability" class:inherited>
-    <input type="checkbox" checked={inherited || abilities.includes(key)} disabled={inherited} onchange={(e) => toggle(key, (e.target as HTMLInputElement).checked)} />
+  {@const isFixed = key in fixed}
+  <label class="ability" class:inherited={inherited || isFixed}>
+    <input type="checkbox" checked={isFixed ? fixed[key] : inherited || abilities.includes(key)} disabled={inherited || isFixed} onchange={(e) => toggle(key, (e.target as HTMLInputElement).checked)} />
     <span>
-      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{/if} <Help text={t(`ability.desc.${key}`)} /></span>
+      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{:else if isFixed}<span class="muted tag"> · {t('ability.fromAnimations')}</span>{/if} <Help text={t(`ability.desc.${key}`)} /></span>
     </span>
   </label>
 {/snippet}

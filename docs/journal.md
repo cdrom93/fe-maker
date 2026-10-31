@@ -105,3 +105,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 31/10/2026 : stats au plafond en vert dans le calculateur ; niveau d'un allié nommé réglé sur sa fiche et affiché dans le chapitre ; format de projet 2, première vraie conversion.
 - 01/11/2026 : tickets 122 et 123 (portrait choisi par son image, affinités avec icônes et bonus, bulles d'aide lisibles et « i » à droite de ce qu'ils expliquent) ; calculateur : plafonds de la classe promue ; case « Montée automatique » dans le chapitre.
 - 01/11/2026 : calculateur à deux promotions pour les pré-classes et plafond de niveau 10 ; affinités en liste avec les bonnes couleurs d'icônes (ticket 122) ; sexe du personnage suivant sa classe (ticket 124) ; niveaux des ennemis selon la difficulté par chapitre.
+- 01/11/2026 : ticket 124, la case Féminin d'une fiche de classe montre le sexe tiré de ses animations ; essai de palette tirée du portrait (rien dans le produit, résultat dans le cahier).
