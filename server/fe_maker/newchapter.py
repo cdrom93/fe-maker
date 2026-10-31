@@ -160,6 +160,7 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
     project.save("chapters", chapters)
     project.save("maps", maps_data)
     project.save("dialogues", dialogues)
+    project.set_game_options({**project.game_options, "skipStoryIntro": True})   # the tale of the game's story
 
 
 def tidy_scripts(project) -> None:

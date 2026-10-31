@@ -542,7 +542,7 @@
   p { margin: 0 0 0.4rem; }
   .legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-bottom: 0.4rem; }
   .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
-  .graph-scroll { overflow: auto; height: calc(100vh - 260px); min-height: 24rem; cursor: grab; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+  .graph-scroll { overflow: auto; height: calc(100vh - 260px); min-height: 24rem; cursor: grab; }
   svg { display: block; }
   .edge { fill: none; stroke: var(--muted); stroke-width: 1.6; opacity: 0.8; }
   .edge.worldMap { stroke: var(--accent); }

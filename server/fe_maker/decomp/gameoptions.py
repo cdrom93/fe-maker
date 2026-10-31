@@ -46,7 +46,8 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "soundEffects": ("disableSoundEffects", 0, (0, 1)),
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
-SWITCHES = ("stationaryRange", "skipOpening", "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
+SWITCHES = ("stationaryRange", "skipOpening", "skipStoryIntro", "talkBubbles",
+            "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
             "noSupportAnimations", "hpBars", "casualMode", "dangerZone")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
@@ -154,8 +155,7 @@ def _menu_line(label: int, on_help: int) -> str:
 # HP bars under wounded units, drawn like FEBuilder's "HPbars_simple" (Circles and Zane; its behavior and look, written
 # in C): a bar 14 pixels wide, its 12 inner pixels green, then yellow, orange, red as they empty, on dark blue. Eleven
 # 16 x 8 pictures in free object tiles (rows 0 and 1, from column 0x12), drawn at each load of the map's object
-# graphics; colors of the first object palette. Like that patch's talk warning, a unit the selected one can talk to
-# shows a small bubble (the game's own silence bubble picture).
+# graphics; colors of the first object palette. Under the windows (object layer 2, as the units), ticket 114.
 _OBJ_UI_LOAD = "void LoadObjUIGfx(void) {\n"
 _OBJ_UI_LOAD_BARS = """/* FE Maker: the HP bars' tiles */
 static void FemLoadHpBars(void) {
@@ -183,9 +183,7 @@ void LoadObjUIGfx(void) {
     FemLoadHpBars();
 """
 _ICONS = "void PutUnitSpriteIconsOam(void)\n{\n"
-_ICONS_BARS = """#include "eventinfo.h"
-
-/* FE Maker: a bar under a wounded unit; a bubble on a unit the selected one can talk to */
+_ICONS_BARS = """/* FE Maker: a bar under a wounded unit */
 static void FemPutHpBar(struct Unit * unit)
 {
     int x = unit->xPos * 16 - gBmSt.camera.x;
@@ -202,18 +200,83 @@ static void FemPutHpBar(struct Unit * unit)
         if (length < 1)
             length = 1;
         CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x), OAM0_Y(0x100 + y + 10), gObject_16x8,
-            OAM2_CHR(length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2) + OAM2_LAYER(1));
+            OAM2_CHR(length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2) + OAM2_LAYER(2));
     }
-
-    if (gActiveUnit && gActiveUnit != unit && (gActiveUnit->state & US_HIDDEN)
-        && UNIT_FACTION(gActiveUnit) == FACTION_BLUE && gActiveUnit->pCharacterData
-        && CheckForCharacterEvents(gActiveUnit->pCharacterData->number, unit->pCharacterData->number))
-        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 6), OAM0_Y(0x100 + y - 8), sSilenceIconSprites[0], 0);
 }
 
 """ + _ICONS
 _ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_POISON:\n"
 _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
+
+# A yellow bubble over the units the selected one can talk to, to recruit them or not, or support with (ticket 113, as
+# in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. Colors of the first object palette:
+# # border, y yellow, d dark.
+_BUBBLE = ("...########.....", "..#yyyyyyyy#....", ".#yyyyyyyyyy#...", ".#yydyydyydy#...",
+           ".#yyyyyyyyyy#...", "..#yyyyyyyy#....", "...####yy###....", ".....#yy#.......",
+           "......##........", "................", "................", "................",
+           "................", "................", "................", "................")
+_BUBBLE_TILE = 0x3A
+
+
+def _bubble_tiles() -> str:
+    """The bubble as tiles: top left, top right, bottom left, bottom right; 4 bits a pixel, 8 rows of 32 bits."""
+    color = {".": 0, "y": 0x1, "#": 0xF, "d": 0xD}
+    tiles = []
+    for top in (0, 8):
+        for left in (0, 8):
+            rows = [sum(color[_BUBBLE[top + y][left + x]] << (x * 4) for x in range(8)) for y in range(8)]
+            tiles.append("    { " + ", ".join(f"0x{row:08X}" for row in rows) + " },\n")
+    return "".join(tiles)
+
+
+_OBJ_UI_LOAD_BUBBLE = """/* FE Maker: the talk bubble's tiles */
+static const u32 sFemBubble[4][8] = {
+""" + _bubble_tiles() + """};
+
+static void FemLoadBubble(void) {
+    int tile, y;
+
+    for (tile = 0; tile < 4; ++tile)
+        for (y = 0; y < 8; ++y)
+            ((u32*) (0x06010000 + (""" + str(_BUBBLE_TILE) + """ + tile) * 0x20))[y] = sFemBubble[tile][y];
+}
+
+""" + _OBJ_UI_LOAD + "    FemLoadBubble();\n"
+_ICONS_BUBBLE = """#include "eventinfo.h"
+#include "bmreliance.h"
+
+/* FE Maker: a bubble on a unit the selected one can talk to, or support with */
+static void FemPutBubble(struct Unit * unit)
+{
+    int x = unit->xPos * 16 - gBmSt.camera.x;
+    int y = unit->yPos * 16 - gBmSt.camera.y;
+    int i, show;
+
+    if (!gActiveUnit || gActiveUnit == unit || !(gActiveUnit->state & US_HIDDEN)
+        || UNIT_FACTION(gActiveUnit) != FACTION_BLUE || !gActiveUnit->pCharacterData)
+        return;
+    if (x < -16 || x > DISPLAY_WIDTH || y < 0 || y > DISPLAY_HEIGHT)
+        return;
+    if (gBmMapFog[unit->yPos][unit->xPos] == 0)
+        return;
+
+    show = CheckForCharacterEvents(gActiveUnit->pCharacterData->number, unit->pCharacterData->number);
+    for (i = GetUnitSupporterCount(gActiveUnit) - 1; i >= 0 && !show; --i)
+        show = GetUnitSupporterUnit(gActiveUnit, i) == unit && CanUnitSupportNow(gActiveUnit, i);
+
+    if (show) {
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 3), OAM0_Y(0x100 + y - 9), gObject_16x8,
+            OAM2_CHR(""" + str(_BUBBLE_TILE) + """) + OAM2_LAYER(2));
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 3), OAM0_Y(0x100 + y - 1), gObject_16x8,
+            OAM2_CHR(""" + str(_BUBBLE_TILE + 2) + """) + OAM2_LAYER(2));
+    }
+}
+
+""" + _ICONS
+_ICONS_LOOP_BUBBLE = "        FemPutBubble(unit);\n\n" + _ICONS_LOOP
+
+_STORY_INTRO = "    StartIntroMonologue(proc);\n"
+_STORY_INTRO_NONE = "    /* FE Maker: no story intro */\n"
 
 # Casual mode, after FEBuilder's "CasualMode" (its behavior, written in C, always on rather than a choice in the game):
 # a fallen player unit leaves the map, keeps its supports and comes back for the next chapter.
@@ -278,6 +341,8 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[RANGE_DISPLAY_FILE] = source
     if options.get("skipOpening"):
         files[GAME_CONTROL_FILE] = skip_intro(current(GAME_CONTROL_FILE))
+    if options.get("skipStoryIntro"):
+        files[GAME_CONTROL_FILE] = _replace(current(GAME_CONTROL_FILE), _STORY_INTRO, _STORY_INTRO_NONE, GAME_CONTROL_FILE)
     if options.get("quickChapterTitle"):
         files[CHAPTER_INTRO_FILE] = _replace(current(CHAPTER_INTRO_FILE), _TITLE_WAIT, _TITLE_QUICK, CHAPTER_INTRO_FILE)
     if options.get("holdAToSpeedUp"):
@@ -296,6 +361,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BARS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BARS, MAP_SPRITES_FILE)
+    if options.get("talkBubbles"):
+        files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
+        source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)
+        files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BUBBLE, MAP_SPRITES_FILE)
     if options.get("noSupportAnimations"):
         label, on_help = menu_texts
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
