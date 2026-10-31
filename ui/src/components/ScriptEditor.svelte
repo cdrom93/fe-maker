@@ -448,6 +448,30 @@
     while (['ENUN', ''].includes(commands[end + 1]?.op)) end++
     return end
   }
+  /** The end of a condition's block, a line of its own: above it is inside the block, below it is outside. */
+  function dragOverEnd(e: DragEvent, label: number) {
+    if (!dragged) return
+    e.preventDefault()
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    dropAt = e.clientY < box.top + box.height / 2 ? label : label + 1
+  }
+  /** The blocks that end after each step (by its start), innermost first. */
+  const blockEnds = $derived.by(() => {
+    const out = new Map<number, { label: number; depth: number; text: string }[]>()
+    for (const s of steps) {
+      const to = BRANCHES.includes(commands[s.end]?.op) ? labels.get(labelNumber(commands[s.end].args?.[0] ?? '')) : undefined
+      if (to === undefined || to <= s.end + 1) continue
+      const last = steps.filter((r) => r.start < to).at(-1)!
+      out.set(last.start, [...(out.get(last.start) ?? []), { label: to, depth: depths[s.start] + 1, text: s.text.replace(/\s*:\s*$/, '') }]
+        .sort((a, b) => a.label - b.label))
+    }
+    return out
+  })
+  /** Where the next command goes: at the end of a block, or just after it. */
+  function addAt(at: number) {
+    selected = at
+    openStep = null
+  }
   function dropStep() {
     if (dragged && dropAt !== null) {
       const [from, last] = [dragged.start, stepLast(dragged)]
@@ -623,7 +647,7 @@
       {#each commands as c, i (i)}{@render block(c, i)}{/each}
     {:else}
       {#each steps as s (s.start)}
-        <li class="step" class:active={openStep === s.start} class:dragged={dragged === s} class:drop-before={dropAt === s.start}
+        <li class="step" class:in-block={depths[s.start] > 0} class:active={openStep === s.start} class:dragged={dragged === s} class:drop-before={dropAt === s.start}
             class:drop-after={dropAt !== null && dropAt !== s.start && dropAt === stepLastInside(s) + 1} style:margin-left="{depths[s.start] * 1.2}rem"
             draggable={!isYes(s.start)} role="listitem"
             ondragstart={(e) => { dragged = s; e.dataTransfer?.setData('text/plain', s.text) }}
@@ -642,8 +666,18 @@
           {/each}
         {/if}
         {#if isEmpty(s)}
-          <li class="muted small nothing" style:margin-left="{(depths[s.start] + 1) * 1.2}rem">{t('ev.simple.emptyCondition')}</li>
+          {@const label = labels.get(labelNumber(commands[s.end].args?.[0] ?? ''))!}
+          <li class="muted small nothing in-block" class:drop-before={dropAt === label} class:drop-after={dropAt === label + 1} role="listitem"
+              style:margin-left="{(depths[s.start] + 1) * 1.2}rem" ondragover={(e) => dragOverEnd(e, label)} ondrop={(e) => { e.preventDefault(); dropStep() }}>{t('ev.simple.emptyCondition')}</li>
         {/if}
+        {#each blockEnds.get(s.start) ?? [] as b (b.label)}
+          <li class="block-end in-block tiny muted" class:active={selected === b.label - 1 || selected === b.label} class:drop-before={dropAt === b.label} class:drop-after={dropAt === b.label + 1}
+              role="listitem" style:margin-left="{b.depth * 1.2}rem" ondragover={(e) => dragOverEnd(e, b.label)} ondrop={(e) => { e.preventDefault(); dropStep() }}>
+            <span class="what">{t('ev.simple.blockEnd', { what: b.text })}</span>
+            <button class="link" onclick={() => addAt(b.label - 1)}>{t('ev.simple.addInside')}</button>
+            <button class="link" onclick={() => addAt(b.label)}>{t('ev.simple.addAfterBlock')}</button>
+          </li>
+        {/each}
       {/each}
       {#if !steps.length}<li class="muted small">{t('ev.simple.empty')}</li>{/if}
       {#if dragged}
@@ -669,7 +703,7 @@
           {#each offered as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
         </optgroup>
       </select>
-      <button onclick={add} disabled={!adding}>＋ {inCondition ? t('ev.addInside') : selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
+      <button onclick={add} disabled={!adding}>＋ {commands[selected ?? -1]?.op === 'LABEL' && !inCondition ? t('ev.addAfterBlock') : inCondition ? t('ev.addInside') : selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
     </div>
   {/if}
 </div>
@@ -706,6 +740,10 @@
   .blocks li.step { align-items: center; }
   .blocks li.step[draggable='true'] { cursor: grab; }
   .blocks li.dragged { opacity: 0.5; }
+  .blocks li.in-block { border-left: 3px solid var(--accent); }
+  .blocks li.nothing.in-block { border-left-style: solid; }
+  .blocks li.block-end { align-items: center; justify-content: flex-end; border-style: dashed; border-left-style: solid; background: none; padding: 0.1rem 0.4rem; }
+  .block-end .what { flex: 1; }
   .blocks li.drop-before { box-shadow: 0 -2px 0 var(--accent); }
   .blocks li.drop-after { box-shadow: 0 2px 0 var(--accent); }
   .grip { color: var(--muted); font-size: 0.8rem; letter-spacing: -0.15rem; user-select: none; }
