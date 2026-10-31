@@ -1129,6 +1129,7 @@
   "ferepo.error.rateLimited": "GitHub limite les demandes sans compte (60 par heure) : réessayez plus tard",
   "ferepo.none": "Rien trouvé.",
   "banim.import.use": "Utiliser pour cette classe",
+  "banim.lib.showWeapon": "Voir l'aperçu de cette arme",
   "banim.import.busy": "Import en cours…",
   "banim.import.done": "« {weapon} » ajoutée à la classe (⭐ dans la liste des armes).",
   "banim.import.hint": "L'animation est téléchargée, convertie au format du jeu et gardée dans le projet ; ses auteurs vont dans le CREDITS.txt du projet.",

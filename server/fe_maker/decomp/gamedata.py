@@ -1596,6 +1596,11 @@ class DecompData:
         return {name: n for name, n in constants.items()
                 if 1 < n < GENERIC_CHARACTER_START and "SUMMON" not in name}
 
+    def blank_dropped_characters(self) -> set[str]:
+        """The named characters out of a blank project's list, all but the first lord. The game keeps its entries: the
+        engine asks for the summons, the citizens and the arena opponents, but the user has nothing to do with them."""
+        return {name for name, n in self._character_constants().items() if n > 1}
+
     def new_character(self, ally: bool, taken: set[str], reuse: bool = False) -> dict:
         """Sheet of a character to add: the first free entry for an ally (below ALLY_CHARACTER_END) or an enemy
         (from it); `taken` are the ids already in the project; `reuse`: then a game character a blank project dropped."""

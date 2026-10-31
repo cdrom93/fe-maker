@@ -345,6 +345,8 @@ export interface Reference {
   portraits: (string | null)[]
   /** the first portrait id after the game's ones (portraits the project adds) */
   firstNewPortrait: number
+  /** the game's named characters only met as enemies */
+  gameEnemies: string[]
 }
 
 /** A step of a dialogue (server: decomp/dialogues.py). */

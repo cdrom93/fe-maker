@@ -55,7 +55,7 @@ def reached_chapters(links: list[list[dict]]) -> set[int]:
 
 
 def unplayed_groups(project) -> set[str]:
-    """Unit groups of the game's chapters a blank project left out: they are still in the decomp, nobody meets them."""
+    """Unit groups of the game a blank project does not use: they are still in the decomp, nobody meets them."""
     stored = project.load("chapters")
     if not stored.get("blank"):
         return set()
@@ -64,8 +64,7 @@ def unplayed_groups(project) -> set[str]:
     played = reached_chapters(data.chapter_links(project.load("dialogues").get("scripts", {})))
     played |= {int(k) for k in stored.get("added", {})}
     groups = units.all_chapter_unit_groups(project.decomp_dir)
-    return ({g["name"] for loads in groups.values() for g in loads}
-            - {g["name"] for index in played for g in groups.get(index, [])})
+    return set(units.read_unit_groups(project.decomp_dir)) - {g["name"] for index in played for g in groups.get(index, [])}
 
 
 def free_slots(data: DecompData, scripts: dict, taken: set[int], blank: bool = False) -> list[int]:
@@ -150,17 +149,35 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
     scripts[group["beginningSceneEvents"]] = _opening(loads)
     scripts[group["endingSceneEvents"]] = [{"op": "ENDA"}]
     if characters:
-        removed = data.reusable_characters()
+        removed = data.blank_dropped_characters()
         kept = [c for c in project.load("characters") if c["id"] not in removed]
         for c in kept:
             if c["id"] == BLANK_LORD:
                 c["name"] = hero.strip() or c["name"]
         project.save("characters", kept)
         dialogues["supports"] = []
-        chapters["blankCharacters"] = True
+        chapters["blankCharacters"] = "all"
     project.save("chapters", chapters)
     project.save("maps", maps_data)
     project.save("dialogues", dialogues)
+
+
+def tidy_blank(project) -> None:
+    """Blank projects made when the summons, citizens and the like stayed in the list (ticket 89): they leave it, unless
+    the project changed them or uses them."""
+    chapters = project.load("chapters")
+    if chapters.get("blankCharacters") is not True:
+        return
+    data = DecompData(project.decomp_dir)
+    game = {c["id"]: c for c in data.export_characters()}
+    if any(c["id"] in data.reusable_characters() for c in project.load("characters")):
+        return   # scope.py: the user chose which characters to keep
+    dropped = data.blank_dropped_characters()
+    used = {u.get("character") for group in chapters.get("unitGroups", {}).values() for u in group}
+    project.save("characters", [c for c in project.load("characters")
+                                if c["id"] not in dropped or c["id"] in used or game.get(c["id"]) != c])
+    chapters["blankCharacters"] = "all"
+    project.save("chapters", chapters)
 
 
 def drop_chapters(project, data: DecompData, kept: set[int], title: str, hero: str) -> None:

@@ -27,6 +27,23 @@
   let importError = $state('')
   let imported = $state('')
 
+  // Each weapon has its own folder and its own picture (ticket 86).
+  let shownWeapon = $state('')
+  let weaponPreviews = $state<Record<string, string | null>>({})
+
+  async function showWeapon(weapon: string) {
+    shownWeapon = weapon
+    const folderUrl = detail?.files.find((f) => f.type === 'dir' && f.name === weapon)?.url
+    if (!folderUrl || weapon in weaponPreviews) return
+    const shown = picked?.url
+    try {
+      const { preview } = await api.feRepoAnimation(folderUrl)
+      if (picked?.url === shown) weaponPreviews[weapon] = preview
+    } catch {
+      if (picked?.url === shown) weaponPreviews[weapon] = null
+    }
+  }
+
   async function importWeapon(weapon: string) {
     if (!detail || !picked) return
     const folderUrl = detail.files.find((f) => f.type === 'dir' && f.name === weapon)?.url
@@ -60,6 +77,7 @@
   let error = $state('')
   let picked = $state<FeRepoEntry | null>(null)
   let detail = $state<FeRepoAnimation | null>(null)
+  const shownPreview = $derived(shownWeapon && shownWeapon in weaponPreviews ? weaponPreviews[shownWeapon] : detail?.preview)
   let detailError = $state('')
   let timer: ReturnType<typeof setTimeout> | undefined
   let request = 0
@@ -109,6 +127,8 @@
   async function pick(e: FeRepoEntry) {
     picked = e
     detail = null
+    shownWeapon = ''
+    weaponPreviews = {}
     detailError = ''
     try {
       const d = await api.feRepoAnimation(e.url)
@@ -163,8 +183,8 @@
     <div class="preview">
       {#if picked}
         <h4>{picked.name}</h4>
-        {#if detail?.preview}
-          <img src={imageUrl(detail.preview)} alt={picked.name} />
+        {#if shownPreview}
+          <img src={imageUrl(shownPreview)} alt={shownWeapon || picked.name} />
         {:else if detailError}
           <p class="bad small">{detailError}</p>
         {:else if !detail}
@@ -176,7 +196,7 @@
           <div class="weapons">
             {#each detail.weapons as w (w)}
               <div class="weapon">
-                <span class="small">{w}</span>
+                <button class="small" class:shown={shownWeapon === w} title={t('banim.lib.showWeapon')} onclick={() => showWeapon(w)}>{w}</button>
                 <select value={chosenWtype[w] ?? guessWtype(w)} onchange={(e) => (chosenWtype[w] = (e.target as HTMLSelectElement).value)} aria-label={t('banim.weapon')}>
                   {#each targets as wt (wt)}<option value={wt}>{targetLabel(wt)}</option>{/each}
                 </select>
@@ -221,5 +241,7 @@
   .weapons { display: flex; flex-direction: column; gap: 0.35rem; }
   .weapon { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
   .weapon .small { min-width: 6rem; font-weight: 700; }
+  .weapon button.small { background: none; border: none; padding: 0; color: inherit; text-align: left; text-decoration: underline dotted; cursor: pointer; }
+  .weapon button.shown { color: var(--accent); }
   @media (max-width: 700px) { .columns { grid-template-columns: 1fr; } }
 </style>

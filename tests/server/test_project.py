@@ -46,3 +46,21 @@ def test_refuses_non_empty_folder(tmp_path, decomp_dir):
     (tmp_path / "file.txt").write_text("x")
     with pytest.raises(ProjectError):
         Project.create(tmp_path, "X", decomp_dir=decomp_dir)
+
+
+def test_old_blank_projects_lose_the_characters_left_in_their_list(tmp_path, decomp_dir, monkeypatch):
+    from fe_maker import newchapter
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "blank", "Blank", decomp_dir=decomp_dir)
+    characters = project.load("characters")
+    hero, rival = characters[0]["id"], characters[1]["id"]
+    monkeypatch.setattr(DecompData, "blank_dropped_characters", lambda self: {hero, rival})
+    monkeypatch.setattr(DecompData, "reusable_characters", lambda self: {})
+    characters[1]["level"] += 1   # changed by the user: stays
+    project.save("characters", characters)
+    project.save("chapters", {**project.load("chapters"), "blankCharacters": True})
+    newchapter.tidy_blank(project)
+    ids = [c["id"] for c in project.load("characters")]
+    assert hero not in ids and rival in ids
+    assert project.load("chapters")["blankCharacters"] == "all"

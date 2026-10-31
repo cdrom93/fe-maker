@@ -6,8 +6,12 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
 - [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
-## Tickets 82 à 84
+## Tickets 82 à 89
 
+- [ ] #85 Personnages : la liste montre les alliés, puis les ennemis.
+- [ ] #86 Bibliothèque d'animations : un clic sur le nom d'une arme montre l'aperçu de cette arme.
+- [ ] #87 #88 Projet vierge : plus de message sur l'Iron Sword, ni sur aucune unité du jeu que tu n'utilises pas.
+- [ ] #89 Projet vierge : seuls ton héros et tes personnages restent dans la liste principale (les génériques sont repliés dessous). Ton projet en cours est nettoyé à sa prochaine ouverture.
 - [ ] #82 Onglet Chapitres : l'objectif est en haut, sous le titre du chapitre, avec le convoi et le brouillard.
 - [ ] #83 Projet vierge : plus d'avertissement sur les unités des chapitres du jeu que ton projet n'utilise pas.
 - [ ] #84 Nouveau personnage : le portrait importé s'affiche tout de suite, sans rafraîchir la page.

@@ -9,6 +9,7 @@
     onselect,
     filter = () => true,
     secondary,
+    rank,
     secondaryLabel = '',
     problemIds,
     icon,
@@ -22,6 +23,8 @@
     filter?: (r: T) => boolean
     /** Records that are rarely needed: listed after the others, in a folded section. */
     secondary?: (r: T) => boolean
+    /** Sorts the main list, records of the same rank staying in order. */
+    rank?: (r: T) => number
     /** Title of the folded section; {n} = number of records in it. */
     secondaryLabel?: string
     problemIds: Set<string>
@@ -44,7 +47,8 @@
         return !q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
       }),
   )
-  const main = $derived(secondary ? visible.filter(({ r }) => !secondary(r)) : visible)
+  const unsorted = $derived(secondary ? visible.filter(({ r }) => !secondary(r)) : visible)
+  const main = $derived(rank ? [...unsorted].sort((a, b) => rank(a.r) - rank(b.r)) : unsorted)
   const rest = $derived(secondary ? visible.filter(({ r }) => secondary(r)) : [])
   // A search shows its results wherever they are.
   const restOpen = $derived(showSecondary || (query.trim() !== '' && rest.length > 0))

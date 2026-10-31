@@ -205,6 +205,15 @@ def _project_info(p: Project) -> dict:
     return {"path": str(p.root), "name": p.name, "meta": p.meta}
 
 
+def _game_enemies() -> list[str]:
+    """The game's named characters only ever met as enemies: they come after the allies in the list (ticket 85)."""
+    sides: dict[str, set] = {}
+    for group in units.read_unit_groups(DECOMP_DIR).values():
+        for unit in group.units:
+            sides.setdefault(str(unit.get("character")), set()).add(unit.get("side"))
+    return [name for name, seen in sides.items() if name.startswith("CHARACTER_") and seen == {"enemy"}]
+
+
 def _open(p: Project) -> dict:
     state.project = p
     state.settings.add_recent(p.root)
@@ -228,7 +237,9 @@ def create_project(body: CreateProjectIn):
 @app.post("/api/projects/open")
 def open_project(body: OpenProjectIn):
     try:
-        return _open(Project(Path(body.path)))
+        project = Project(Path(body.path))
+        newchapter.tidy_blank(project)
+        return _open(project)
     except ProjectError as e:
         raise HTTPException(400, str(e))
 
@@ -345,6 +356,7 @@ def reference():
         "iconCount": len(d.item_icon_files()),
         "portraits": _portrait_names(),
         "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
+        "gameEnemies": _game_enemies(),
         "descriptions": state.get_decomp().descriptions(),
     }
 

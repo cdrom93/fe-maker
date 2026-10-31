@@ -56,6 +56,9 @@
 
   /** Characters the project adds (server: gamedata.NEW_CHARACTER_PREFIX), the only ones that can be removed. */
   const isNew = (id: string) => id.startsWith('CHARACTER_NEW_')
+  // Allies first; a new character is an enemy past the allies' entries (server: gamedata.ALLY_CHARACTER_END).
+  const gameEnemies = $derived(new Set(reference.gameEnemies))
+  const isEnemy = (id: string) => (isNew(id) ? parseInt(id.slice('CHARACTER_NEW_'.length), 16) >= 0x46 : gameEnemies.has(id))
   let addError = $state('')
 
   async function addCharacter(ally: boolean) {
@@ -92,6 +95,7 @@
     onselect={(i) => (selected = i)}
     secondary={(c) => !c.id.startsWith('CHARACTER_')}
     secondaryLabel={t('list.genericCharacters')}
+    rank={(c) => (isEnemy(c.id) ? 1 : 0)}
     {problemIds}
   >
     {#snippet actions()}
