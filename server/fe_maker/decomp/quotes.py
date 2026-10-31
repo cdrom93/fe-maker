@@ -23,7 +23,7 @@ BATTLE = ("BattleTalkExtEnt", "gBattleTalkList")
 DEATH = ("DefeatTalkEnt", "gDefeatTalkList")
 ANY_CHAPTER = 0xFF
 LEADER = "CHAR_EVT_PLAYER_LEADER"   # 0: anyone
-FIRST_FLAG = 50                     # temporary flags for new quotes (map objects use 70+)
+FIRST_FLAG = 57                     # temporary flags for new quotes (see chapterflags.py)
 
 
 def _int(value: str, constants: dict[str, int]) -> int | None:

@@ -425,7 +425,7 @@ SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other",
 
 # ---------- new conversations ("Talk" on the map) ----------
 
-TALK_FIRST_FLAG = 40   # temporary flags for new conversations (quotes use 50+, map objects 70+)
+TALK_FIRST_FLAG = 29   # temporary flags for new conversations, the game uses up to 28 (map objects 41+, quotes 57+)
 RECRUIT_MUSIC = 0x30   # the song of the game's recruitment conversations (MUSS(0x30))
 
 

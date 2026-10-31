@@ -134,8 +134,8 @@
     faces = faceList
     font = fontInfo
     chapters = [
-      { index: -1, id: 'all', title: '', map: null, events: null, convoy: false, prep: false, fog: 0, name: t('dlg.allChapters') },
-      { index: SUPPORTS, id: 'supports', title: '', map: null, events: null, convoy: false, prep: false, fog: 0, name: t('dlg.supports') },
+      { index: -1, id: 'all', title: '', map: null, events: null, convoy: false, prep: false, fog: 0, wallHp: 50, name: t('dlg.allChapters') },
+      { index: SUPPORTS, id: 'supports', title: '', map: null, events: null, convoy: false, prep: false, fog: 0, wallHp: 50, name: t('dlg.supports') },
       ...list_.filter((c) => !c.hidden).map((c) => ({ ...c, id: String(c.index), name: c.title || c.id })),
     ]
     const asked = nav.focus?.kind === 'dialogues' ? chapters.findIndex((c) => c.id === nav.focus!.id) : -1

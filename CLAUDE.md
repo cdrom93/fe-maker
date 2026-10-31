@@ -56,6 +56,7 @@ Spanish and Italian (`es.json`, `it.json`) are set aside, frozen and not loaded,
   - `weaponrange.py`: ranges the game does not list (1-10...): `GetItemReachBits` (one bit per distance from bit 8), the range text and the two red-square functions rewritten only when a weapon has such a range.
   - `reach.py`: move and strike cells of units on a chapter's map, without other units in the way: `POST /api/chapters/{index}/reach`, overlay in `ChapterEditor`.
   - `danceanim.py`: a class or character that dances without a dancer's sprite: the map animation is skipped (it reads past the sprite's list otherwise, a crash of the original game too); written only then.
+  - `chapterflags.py`: temporary flags above 40 cleared at each chapter, and up to 56 kept by a suspend: `ResetChapterFlags` and the saved size rewritten only when a project uses them.
   - `prep.py`: preparations screen per chapter (`data/chapters.json` "prep", on by default in added chapters), the opening scene's `CALL(EventScr_08591FD8)`, `DecompData.apply_prep`.
   - `seize.py`: who can seize: `CanUnitSeize` rewritten only when characters' `canSeize` change.
   - `convoy.py`: who opens the convoy and the chapters without it; `SupplyUsability` / `HasConvoyAccess` rewritten only when the project changes them; characters' `convoyAccess`, chapters' "convoy".

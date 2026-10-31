@@ -91,3 +91,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 31/10/2026 : ticket 108 : plantage au début d'un chapitre sur carte repeinte : le chemin d'entrée du jeu n'y existait plus. Une unité déplacée ou sur une carte repeinte apparaît à sa place.
 - 31/10/2026 : ticket 107 : préparation avant le combat activable par chapitre, active par défaut dans les chapitres ajoutés.
 - 31/10/2026 : tickets 109, 110 : renforts perdus dans un chapitre vidé rétablis, tour d'un groupe de renforts du jeu modifiable ; camp d'une unité modifiable dans sa fiche.
+- 31/10/2026 : tickets 111, 112 : PV des murs fissurés par chapitre ; drapeaux temporaires au-delà de 40 effacés à chaque chapitre (une porte pouvait rester fermée après un village du chapitre d'avant). `docs/a-tester.md` réduit au plan du hack d'essai, les tickets font foi.

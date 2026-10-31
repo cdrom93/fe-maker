@@ -1139,6 +1139,8 @@
   "chapter.prep": "Préparation avant le combat",
   "chapter.prepHint": "L'écran où le joueur choisit ses unités, échange et place son armée. Actif par défaut dans les chapitres ajoutés.",
   "chapter.fog": "Brouillard de guerre",
+  "chapter.wallHp": "PV des murs fissurés",
+  "chapter.wallHpHint": "Tous les murs fissurés de ce chapitre ont ces PV. Les murs de ronces en ont toujours 20.",
   "chapter.fogRange": "Portée de vue",
   "chapter.fogRangeN": "vue à {n} cases",
   "chapter.fogHint": "Les unités ne voient qu'à quelques cases autour d'elles (les voleurs et les torches voient plus loin).",

@@ -54,8 +54,8 @@ FACES = {"FID_VillagerOldMan": 0x59, "FID_VillagerOldWoman": 0x5F, "FID_Villager
          "FID_VillagerWoman": 0x60, "FID_VillagerGirlBrownHair": 0x61, "FID_VillagerGirlBlackHair": 0x62,
          "FID_VillagerGirlYoung": 0x63}
 BG_HOUSE, BG_NORMAL_VILLAGE = 0x00, 0x02  # include/constants/backgrounds.h
-FIRST_FLAG = 70     # temporary event flags (1-100 are cleared each chapter); the game uses up to 28
-LAST_FLAG = 100
+FIRST_FLAG = 41     # temporary event flags for new objects, kept by a suspend up to 56 (chapterflags.py)
+LAST_FLAG = 99
 
 
 def detect(rows: list[list[int]], terrain: bytes) -> list[dict]:

@@ -94,6 +94,19 @@
       else c.fog[key] = level
     })
   }
+  const wallHpEdit = $derived(chapter ? list.records[0]?.wallHp?.[String(chapter.index)] : undefined)
+
+  /** HP of the map's cracked walls; the game's value is not stored. */
+  function setWallHp(hp: number) {
+    if (!chapter) return
+    const key = String(chapter.index)
+    const same = hp === chapter.wallHp
+    list.update(0, (c) => {
+      c.wallHp ??= {}
+      if (same) delete c.wallHp[key]
+      else c.wallHp[key] = hp
+    })
+  }
   // The map image changes with the project's painting of this chapter's layout.
   const mapVersion = $derived.by(() => {
     const rows = chapter?.map ? maps?.layouts?.[chapter.map]?.rows : undefined
@@ -476,6 +489,11 @@
           {/if}
           {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
         </label>
+        <div class="row wall-hp">
+          <NumberField label={t('chapter.wallHp')} value={wallHpEdit ?? chapter.wallHp} min={1} max={127} compact onchange={setWallHp} />
+          <Help text={t('chapter.wallHpHint')} />
+          {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
+        </div>
       </section>
 
       <section class="panel">

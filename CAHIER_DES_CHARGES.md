@@ -263,7 +263,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux 
 - **État (30/10/2026)** :
   - Étape 1 : faite. Historique propre, code et texte seulement ; mainteneurs déjà prononcés (#728). Le dépôt peut passer en public quand l'utilisateur le décide.
   - Étape 2 : faite. Personnages, armes, classes et chapitres ajoutés, conditions et sauts, sprites de carte, démo de musique, patchs de confort (d'autres restent dans `docs/patchs-qol.md`).
-  - Étape 3 : à faire par l'utilisateur. Le hack témoin automatique passe (`tests/local`) ; manque le même à la main, avec de vraies cartes et des dialogues, et la validation de `docs/a-tester.md`.
+  - Étape 3 : à faire par l'utilisateur. Le hack témoin automatique passe (`tests/local`) ; manque le même à la main, avec de vraies cartes et des dialogues, et la validation des tickets ouverts.
   - Étapes 4 à 8 : préparées, rien n'est publié. `tools/make_release.py`, lanceurs, `release.yml` (brouillon sur tag), image par hash et `image.yml`, `checks.py`, « Envoyer sur GitHub », guide FR/EN, CHANGELOG. Premier push du 30/10/2026 : CI et `image.yml` passés (l'image n'est montée qu'au second essai, « denied » au premier), `release.yml` n'a pas encore tourné (il attend un tag). L'image est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
   - Étape 9 : à faire. Passer le dépôt en public, pousser, vérifier les workflows, tester sur une machine vierge, tag et annonce sont des décisions de l'utilisateur.
 

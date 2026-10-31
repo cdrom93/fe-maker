@@ -114,6 +114,8 @@ export interface ChapterInfo {
   prep: boolean
   /** fog of war in the game: the units' vision range, 0 for none */
   fog: number
+  /** HP of the map's cracked walls in the game */
+  wallHp: number
 }
 
 export interface MapUnit {
@@ -156,6 +158,8 @@ export interface ChaptersData {
   prep?: Record<string, boolean>
   /** fog of war (vision range, 0: none), by chapter index, once changed from the game */
   fog?: Record<string, number>
+  /** HP of the cracked walls, by chapter index, once changed from the game */
+  wallHp?: Record<string, number>
 }
 
 export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'area' | 'special'

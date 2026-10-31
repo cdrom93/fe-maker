@@ -14,6 +14,7 @@ from pathlib import Path
 from . import (
     banim,
     banim_import,
+    chapterflags,
     chaptitle,
     combat,
     convoy,
@@ -236,6 +237,7 @@ class DecompData:
         # Who can seize, when the project changes it (seize.py)
         self.seizers: list[str] | None = None
         self.other_ranges = False   # a weapon has a range the game does not list (weaponrange.py)
+        self._new_quote_flags = False  # quotes numbered past the game's chapter flags (chapterflags.py)
         self.other_dancers = False  # a class or character without a dancer's sprite dances (danceanim.py)
         self.no_convoy: list[int] | None = None
         # Ids of the portraits the project adds (their text codes go to textdefs.txt)
@@ -402,7 +404,8 @@ class DecompData:
         only once edited (see units.py and objectives.py). New groups (reinforcements):
         "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups".
         "convoy" {chapter index: bool}: convoy available, once changed (convoy.py).
-        "fog" {chapter index: vision range}: fog of war (0: none), once changed."""
+        "fog" {chapter index: vision range}: fog of war (0: none), once changed.
+        "wallHp" {chapter index: HP}: cracked walls' HP, once changed."""
         return {"unitGroups": {}, "objectives": {}}
 
     def apply_chapters(self, chapters: dict) -> None:
@@ -428,6 +431,12 @@ class DecompData:
             self._load_chapter_events()
             for index, level in fog.items():
                 self.chapter_settings["chapters"][index]["initialFogLevel"] = max(0, min(level, 15))
+        # Cracked walls' HP (chapter settings' mapCrackedWallHeath, ticket 111)
+        wall_hp = {int(k): int(v) for k, v in chapters.get("wallHp", {}).items()}
+        if wall_hp:
+            self._load_chapter_events()
+            for index, hp in wall_hp.items():
+                self.chapter_settings["chapters"][index]["mapCrackedWallHeath"] = max(1, min(hp, 127))
         # Titles of the chapters the project adds (newchapter.py): a text of their own, the slot's may be shared
         titles = {int(k): str(v) for k, v in chapters.get("titles", {}).items()}
         if titles:
@@ -859,7 +868,8 @@ class DecompData:
             msg = self.texts.add(self._message(q.get("steps") or [], battle=True))
             chapter = int(q.get("chapter", quotes.ANY_CHAPTER))
             if q.get("kind") == "battle":
-                flag = next(n for n in range(quotes.FIRST_FLAG, 70) if (chapter, n) not in used)
+                flag = next(n for n in range(quotes.FIRST_FLAG, chapterflags.LAST_FLAG + 1) if (chapter, n) not in used)
+                self._new_quote_flags = True
                 used.add((chapter, flag))
                 self.defeat_talks = quotes.add_battle_quote(self.defeat_talks, self._chapter_constants, chapter,
                                                             q["a"], q.get("b", ""), msg, flag)
@@ -2121,6 +2131,8 @@ class DecompData:
             out[convoy.MENU_FILE] = convoy.with_openers(self._read(convoy.MENU_FILE), self.convoy_openers)
         if self.seizers is not None:
             out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
+        if chapterflags.uses_late_flags(list(self.event_sources.values())) or self._new_quote_flags:
+            out[chapterflags.FILE] = chapterflags.with_late_flags(self._read(chapterflags.FILE))
         if self.other_dancers:
             out[danceanim.FILE] = danceanim.with_guard(self._read(danceanim.FILE))
         if self.other_ranges:

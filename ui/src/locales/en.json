@@ -1139,6 +1139,8 @@
   "chapter.prep": "Preparations before the battle",
   "chapter.prepHint": "The screen where the player picks units, trades and places the army. On by default in added chapters.",
   "chapter.fog": "Fog of war",
+  "chapter.wallHp": "Cracked walls' HP",
+  "chapter.wallHpHint": "All the cracked walls of this chapter have these HP. Snags always have 20.",
   "chapter.fogRange": "Vision range",
   "chapter.fogRangeN": "sees {n} cells",
   "chapter.fogHint": "Units only see a few cells around them (thieves and torches see farther).",

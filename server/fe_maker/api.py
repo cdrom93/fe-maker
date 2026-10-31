@@ -439,6 +439,7 @@ def list_chapters():
             "convoy": convoy.has_convoy(i, stored),   # unless changed (tickets 29, 106)
             "prep": _has_prep(i, ch, stored, scripts),   # unless changed (ticket 107)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
+            "wallHp": ch.get("mapCrackedWallHeath", 50),
         })
     return result
 
