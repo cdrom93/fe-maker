@@ -405,6 +405,11 @@ def with_trigger(source: str, script: str, change: dict) -> str:
     return re.sub(entry, edit, source, flags=re.M)
 
 
+def without_scene(source: str, script: str) -> str:
+    """`source` where nothing starts `script`: its lines in the event lists and the calls to it are gone."""
+    return re.sub(rf"^[ \t]*\w+\([^\n]*\b{re.escape(script)}\b[^\n]*\)[ \t]*\n", "", source, flags=re.M)
+
+
 SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")
 
 

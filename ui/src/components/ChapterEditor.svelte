@@ -15,6 +15,7 @@
   import ItemPicker from './ItemPicker.svelte'
   import ClassPicker from './ClassPicker.svelte'
   import NumberField from './NumberField.svelte'
+  import ChapterTitle from './ChapterTitle.svelte'
   import ObjectivePanel from './ObjectivePanel.svelte'
   import RecordList from './RecordList.svelte'
 
@@ -281,6 +282,19 @@
     if (chapters.length) await load(Math.max(0, asked))
   })
 
+  /** Its text and its title picture are written at build time; empty: the game's title again. */
+  async function rename(name: string) {
+    const index = chapter.index
+    list.update(0, (d) => {
+      const titles: Record<string, string> = { ...d.titles, [index]: name }
+      if (!name) delete titles[index]
+      d.titles = titles
+    })
+    if (!name) await list.flush()
+    const title = name || ((await api.chapters()).find((c) => c.index === index)?.title ?? '')
+    chapters = chapters.map((c) => (c.index === index ? { ...c, title, name: title || c.code } : c))
+  }
+
   async function load(index: number) {
     selected = index
     picked = null
@@ -411,7 +425,7 @@
   {#if chapter}
     <div class="detail">
       <section class="panel">
-        <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span> <Help text={t('chapter.editHint')} /></h2>
+        <h2><ChapterTitle title={chapter.title || chapter.code} value={chapter.title} onrename={rename} /> <span class="muted id">{chapter.code}</span> <Help text={t('chapter.editHint')} /></h2>
         {#if objective}
           <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
             battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}

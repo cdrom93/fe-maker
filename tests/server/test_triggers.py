@@ -38,3 +38,11 @@ def test_a_talk_written_both_ways_is_read_as_a_talk():
     lists = {"Talks": "    CharacterEventBothWays(0x8, EventScr_Talk, CHARACTER_SETH, CHARACTER_FRANZ)\n"}
     found = dialogues.scene_triggers(group, lists, {"EventScr_Talk"})
     assert found["EventScr_Talk"] == {"kind": "talk", "a": "CHARACTER_SETH", "b": "CHARACTER_FRANZ"}
+
+
+def test_a_removed_scene_leaves_the_lists_and_its_callers():
+    source = SOURCE + "EventScr Caller[] = {\n    CALL(EventScr_One)\n    ENDA\n};\n"
+    out = dialogues.without_scene(source, "EventScr_One")
+    assert "EventScr_One" not in out
+    assert "EventScr_Once" in out and "ENDA" in out
+    assert "EventScr_Talk" not in dialogues.without_scene(SOURCE, "EventScr_Talk")

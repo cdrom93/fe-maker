@@ -830,6 +830,10 @@ class DecompData:
             for script, change in data["triggers"].items():
                 self.event_sources = {rel: dialogues.with_trigger(source, script, change)
                                       for rel, source in self.event_sources.items()}
+        if data.get("removedScenes"):
+            self._load_event_sources()
+            for script in data["removedScenes"]:
+                self.event_sources = {rel: dialogues.without_scene(source, script) for rel, source in self.event_sources.items()}
         conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
         if data.get("supports") is not None:
             self._apply_supports(data["supports"], conversations)

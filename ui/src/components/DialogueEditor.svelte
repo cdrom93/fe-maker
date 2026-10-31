@@ -86,7 +86,8 @@
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
   let showEmpty = $state(false)
   // A scene without dialogue only matters to whoever looks for it, unless the project changed it.
-  const visibleScenes = $derived(scenes.filter((s) => (showTutorials || s.trigger.kind !== 'tutorial')
+  const removedScenes = $derived(list.records[0]?.removedScenes ?? [])
+  const visibleScenes = $derived(scenes.filter((s) => !removedScenes.includes(s.script) && (showTutorials || s.trigger.kind !== 'tutorial')
     && (showEmpty || s.messages.length || ['beginning', 'ending'].includes(s.trigger.kind) || list.records[0]?.scripts?.[s.script])))
   // Problems of the message (new quotes are "new<n>" on the server).
   const problemKey = $derived(messageId?.startsWith(NEW) ? `new${messageId.slice(NEW.length)}` : messageId)
@@ -159,6 +160,24 @@
   }
 
   /** What starts a scene, in a few words. */
+  // The chapter needs its opening and its ending; "other" holds what ends it (seizing, a boss...).
+  const canRemove = (s: DialogueScene) => !!s.trigger.via || ['turn', 'talk', 'village', 'house', 'area', 'tutorial'].includes(s.trigger.kind)
+
+  function removeScene(s: DialogueScene) {
+    if (scriptName === s.script) scriptName = null
+    if (s.messages.some((m) => String(m) === messageId)) messageId = null
+    list.update(0, (d) => {
+      d.removedScenes = [...(d.removedScenes ?? []), s.script]
+    })
+  }
+
+  function restoreScene(script: string) {
+    list.update(0, (d) => {
+      d.removedScenes = (d.removedScenes ?? []).filter((name) => name !== script)
+      if (!d.removedScenes.length) delete d.removedScenes
+    })
+  }
+
   function sceneLabel(s: DialogueScene): string {
     const tr = triggerOf(s)
     switch (tr.kind) {
@@ -528,6 +547,7 @@
             {#if scene.trigger.via}<span class="muted tiny" title={scene.script}>{t('dlg.via')}</span>{/if}
             <button class="script-button" class:active={scriptName === scene.script} title={t('ev.open', { name: scene.script })}
                     onclick={() => { scriptName = scene.script; messageId = null }}>⚙{#if list.records[0]?.scripts?.[scene.script]}<span class="edited">✎</span>{/if}</button>
+            {#if canRemove(scene)}<button class="script-button danger" title={t('dlg.removeScene')} aria-label={t('dlg.removeScene')} onclick={() => removeScene(scene)}>✕</button>{/if}
           </div>
           {#if !scene.messages.length}<span class="muted tiny no-message">{t('dlg.noMessage')}</span>{/if}
           {#each scene.messages as m (m)}
@@ -545,6 +565,18 @@
           {/each}
         </div>
       {/each}
+      {@const gone = scenes.filter((s) => removedScenes.includes(s.script))}
+      {#if gone.length}
+        <details class="removed-scenes">
+          <summary class="tiny muted">{t('dlg.removedScenes', { n: gone.length })}</summary>
+          {#each gone as scene (scene.script)}
+            <div class="scene-title">
+              <span class="kind {scene.trigger.kind}">{sceneLabel(scene)}</span>
+              <button class="link small" onclick={() => restoreScene(scene.script)}>{t('dlg.restoreScene')}</button>
+            </div>
+          {/each}
+        </details>
+      {/if}
       {/if}
     </section>
 
@@ -813,6 +845,9 @@
   .kind.new { color: var(--good); }
   .no-message { padding-left: 0.4rem; }
   .script-button { margin-left: auto; padding: 0 0.3rem; font-size: 0.75rem; background: none; }
+  .script-button + .script-button { margin-left: 0; }
+  .removed-scenes { margin-top: 0.6rem; }
+  .removed-scenes summary { cursor: pointer; }
   .script-button.active { border-color: var(--accent); background: var(--accent-soft); }
   .quote-who { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
   @media (max-width: 1100px) { .detail { grid-template-columns: 1fr; } }

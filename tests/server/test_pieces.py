@@ -19,3 +19,15 @@ def test_only_whole_single_buildings():
     assert not one_building([0x2E, 0x03, 0x2E, 0x2E, 0x03, 0x2E])        # two villages side by side
     assert not one_building([0x07, 0x05])                                # a shop next to a house
     assert not one_building([0x0A, 0x0A])                                # a fort without its walls
+
+
+def test_one_tile_pieces_are_the_most_drawn_of_each_kind():
+    from collections import Counter
+
+    from fe_maker.decomp.pieces import SINGLES_BY_KIND, _singles
+
+    terrain = bytes([0x21] * 5 + [0x05, 0x01])
+    uses = Counter({0: 9, 1: 8, 2: 7, 3: 6, 4: 5, 5: 4})
+    found = _singles(uses, terrain)
+    assert [p["rows"] for p in found if p["kind"] == "chest"] == [[[0]], [[1]], [[2]]][:SINGLES_BY_KIND]
+    assert [(p["kind"], p["group"]) for p in found][0] == ("house", "building")

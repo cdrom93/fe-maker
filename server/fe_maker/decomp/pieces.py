@@ -21,6 +21,13 @@ KEY_TERRAINS = {0x03: "village", 0x04: "village", 0x05: "house", 0x06: "armory",
 PART_TERRAINS = {0x22, 0x2C, 0x2E}
 MAX_SIDE = 10
 MAX_PIECES = 60
+# One-tile pieces, the most drawn tiles of each terrain: buildings, then what a map is dressed with.
+SINGLE_BUILDINGS = {0x03: "village", 0x05: "house", 0x06: "armory", 0x07: "vendor", 0x08: "arena", 0x30: "arena",
+                    0x0A: "fort", 0x0B: "castle", 0x1F: "throne", 0x24: "church", 0x38: "inn", 0x23: "gate"}
+DECORS = {0x21: "chest", 0x1E: "door", 0x13: "bridge", 0x14: "bridge", 0x2D: "stairs", 0x1D: "pillar", 0x19: "fence",
+          0x32: "fence", 0x1A: "wall", 0x1B: "crackedWall", 0x1C: "rubble", 0x25: "ruins", 0x27: "ballista", 0x28: "ballista",
+          0x29: "ballista", 0x33: "snag", 0x39: "barrel", 0x3A: "bone"}
+SINGLES_BY_KIND = 3
 
 
 def _components(width: int, height: int, cells: list[int], terrain: bytes) -> list[set[tuple[int, int]]]:
@@ -56,15 +63,18 @@ def one_building(terrains: list[int]) -> bool:
 
 @lru_cache(maxsize=16)
 def pieces(decomp_dir: Path, config: Path) -> tuple[dict, ...]:
-    """Buildings of the original maps drawn with this tile config: {"kind", "rows", "uses", "maps"}."""
+    """Buildings of the original maps drawn with this tile config, then one-tile pieces:
+    {"kind", "group": "building" or "decor", "rows", "uses", "maps"}."""
     _metatiles, terrain = maps.read_config(config)
     counts: Counter = Counter()
     kinds: dict[tuple, str] = {}
     where: dict[tuple, list[str]] = {}
+    singles: Counter = Counter()
     for layout_id, layout in sorted(maps.layouts(decomp_dir).items()):
         if layout["assets"].config != config:
             continue
         width, height, cells = maps.read_layout(layout["assets"].layout)
+        singles.update(m for m in cells if m < len(terrain) and terrain[m] in SINGLE_BUILDINGS | DECORS)
         for group in _components(width, height, cells, terrain):
             keys = [KEY_TERRAINS[terrain[cells[y * width + x]]] for x, y in group
                     if terrain[cells[y * width + x]] in KEY_TERRAINS]
@@ -80,6 +90,22 @@ def pieces(decomp_dir: Path, config: Path) -> tuple[dict, ...]:
             where.setdefault(rows, [])
             if layout_id not in where[rows]:
                 where[rows].append(layout_id)
+    # A tile of the sheet no map of the game draws (a chest of the plains sheet) is offered too, after the others.
+    singles.update({m: 0 for m, kind in enumerate(terrain) if kind in SINGLE_BUILDINGS | DECORS and m not in singles})
     order = sorted(counts, key=lambda r: (list(KEY_TERRAINS.values()).index(kinds[r]), -counts[r], len(r) * len(r[0])))
-    return tuple({"kind": kinds[r], "rows": [list(row) for row in r], "uses": counts[r], "maps": where[r][:3]}
-                 for r in order[:MAX_PIECES])
+    blocks = [{"kind": kinds[r], "group": "building", "rows": [list(row) for row in r], "uses": counts[r], "maps": where[r][:3]}
+              for r in order[:MAX_PIECES]]
+    return tuple(blocks + _singles(singles, terrain))
+
+
+def _singles(uses: Counter, terrain: bytes) -> list[dict]:
+    found = []
+    for group, names in (("building", SINGLE_BUILDINGS), ("decor", DECORS)):
+        taken: Counter = Counter()
+        for m, count in uses.most_common():
+            kind = names.get(terrain[m])
+            if kind and taken[kind] < SINGLES_BY_KIND:
+                taken[kind] += 1
+                found.append({"kind": kind, "group": group, "rows": [[m]], "uses": count, "maps": []})
+    kinds = list(SINGLE_BUILDINGS.values()) + list(DECORS.values())
+    return sorted(found, key=lambda p: kinds.index(p["kind"]))

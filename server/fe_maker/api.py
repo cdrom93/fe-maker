@@ -935,7 +935,8 @@ def chapter_dialogues(index: int):
     scenes = decomp.chapter_dialogues(index)
     if state.project is not None and index in state.project.load("chapters").get("cleared", []):
         # its events are emptied at build time (newchapter.py): only its opening and ending are left, rewritten
-        scenes = [{**s, "messages": []} for s in scenes if s["trigger"]["kind"] in ("beginning", "ending")]
+        scenes = [{**s, "messages": []} for s in scenes if s["trigger"]["kind"] in ("beginning", "ending")
+                  and not s["trigger"].get("via")]
     ids = {i for s in scenes for i in s["messages"]}
     messages = {}
     for i in sorted(ids):

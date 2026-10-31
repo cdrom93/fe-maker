@@ -205,6 +205,10 @@
 
   // Whole buildings of the game's maps drawn with the same tile sheet (ticket 41).
   let pieces = $state<MapPiece[]>([])
+  let toolsOpen = $state(false)
+  $effect(() => {
+    if (pendingTiles) toolsOpen = true
+  })
   $effect(() => {
     const id = info?.id
     const base = chosenBase
@@ -1329,10 +1333,6 @@
         <section class="panel palette-panel">
           <div class="palette-head">
             <h3>{t('maps.palette')}</h3>
-            <div class="modes" role="radiogroup" aria-label={t('maps.palette')}>
-              <button role="radio" aria-checked={paletteMode === 'unique'} class:active={paletteMode === 'unique'} onclick={() => { paletteMode = 'unique'; palettePicked = null }}>{t('maps.palette.unique')}</button>
-              <button role="radio" aria-checked={paletteMode === 'sheet'} class:active={paletteMode === 'sheet'} onclick={() => { paletteMode = 'sheet'; palettePicked = null }}>{t('maps.palette.sheet')}</button>
-            </div>
           </div>
           {#if layout && sheet}
             <div class="brush">
@@ -1350,6 +1350,61 @@
                 {/if}
               </div>
             </div>
+            {#if groundBrushes.length}
+              <h4 class="small ground-title">{t('maps.ground')} <Help text={t('maps.groundHint')} /></h4>
+              <div class="pieces ground">
+                {#each groundBrushes as b (b.terrain)}
+                  <button class="piece" class:active={groundBrush === b.terrain} onclick={() => pickGround(b)}>
+                    <canvas width="16" height="16" use:drawBrush={{ m: b.tile, sheet, layout }}></canvas>
+                    <span class="tiny">{terrainName(b.terrain)}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#snippet pieceGroup(group: 'building' | 'decor')}
+              {@const shown = pieces.filter((p) => p.group === group)}
+              {#if shown.length}
+                <details class="pieces-panel">
+                  <summary class="small">{t(`maps.pieces.${group}`, { n: shown.length })}</summary>
+                  <div class="pieces">
+                    {#each shown as piece, k (k)}
+                      <button class="piece" class:active={stamp === piece.rows} title={piece.maps.length ? t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') }) : t(`maps.piece.${piece.kind}`)}
+                        onclick={() => { stamp = piece.rows; groundBrush = null; palettePicked = null; pendingTiles = null; if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen' }}>
+                        <canvas width={piece.rows[0].length * 16} height={piece.rows.length * 16} use:drawPiece={{ rows: piece.rows, sheet: sheet!, layout: layout! }}></canvas>
+                        <span class="tiny">{t(`maps.piece.${piece.kind}`)}</span>
+                      </button>
+                    {/each}
+                  </div>
+                  <Help text={t(`maps.pieces.${group}Hint`)} />
+                </details>
+              {/if}
+            {/snippet}
+            {@render pieceGroup('building')}
+            {@render pieceGroup('decor')}
+            <h4 class="small ground-title">{t('maps.tiles')}</h4>
+            <div class="modes" role="radiogroup" aria-label={t('maps.palette')}>
+              <button role="radio" aria-checked={paletteMode === 'unique'} class:active={paletteMode === 'unique'} onclick={() => { paletteMode = 'unique'; palettePicked = null }}>{t('maps.palette.unique')}</button>
+              <button role="radio" aria-checked={paletteMode === 'sheet'} class:active={paletteMode === 'sheet'} onclick={() => { paletteMode = 'sheet'; palettePicked = null }}>{t('maps.palette.sheet')}</button>
+            </div>
+            <label>
+              <span>{t('maps.terrainFilter')}</span>
+              <select value={terrainFilter ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; terrainFilter = v === '' ? null : Number(v) }}>
+                <option value="">{t('maps.allTerrains')}</option>
+                {#each allTerrains as id (id)}<option value={id}>{terrainName(id)}</option>{/each}
+              </select>
+            </label>
+            <div class="palette-scroll">
+              <canvas
+                bind:this={paletteCanvas}
+                width={palColumns * palCell}
+                height={Math.max(1, Math.ceil(palTiles.length / palColumns)) * palCell}
+                onmousedown={(e) => { e.preventDefault(); const c = paletteCell(e); paletteDrag = { a: c, b: c } }}
+                onmousemove={(e) => { if (paletteDrag && e.buttons & 1) paletteDrag = { a: paletteDrag.a, b: paletteCell(e) } }}
+              ></canvas>
+            </div>
+            <Help text={paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')} />
+            <details class="tile-tools" bind:open={toolsOpen}>
+              <summary class="small">{t('maps.tileTools')}</summary>
             <div class="transforms">
               <span class="small">{t('maps.transform')}</span>
               {#each TRANSFORMS as tr (tr.op)}
@@ -1406,49 +1461,7 @@
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
-            {#if groundBrushes.length}
-              <h4 class="small ground-title">{t('maps.ground')} <Help text={t('maps.groundHint')} /></h4>
-              <div class="pieces ground">
-                {#each groundBrushes as b (b.terrain)}
-                  <button class="piece" class:active={groundBrush === b.terrain} onclick={() => pickGround(b)}>
-                    <canvas width="16" height="16" use:drawBrush={{ m: b.tile, sheet, layout }}></canvas>
-                    <span class="tiny">{terrainName(b.terrain)}</span>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            {#if pieces.length}
-              <details class="pieces-panel">
-                <summary class="small">{t('maps.pieces', { n: pieces.length })}</summary>
-                <div class="pieces">
-                  {#each pieces as piece, k (k)}
-                    <button class="piece" class:active={stamp === piece.rows} title={t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') })}
-                      onclick={() => { stamp = piece.rows; groundBrush = null; palettePicked = null; pendingTiles = null; if (tool !== 'pen' && tool !== 'rect' && tool !== 'fill') tool = 'pen' }}>
-                      <canvas width={piece.rows[0].length * 16} height={piece.rows.length * 16} use:drawPiece={{ rows: piece.rows, sheet, layout }}></canvas>
-                      <span class="tiny">{t(`maps.piece.${piece.kind}`)}</span>
-                    </button>
-                  {/each}
-                </div>
-                <Help text={t('maps.piecesHint')} />
-              </details>
-            {/if}
-            <label>
-              <span>{t('maps.terrainFilter')}</span>
-              <select value={terrainFilter ?? ''} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; terrainFilter = v === '' ? null : Number(v) }}>
-                <option value="">{t('maps.allTerrains')}</option>
-                {#each allTerrains as id (id)}<option value={id}>{terrainName(id)}</option>{/each}
-              </select>
-            </label>
-            <div class="palette-scroll">
-              <canvas
-                bind:this={paletteCanvas}
-                width={palColumns * palCell}
-                height={Math.max(1, Math.ceil(palTiles.length / palColumns)) * palCell}
-                onmousedown={(e) => { e.preventDefault(); const c = paletteCell(e); paletteDrag = { a: c, b: c } }}
-                onmousemove={(e) => { if (paletteDrag && e.buttons & 1) paletteDrag = { a: paletteDrag.a, b: paletteCell(e) } }}
-              ></canvas>
-            </div>
-            <Help text={paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')} />
+            </details>
           {/if}
         </section>
       </div>
@@ -1668,6 +1681,8 @@
   .similar.nudge { border-color: var(--warn); }
   .pending-actions { display: flex; gap: 0.3rem; }
   .added-tiles summary { cursor: pointer; }
+  .tile-tools { margin-top: 0.4rem; }
+  .tile-tools summary { cursor: pointer; }
   .added-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
   .added { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
   .added canvas { display: block; image-rendering: pixelated; }

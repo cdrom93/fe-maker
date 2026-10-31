@@ -6,8 +6,11 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
 - [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
-## Tickets 82 à 89
+## Tickets 82 à 93
 
+- [ ] #90 Onglets Chapitres et Campagne : un clic sur le titre du chapitre, en haut de sa fiche, le renomme (Entrée pour garder, Échap pour annuler).
+- [ ] #91 Palette de carte : quatre parties, Terrains, Bâtiments, Décors, Toutes les tuiles. Les maisons, forts, arènes sont là même sur une seule case ; coffres et ponts dans Décors, selon le jeu de tuiles. Tourner une tuile est replié tout en bas.
+- [ ] #93 Onglet Dialogues : un ✕ supprime une scène du jeu (tour, « Parler », village, scène appelée) ; elle se rétablit depuis « Scènes supprimées ». L'ouverture et la fin du chapitre restent. Les scènes appelées vides d'un chapitre vidé ne s'affichent plus.
 - [ ] #85 Personnages : la liste montre les alliés, puis les ennemis.
 - [ ] #86 Bibliothèque d'animations : un clic sur le nom d'une arme montre l'aperçu de cette arme.
 - [ ] #87 #88 Projet vierge : plus de message sur l'Iron Sword, ni sur aucune unité du jeu que tu n'utilises pas.

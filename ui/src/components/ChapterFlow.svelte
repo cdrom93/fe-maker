@@ -8,6 +8,7 @@
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import type { ChapterInfo, ChapterLink, ChaptersData, DialogueScene, DialoguesData, EventCommand, Objective, UnitGroup } from '../lib/types'
   import AddChapter from './AddChapter.svelte'
+  import ChapterTitle from './ChapterTitle.svelte'
   import Mention from './Mention.svelte'
 
   // The campaign (tickets 31, 39; interface mockups of 25/10/2026): chapters as cards with their map,
@@ -431,10 +432,7 @@
     {@const mine = links[selected] ?? []}
     <section class="panel detail">
       <span class="card-num">{t('flow.chapterNumber', { n: selected })}</span>
-      <h2 class="sheet-title">{title(selected)}</h2>
-      <label class="rename">{t('flow.add.title')}
-        <input value={chapters[selected].title} maxlength="40" title={t('flow.renameHint')} onchange={(e) => rename((e.target as HTMLInputElement).value)} />
-      </label>
+      <h2 class="sheet-title"><ChapterTitle title={title(selected)} value={chapters[selected].title} onrename={rename} /></h2>
       <img class="pixel detail-map" src={chapterMapUrl(selected)} alt="" />
       <ol class="work">
         {#if chapters[selected].map}<li><Mention kind="maps" id={chapters[selected].map}>{t('flow.step.map')}</Mention></li>{/if}
@@ -603,6 +601,4 @@
   @media (max-width: 1000px) { .flow { grid-template-columns: 1fr; } }
   .music { margin: 0.6rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
   .music h4, .music p { flex-basis: 100%; margin: 0; }
-  .rename { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; margin-bottom: 0.4rem; }
-  .rename input { flex: 1; min-width: 0; }
 </style>

@@ -398,6 +398,8 @@ export interface DialoguesData {
   scripts?: Record<string, EventCommand[]>
   /** What the project changed in what starts the game's scenes, by scene. */
   triggers?: Record<string, Partial<DialogueScene['trigger']>>
+  /** scenes of the game nothing starts any more */
+  removedScenes?: string[]
 }
 
 /** A command of an event script: a macro and its arguments (no args: a bare macro);
@@ -595,7 +597,8 @@ export interface TiledMap {
 
 /** A whole building of the game's maps (ticket 41): a block painted in one click. */
 export interface MapPiece {
-  kind: 'village' | 'house' | 'armory' | 'vendor' | 'arena' | 'castle' | 'fort' | 'church' | 'inn' | 'gate'
+  group: 'building' | 'decor'
+  kind: string
   rows: number[][]
   uses: number
   maps: string[]

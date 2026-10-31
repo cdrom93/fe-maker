@@ -794,6 +794,20 @@ def test_a_scene_moved_to_another_turn_builds_and_plays(tmp_path):
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
 
+def test_a_removed_scene_builds_and_plays(tmp_path):
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "gone", "Gone")
+    scene = next(s for s in DecompData(project.decomp_dir).chapter_dialogues(0)
+                 if s["trigger"]["kind"] == "turn" and not s["trigger"].get("via"))
+    dialogues = project.load("dialogues")
+    dialogues["removedScenes"] = [scene["script"]]
+    project.save("dialogues", dialogues)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
 def test_hp_bars_under_wounded_units(tmp_path):
     project = Project.create(tmp_path / "bars", "Bars")
     project.set_game_options({"hpBars": True})
