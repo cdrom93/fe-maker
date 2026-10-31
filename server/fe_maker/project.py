@@ -143,7 +143,7 @@ class Project:
                             classes=self.load("classes"), combat=self.load("combat"), chapters=chapters,
                             maps=self.load("maps"), dialogues=self.load("dialogues"),
                             portraits=self.load("portraits"), assets_dir=self.root / "assets",
-                            animations=self.load("animations"))
+                            animations=self.load("animations"), unplayed=newchapter.unplayed_groups(self))
         if chapters.get("blankCharacters"):   # the game's chapters still carry the characters a blank project dropped
             ids = {c["id"] for c in characters}
             problems = [p for p in problems if p.kind != "characters" or p.id in ids]

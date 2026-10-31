@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
   import { onMount, untrack } from 'svelte'
   import { aiPreset } from '../lib/ai'
@@ -411,6 +412,29 @@
     <div class="detail">
       <section class="panel">
         <h2>{chapter.title || chapter.code} <span class="muted id">{chapter.code}</span> <Help text={t('chapter.editHint')} /></h2>
+        {#if objective}
+          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
+            battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
+            originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
+        {/if}
+        <label class="check small convoy" title={t('chapter.convoyHint')}>
+          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
+          {t('chapter.convoy')}
+          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+        <label class="check small convoy" title={t('chapter.fogHint')}>
+          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
+          {t('chapter.fog')}
+          {#if fog > 0}
+            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
+            </select>
+          {/if}
+          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+      </section>
+
+      <section class="panel">
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
               <span class="group" class:open={openGroup === g.name}>
@@ -462,7 +486,7 @@
                 <tbody>
                   {#each unitsOf(og) as u, i (i)}
                     <tr class:picked={picked?.group === og && picked.index === i} onclick={() => (picked = { group: og, index: i })}>
-                      <td class="sprite"><img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></td>
+                      <td class="sprite"><img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" use:hideBroken /></td>
                       <td><button class="link" onclick={() => (picked = { group: og, index: i })}>{unitName(u)}</button></td>
                       <td>{classById.get(effectiveClass(u))?.name ?? effectiveClass(u)}<GenderSign gender={classById.get(effectiveClass(u))?.gender} /></td>
                       <td>{u.level}</td>
@@ -535,7 +559,7 @@
                       ondragend={() => (dragging = null)}
                       onclick={() => (picked = { group: g.name, index: i })}
                     >
-                      <img src={mapSpriteUrl(effectiveClass(u), u.side)} alt="" draggable="false" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+                      <img src={mapSpriteUrl(effectiveClass(u), u.side)} alt="" draggable="false" use:hideBroken />
                     </button>
                   {/each}
                 {/if}
@@ -616,28 +640,6 @@
         </section>
       </div>
 
-      <section class="panel">
-        {#if objective}
-          <ObjectivePanel {objective} edited={!!objectiveEdit} problems={objectiveProblems} bind:picking={pickingSeize} {characters}
-            battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
-            originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
-        {/if}
-        <label class="check small convoy" title={t('chapter.convoyHint')}>
-          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
-          {t('chapter.convoy')}
-          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-        <label class="check small convoy" title={t('chapter.fogHint')}>
-          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
-          {t('chapter.fog')}
-          {#if fog > 0}
-            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
-              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
-            </select>
-          {/if}
-          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-      </section>
     </div>
   {/if}
 </div>

@@ -115,7 +115,8 @@ def animated_weapons(decomp: DecompData, animations: dict | None) -> dict[str, l
 def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
              chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None,
-             portraits: dict | None = None, assets_dir=None, animations: dict | None = None) -> list[Problem]:
+             portraits: dict | None = None, assets_dir=None, animations: dict | None = None,
+             unplayed: frozenset | set = frozenset()) -> list[Problem]:
     global _font, _animated
     _animated = animated_weapons(decomp, animations)
     _font = fonts.widths(decomp.decomp_dir)
@@ -220,7 +221,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     if chapters is not None:
         _validate_chapters(problems, chapters, class_ids, {c["id"] for c in characters}, {i["id"] for i in items}, decomp)
         _validate_unit_weapons(problems, decomp, chapters, characters,
-                               classes if classes is not None else decomp.export_classes(), items)
+                               classes if classes is not None else decomp.export_classes(), items, unplayed)
     if maps is not None:
         _validate_maps(problems, maps, decomp.decomp_dir)
         if chapters is not None:
@@ -669,7 +670,8 @@ def weapon_problem(item: dict, character: dict | None, cls: dict | None) -> tupl
     return None
 
 
-def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[dict], classes: list[dict], items: list[dict]):
+def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[dict], classes: list[dict], items: list[dict],
+                           unplayed=frozenset()):
     """Weapons that units of the chapters carry but cannot use. Only what the project changed is
     reported (a unit edited, or a character, class or item that changed): the original game gives
     enemies weapons they only drop."""
@@ -698,6 +700,7 @@ def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[di
 
     current = {name: edited.get(name, g.units) for name, g in original_groups.items()}
     current.update({name: unit_list for name, unit_list in edited.items() if name not in current})
+    current = {name: unit_list for name, unit_list in current.items() if name not in unplayed}
     original_items = {i["id"]: i for i in decomp.export_items()}
     before = unusable({name: g.units for name, g in original_groups.items()}, decomp.export_characters(),
                       decomp.export_classes(), list(original_items.values()))

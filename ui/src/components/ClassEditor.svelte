@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
   import { api, mapSpriteUrl } from '../lib/api'
   import { mapSpriteVersion } from '../lib/portraits.svelte'
@@ -129,7 +130,7 @@
 <div class="editor">
   <RecordList records={classes} {selected} onselect={(i) => (selected = i)} secondary={(k) => !k.usedInGame} secondaryLabel={t('list.unusedClasses')} {problemIds}>
     {#snippet icon(k: ClassView)}
-      <span class="sprite"><img src={mapSpriteUrl(spriteClass(k), 'player', true)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} /></span>
+      <span class="sprite"><img src={mapSpriteUrl(spriteClass(k), 'player', true)} alt="" loading="lazy" use:hideBroken /></span>
     {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
   </RecordList>
@@ -181,7 +182,7 @@
         <h3>{t('mapsprite.title')}</h3>
         <div class="sprite-row">
           {#each ['player', 'enemy', 'ally'] as side (side)}
-            <img class="big-sprite" src={mapSpriteUrl(spriteClass(cl), side)} alt="" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+            <img class="big-sprite" src={mapSpriteUrl(spriteClass(cl), side)} alt="" use:hideBroken />
           {/each}
           <div class="sprite-info">
             {#if mySprite}

@@ -54,6 +54,20 @@ def reached_chapters(links: list[list[dict]]) -> set[int]:
     return set(story_order(links))
 
 
+def unplayed_groups(project) -> set[str]:
+    """Unit groups of the game's chapters a blank project left out: they are still in the decomp, nobody meets them."""
+    stored = project.load("chapters")
+    if not stored.get("blank"):
+        return set()
+    data = DecompData(project.decomp_dir)
+    data._load_chapter_events()
+    played = reached_chapters(data.chapter_links(project.load("dialogues").get("scripts", {})))
+    played |= {int(k) for k in stored.get("added", {})}
+    groups = units.all_chapter_unit_groups(project.decomp_dir)
+    return ({g["name"] for loads in groups.values() for g in loads}
+            - {g["name"] for index in played for g in groups.get(index, [])})
+
+
 def free_slots(data: DecompData, scripts: dict, taken: set[int], blank: bool = False) -> list[int]:
     """Chapters a new one can take: own map, own event group, reached neither by the game's story (unless the project
     is blank) nor the project's (a chapter of the game's story the project has cut off for now is not free: ticket 55)."""

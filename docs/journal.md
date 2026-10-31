@@ -77,3 +77,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 30/10/2026 : pinceaux de terrain refaits après le retour sur « 2ème vague » : solveur de contraintes (wave function collapse) sur les bords des tuiles.
 - 30/10/2026 : vocabulaire unifié (scène, déroulé, dialogue), déclencheurs de tour et de « Parler » modifiables en phrases ; tickets 79-80 (ajouter un chapitre ou une carte depuis l'onglet Chapitres), 81 (danse d'une classe sans sprite de danseuse).
 - 30/10/2026 : premier push de l'alpha (42 commits), dépôt encore privé ; CI verte, image de compilation sur ghcr.io au second essai.
+- 31/10/2026 : tickets 82-84 : objectif en haut de l'onglet Chapitres, projet vierge sans avertissement sur les unités des chapitres du jeu laissés de côté (`newchapter.unplayed_groups`), portrait et sprites réaffichés quand leur image change (`hideBroken`).

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
   import { api, portraitUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -99,14 +100,14 @@
       {#if addError}<p class="bad small">{addError}</p>{/if}
     {/snippet}
     {#snippet icon(c: Character)}
-      <img class="pixel mini" src={portraitUrl(c.portraitId)} alt="" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+      <img class="pixel mini" src={portraitUrl(c.portraitId)} alt="" loading="lazy" use:hideBroken />
     {/snippet}
   </RecordList>
 
   {#if ch}
     <div class="detail">
       <section class="panel identity">
-        <img class="pixel portrait" src={portraitUrl(ch.portraitId)} alt={t('field.portrait')} onerror={(e) => ((e.target as HTMLImageElement).style.visibility = 'hidden')} />
+        <img class="pixel portrait" src={portraitUrl(ch.portraitId)} alt={t('field.portrait')} use:hideBroken />
         <div class="fields">
           <label title={problemFor('name')}>
             {t('field.name')}

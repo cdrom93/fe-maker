@@ -165,6 +165,17 @@ def test_unusable_weapons_of_units(decomp_dir):
     assert ("UnitDef_TestChapter#0", "weaponReserved") in found
 
 
+def test_units_of_chapters_nobody_plays_are_not_checked(decomp_dir):
+    d = DecompData(decomp_dir)
+    chars, items = d.export_characters(), d.export_items()
+    groups = {"UnitDef_TestChapter": [
+        {"character": "CHARACTER_TESTRIVAL", "class": "CLASS_TESTKNIGHT", "items": ["ITEM_TESTBLADE"], "endX": 2, "endY": 1}]}
+    chapters = {"unitGroups": groups, "objectives": {}}
+    assert any(p.code == "weaponReserved" for p in validate(chars, items, d, chapters=chapters))
+    found = validate(chars, items, d, chapters=chapters, unplayed={"UnitDef_TestChapter"})
+    assert not any(p.code == "weaponReserved" for p in found)
+
+
 def test_manual_change_must_hold_its_object(monkeypatch):
     from fe_maker.decomp import mapobjects
     from fe_maker.validation import _validate_map_objects
