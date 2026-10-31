@@ -8,7 +8,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
+  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, LevelBonus, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -107,6 +107,20 @@
       c.wallHp ??= {}
       if (same) delete c.wallHp[key]
       else c.wallHp[key] = hp
+    })
+  }
+  const levelBonus = $derived(chapter ? (list.records[0]?.levelBonus?.[String(chapter.index)] ?? chapter.levelBonus) : undefined)
+  const levelBonusEdited = $derived(chapter ? list.records[0]?.levelBonus?.[String(chapter.index)] !== undefined : false)
+  /** The game's values are not stored. */
+  function setLevelBonus(mode: keyof LevelBonus, n: number) {
+    if (!chapter || !levelBonus) return
+    const key = String(chapter.index)
+    const next = { ...$state.snapshot(levelBonus), [mode]: n }
+    const same = (Object.keys(next) as (keyof LevelBonus)[]).every((m) => next[m] === chapter.levelBonus[m])
+    list.update(0, (c) => {
+      c.levelBonus ??= {}
+      if (same) delete c.levelBonus[key]
+      else c.levelBonus[key] = next
     })
   }
   // The map image changes with the project's painting of this chapter's layout.
@@ -503,6 +517,16 @@
           <Help text={t('chapter.wallHpHint')} />
           {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
         </div>
+        {#if levelBonus}
+          <div class="row wall-hp">
+            <span class="small">{t('chapter.levelBonus')}</span>
+            <NumberField label={t('chapter.levelEasy')} value={levelBonus.easy} min={0} max={15} compact onchange={(v) => setLevelBonus('easy', v)} />
+            <NumberField label={t('chapter.levelNormal')} value={levelBonus.normal} min={0} max={15} compact onchange={(v) => setLevelBonus('normal', v)} />
+            <NumberField label={t('chapter.levelHard')} value={levelBonus.hard} min={0} max={15} compact onchange={(v) => setLevelBonus('hard', v)} />
+            <Help text={t('chapter.levelBonusHint')} />
+            {#if levelBonusEdited}<span class="edited">✎</span>{/if}
+          </div>
+        {/if}
       </section>
 
       <section class="panel">

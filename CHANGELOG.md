@@ -10,6 +10,7 @@ First public test version, Windows first.
 - Character sheet: starting level, average stats at a chosen level with a promotion, and a character's own colours in battle: click the sprite to recolour a part with its shades.
 - A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter, with an "Automatic levels" box for every unit.
 - Character sheet: portrait picked by its picture, affinities with the game's icons and their bonuses, limits of the promoted class in the calculator.
+- Enemy levels by difficulty, chapter by chapter; the calculator follows both promotions of trainee classes; a character's gender follows their class.
 - Help bubbles are larger, in the interface's font, and sit next to what they explain.
 - Add characters, weapons, classes and chapters on the free slots of the game's tables.
 - Blank project: start from one empty chapter.

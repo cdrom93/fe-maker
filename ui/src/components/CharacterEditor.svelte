@@ -84,16 +84,29 @@
   }
 
   let averageLevel = $state(20)
-  let promoteTo = $state('')
-  let levelAfter = $state(10)
-  const promotions = $derived((cls?.promotions ?? []).flatMap((id) => classes.filter((c) => c.id === id)))
-  const promoted = $derived(promotions.find((c) => c.id === promoteTo))
+  /** Promotions chosen in the calculator, in order (a trainee class promotes twice), and the level reached after each. */
+  let promoteTo = $state<string[]>([])
+  let levelsAfter = $state<number[]>([])
+  const levelCap = (c?: ClassView) => (c?.abilities.includes('maxLevel10') || ch?.abilities.includes('maxLevel10') ? 10 : 20)
+  const reached = (level: number, c?: ClassView) => Math.min(level, levelCap(c))
+  const steps = $derived.by(() => {
+    const found: { options: ClassView[]; to?: ClassView; level: number }[] = []
+    let from = cls
+    while (from?.promotions?.length) {
+      const options = from.promotions.flatMap((id) => classes.filter((c) => c.id === id))
+      const i = found.length
+      const to = options.find((c) => c.id === promoteTo[i])
+      found.push({ options, to, level: reached(levelsAfter[i] ?? 10, to) })
+      from = to
+    }
+    return found
+  })
   /** The class of the average line: its limits are the ones shown. */
-  const finalClass = $derived(promoted ?? cls)
+  const finalClass = $derived(steps.reduce((c, step) => step.to ?? c, cls))
   let pickingPortrait = $state(false)
   const portraitFaces = $derived(reference.portraits.flatMap((name, id) => (name ? [{ id: String(id), portrait: id }] : [])))
 
-  /** What the character has on average: `averageLevel` in their class, then, once promoted, `levelAfter` in the new one
+  /** What the character has on average: `averageLevel` in their class, then, after each promotion, the level chosen in the new one
    * (as ApplyUnitPromotion: gains, then the new class's limits; constitution comes with the class). */
   function average(s: StatKey): { value: number; capped: boolean } {
     let capped = false
@@ -104,13 +117,22 @@
     }
     const growth = s === 'con' ? 0 : ch.growths[s]
     const start = ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)
-    let value = within(start + (growth * Math.max(0, averageLevel - ch.level)) / 100, cls)
-    if (promoted) {
-      if (s === 'con') value = ch.bases.con + promoted.bases.con
-      else if (s !== 'lck') value += promoted.promotionGains[s]
-      value = within(value + (growth * Math.max(0, levelAfter - 1)) / 100, promoted)
+    let value = within(start + (growth * Math.max(0, reached(averageLevel, cls) - ch.level)) / 100, cls)
+    for (const { to, level } of steps) {
+      if (!to) break
+      if (s === 'con') value = ch.bases.con + to.bases.con
+      else if (s !== 'lck') value += to.promotionGains[s]
+      value = within(value + (growth * Math.max(0, level - 1)) / 100, to)
     }
     return { value: Number(value.toFixed(1)), capped }
+  }
+  /** The character's gender follows their class, when the class has one (monsters have none). */
+  function setClass(id: string) {
+    const gender = classes.find((c) => c.id === id)?.gender
+    edit((c) => {
+      c.class = id
+      if (gender) c.abilities = [...c.abilities.filter((a) => a !== 'female'), ...(gender === 'female' ? ['female'] : [])]
+    })
   }
   const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
   let colorsOpen = $state(false)
@@ -172,13 +194,13 @@
           <label title={problemFor('class')}>
             <span>{t('field.class')} <Help text={t('field.classHint')} /></span>
             <span class="with-sign">
-              <ClassPicker value={ch.class} {classes} label={t('field.class')} onchange={(v) => edit((c) => (c.class = v))} />
+              <ClassPicker value={ch.class} {classes} label={t('field.class')} onchange={setClass} />
               <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
           {#each mine.filter((p) => p.field === 'class') as p, i (i)}<p class="{p.severity} small">{problemText(p)}</p>{/each}
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
-          <div class="row">
+          <div class="row top">
             <NumberField label={t('field.level')} value={ch.level} min={0} max={127} problem={problemFor('level')} onchange={(v) => edit((c) => (c.level = v))} />
             <AffinityPicker value={ch.affinity} affinities={reference.affinities} bonuses={reference.affinityBonuses} problem={problemFor('affinity')}
                             onchange={(v) => edit((c) => (c.affinity = v))} />
@@ -230,7 +252,7 @@
                 <td>{cls?.mov ?? '?'}</td>
               </tr>
               <tr class="muted">
-                <th>{t('field.max')}{#if promoted} · {promoted.name}{/if}</th>
+                <th>{t('field.max')}{finalClass === cls ? '' : ` · ${finalClass?.name}`}</th>
                 {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (finalClass?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
                 <td></td>
               </tr>
@@ -247,18 +269,18 @@
         </div>
         <div class="average-of">
           <span>{t('field.averageLevel')}</span>
-          <NumberField compact label="" value={averageLevel} min={1} max={127} onchange={(v) => (averageLevel = v)} />
-          {#if promotions.length}
+          <NumberField compact label="" value={reached(averageLevel, cls)} min={1} max={levelCap(cls)} onchange={(v) => (averageLevel = v)} />
+          {#each steps as step, i (i)}
             <span>→</span>
-            <select bind:value={() => promoted?.id ?? '', (v) => (promoteTo = v)} aria-label={t('field.averageNoPromotion')}>
+            <select bind:value={() => step.to?.id ?? '', (v) => (promoteTo = [...promoteTo.slice(0, i), v])} aria-label={t('field.averageNoPromotion')}>
               <option value="">{t('field.averageNoPromotion')}</option>
-              {#each promotions as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+              {#each step.options as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
             </select>
-            {#if promoted}
+            {#if step.to}
               <span>{t('field.averageLevel')}</span>
-              <NumberField compact label="" value={levelAfter} min={1} max={127} onchange={(v) => (levelAfter = v)} />
+              <NumberField compact label="" value={step.level} min={1} max={levelCap(step.to)} onchange={(v) => { levelsAfter[i] = v }} />
             {/if}
-          {/if}
+          {/each}
           <Help text={t('field.averageHint')} />
         </div>
       </section>
@@ -327,6 +349,7 @@
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .identity { display: flex; gap: 1.25rem; align-items: flex-start; }
+  .row.top { align-items: flex-start; }
   .portrait-button { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex-shrink: 0; padding: 0.3rem; background: none; border-color: transparent; }
   .portrait-button:hover .small { text-decoration: underline; }
   .portrait { width: 96px; height: 96px; background: var(--panel-2); border-radius: var(--radius); flex-shrink: 0; }

@@ -99,6 +99,14 @@ def test_autolevel_is_written_on_the_game_units_only_when_it_changes(tmp_path, d
     assert units.read_unit_groups(project.generate_overlay(decomp_dir))["UnitDef_TestChapter"].units[0]["autolevel"] is True
 
 
+def test_level_bonus_of_a_chapter():
+    from fe_maker.decomp.gamedata import _set_level_bonus
+
+    settings = [{}, {"easyModeLevelMalus": 4}]
+    _set_level_bonus(settings, {"1": {"normal": 2, "hard": 30}})
+    assert settings == [{}, {"easyModeLevelMalus": 4, "normalModeLevelMalus": 2, "difficultModeLevelBonus": 15}]
+
+
 def test_affinity_bonuses(tmp_path):
     from fe_maker.decomp import combat
 

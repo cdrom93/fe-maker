@@ -125,6 +125,7 @@ export interface ChapterInfo {
   fog: number
   /** HP of the map's cracked walls in the game */
   wallHp: number
+  levelBonus: LevelBonus
 }
 
 export interface MapUnit {
@@ -169,6 +170,7 @@ export interface ChaptersData {
   fog?: Record<string, number>
   /** HP of the cracked walls, by chapter index, once changed from the game */
   wallHp?: Record<string, number>
+  levelBonus?: Record<string, LevelBonus>
 }
 
 export type ObjectiveType = 'seize' | 'defeat_all' | 'defeat_boss' | 'defense' | 'area' | 'special'
@@ -346,6 +348,13 @@ export interface ChapterUnits {
   width: number
   height: number
   groups: UnitGroup[]
+}
+
+/** Levels the game takes from a chapter's enemies in easy and normal, and adds in hard. */
+export interface LevelBonus {
+  easy: number
+  normal: number
+  hard: number
 }
 
 export interface AffinityBonus {

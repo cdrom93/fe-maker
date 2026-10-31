@@ -214,5 +214,5 @@ export const portraitUrl = (id: number, face = false, expression?: { smile?: boo
   `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}` +
   `${expression?.smile ? '&smile=true' : ''}${expression?.eyes && expression.eyes !== 'open' ? `&eyes=${expression.eyes}` : ''}`
 export const portraitSheetUrl = (id: number) => `/api/portraits/${id}/sheet.png?v=${portraitVersion.n}`
-export const itemIconUrl = (id: number) => `/api/assets/item-icon/${id}`
+export const itemIconUrl = (id: number, line = 0) => `/api/assets/item-icon/${id}${line ? `?line=${line}` : ''}`
 export const patchUrl = '/api/project/patch'

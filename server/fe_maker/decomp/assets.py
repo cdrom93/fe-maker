@@ -163,10 +163,11 @@ def _render_image(img: Image.Image, palette: list[tuple[int, int, int]], scale: 
     return out.getvalue()
 
 
-def item_icon_preview(decomp_dir: Path, icon_files: list[str], icon_id: int, scale: int = 3) -> bytes | None:
+def item_icon_preview(decomp_dir: Path, icon_files: list[str], icon_id: int, scale: int = 3, line: int = 0) -> bytes | None:
+    """An icon of the game; `line` is its palette: 0 for items, 1 for affinities and the status screen's other icons."""
     if not 0 <= icon_id < len(icon_files):
         return None
     png = decomp_dir / icon_files[icon_id]
     if not png.is_file():
         return None
-    return render_indexed(png, read_agbpal(decomp_dir / ITEM_ICON_PALETTE), scale)
+    return render_indexed(png, read_agbpal(decomp_dir / ITEM_ICON_PALETTE)[16 * line:], scale)

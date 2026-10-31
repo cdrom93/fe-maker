@@ -67,6 +67,7 @@ from .decomp.cparse import parse_int
 from .decomp.gamedata import (
     ABILITIES,
     AFFINITIES,
+    LEVEL_BONUS_FIELDS,
     NAMED_GENERICS,
     NEW_CHARACTER_PREFIX,
     NEW_CLASS_PREFIX,
@@ -445,6 +446,7 @@ def list_chapters():
             "prep": _has_prep(i, ch, stored, scripts),   # unless changed (ticket 107)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
             "wallHp": ch.get("mapCrackedWallHeath", 50),
+            "levelBonus": {mode: ch.get(field, 0) for mode, field in LEVEL_BONUS_FIELDS.items()},
         })
     return result
 
@@ -1607,8 +1609,8 @@ def portrait(portrait_id: int, face: bool = False, smile: bool = False, eyes: st
 
 
 @app.get("/api/assets/item-icon/{icon_id}")
-def item_icon(icon_id: int):
-    png = item_icon_preview(DECOMP_DIR, state.get_decomp().item_icon_files(), icon_id)
+def item_icon(icon_id: int, line: int = 0):
+    png = item_icon_preview(DECOMP_DIR, state.get_decomp().item_icon_files(), icon_id, line=1 if line else 0)
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")

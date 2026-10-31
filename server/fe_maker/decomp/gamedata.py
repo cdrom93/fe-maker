@@ -74,6 +74,17 @@ NEW_ITEM_PREFIX = "ITEM_NEW_"
 LAST_ITEM_NUMBER = 0xFE
 CLASS_CONSTANTS_FILE = "include/constants/classes.h"
 MOVING_SPRITES_FILE = "src/unit_icon_move_data.c"
+# Levels the game adds to or takes from a chapter's enemies, by difficulty (chapter settings, 4 bits each)
+LEVEL_BONUS_FIELDS = {"easy": "easyModeLevelMalus", "normal": "normalModeLevelMalus", "hard": "difficultModeLevelBonus"}
+
+
+def _set_level_bonus(settings: list[dict], edits: dict) -> None:
+    for index, bonus in edits.items():
+        for mode, field in LEVEL_BONUS_FIELDS.items():
+            if mode in bonus:
+                settings[int(index)][field] = max(0, min(int(bonus[mode]), 15))
+
+
 # A class the project adds copies a model class (stats, battle animations, map sprites, promotions), numbered
 # from 0x80 after the game's classes. unit_icon_move_table has one row per class, in order: new classes follow.
 NEW_CLASS_PREFIX = "CLASS_NEW_"
@@ -463,6 +474,9 @@ class DecompData:
             self._load_chapter_events()
             for index, hp in wall_hp.items():
                 self.chapter_settings["chapters"][index]["mapCrackedWallHeath"] = max(1, min(hp, 127))
+        if chapters.get("levelBonus"):
+            self._load_chapter_events()
+            _set_level_bonus(self.chapter_settings["chapters"], chapters["levelBonus"])
         # Titles of the chapters the project adds (newchapter.py): a text of their own, the slot's may be shared
         titles = {int(k): str(v) for k, v in chapters.get("titles", {}).items()}
         if titles:
