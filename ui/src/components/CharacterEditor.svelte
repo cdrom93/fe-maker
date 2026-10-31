@@ -14,6 +14,8 @@
   import PortraitPanel from './PortraitPanel.svelte'
   import ClassPicker from './ClassPicker.svelte'
   import CharacterColors from './CharacterColors.svelte'
+  import FacePicker from './FacePicker.svelte'
+  import AffinityPicker from './AffinityPicker.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
@@ -86,6 +88,10 @@
   let levelAfter = $state(10)
   const promotions = $derived((cls?.promotions ?? []).flatMap((id) => classes.filter((c) => c.id === id)))
   const promoted = $derived(promotions.find((c) => c.id === promoteTo))
+  /** The class of the average line: its limits are the ones shown. */
+  const finalClass = $derived(promoted ?? cls)
+  let pickingPortrait = $state(false)
+  const portraitFaces = $derived(reference.portraits.flatMap((name, id) => (name ? [{ id: String(id), portrait: id }] : [])))
 
   /** What the character has on average: `averageLevel` in their class, then, once promoted, `levelAfter` in the new one
    * (as ApplyUnitPromotion: gains, then the new class's limits; constitution comes with the class). */
@@ -150,38 +156,32 @@
   {#if ch}
     <div class="detail">
       <section class="panel identity">
-        <img class="pixel portrait" src={portraitUrl(ch.portraitId)} alt={t('field.portrait')} use:hideBroken />
+        <button class="portrait-button" title={t('field.changePortrait')} onclick={() => (pickingPortrait = !pickingPortrait)}>
+          <img class="pixel portrait" src={portraitUrl(ch.portraitId)} alt={t('field.portrait')} use:hideBroken />
+          <span class="small">{t('field.changePortrait')}</span>
+        </button>
         <div class="fields">
+          {#if pickingPortrait}
+            <FacePicker faces={portraitFaces} label={(id) => reference.portraits[Number(id)] ?? id} hint=""
+                        onpick={(id) => { pickingPortrait = false; edit((c) => (c.portraitId = Number(id))) }} onclose={() => (pickingPortrait = false)} />
+          {/if}
           <label title={problemFor('name')}>
             {t('field.name')}
             <input value={ch.name} class:invalid={!!problemFor('name')} oninput={(e) => edit((c) => (c.name = (e.target as HTMLInputElement).value))} />
           </label>
           <label title={problemFor('class')}>
-            {t('field.class')}
+            <span>{t('field.class')} <Help text={t('field.classHint')} /></span>
             <span class="with-sign">
               <ClassPicker value={ch.class} {classes} label={t('field.class')} onchange={(v) => edit((c) => (c.class = v))} />
               <Mention kind="classes" id={ch.class}><span class="open">↗</span></Mention>
             </span>
           </label>
           {#each mine.filter((p) => p.field === 'class') as p, i (i)}<p class="{p.severity} small">{problemText(p)}</p>{/each}
-          <Help text={t('field.classHint')} />
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
             <NumberField label={t('field.level')} value={ch.level} min={0} max={127} problem={problemFor('level')} onchange={(v) => edit((c) => (c.level = v))} />
-            <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
-            <label title={problemFor('affinity')}>
-              {t('field.affinity')}
-              <select
-                value={ch.affinity ?? ''}
-                onchange={(e) => {
-                  const v = (e.target as HTMLSelectElement).value
-                  edit((c) => (c.affinity = v || null))
-                }}
-              >
-                <option value="">{t('field.none')}</option>
-                {#each reference.affinities as a (a)}<option value={a}>{t(`affinity.${a}`)}</option>{/each}
-              </select>
-            </label>
+            <AffinityPicker value={ch.affinity} affinities={reference.affinities} bonuses={reference.affinityBonuses} problem={problemFor('affinity')}
+                            onchange={(v) => edit((c) => (c.affinity = v))} />
           </div>
           <DescriptionField value={ch.description ?? reference.descriptions.characters[ch.id] ?? ''} onchange={(text) => edit((c) => (c.description = text))} />
           <p class="small links">
@@ -191,8 +191,8 @@
           </p>
           <details class="portrait-details" open={ch.portraitId === 0}>
             <summary>{ch.portraitId >= reference.firstNewPortrait && reference.portraits[ch.portraitId]
-              ? t('portrait.titleNew', { id: ch.portraitId, name: reference.portraits[ch.portraitId] ?? '' })
-              : t('portrait.title', { id: ch.portraitId })}</summary>
+              ? t('portrait.titleNew', { name: reference.portraits[ch.portraitId] ?? '' })
+              : t('portrait.title')}</summary>
             <PortraitPanel portraitId={ch.portraitId} {problems} {onproblems} characterName={ch.name} onnew={(id, name) => {
               while (reference.portraits.length <= id) reference.portraits.push(null)
               reference.portraits[id] = name
@@ -230,8 +230,8 @@
                 <td>{cls?.mov ?? '?'}</td>
               </tr>
               <tr class="muted">
-                <th>{t('field.max')}</th>
-                {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (cls?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
+                <th>{t('field.max')}{#if promoted} · {promoted.name}{/if}</th>
+                {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (finalClass?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
                 <td></td>
               </tr>
               <tr class="average">
@@ -240,7 +240,7 @@
                   {@const a = average(s)}
                   <td class:capped={a.capped}>{a.value}</td>
                 {/each}
-                <td>{(promoted ?? cls)?.mov ?? '?'}</td>
+                <td>{finalClass?.mov ?? '?'}</td>
               </tr>
             </tbody>
           </table>
@@ -274,7 +274,7 @@
       </details>
 
       <details class="panel fold">
-        <summary>{t('field.weaponRanks')}</summary>
+        <summary>{t('field.weaponRanks')} <Help text={`${t('field.noAnimationHint')} ${t('field.inventoryLater')}`} /></summary>
         <div class="grid">
           {#each reference.rankableTypes as w (w)}
             <label title={problemFor(`weaponRanks.${w}`)}>
@@ -286,7 +286,6 @@
             </label>
           {/each}
         </div>
-        <Help text={`${t('field.noAnimationHint')} ${t('field.inventoryLater')}`} />
       </details>
 
       <details class="panel fold" ontoggle={(e) => (colorsOpen = (e.target as HTMLDetailsElement).open)}>
@@ -328,6 +327,8 @@
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .identity { display: flex; gap: 1.25rem; align-items: flex-start; }
+  .portrait-button { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex-shrink: 0; padding: 0.3rem; background: none; border-color: transparent; }
+  .portrait-button:hover .small { text-decoration: underline; }
   .portrait { width: 96px; height: 96px; background: var(--panel-2); border-radius: var(--radius); flex-shrink: 0; }
   .mini { width: 32px; height: 32px; flex-shrink: 0; }
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }

@@ -8,7 +8,9 @@ First public test version, Windows first.
 - Edit characters, classes, items, combat rules, chapters, maps, dialogues, supports and events without code.
 - Scenes with a visual sequence: drag lines and condition blocks, change stats, go to another chapter, and memories: Yes / No questions and the player's past choices, by name.
 - Character sheet: starting level, average stats at a chosen level with a promotion, and a character's own colours in battle: click the sprite to recolour a part with its shades.
-- A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter.
+- A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter, with an "Automatic levels" box for every unit.
+- Character sheet: portrait picked by its picture, affinities with the game's icons and their bonuses, limits of the promoted class in the calculator.
+- Help bubbles are larger, in the interface's font, and sit next to what they explain.
 - Add characters, weapons, classes and chapters on the free slots of the game's tables.
 - Blank project: start from one empty chapter.
 - Maps: painting, terrain brushes that join by themselves, filling empty space, buildings as blocks, tile sheets, villages, chests and doors, Tiled import and export.

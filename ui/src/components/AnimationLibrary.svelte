@@ -161,10 +161,10 @@
       </label>
     {/each}
     {#if weaponFilter.length}<button class="link small" onclick={() => { weaponFilter = []; run() }}>{t('banim.allWeapons')}</button>{/if}
+    {#if loading && weaponFilter.length}<Help text={t('banim.weaponFilterHint')} />{/if}
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}
-  {#if loading && weaponFilter.length}<Help text={t('banim.weaponFilterHint')} />{/if}
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}

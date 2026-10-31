@@ -22,8 +22,7 @@
   const targetLabel = (n: number) => (n < NAMED_TARGETS ? t(`ai.target.${n}`) : t('ai.targetN', { n }))
 </script>
 
-<h3>{t('ai.title')}</h3>
-{#if side === 'player'}<Help text={t('ai.playerHint')} />{/if}
+<h3>{t('ai.title')}{#if side === 'player'} <Help text={t('ai.playerHint')} />{/if}</h3>
 {#if bytes}
   <label>
     <span>{t('ai.preset')}</span>

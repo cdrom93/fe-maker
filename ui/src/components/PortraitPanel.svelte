@@ -180,10 +180,9 @@
   </div>
   <div class="side">
     {#if info?.added}
-      <label class="small name">{t('portrait.name')}
+      <label class="small name"><span>{t('portrait.name')} <Help text={t('portrait.addedHint')} /></span>
         <input value={info.name} maxlength="40" onchange={(e) => rename((e.target as HTMLInputElement).value)} />
       </label>
-      <Help text={t('portrait.addedHint', { id: portraitId })} />
     {:else}
       <p class="small">
         {#if imported}<strong>{t('portrait.imported')}</strong>{:else}{t('portrait.game', { name: info?.name ?? '' })}{/if}
@@ -199,6 +198,7 @@
       {:else if imported}
         <button class="link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>
       {/if}
+      <Help text={t('portrait.hint')} />
     </div>
     <input type="file" accept="image/png" hidden bind:this={fileInput} onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
     {#if onnew && info && !info.added}{@render addNew()}{/if}
@@ -216,7 +216,6 @@
         <NumberField label={t('portrait.eyesY')} value={imported.eyes[1]} min={0} max={8} compact onchange={(v) => move('eyes', 1, v)} />
       </div>
     {/if}
-    <Help text={t('portrait.hint')} />
     {#if error}<p class="bad small">{error}</p>{/if}
     {#each myProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
   </div>

@@ -8,6 +8,7 @@
     faces,
     label,
     first = [],
+    hint = t('dlg.pickFaceHint'),
     onpick,
     onclose,
   }: {
@@ -15,6 +16,7 @@
     label: (id: string) => string
     /** faces shown first (the chapter's speakers) */
     first?: string[]
+    hint?: string
     onpick: (face: string) => void
     onclose: () => void
   } = $props()
@@ -36,7 +38,7 @@
            onkeydown={(e) => { if (e.key === 'Escape') onclose(); if (e.key === 'Enter' && shown[0]) onpick(shown[0].id) }} />
     <button class="close" onclick={onclose} aria-label={t('dlg.close')}>✕</button>
   </div>
-  <p class="muted tiny">{t('dlg.pickFaceHint')}</p>
+  {#if hint}<p class="muted tiny">{hint}</p>{/if}
   <div class="grid">
     {#each shown as f (f.id)}
       <button class="face" title={label(f.id)} draggable="true" onclick={() => onpick(f.id)}

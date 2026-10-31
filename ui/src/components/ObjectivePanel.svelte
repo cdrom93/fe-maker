@@ -69,11 +69,11 @@
         </select>
       </label>
       {#if boss}<Mention kind="characters" id={boss.id}><span class="open">↗</span></Mention>{/if}
+      {#if !objective.bossEditable}<Help text={t('objective.bossPerRoute')} />{/if}
+      {#if boss && !boss.abilities.includes('boss')}<Help text={t('objective.bossAbility')} />{/if}
     </div>
-    {#if !objective.bossEditable}<Help text={t('objective.bossPerRoute')} />{/if}
     {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
     {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
-    {#if boss && !boss.abilities.includes('boss')}<Help text={t('objective.bossAbility')} />{/if}
     {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
 {/snippet}
 
@@ -90,8 +90,8 @@
           <span class="icon" aria-hidden="true">{icon}</span>{t(`objective.type.${type}`)}
         </button>
       {/each}
+      <Help text={t(`objective.hint.${objective.type}`)} />
     </div>
-    <Help text={t(`objective.hint.${objective.type}`)} />
 
     {#if objective.type === 'seize'}
       <div class="row">
@@ -164,7 +164,7 @@
   .head { display: flex; align-items: center; gap: 0.75rem; }
   h3 { margin: 0; font-size: 0.8rem; }
   .edited { color: var(--accent); }
-  .types { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .types { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
   .types button { display: inline-flex; align-items: center; gap: 0.35rem; }
   .types button.active, .row button.active { background: var(--accent-soft); border-color: var(--accent); }
   .icon { font-size: 1rem; line-height: 1; }

@@ -32,6 +32,7 @@ from .decomp import (
     banim,
     banim_import,
     charpalettes,
+    combat,
     convoy,
     dialogues,
     events,
@@ -354,6 +355,7 @@ def reference():
         # Ability key of a weapon lock ("lock4") -> names of the items it unlocks
         "lockItems": d.lock_items(),
         "affinities": list(AFFINITIES.values()),
+        "affinityBonuses": combat.read_affinity_bonuses(DECOMP_DIR),
         "abilities": list(ABILITIES.values()),
         "weaponTypes": list(WEAPON_TYPES.values()),
         "rankableTypes": RANKABLE_TYPES,

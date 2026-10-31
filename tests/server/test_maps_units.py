@@ -88,6 +88,28 @@ def test_a_named_ally_takes_the_level_of_their_sheet(tmp_path, decomp_dir):
     assert ".level = 10," in source()
 
 
+def test_autolevel_is_written_on_the_game_units_only_when_it_changes(tmp_path, decomp_dir):
+    from fe_maker.project import Project
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    game = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+    project.save("chapters", {"unitGroups": {"UnitDef_TestChapter": [{**game[0], "autolevel": True}, game[1], game[2]]}})
+    source = (project.generate_overlay(decomp_dir) / "src" / "events_udefs.c").read_text(encoding="utf-8")
+    assert source.count(".autolevel = 1,") == 1
+    assert units.read_unit_groups(project.generate_overlay(decomp_dir))["UnitDef_TestChapter"].units[0]["autolevel"] is True
+
+
+def test_affinity_bonuses(tmp_path):
+    from fe_maker.decomp import combat
+
+    assert combat.read_affinity_bonuses(tmp_path) == {}
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "bmreliance-data.c").write_text(
+        "struct SupportBonuses gAffinityBonuses[] = {\n    {\n        .affinity = UNIT_AFFIN_FIRE,\n"
+        "        .bonusAttack = 1,\n        .bonusDodge = 0,\n    },\n    { 0 },\n};\n", encoding="utf-8")
+    assert combat.read_affinity_bonuses(tmp_path) == {"fire": {"attack": 1, "dodge": 0}}
+
+
 def test_unit_groups_and_chapter_events(decomp_dir):
     groups = units.read_unit_groups(decomp_dir)
     test = groups["UnitDef_TestChapter"].units

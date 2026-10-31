@@ -1168,13 +1168,12 @@
   {#if info}
     <div class="detail">
       <section class="panel">
-        <h2>{info.name} <span class="muted id">{info.id}</span></h2>
+        <h2>{info.name} <span class="muted id">{info.id}</span> <Help text={t('maps.hint')} /></h2>
         <p class="muted small">
           {t('maps.usedBy')}
           {#each info.chapters as c, k (c)}{#if k}, {/if}<Mention kind="chapters" id={String(c)}>{chapterTitle(c)}</Mention>{/each}
           {#if info.chapters.length > 1}<span class="warn"> — {t('maps.shared', { n: info.chapters.length })}</span>{/if}
         </p>
-        <Help text={t('maps.hint')} />
         <details class="map-settings" open={!!sizeProblem}>
           <summary class="small">{t('maps.settings')}</summary>
         {#if layout}
@@ -1186,7 +1185,7 @@
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
           <details class="bases-panel">
             <summary class="small">{t('maps.base')} : {layout.bases.find((b) => b.id === (chosenBase ?? layout!.originalBase))?.name ?? (chosenBase ?? layout.originalBase)}
-              {#if chosenBase}<span class="edited">✎</span>{/if}</summary>
+              {#if chosenBase}<span class="edited">✎</span>{/if} <Help text={t('maps.baseHint')} /></summary>
             <div class="bases" role="radiogroup" aria-label={t('maps.base')}>
               {#each layout.bases as b (b.id)}
                 {@const names = b.chapters.map(chapterTitle)}
@@ -1199,7 +1198,6 @@
                 </button>
               {/each}
             </div>
-            <Help text={t('maps.baseHint')} />
           </details>
           {#if baseMissing.length}
             <p class="warn small">{t('maps.baseMissing', { terrains: baseMissing.map((m) => layout!.terrainNames[m] || `#${m}`).join(', ') })}</p>
@@ -1299,7 +1297,6 @@
             </div>
             {#if change}
               <div class="change-panel">
-                <Help text={t(change.manual ? 'maps.manualChangeHint' : 'maps.changeEditHint')} />
                 <div class="row">
                   <NumberField label={t('maps.changeId')} value={change.id} min={0} max={MAX_CHANGE_ID} compact onchange={(v) => editChange('id', v)} />
                   <NumberField label="X" value={change.x} min={0} max={width - 1} compact onchange={(v) => editChange('x', v)} />
@@ -1308,6 +1305,7 @@
                   <NumberField label={t('maps.height')} value={change.h} min={1} max={height} compact onchange={(v) => editChange('h', v)} />
                   <button class:active={areaMode === 'edit'} onclick={() => { areaMode = areaMode === 'edit' ? null : 'edit'; areaStart = null }} title={t('maps.changeAreaHint')}>▭ {t('maps.changeArea')}</button>
                   <button class="danger" onclick={removeChange}>{t('maps.removeChange')}</button>
+                  <Help text={t(change.manual ? 'maps.manualChangeHint' : 'maps.changeEditHint')} />
                 </div>
               </div>
             {/if}
@@ -1395,7 +1393,7 @@
               {@const shown = pieces.filter((p) => p.group === group)}
               {#if shown.length}
                 <details class="pieces-panel">
-                  <summary class="small">{t(`maps.pieces.${group}`, { n: shown.length })}</summary>
+                  <summary class="small">{t(`maps.pieces.${group}`, { n: shown.length })} <Help text={t(`maps.pieces.${group}Hint`)} /></summary>
                   <div class="pieces">
                     {#each shown as piece, k (k)}
                       <button class="piece" class:active={stamp === piece.rows} title={piece.maps.length ? t('maps.pieceHint', { kind: t(`maps.piece.${piece.kind}`), maps: piece.maps.map(mapName).join(', ') }) : t(`maps.piece.${piece.kind}`)}
@@ -1405,13 +1403,12 @@
                       </button>
                     {/each}
                   </div>
-                  <Help text={t(`maps.pieces.${group}Hint`)} />
                 </details>
               {/if}
             {/snippet}
             {@render pieceGroup('building')}
             {@render pieceGroup('decor')}
-            <h4 class="small ground-title">{t('maps.tiles')}</h4>
+            <h4 class="small ground-title">{t('maps.tiles')} <Help text={paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')} /></h4>
             <div class="modes" role="radiogroup" aria-label={t('maps.palette')}>
               <button role="radio" aria-checked={paletteMode === 'unique'} class:active={paletteMode === 'unique'} onclick={() => { paletteMode = 'unique'; palettePicked = null }}>{t('maps.palette.unique')}</button>
               <button role="radio" aria-checked={paletteMode === 'sheet'} class:active={paletteMode === 'sheet'} onclick={() => { paletteMode = 'sheet'; palettePicked = null }}>{t('maps.palette.sheet')}</button>
@@ -1432,11 +1429,10 @@
                 onmousemove={(e) => { if (paletteDrag && e.buttons & 1) paletteDrag = { a: paletteDrag.a, b: paletteCell(e) } }}
               ></canvas>
             </div>
-            <Help text={paletteMode === 'sheet' ? t('maps.sheetHint') : t('maps.paletteHint')} />
             <details class="tile-tools" bind:open={toolsOpen}>
               <summary class="small">{t('maps.tileTools')}</summary>
             <div class="transforms">
-              <span class="small">{t('maps.transform')}</span>
+              <span class="small">{t('maps.transform')} <Help text={t('maps.transformHint')} /></span>
               {#each TRANSFORMS as tr (tr.op)}
                 <button title={t(`maps.transform.${tr.op}`)} aria-label={t(`maps.transform.${tr.op}`)} onclick={() => transform(tr.op)}>{tr.icon}</button>
               {/each}
@@ -1470,11 +1466,11 @@
                 {#if pendingNudge}<span class="warn small">{t('maps.pendingNudge')}</span>{/if}
               </div>
             {/if}
-            {#if transformError}<p class="bad small">{transformError}</p>{:else}<Help text={t('maps.transformHint')} />{/if}
+            {#if transformError}<p class="bad small">{transformError}</p>{/if}
             {#if addedSlots.length}
               {@const unused = addedSlots.filter((k) => !addedUsage.has(k))}
               <details class="added-tiles">
-                <summary class="small">{t('maps.addedTiles', { n: addedSlots.length })}</summary>
+                <summary class="small">{t('maps.addedTiles', { n: addedSlots.length })} <Help text={t('maps.addedTilesHint')} /></summary>
                 <div class="added-list">
                   {#each addedSlots as k (k)}
                     {@const u = addedUsage.get(k)}
@@ -1487,7 +1483,6 @@
                     </div>
                   {/each}
                 </div>
-                <Help text={t('maps.addedTilesHint')} />
                 {#if unused.length}<button onclick={() => removeAdded(unused)}>{t('maps.removeUnused', { n: unused.length })}</button>{/if}
               </details>
             {/if}
@@ -1619,10 +1614,9 @@
                   onpick={(face) => { pickingFace = false; setObject(o, { face }) }} />
               {/if}
               <label>
-                <span>{t('maps.obj.text')}</span>
+                <span>{t('maps.obj.text')} <Help text={t('maps.obj.textHint')} /></span>
                 <textarea rows="3" value={st.text ?? ''} onchange={(e) => setObject(o, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
               </label>
-              <Help text={t('maps.obj.textHint')} />
               {#each mapProblems.filter((p) => p.field === 'objects' && p.params.at === keyOf(o)) as pr, i (i)}<p class="bad small">{problemText(pr)}</p>{/each}
             {/if}
           {/if}

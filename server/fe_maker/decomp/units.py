@@ -276,6 +276,8 @@ def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name:
 def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, path_ends: dict[str, tuple[int, int]], is_new: bool,
                        macros: dict[str, list[int]]) -> None:
     """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
+    if "autolevel" in unit and bool(unit["autolevel"]) != (fields.get("autolevel", "0") not in ("0", "FALSE", "false")):
+        fields["autolevel"] = "1" if unit["autolevel"] else "0"
     character_changed = fields.get("charIndex", "0") != unit["character"]
     if character_changed:
         fields["charIndex"] = unit["character"]
@@ -347,8 +349,6 @@ def render_new_group(name: str, new_units: list[dict], macros: dict[str, list[in
     for unit in new_units:
         fields = {"charIndex": "0", "classIndex": "0", "allegiance": "FACTION_ID_RED", "level": "1"}
         _apply_unit_fields(fields, unit, name, {}, is_new=True, macros=macros or {})
-        if unit.get("autolevel"):
-            fields["autolevel"] = "1"
         entries.append(_render_unit(fields, "    "))
     body = "".join(f"    {entry},\n" for entry in entries)
     return f"\nCONST_DATA struct UnitDefinition {name}[] = {{\n{body}    {{ 0 }},\n}};\n"

@@ -393,7 +393,7 @@
     const unit: MapUnit = base
       ? { ...(structuredClone($state.snapshot(base)) as MapUnit), slot: null, copyOf: base.slot ?? base.copyOf ?? null, fixedPath: false }
       : {
-          slot: null, copyOf: null, level: 1, autolevel: false, items: [], ai: [0, 0, 0, 0],
+          slot: null, copyOf: null, level: 1, autolevel: origin !== 'players', items: [], ai: [0, 0, 0, 0],
           side: origin === 'players' ? 'player' : 'enemy',
           character: origin === 'players' ? (characters[0]?.id ?? GENERIC) : GENERIC,
           class: classes.find((k) => k.usedInGame)?.id ?? classes[0]?.id ?? '',
@@ -544,8 +544,8 @@
                     </select>
                   </label>
                   <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeReinforcements')}</button>
+                  <Help text={t('chapter.newGroupHint')} />
                 </div>
-                <Help text={t('chapter.newGroupHint')} />
               {:else if openTurnGroup}
                 <div class="row new-group">
                   <NumberField label={t('dlg.turn')} value={openTurnGroup.turn ?? 1} min={1} max={99} compact onchange={(v) => editGroupTurn(og, { turn: v })} />
@@ -712,11 +712,12 @@
                 <span class="muted tiny">{t('chapter.levelFromSheet')} <Mention kind="characters" id={unit.character}>{unitName(unit)}</Mention></span>
               </div>
             {:else}
-            <div class="row">
-              <NumberField label={t('chapter.level')} value={unit.level} min={0} max={31} onchange={(v) => editUnit(p.group, p.index, (u) => (u.level = v))} />
-              <span class="muted small">{unit.autolevel ? t('chapter.autolevelHint') : ''}</span>
-            </div>
+            <NumberField label={t('chapter.level')} value={unit.level} min={0} max={31} onchange={(v) => editUnit(p.group, p.index, (u) => (u.level = v))} />
             {/if}
+            <label class="check">
+              <input type="checkbox" checked={unit.autolevel} onchange={(e) => editUnit(p.group, p.index, (u) => (u.autolevel = (e.target as HTMLInputElement).checked))} />
+              {t('chapter.autolevel')} <Help text={t('chapter.autolevelHint')} />
+            </label>
             <p class="muted small">
               {t('chapter.position')} : {unit.endX}, {unit.endY}
               {#if unit.slot !== null && (unit.x !== unit.endX || unit.y !== unit.endY)} · {t('chapter.entersFrom', { x: unit.x, y: unit.y })}{/if}

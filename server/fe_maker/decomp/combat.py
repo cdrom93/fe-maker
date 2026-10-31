@@ -13,6 +13,7 @@ project still rebuilds the original ROM.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 PROMOTIONS_FILE = "src/classchg-data.c"
 EFFECTIVENESS_FILE = "src/data_itemuse.c"
@@ -100,3 +101,17 @@ def render_triangle(source: str, rules: list[dict]) -> str:
     ]
     body = "\n" + "\n".join(lines) + "\n\n    { -1 },"
     return source[: m.start(2)] + body + source[m.end(2):]
+
+
+def read_affinity_bonuses(decomp_dir: Path) -> dict[str, dict[str, int]]:
+    """gAffinityBonuses (src/bmreliance-data.c), by affinity name: what a rank of support gives, before the halving."""
+    path = decomp_dir / "src" / "bmreliance-data.c"
+    if not path.exists():
+        return {}
+    bonuses = {}
+    for block in re.findall(r"\{([^{}]*)\}", path.read_text(encoding="utf-8")):
+        fields = dict(re.findall(r"\.(\w+)\s*=\s*(\w+)", block))
+        if fields.get("affinity", "").startswith("UNIT_AFFIN_"):
+            bonuses[fields["affinity"].removeprefix("UNIT_AFFIN_").lower()] = {
+                name.removeprefix("bonus").lower(): int(value) for name, value in fields.items() if name.startswith("bonus")}
+    return bonuses

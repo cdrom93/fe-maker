@@ -208,7 +208,7 @@
       </section>
 
       <details class="panel fold">
-        <summary>{t('class.stats')}</summary>
+        <summary>{t('class.stats')} <Help text={t('class.statsHint')} /></summary>
         <div class="table-wrap">
           <table>
             <thead>
@@ -258,7 +258,6 @@
             </tbody>
           </table>
         </div>
-        <Help text={t('class.statsHint')} />
       </details>
 
       <details class="panel fold">
@@ -284,7 +283,7 @@
       </details>
 
       <details class="panel fold">
-        <summary>{t('class.weaponRanks')}</summary>
+        <summary>{t('class.weaponRanks')} <Help text={t('class.weaponRanksHint')} /></summary>
         <div class="grid">
           {#each reference.rankableTypes as w (w)}
             <label title={problemFor(`weaponRanks.${w}`)}>
@@ -296,7 +295,6 @@
             </label>
           {/each}
         </div>
-        <Help text={t('class.weaponRanksHint')} />
       </details>
 
       <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />

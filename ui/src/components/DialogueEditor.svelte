@@ -534,7 +534,7 @@
   <div class="detail">
     <section class="panel scenes">
       <div class="head">
-        <h2>{chapter?.name ?? ''}</h2>
+        <h2>{chapter?.name ?? ''} <Help text={t('dlg.hint')} /></h2>
         {#if chapter?.index !== SUPPORTS}<label class="check"><input type="checkbox" bind:checked={showTutorials} /> {t('dlg.showTutorials')}</label>{/if}
       </div>
       {#if chapter?.index === SUPPORTS}
@@ -543,7 +543,6 @@
                        maxPartners={supportInfo.maxPartners} {messageId} firstLine={firstLineOf} faceCode={faceOf} onpick={pick} />
         {/if}
       {:else}
-      <Help text={t('dlg.hint')} />
       {#if !visibleScenes.length}<p class="muted">{t('dlg.none')}</p>{/if}
       {#if chapterQuotes.length}
         <div class="scene">
@@ -722,7 +721,7 @@
         {#if view === 'talk'}
           <div class="cast">
             <button onclick={() => (showFacePicker = !showFacePicker)} class:active={showFacePicker}>＋ {t('dlg.addFace')}</button>
-            <Help text={t('dlg.stageHint')} />
+            <Help text={`${t('dlg.stageHint')} ${t('dlg.textHint')}`} />
           </div>
           {#if showFacePicker}
             <FacePicker {faces} label={faceLabel} first={[...new Set(steps.filter((s) => s.kind === 'face').map((s) => s.face ?? ''))]}
@@ -796,9 +795,9 @@
           <button onclick={() => addStep('face')}>＋ {t('dlg.add.face')}</button>
           <button onclick={() => addStep('clear')}>＋ {t('dlg.add.clear')}</button>
           <button onclick={() => addStep('move')}>＋ {t('dlg.add.move')}</button>
+          <Help text={t('dlg.textHint')} />
         </div>
         {/if}
-        <Help text={t('dlg.textHint')} />
         {#each messageProblems as pr, k (k)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
       </section>
     {/if}

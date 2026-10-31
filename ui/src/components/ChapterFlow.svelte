@@ -373,9 +373,8 @@
     </div>
     {#if todo && todoCount}
       <div class="todo">
-        <h4>{t('flow.todo')}</h4>
+        <h4>{t('flow.todo')}{#if todoCount.errors || todoCount.warnings} <Help text={t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })} />{/if}</h4>
         {#if todoCount.errors || todoCount.warnings}
-          <Help text={t('flow.todoHint', { errors: todoCount.errors, warnings: todoCount.warnings })} />
           {@render todo()}
         {:else}
           <p class="muted small">{t('flow.todoNone')}</p>
@@ -439,7 +438,7 @@
       </div>
       <AddChapter after={selected} label={t('flow.add.button')} flush={async () => { await list.flush(); await chapterList.flush() }}
                   onadded={async (index) => { await onreload(); await loadFlow(); selected = index }} />
-      <h4>{t('flow.next')}</h4>
+      <h4>{t('flow.next')} <Help text={t('flow.editHint')} /></h4>
       {#if !mine.length}
         <p class="muted small">{t('flow.noNext')}</p>
         {#if endings[selected]}
@@ -490,7 +489,6 @@
           <li><button class="link-button" onclick={() => (selected = i.from)}>{title(i.from)}</button> <span class="muted tiny">{t(`flow.kind.${i.link.kind}`)}{i.link.ending ? '' : ` · ${i.link.script}`}</span></li>
         {/each}
       </ul>
-      <Help text={t('flow.editHint')} />
     </section>
   {/if}
 </div>

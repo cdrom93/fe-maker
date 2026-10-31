@@ -31,13 +31,12 @@
 </script>
 
 <section class="panel">
-  <h3>{t('reserve.title')}</h3>
+  <h3>{t('reserve.title')}{#if res} <Help text={t('reserve.hint')} />{/if}</h3>
   <label class="check">
     <input type="checkbox" checked={res !== null} onchange={(e) => onchange((e.target as HTMLInputElement).checked ? { characters: [], classes: [] } : null)} />
     {t('reserve.toggle')}
   </label>
   {#if res}
-    <Help text={t('reserve.hint')} />
     {#if !res.characters.length && !res.classes.length}<p class="warn small">{t('reserve.empty')}</p>{/if}
     <div class="cols">
       <div>

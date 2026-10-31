@@ -348,6 +348,15 @@ export interface ChapterUnits {
   groups: UnitGroup[]
 }
 
+export interface AffinityBonus {
+  attack: number
+  defense: number
+  hit: number
+  avoid: number
+  crit: number
+  dodge: number
+}
+
 export interface Reference {
   /** help texts of the game, by kind and id */
   descriptions: Record<'characters' | 'classes' | 'items', Record<string, string>>
@@ -358,6 +367,8 @@ export interface Reference {
   itemLocks: Record<string, { classes: string[]; characters: string[] }>
   lockItems: Record<string, string[]>
   affinities: string[]
+  /** table values of each affinity, read from the game */
+  affinityBonuses: Record<string, AffinityBonus>
   abilities: string[]
   weaponTypes: string[]
   rankableTypes: string[]

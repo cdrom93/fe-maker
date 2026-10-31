@@ -521,8 +521,8 @@
     </p>
   {/if}
   <div class="view">
-    <Help text={advanced ? t('ev.hint') : t('ev.simple.hint')} />
     <button class="link small" onclick={() => setAdvanced(!advanced)}>{advanced ? t('ev.simple.toSimple') : t('ev.simple.toDetail', { n: hiddenCount })}</button>
+    <Help text={advanced ? t('ev.hint') : t('ev.simple.hint')} />
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#each scriptProblems.filter((p) => p.id === `script:${name}`) as pr, k (k)}<p class="bad small">{problemText(pr)}</p>{/each}

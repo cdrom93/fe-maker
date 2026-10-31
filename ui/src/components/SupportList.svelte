@@ -132,7 +132,6 @@
   const tooMany = $derived(problems.filter((pr) => pr.kind === 'dialogues' && pr.code === 'supportTooMany'))
 </script>
 
-<Help text={t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })} />
 {#each tooMany as pr (pr.id)}
   <p class="bad small"><Mention kind="characters" id={pr.id.replace('support:', '')}>{charName(pr.id.replace('support:', ''))}</Mention> — {problemText(pr)}</p>
 {/each}
@@ -148,6 +147,7 @@
     {/each}
   </select>
   <button onclick={add} disabled={!newA || !newB || newA === newB}>＋ {t('sup.add')}</button>
+  <Help text={t('sup.hint', { c: levelPoints[0], b: levelPoints[1], a: levelPoints[2], max: maxPartners })} />
 </div>
 <input class="filter" bind:value={filter} placeholder={t('sup.filter')} />
 {#each shown as { p, i } (`${p.a}+${p.b}`)}

@@ -48,7 +48,6 @@
 </script>
 
 <div class="local">
-  <Help text={t('banim.local.hint')} />
   <div class="row">
     <label class="pick">
       <input type="file" webkitdirectory multiple onchange={chosen} />
@@ -59,6 +58,7 @@
       <span>{t('banim.local.zip')}</span>
     </label>
     {#if files.length}<span class="small">{t('banim.local.files', { n: files.length })}</span>{/if}
+    <Help text={t('banim.local.hint')} />
   </div>
   {#if files.length}
     <div class="row">
