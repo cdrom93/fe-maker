@@ -125,7 +125,7 @@
   "field.convoyAccess": "Ouvre le convoi",
   "field.convoyAccessHint": "Ce personnage, et les unités à côté de lui, ont la commande « Convoi ». Dans le jeu : Eirika et Ephraïm (le seigneur de la route choisie).",
   "chapter.convoy": "Convoi disponible dans ce chapitre",
-  "chapter.convoyHint": "Dans le jeu, il n'y a pas de convoi au prologue, aux chapitres 1 et 5x ni au château de Frelia.",
+  "chapter.convoyHint": "Disponible par défaut dans un projet vierge et dans les chapitres ajoutés. Dans le jeu, il n'y en a pas au prologue, aux chapitres 1 et 5x ni au château de Frelia.",
   "portrait.title": "Portrait n° {id} : remplacer par une image",
   "portrait.imported": "Image importée dans le projet",
   "portrait.game": "Portrait du jeu ({name})",

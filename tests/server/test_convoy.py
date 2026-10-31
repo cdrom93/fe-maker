@@ -54,6 +54,18 @@ def test_game_rules():
     assert not convoy.has_convoy(0) and not convoy.has_convoy(0x38) and convoy.has_convoy(2)
 
 
+def test_blank_projects_and_added_chapters_have_the_convoy(decomp_dir, monkeypatch):
+    monkeypatch.setattr("fe_maker.decomp.gamedata.maps.chapter_settings", lambda _: [{}] * 3)
+    assert convoy.has_convoy(0, {"blank": True}) and convoy.has_convoy(1, {"added": {"1": {"after": 0}}})
+    assert not convoy.has_convoy(1, {"added": {"2": {"after": 1}}})
+    d = DecompData(decomp_dir)
+    d.apply_chapters({"unitGroups": {}, "blank": True})
+    assert d.no_convoy == []
+    d = DecompData(decomp_dir)
+    d.apply_chapters({"unitGroups": {}, "blank": True, "convoy": {"2": False}})
+    assert d.no_convoy == [2]
+
+
 def test_only_changes_are_written(decomp_dir):
     d = DecompData(decomp_dir)
     chars = d.export_characters()

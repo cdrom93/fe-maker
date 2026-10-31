@@ -424,7 +424,7 @@ def list_chapters():
             "hidden": shown is not None and i not in shown,
             "map": layout,
             "events": _event_symbol(ch),
-            "convoy": convoy.has_convoy(i),   # in the game (ticket 29)
+            "convoy": convoy.has_convoy(i, stored),   # unless changed (tickets 29, 106)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
         })
     return result
@@ -679,7 +679,8 @@ def get_map(layout_id: str, base: str | None = None):
         "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],
         # Tile sheets of the game the map can be drawn with, and the map's own (ticket 21)
         "originalBase": layout["assets"].config.stem,
-        "bases": [{"id": b["id"], "name": maps.SHEET_NAMES.get(b["id"], b["id"]), "chapters": b["chapters"], "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
+        "bases": [{"id": b["id"], "name": maps.SHEET_NAMES.get(b["id"], b["id"]), "chapters": b["chapters"],
+                   "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
                   for b in maps.base_choices(DECOMP_DIR)],
         # Original map changes (doors, villages...); None when the map has no change layer
         "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,

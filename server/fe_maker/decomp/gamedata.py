@@ -439,11 +439,13 @@ class DecompData:
                     else:
                         settings[index][key] = self.texts.add(text)
             self._add_title_images(titles)
-        # Chapters with or without convoy, changed from the game's rule (ticket 29)
+        # Chapters with or without convoy, when that differs from the game's rule (tickets 29, 106)
         edited = {int(k): bool(v) for k, v in chapters.get("convoy", {}).items()}
-        if any(convoy.has_convoy(k) != v for k, v in edited.items()):
-            count = len(maps.chapter_settings(self.decomp_dir))
-            self.no_convoy = [i for i in range(count) if not edited.get(i, convoy.has_convoy(i))]
+        if chapters.get("blank") or chapters.get("added") or any(convoy.has_convoy(k) != v for k, v in edited.items()):
+            indexes = range(len(maps.chapter_settings(self.decomp_dir)))
+            without = [i for i in indexes if not edited.get(i, convoy.has_convoy(i, chapters))]
+            if without != [i for i in indexes if not convoy.has_convoy(i)]:
+                self.no_convoy = without
 
     def _add_title_images(self, titles: dict[int, str]) -> None:
         """The title strip of each chapter the project adds, drawn from its text (chaptitle.py), after the game's."""

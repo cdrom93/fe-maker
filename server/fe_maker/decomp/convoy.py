@@ -7,6 +7,7 @@ or character attribute is not that: it is FE7's convoy carrier (no trading, back
 
 A project can choose the characters who open the convoy (units next to them can use it too) and
 the chapters without convoy; both functions are rewritten only when the project changes them.
+A blank project and the chapters a project adds have the convoy unless the project says otherwise.
 """
 
 from __future__ import annotations
@@ -23,8 +24,11 @@ class ConvoyError(Exception):
     pass
 
 
-def has_convoy(chapter_index: int) -> bool:
-    """The game's rule (on the world map, the game looks at the next chapter the same way)."""
+def has_convoy(chapter_index: int, chapters: dict | None = None) -> bool:
+    """The chapter's default: the game's rule (on the world map, the game looks at the next chapter the
+    same way), or always for what the project built itself (`chapters`: its data/chapters.json)."""
+    if chapters and (chapters.get("blank") or str(chapter_index) in chapters.get("added", {})):
+        return True
     return chapter_index not in DEFAULT_NO_CONVOY
 
 

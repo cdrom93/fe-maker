@@ -177,7 +177,7 @@ fe-maker/
 - **Unités** : placement par glisser-déposer, ajout, duplication et suppression, personnage, classe (unités génériques), niveau, inventaire, IA ; unités de cinématique séparées ; renforts au tour N, « Dupliquer ce groupe ».
 - **Objectifs** : s'emparer d'une case, vaincre tous les ennemis ou le chef, survivre N tours (ou vaincre le chef), atteindre une zone, personnage à protéger ; texte de l'écran de statut. Lecture seule : tour de Valni et ruines de Lagdou. Brouillard de guerre par chapitre.
 - **Cartes** : peinture (crayon, rectangle, remplissage, pipette, blocs, bâtiments entiers), terrains et leurs effets, taille, changements de carte (zone tracée à la souris), objets automatiques (villages et leurs ruines, maisons, coffres, portes, murs fissurés, bois morts, magasins), tuiles tournées et retournées, terrain d'une tuile, palettes, jeux de tuiles, aller-retour avec Tiled.
-- **Règles** : convoi par personnage et par chapitre, qui peut s'emparer des cases.
+- **Règles** : convoi par personnage et par chapitre (disponible par défaut dans un projet vierge et les chapitres ajoutés), qui peut s'emparer des cases.
 - **Pas encore testé en jeu** : murs fissurés, achats, Tiled lui-même (pas installé).
 - **Reste** : import de cartes du FE-Repo (phase 5), couche de changements pour une carte qui n'en a pas.
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).

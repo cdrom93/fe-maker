@@ -125,7 +125,7 @@
   "field.convoyAccess": "Opens the convoy",
   "field.convoyAccessHint": "This character, and the units next to them, get the \"Supply\" command. In the game: Eirika and Ephraim (the lord of the chosen route).",
   "chapter.convoy": "Convoy available in this chapter",
-  "chapter.convoyHint": "In the game there is no convoy in the prologue, chapters 1 and 5x and Castle Frelia.",
+  "chapter.convoyHint": "On by default in a blank project and in added chapters. In the game there is none in the prologue, chapters 1 and 5x and Castle Frelia.",
   "portrait.title": "Portrait #{id}: replace with a picture",
   "portrait.imported": "Picture imported in the project",
   "portrait.game": "Game portrait ({name})",
