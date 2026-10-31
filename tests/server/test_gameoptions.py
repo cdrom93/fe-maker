@@ -53,6 +53,19 @@ def test_new_switches_are_known_and_stop_on_a_changed_decomp(tmp_path):
         gameoptions.apply(tmp_path, {"quickExpBar": True}, {})
 
 
+def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.WORLD_MAP_INTRO_FILE).is_file():
+        pytest.skip("no decomp")
+    text = gameoptions.apply(root, {"skipStoryIntro": True}, {})[gameoptions.WORLD_MAP_INTRO_FILE]
+    assert "WM_TEXT(0x08DB, 0)" not in text and "WM_SPAWNLORD(WM_MU_0, CHARACTER_EIRIKA" in text
+    assert "EventScrWM_Prologue_ChapterIntro" in text
+
+
+def test_every_switch_has_one_group():
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 13
+
+
 def test_a_unit_acts_after_a_talk():
     source = Path(__file__).parents[2] / "decomp" / gameoptions.RANGE_DISPLAY_FILE
     if not source.is_file():

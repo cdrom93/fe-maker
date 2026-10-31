@@ -20,7 +20,7 @@ _SCRIPT_RE = re.compile(r"(?:CONST_DATA\s+)?EventListScr\s+(\w+)\s*\[\s*\]\s*=\s
 _IDENT_RE = re.compile(r"[A-Za-z_]\w*")
 
 # Argument kinds: song, message, character, group (unit group), x, y, frames, background, flag, speed,
-# item, number, stat, amount (a signed number), raw, slot (a memory slot of the event engine, EVT_SLOT_0 to
+# item, number, stat, amount (a signed number), chapter, raw, slot (a memory slot of the event engine, EVT_SLOT_0 to
 # EVT_SLOT_D), label (a LABEL number of the script), script (another script, for CALL). The editor shows a field for each.
 #
 # Conditions: a check (CHECK_x) puts its result in slot C, then a branch (BEQ, BNE...) jumps to a LABEL of
@@ -89,6 +89,7 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "GOTO": [("label", "label")],
     "CALL": [("script", "script")],
     "GiveItem": [("character", "character"), ("item", "item")],   # the editor's: written as two commands (render_command)
+    "MNC2": [("chapter", "chapter")],
     "ChangeStat": [("character", "character"), ("stat", "stat"), ("amount", "amount")],   # the editor's too (unitstats.py)
     **{op: [("label", "label"), ("left", "slot"), ("right", "slot")] for op in ("BEQ", "BNE", "BGE", "BGT", "BLE", "BLT")},
 }
@@ -96,7 +97,8 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
 ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "CAMERA", "CUMO_AT", "CURE", "FlashCursor",
            "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
            "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
-           "GiveItem", "ChangeStat", "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+           "GiveItem", "ChangeStat", "MNC2", "CHECK_MONEY", "CHECK_ACTIVE",
+           "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
 # Memories, the player's past choices: permanent event flags the game does not use (saved with the game, flags up to
 # 300), named in data/dialogues.json "memories" [{flag, name}]; scripts hold their number (ENUT, ENUF, CHECK_EVENTID).
 MEMORY_FLAGS = (240, 300)

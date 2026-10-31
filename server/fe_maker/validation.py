@@ -15,6 +15,7 @@ from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
 from .decomp import maps as decomp_maps
 from .decomp import portraits as decomp_portraits
+from .decomp import story as decomp_story
 from .decomp import supports as decomp_supports
 from .decomp.gamedata import (
     ABILITIES_REV,
@@ -333,7 +334,11 @@ def _validate_scripts(problems, scripts: dict, decomp: DecompData, characters: l
     known["item"] = items or set()
     if characters:
         known["character"] = {c["id"] for c in characters if c["id"].startswith("CHARACTER_")}
+    endings = decomp.ending_scripts()
     for name, commands in scripts.items():
+        if name in endings and not any(c.get("op") in (*decomp_story.CHANGE_OPS, "CALL") for c in commands):
+            problems.append(Problem("warning", "dialogues", f"script:{name}", "commands", "noNextChapter", {},
+                                    f"{name}: this ending goes to no other chapter"))
         if decomp.find_script(name) is None:
             problems.append(Problem("error", "dialogues", f"script:{name}", "commands", "unknownScript", {},
                                     f"{name}: unknown event script"))

@@ -47,7 +47,7 @@
     NoFade: '⏹️', ENDA: '⏹️',
     CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
-    GiveItem: '🎁', ChangeStat: '💪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
+    GiveItem: '🎁', ChangeStat: '💪', MNC2: '🚪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
   }
   // Memory slots of the event engine (server: events.COMMANDS, kind "slot"): checks write their result in C.
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
@@ -194,6 +194,7 @@
       message: '0x0', character: first, group: groups[0] ?? '0', x: '0', y: '0', frames: '60', flag: 'EVFLAG_TMP(20)',
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
       slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1',
+      chapter: `0x${(chapter + 1).toString(16)}`,
     }
     return {
       op,
@@ -321,6 +322,8 @@
     }
   }
 
+  const chapterTitle = (v: string) => reference?.chapters.find((n) => n.index === Number(v))?.title || v
+
   /** The values a command's step shows: names rather than constants. */
   function summary(c: EventCommand): string {
     const spec = reference?.commands[c.op] ?? []
@@ -329,6 +332,7 @@
       if (a.kind === 'character') return [charName(v)]
       if (a.kind === 'item') return [itemName(v)]
       if (a.kind === 'stat') return [t(`stat.${v}`)]
+      if (a.kind === 'chapter') return [chapterTitle(v)]
       if (a.kind === 'amount') return [Number(v) > 0 ? `+${Number(v)}` : v]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
       if (a.kind === 'song') return [pretty(v, 'SONG_')]
@@ -411,6 +415,54 @@
   const offered = $derived((reference?.addable ?? []).filter((op) => advanced
     || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || ['CALL', 'ENUT', 'ENUF'].includes(op))))
   const conditions = $derived(advanced ? CONDITIONS : CONDITIONS.filter((c) => c !== 'if:flag'))
+
+  // Dragging a line of the simple view (ticket 119): what it takes along, and where it would land.
+  let dragged = $state<Step | null>(null)
+  let dropAt = $state<number | null>(null)
+  /** Where added commands end: the commands of the script's end stay last. */
+  const scriptEnd = $derived.by(() => {
+    let at = commands.length
+    while (at > 0 && ['NoFade', 'ENDA', '', ...CHANGE_OPS].includes(commands[at - 1].op)) at--
+    return at
+  })
+  /** The last command that goes with a step: a condition's block, a dialogue's question, the wait after a move. */
+  function stepLast(s: Step): number {
+    let end = s.end
+    if (isYes(end + 1)) end += 2
+    if (BRANCHES.includes(commands[end]?.op)) {
+      const to = labels.get(labelNumber(commands[end].args?.[0] ?? ''))
+      if (to !== undefined && to > end) end = to
+    }
+    while (['ENUN', ''].includes(commands[end + 1]?.op)) end++
+    return end
+  }
+  function dragOver(e: DragEvent, s: Step) {
+    if (!dragged || isYes(s.start)) return
+    e.preventDefault()
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    dropAt = e.clientY < box.top + box.height / 2 ? s.start : Math.min(stepLastInside(s) + 1, scriptEnd)
+  }
+  /** After a condition's line is the top of its block; after any other line, the command that follows it. */
+  const stepLastInside = (s: Step) => {
+    let end = s.end
+    while (['ENUN', ''].includes(commands[end + 1]?.op)) end++
+    return end
+  }
+  function dropStep() {
+    if (dragged && dropAt !== null) {
+      const [from, last] = [dragged.start, stepLast(dragged)]
+      if (dropAt < from || dropAt > last + 1) {
+        const taken = commands.slice(from, last + 1)
+        const rest = [...commands.slice(0, from), ...commands.slice(last + 1)]
+        rest.splice(dropAt > last ? dropAt - taken.length : dropAt, 0, ...taken)
+        save(rest)
+        selected = null
+        openStep = null
+      }
+    }
+    dragged = null
+    dropAt = null
+  }
 
   function removeStep(s: Step) {
     const branch = commands[s.end]
@@ -498,6 +550,10 @@
                       </select>
                       <Mention kind="items" id={v}><span class="open">↗</span></Mention>
                     </span>
+                  {:else if a.kind === 'chapter' && reference}
+                    <select value={String(Number(v))} onchange={(e) => setArg(i, k, `0x${Number((e.target as HTMLSelectElement).value).toString(16)}`)}>
+                      {#each reference.chapters as n (n.index)}<option value={String(n.index)}>{n.title || n.index}</option>{/each}
+                    </select>
                   {:else if a.kind === 'stat'}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
                       {#each STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
@@ -567,7 +623,13 @@
       {#each commands as c, i (i)}{@render block(c, i)}{/each}
     {:else}
       {#each steps as s (s.start)}
-        <li class="step" class:active={openStep === s.start} style:margin-left="{depths[s.start] * 1.2}rem">
+        <li class="step" class:active={openStep === s.start} class:dragged={dragged === s} class:drop-before={dropAt === s.start}
+            class:drop-after={dropAt !== null && dropAt !== s.start && dropAt === stepLastInside(s) + 1} style:margin-left="{depths[s.start] * 1.2}rem"
+            draggable={!isYes(s.start)} role="listitem"
+            ondragstart={(e) => { dragged = s; e.dataTransfer?.setData('text/plain', s.text) }}
+            ondragover={(e) => dragOver(e, s)} ondrop={(e) => { e.preventDefault(); dropStep() }}
+            ondragend={() => { dragged = null; dropAt = null }}>
+          <span class="grip" aria-hidden="true" title={t('ev.simple.drag')}>⋮⋮</span>
           <button class="row" onclick={() => openOf(s)} title={t('ev.simple.open')}>
             <span>{s.icon}</span> <span class="what">{s.text}</span>
           </button>
@@ -584,6 +646,10 @@
         {/if}
       {/each}
       {#if !steps.length}<li class="muted small">{t('ev.simple.empty')}</li>{/if}
+      {#if dragged}
+        <li class="muted small nothing drop-end" class:drop-before={dropAt === scriptEnd} role="listitem"
+            ondragover={(e) => { e.preventDefault(); dropAt = scriptEnd }} ondrop={(e) => { e.preventDefault(); dropStep() }}>{t('ev.simple.dropEnd')}</li>
+      {/if}
     {/if}
   </ol>
   <datalist id="ev-groups">{#each groups as g (g)}<option value={g}></option>{/each}</datalist>
@@ -638,6 +704,12 @@
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .view { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
   .blocks li.step { align-items: center; }
+  .blocks li.step[draggable='true'] { cursor: grab; }
+  .blocks li.dragged { opacity: 0.5; }
+  .blocks li.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+  .blocks li.drop-after { box-shadow: 0 2px 0 var(--accent); }
+  .grip { color: var(--muted); font-size: 0.8rem; letter-spacing: -0.15rem; user-select: none; }
+  .step[draggable='false'] .grip { visibility: hidden; }
   .blocks li.nothing { border-style: dashed; background: none; }
   .row { flex: 1; display: flex; gap: 0.4rem; align-items: center; min-width: 0; border: none; background: none; padding: 0.15rem; text-align: left; font-weight: 600; }
   .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

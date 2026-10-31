@@ -6,7 +6,7 @@
   import { t } from '../lib/i18n.svelte'
   import ProjectScope from './ProjectScope.svelte'
 
-  type Reference = { options: Record<string, number | boolean>; switches: string[]; defaults: Record<string, { game: number; values: number[] }> }
+  type Reference = { options: Record<string, number | boolean>; groups: Record<string, string[]>; defaults: Record<string, { game: number; values: number[] }> }
 
   let { onteststart, onscope, scopeFirst = false }: {
     /** where test builds now start */
@@ -95,11 +95,14 @@
 
     <section class="panel">
       <h3>{t('options.comfortTitle')} <Help text={t('options.comfortHint')} /></h3>
-      {#each data.switches as key (key)}
-        <label class="switch">
-          <input type="checkbox" checked={!!data.options[key]} disabled={saving} onchange={(e) => set(key, (e.target as HTMLInputElement).checked)} />
-          <span><strong>{t(`options.${key}`)}</strong> <Help text={t(`options.${key}Hint`)} /></span>
-        </label>
+      {#each Object.entries(data.groups) as [group, keys] (group)}
+        <h4>{t(`options.group.${group}`)}</h4>
+        {#each keys as key (key)}
+          <label class="switch">
+            <input type="checkbox" checked={!!data.options[key]} disabled={saving} onchange={(e) => set(key, (e.target as HTMLInputElement).checked)} />
+            <span><strong>{t(`options.${key}`)}</strong> <Help text={t(`options.${key}Hint`)} /></span>
+          </label>
+        {/each}
       {/each}
     </section>
   {/if}
@@ -112,6 +115,8 @@
   .grid label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
   .switch { display: flex; flex-direction: row; gap: 0.5rem; align-items: flex-start; padding: 0.35rem 0; }
   .switch input { margin-top: 0.2rem; }
+  h4 { margin: 0.8rem 0 0.1rem; font-size: 0.85rem; color: var(--muted); }
+  h3 + h4 { margin-top: 0.3rem; }
   /* Laid out like the game's Configuration menu: the option, then its choices in a row. */
   .config { display: grid; grid-template-columns: minmax(11rem, max-content) 1fr; gap: 0.35rem 1.25rem; align-items: center; }
   .option { font-weight: 700; }

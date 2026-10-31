@@ -189,6 +189,7 @@ fe-maker/
 ### Phase 4 — Dialogues et événements 🚧 (commencée le 23/10/2026)
 **État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
 - Commande « Changer une caractéristique » (PV, Force, Tech, Vit, Déf, Rés, Chance, Cons, Dépl) : vérifiée en jeu dans une scène de prologue ; le report d'un chapitre à l'autre ou après une sauvegarde n'a pas été joué.
+- Déroulé : les lignes se réordonnent en les glissant (un bloc de condition part entier), « Passer à un autre chapitre » s'ajoute comme une commande, une scène de fin qui ne mène nulle part est signalée.
 - Option « Agir après avoir parlé » : vérifiée en jeu après Parler et après Soutien (le menu revient, B termine le tour).
 - **Dialogues** : vue « Conversation » (bulles, portraits glissés sur la scène, expressions comme états) et vue « Étapes » ; mise en page automatique avec la police du jeu, lettres accentuées ; les 3404 messages du jeu passent l'aller-retour.
 - **Répliques et conversations** : répliques de combat et dernières paroles, conversations « Parler » et recrutements, scènes au début d'un tour, soutiens (83 paires du jeu, ajout et retrait).

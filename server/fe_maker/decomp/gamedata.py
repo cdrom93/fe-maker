@@ -1186,6 +1186,20 @@ class DecompData:
                 out.append(None)
         return out
 
+    def ending_scripts(self) -> set[str]:
+        """The chapters' ending scenes."""
+        if not (self.decomp_dir / maps.CHAPTER_SETTINGS_FILE).is_file():
+            return set()
+        self._load_chapter_events()
+        out = set()
+        for chapter in self.chapter_settings["chapters"]:
+            try:
+                group = objectives.event_group(self.event_sources, self._chapter_event_symbol(chapter) or "")
+            except objectives.ObjectiveError:
+                continue
+            out.add(group.get("endingSceneEvents"))
+        return out - {None}
+
     def chapter_links(self, edited: dict[str, list[dict]] | None = None) -> list[list[dict]]:
         """For each chapter, the commands of its scripts that start another chapter (story.links), with the
         script's name and whether it is the chapter's ending scene; `edited`: the project's edited scripts,

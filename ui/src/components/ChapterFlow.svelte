@@ -1,6 +1,6 @@
 <script lang="ts">
   import Help from './Help.svelte'
-  import { onMount, tick, type Snippet } from 'svelte'
+  import { onMount, type Snippet } from 'svelte'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -273,39 +273,6 @@
     return { pos, edges, width, height: PAD * 2 + (rows.size ? Math.max(...rows.keys()) + 1 : 1) * ROW, unreached }
   })
 
-  // Zoom with the wheel around the pointer, move by dragging the background, as in CAD programs (ticket 76).
-  let scroller = $state<HTMLElement>()
-  let zoom = $state(1)
-  let dragging: { x: number; y: number; left: number; top: number } | null = null
-
-  $effect(() => {
-    const el = scroller
-    if (!el) return
-    const wheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const next = Math.min(2, Math.max(0.2, zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))
-      const box = el.getBoundingClientRect()
-      const x = e.clientX - box.left
-      const y = e.clientY - box.top
-      const left = ((el.scrollLeft + x) * next) / zoom - x
-      const top = ((el.scrollTop + y) * next) / zoom - y
-      zoom = next
-      tick().then(() => el.scrollTo(left, top))
-    }
-    el.addEventListener('wheel', wheel, { passive: false })
-    return () => el.removeEventListener('wheel', wheel)
-  })
-
-  function startDrag(e: PointerEvent) {
-    if (!scroller || (e.target as HTMLElement).closest('button')) return
-    dragging = { x: e.clientX, y: e.clientY, left: scroller.scrollLeft, top: scroller.scrollTop }
-    scroller.setPointerCapture(e.pointerId)
-  }
-  function drag(e: PointerEvent) {
-    if (dragging && scroller) scroller.scrollTo(dragging.left - e.clientX + dragging.x, dragging.top - e.clientY + dragging.y)
-  }
-  const endDrag = () => (dragging = null)
-
   function edgePath(from: { x: number; y: number }, to: { x: number; y: number }): string {
     const x1 = from.x + NODE_W / 2
     const y1 = from.y + NODE_H
@@ -364,11 +331,9 @@
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge noSave" /></svg> {t('flow.kind.noSave')}</span>
       <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" class="edge other" /></svg> {t('flow.otherScript')}</span>
     </div>
-    <p class="muted tiny zoom-hint"><Help text={t('flow.zoomHint')} /> <button class="link" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)} %</button></p>
-    <div class="graph-scroll" bind:this={scroller} role="presentation" onpointerdown={startDrag} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag}>
+    <div class="graph-scroll">
       {#if chapters.length}
-        <div style="width: {(graph.width + NODE_W / 2) * zoom}px; height: {(graph.height + NODE_H) * zoom}px">
-        <div class="graph" style="width: {graph.width + NODE_W / 2}px; height: {graph.height + NODE_H}px; transform: scale({zoom})">
+        <div class="graph" style="width: {graph.width + NODE_W / 2}px; height: {graph.height + NODE_H}px">
           <svg width={graph.width + NODE_W / 2} height={graph.height + NODE_H} aria-hidden="true">
             <defs>
               <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -401,7 +366,6 @@
               {/if}
             </button>
           {/each}
-        </div>
         </div>
       {:else}
         <p class="muted">…</p>
@@ -542,7 +506,7 @@
   p { margin: 0 0 0.4rem; }
   .legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-bottom: 0.4rem; }
   .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
-  .graph-scroll { overflow: auto; height: calc(100vh - 260px); min-height: 24rem; cursor: grab; }
+  .graph-scroll { overflow-x: auto; }
   svg { display: block; }
   .edge { fill: none; stroke: var(--muted); stroke-width: 1.6; opacity: 0.8; }
   .edge.worldMap { stroke: var(--accent); }
@@ -556,7 +520,6 @@
   .switch-row { flex-direction: row; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); color: var(--text); max-width: 340px; cursor: pointer; }
   .switch-row input { width: 1.2rem; height: 1.2rem; flex: none; }
   .graph { position: relative; transform-origin: 0 0; }
-  .zoom-hint { margin: 0.2rem 0; }
   .work { margin: 0.6rem 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; font-weight: 700; }
   .graph svg { position: absolute; inset: 0; }
   .card { position: absolute; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; text-align: left; border: 3px solid var(--border); border-radius: var(--radius-big); background: var(--panel); overflow: hidden; }

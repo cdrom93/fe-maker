@@ -62,6 +62,8 @@ piège dans sa section.
 
 - Les fichiers d'événements d'un chapitre ne partagent pas toujours un préfixe : les étages de la tour ont `tower1-eventinfo.h` et `tower-eventscript.h`. Ne pas trouver un script par le préfixe seul (ticket 55 : la scène de fin d'un chapitre ajouté, absente de la page Campagne, jouait pourtant en jeu).
 
+- L'introduction d'une nouvelle partie a deux morceaux : `StartIntroMonologue` (sous-titres) et, surtout, le récit sur Magvel, qui est l'événement de carte du monde `EventScrWM_Prologue_Beginning` : il tourne même sans carte du monde (ticket 115). Une option « compilée seulement » n'est pas vérifiée : jouer une vraie nouvelle partie.
+
 ## Tests en jeu (playtest)
 
 - In playtests, wait for animations before reading the screen (`press` waits 20 frames; a move takes ~40), pick menu entries by their position (menus differ with the situation: Attack only when an enemy is in range), and remember Canto (Seth can move again after an action).

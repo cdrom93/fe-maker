@@ -442,6 +442,8 @@ export interface EventsReference {
   scripts: string[]
   /** the project's items, to give one */
   items: { id: string; name: string }[]
+  /** the chapters, to go to one */
+  chapters: { index: number; title: string }[]
 }
 
 export interface SupportPair {

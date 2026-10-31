@@ -46,9 +46,11 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "soundEffects": ("disableSoundEffects", 0, (0, 1)),
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
-SWITCHES = ("stationaryRange", "skipOpening", "skipStoryIntro", "talkBubbles",
-            "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
-            "noSupportAnimations", "hpBars", "casualMode", "dangerZone", "actAfterTalk")
+SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
+                 "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
+                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
+                 "rules": ("actAfterTalk", "casualMode")}
+SWITCHES = tuple(key for keys in SWITCH_GROUPS.values() for key in keys)
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -305,6 +307,11 @@ static s8 FemAfterTalk(ProcPtr proc)
 
 _STORY_INTRO = "    StartIntroMonologue(proc);\n"
 _STORY_INTRO_NONE = "    /* FE Maker: no story intro */\n"
+# The tale of Magvel itself is the prologue's world map event (ticket 115): only its first commands stay, which put the
+# lord on the world map.
+WORLD_MAP_INTRO_FILE = "src/events/prologue-wm.h"
+_WORLD_MAP_TALE = re.compile(r"(EventScrWM_Prologue_Beginning\[\] = \{\n(?:.*\n)*?    WM_CENTERCAMONLORD\(WM_MU_0\)\n)"
+                             r"(?:.*\n)*?(    ENDA\n\};)")
 
 # Casual mode, after FEBuilder's "CasualMode" (its behavior, written in C, always on rather than a choice in the game):
 # a fallen player unit leaves the map, keeps its supports and comes back for the next chapter.
@@ -375,6 +382,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[RANGE_DISPLAY_FILE] = _replace(source, _TALK_CANCEL, _TALK_CANCEL_NEW, RANGE_DISPLAY_FILE)
     if options.get("skipStoryIntro"):
         files[GAME_CONTROL_FILE] = _replace(current(GAME_CONTROL_FILE), _STORY_INTRO, _STORY_INTRO_NONE, GAME_CONTROL_FILE)
+        source, found = _WORLD_MAP_TALE.subn(r"\1\2", current(WORLD_MAP_INTRO_FILE))
+        if not found:
+            raise TweakError(f"A game option does not match this version of the decomp ({WORLD_MAP_INTRO_FILE})")
+        files[WORLD_MAP_INTRO_FILE] = source
     if options.get("quickChapterTitle"):
         files[CHAPTER_INTRO_FILE] = _replace(current(CHAPTER_INTRO_FILE), _TITLE_WAIT, _TITLE_QUICK, CHAPTER_INTRO_FILE)
     if options.get("holdAToSpeedUp"):

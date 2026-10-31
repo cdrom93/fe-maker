@@ -11,7 +11,7 @@ export type ProjectScope = {
 /** Options of the built game (server: decomp/gameoptions.py) */
 type GameOptionsData = {
   options: Record<string, number | boolean>
-  switches: string[]
+  groups: Record<string, string[]>
   defaults: Record<string, { game: number; values: number[] }>
 }
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'

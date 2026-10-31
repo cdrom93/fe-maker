@@ -1011,6 +1011,7 @@ def events_reference():
 
     return {"commands": {op: [{"name": n, "kind": k} for n, k in spec] for op, spec in events.COMMANDS.items()},
             "addable": list(events.ADDABLE), "memoryFlags": list(events.MEMORY_FLAGS),
+            "chapters": [{"index": i, "title": c["title"]} for i, c in enumerate(list_chapters()) if not c["hidden"]],
             "songs": constants("include/constants/songs.h", "SONG_"),
             "backgrounds": constants("include/constants/backgrounds.h", "BG_"), "scripts": state.get_decomp().script_names(),
             "items": [{"id": i["id"], "name": i["name"]} for i in
@@ -1870,7 +1871,7 @@ def put_world_map(body: WorldMapIn):
 @app.get("/api/project/game-options")
 def get_game_options():
     """Options of the built game the project changes, and what can be set (decomp/gameoptions.py)."""
-    return {"options": state.require_project().game_options, "switches": list(gameoptions.SWITCHES),
+    return {"options": state.require_project().game_options, "groups": gameoptions.SWITCH_GROUPS,
             "defaults": {k: {"game": game, "values": list(values)} for k, (_f, game, values) in gameoptions.DEFAULTS.items()}}
 
 
