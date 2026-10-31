@@ -60,6 +60,8 @@ NEW_CHARACTER_PREFIX = "CHARACTER_NEW_"
 # (epilogue, support points): playable characters take a number below it.
 ALLY_CHARACTER_END = 0x46
 GENERIC_CHARACTER_START = 0x80   # the named characters end here
+# Named in the decomp, generic in use: chapters of any project can use them, the list folds them with the generics.
+NAMED_GENERICS = ("CHARACTER_SOLDIER_83", "CHARACTER_MONSTER_BA", "CHARACTER_CITIZEN")
 ITEM_CONSTANTS_FILE = "include/constants/items.h"
 SPELL_ASSOC_FILE = "src/spellassoc-data.c"
 # An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
@@ -1597,9 +1599,9 @@ class DecompData:
                 if 1 < n < GENERIC_CHARACTER_START and "SUMMON" not in name}
 
     def blank_dropped_characters(self) -> set[str]:
-        """The named characters out of a blank project's list, all but the first lord. The game keeps its entries: the
-        engine asks for the summons, the citizens and the arena opponents, but the user has nothing to do with them."""
-        return {name for name, n in self._character_constants().items() if n > 1}
+        """The named characters out of a blank project's list, all but the first lord and the generic ones. The game keeps
+        its entries: the engine asks for the summons and the arena opponents, but the user has nothing to do with them."""
+        return {name for name, n in self._character_constants().items() if n > 1 and name not in NAMED_GENERICS}
 
     def new_character(self, ally: bool, taken: set[str], reuse: bool = False) -> dict:
         """Sheet of a character to add: the first free entry for an ally (below ALLY_CHARACTER_END) or an enemy

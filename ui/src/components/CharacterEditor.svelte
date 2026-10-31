@@ -93,7 +93,7 @@
     records={list.records}
     {selected}
     onselect={(i) => (selected = i)}
-    secondary={(c) => !c.id.startsWith('CHARACTER_')}
+    secondary={(c) => !c.id.startsWith('CHARACTER_') || reference.namedGenerics.includes(c.id)}
     secondaryLabel={t('list.genericCharacters')}
     rank={(c) => (isEnemy(c.id) ? 1 : 0)}
     {problemIds}

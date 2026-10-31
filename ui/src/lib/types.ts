@@ -347,6 +347,8 @@ export interface Reference {
   firstNewPortrait: number
   /** the game's named characters only met as enemies */
   gameEnemies: string[]
+  /** named in the decomp, generic in use */
+  namedGenerics: string[]
 }
 
 /** A step of a dialogue (server: decomp/dialogues.py). */

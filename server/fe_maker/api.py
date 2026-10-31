@@ -63,6 +63,7 @@ from .decomp.cparse import parse_int
 from .decomp.gamedata import (
     ABILITIES,
     AFFINITIES,
+    NAMED_GENERICS,
     NEW_CHARACTER_PREFIX,
     NEW_CLASS_PREFIX,
     RANK_VALUES,
@@ -357,6 +358,7 @@ def reference():
         "portraits": _portrait_names(),
         "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
         "gameEnemies": _game_enemies(),
+        "namedGenerics": list(NAMED_GENERICS),
         "descriptions": state.get_decomp().descriptions(),
     }
 
