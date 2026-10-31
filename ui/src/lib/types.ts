@@ -370,6 +370,8 @@ export interface Reference {
   gameEnemies: string[]
   /** named in the decomp, generic in use */
   namedGenerics: string[]
+  /** characters' levels in the game: a sheet that differs gives its level to the units */
+  gameLevels: Record<string, number>
 }
 
 /** A step of a dialogue (server: decomp/dialogues.py). */

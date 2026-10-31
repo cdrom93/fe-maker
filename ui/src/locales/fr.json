@@ -560,6 +560,7 @@
   "problem.noSeizeTile": "aucune case à prendre",
   "problem.objectiveTextTooLong": "{lines} lignes de {max} caractères au plus, sinon le texte risque de déborder",
   "chapter.classFromSheet": "Classe définie sur la fiche de",
+  "chapter.levelFromSheet": "Niveau défini sur la fiche de",
   "list.genericCharacters": "Personnages génériques ({n})",
   "list.unusedClasses": "Classes jamais utilisées dans le jeu ({n})",
   "list.unusedClassesGroup": "Jamais utilisées dans le jeu",

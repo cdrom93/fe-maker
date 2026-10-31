@@ -89,9 +89,11 @@
 
   /** What the character has on average: `averageLevel` in their class, then, once promoted, `levelAfter` in the new one
    * (as ApplyUnitPromotion: gains, then the new class's limits; constitution comes with the class). */
-  function average(s: StatKey): number {
+  function average(s: StatKey): { value: number; capped: boolean } {
+    let capped = false
     const within = (value: number, c?: ClassView) => {
       const limit = s === 'lck' ? LUCK_CAP : c?.maxes[s as ClassStatKey]
+      capped = limit !== undefined && value >= limit
       return Math.min(value, limit ?? value)
     }
     const growth = s === 'con' ? 0 : ch.growths[s]
@@ -102,7 +104,7 @@
       else if (s !== 'lck') value += promoted.promotionGains[s]
       value = within(value + (growth * Math.max(0, levelAfter - 1)) / 100, promoted)
     }
-    return Number(value.toFixed(1))
+    return { value: Number(value.toFixed(1)), capped }
   }
   const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
   let colorsOpen = $state(false)
@@ -234,7 +236,10 @@
               </tr>
               <tr class="average">
                 <th>{t('field.average')}</th>
-                {#each STATS as s (s)}<td>{average(s)}</td>{/each}
+                {#each STATS as s (s)}
+                  {@const a = average(s)}
+                  <td class:capped={a.capped}>{a.value}</td>
+                {/each}
                 <td>{(promoted ?? cls)?.mov ?? '?'}</td>
               </tr>
             </tbody>
@@ -327,6 +332,7 @@
   .mini { width: 32px; height: 32px; flex-shrink: 0; }
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
+  td.capped { color: var(--good); font-weight: 700; }
   .average-of { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; }

@@ -41,8 +41,28 @@ def test_the_reference_project_still_opens(old_project, decomp_dir):
 
 
 def test_a_same_format_project_gets_no_copy(old_project, decomp_dir):
+    Project(old_project, decomp_dir)                              # now at this version's format
+    shutil.rmtree(old_project / "backups")
     Project(old_project, decomp_dir)
     assert not (old_project / "backups").exists()
+
+
+def test_format_2_puts_the_level_of_added_allies_on_their_sheet(old_project, decomp_dir):
+    chapters = json.loads((old_project / "data" / "chapters.json").read_text(encoding="utf-8"))
+    characters = json.loads((old_project / "data" / "characters.json").read_text(encoding="utf-8"))
+    first, second = characters[0], characters[1]
+    second_level = second["level"]
+    chapters["unitGroups"] = {
+        "A": [{"slot": None, "side": "player", "character": first["id"], "level": 7},
+              {"slot": None, "side": "player", "character": first["id"], "level": 9},           # the first one counts
+              {"slot": 0, "side": "player", "character": second["id"], "level": 7},             # the game's unit
+              {"slot": None, "side": "enemy", "character": second["id"], "level": 8},
+              {"slot": None, "side": "player", "character": second["id"], "level": 9, "autolevel": True}],
+    }
+    (old_project / "data" / "chapters.json").write_text(json.dumps(chapters), encoding="utf-8")
+    project = Project(old_project, decomp_dir)
+    levels = {c["id"]: c["level"] for c in project.load("characters")}
+    assert levels[first["id"]] == 7 and levels[second["id"]] == second_level
 
 
 def test_a_newer_project_is_refused_and_left_alone(old_project, decomp_dir):

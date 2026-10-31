@@ -363,6 +363,7 @@ def reference():
         "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
         "gameEnemies": _game_enemies(),
         "namedGenerics": list(NAMED_GENERICS),
+        "gameLevels": {c["id"]: c["level"] for c in d.export_characters()},
         "descriptions": state.get_decomp().descriptions(),
     }
 

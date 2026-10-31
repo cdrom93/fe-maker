@@ -90,6 +90,9 @@ def parse_ai(raw: str, macros: dict[str, list[int]]) -> list[int]:
     return (values + [0, 0, 0, 0])[:4]
 
 
+MAX_LEVEL = 31   # 5-bit field of a unit definition
+
+
 def is_named_character(char_index: str) -> bool:
     """Characters with a CHARACTER_ constant have a sheet; generic units use raw numbers (0x80...)."""
     return char_index.startswith("CHARACTER_")

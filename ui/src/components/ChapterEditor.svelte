@@ -23,6 +23,7 @@
     list,
     maps,
     characters,
+    gameLevels,
     classes,
     items,
     problems,
@@ -31,6 +32,7 @@
     /** painted map layouts: the map shown is the project's one */
     maps: MapsData | undefined
     characters: Character[]
+    gameLevels: Record<string, number>
     classes: ClassView[]
     items: Item[]
     problems: Problem[]
@@ -434,6 +436,13 @@
 
   /** Named characters have a sheet: their class comes from it (the only source of truth). */
   const isNamed = (u: MapUnit) => u.character.startsWith('CHARACTER_') && charById.has(u.character)
+  /** A named ally's level is set on their sheet. Units that level up by themselves keep theirs (server: _with_sheet_levels). */
+  const levelFromSheet = (u: MapUnit) => u.side === 'player' && isNamed(u) && !u.autolevel
+  function shownLevel(u: MapUnit): number {
+    const sheet = charById.get(u.character)?.level
+    if (!levelFromSheet(u) || sheet === undefined) return u.level
+    return u.slot === null || sheet !== gameLevels[u.character] ? Math.min(sheet, 31) : u.level
+  }
   function effectiveClass(u: MapUnit): string {
     return isNamed(u) ? charById.get(u.character)!.class : u.class
   }
@@ -564,7 +573,7 @@
                       <td class="sprite"><img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" use:hideBroken /></td>
                       <td><button class="link" onclick={() => (picked = { group: og, index: i })}>{unitName(u)}</button></td>
                       <td>{classById.get(effectiveClass(u))?.name ?? effectiveClass(u)}<GenderSign gender={classById.get(effectiveClass(u))?.gender} /></td>
-                      <td>{u.level}</td>
+                      <td>{shownLevel(u)}</td>
                       <td>{u.endX}, {u.endY}</td>
                       <td class="muted">{t(`ai.preset.${aiPreset(u.ai)}`)}</td>
                     </tr>
@@ -671,7 +680,10 @@
             </div>
             <label>
               <span>{t('chapter.character')} {#if charById.has(unit.character)}<Mention kind="characters" id={unit.character}><span class="open">↗</span></Mention>{/if}</span>
-              <select value={unit.character} onchange={(e) => editUnit(p.group, p.index, (u) => (u.character = (e.target as HTMLSelectElement).value))}>
+              <select value={unit.character} onchange={(e) => editUnit(p.group, p.index, (u) => {
+                u.character = (e.target as HTMLSelectElement).value
+                if (levelFromSheet(u)) u.level = Math.min(charById.get(u.character)!.level, 31)
+              })}>
                 {#if !charById.has(unit.character)}<option value={unit.character}>{t('chapter.generic')} ({unit.character})</option>{/if}
                 {#if unit.character !== GENERIC && !charById.has(GENERIC)}<option value={GENERIC}>{t('chapter.generic')}</option>{/if}
                 {#each characters as c (c.id)}<option value={c.id}>{c.name || c.id}</option>{/each}
@@ -693,10 +705,18 @@
               </span>
             </label>
             {/if}
+            {#if levelFromSheet(unit)}
+              <div class="from-sheet">
+                <span class="muted small">{t('chapter.level')}</span>
+                <span>{shownLevel(unit)}</span>
+                <span class="muted tiny">{t('chapter.levelFromSheet')} <Mention kind="characters" id={unit.character}>{unitName(unit)}</Mention></span>
+              </div>
+            {:else}
             <div class="row">
               <NumberField label={t('chapter.level')} value={unit.level} min={0} max={31} onchange={(v) => editUnit(p.group, p.index, (u) => (u.level = v))} />
               <span class="muted small">{unit.autolevel ? t('chapter.autolevelHint') : ''}</span>
             </div>
+            {/if}
             <p class="muted small">
               {t('chapter.position')} : {unit.endX}, {unit.endY}
               {#if unit.slot !== null && (unit.x !== unit.endX || unit.y !== unit.endY)} · {t('chapter.entersFrom', { x: unit.x, y: unit.y })}{/if}

@@ -352,7 +352,7 @@
   {:else if tab === 'combat'}
     <CombatEditor list={lists.combat} {classes} items={lists.items.records} {reference} {problems} />
   {:else if tab === 'chapters'}
-    {#key added}<ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} {classes} items={lists.items.records} {problems} />{/key}
+    {#key added}<ChapterEditor list={lists.chapters} maps={lists.maps.records[0]} characters={lists.characters.records} gameLevels={reference.gameLevels} {classes} items={lists.items.records} {problems} />{/key}
   {:else if tab === 'flow'}
     <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} onreload={loadAll} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}

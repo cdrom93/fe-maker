@@ -315,6 +315,20 @@ def test_imported_battle_animation(tmp_path):
                                and game.phase() == "player", seconds=60, step=20)
 
 
+def test_ally_level_comes_from_the_sheet(tmp_path):
+    """A sheet's new level reaches the unit the game places."""
+    project = Project.create(tmp_path / "level", "Level")
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["level"] = 3
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        seth = next(u for u in game.units() if u["character"] == 2)
+        assert seth["level"] == 3
+
+
 @pytest.mark.parametrize("imported", [False, True])
 def test_character_colours_in_battle(tmp_path, imported):
     """A character's own colours for a class are drawn in battle, over the game's animation or an imported one."""

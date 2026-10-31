@@ -560,6 +560,7 @@
   "problem.noSeizeTile": "no tile to seize",
   "problem.objectiveTextTooLong": "at most {lines} lines of {max} characters, or the text may overflow",
   "chapter.classFromSheet": "Class set on the sheet of",
+  "chapter.levelFromSheet": "Level set on the sheet of",
   "list.genericCharacters": "Generic characters ({n})",
   "list.unusedClasses": "Classes never used in the game ({n})",
   "list.unusedClassesGroup": "Never used in the game",

@@ -65,6 +65,29 @@ def test_edited_unit_group_reaches_the_overlay(tmp_path, decomp_dir):
     assert source.count(".charIndex = CHARACTER_TESTHERO,\n        .classIndex = CLASS_TESTLORD,\n        .level = 1,") == 1
 
 
+def test_a_named_ally_takes_the_level_of_their_sheet(tmp_path, decomp_dir):
+    from fe_maker.project import Project
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    game = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+
+    def source():
+        return (project.generate_overlay(decomp_dir) / "src" / "events_udefs.c").read_text(encoding="utf-8")
+
+    # An added unit follows the sheet, the game's keep theirs
+    project.save("chapters", {"unitGroups": {"UnitDef_TestChapter": [*game, {**game[0], "slot": None, "level": 7}]}})
+    assert ".level = 7," not in source() and ".level = 10," in source()
+
+    # A changed sheet reaches the game's units too, in groups nobody edited, but not an enemy or who levels up alone
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_TESTHERO")["level"] = 5
+    project.save("characters", characters)
+    project.save("chapters", {"unitGroups": {}})
+    assert ".level = 10," not in source() and ".level = 3," in source()
+    project.save("chapters", {"unitGroups": {"UnitDef_TestChapter": [game[0], game[1], {**game[2], "autolevel": True}]}})
+    assert ".level = 10," in source()
+
+
 def test_unit_groups_and_chapter_events(decomp_dir):
     groups = units.read_unit_groups(decomp_dir)
     test = groups["UnitDef_TestChapter"].units

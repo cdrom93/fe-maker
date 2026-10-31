@@ -411,7 +411,30 @@ class DecompData:
         "wallHp" {chapter index: HP}: cracked walls' HP, once changed."""
         return {"unitGroups": {}, "objectives": {}}
 
+    def _with_sheet_levels(self, chapters: dict) -> dict:
+        """A named ally has the level of their sheet: when the project added the unit, or changed the sheet (then in every
+        group, edited or not; the game's units keep theirs otherwise). Units that level up by themselves are left alone."""
+        sheets = {e.fields["number"]: (_int_field(e.fields, "baseLevel"), _int_field(e.original_fields, "baseLevel"))
+                  for e in self.characters.entries}
+        changed = {character for character, (now, game) in sheets.items() if now != game}
+
+        def level(unit: dict) -> int | None:
+            character = unit.get("character", "")
+            if unit.get("side") != "player" or not units.is_named_character(character) or character not in sheets \
+                    or unit.get("autolevel") or (unit.get("slot") is not None and character not in changed):
+                return None
+            return min(sheets[character][0], units.MAX_LEVEL)
+
+        groups = dict(chapters.get("unitGroups", {}))
+        if changed:
+            for name, group in units.read_unit_groups(self.decomp_dir).items():
+                if name not in groups and any(u.get("character") in changed for u in group.units):
+                    groups[name] = group.units
+        fixed = {name: [u if (n := level(u)) is None else {**u, "level": n} for u in group] for name, group in groups.items()}
+        return {**chapters, "unitGroups": fixed} if fixed else chapters
+
     def apply_chapters(self, chapters: dict) -> None:
+        chapters = self._with_sheet_levels(chapters)
         new_groups = chapters.get("newGroups", {})
         edits = {k: v for k, v in chapters.get("unitGroups", {}).items() if k not in new_groups}
         if edits:

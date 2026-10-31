@@ -15,8 +15,29 @@ from pathlib import Path
 
 PROJECT_FILE = "fe-maker.json"
 BACKUPS_DIR = "backups"
+
+
+def _ally_levels_on_sheets(root: Path, meta: dict) -> None:
+    """Format 2: a named ally takes their level from their sheet, no more from the chapter (DecompData._with_sheet_levels):
+    allies the project placed give their sheet the level chosen in the chapter, the first one they have."""
+    chapters_path, characters_path = root / "data" / "chapters.json", root / "data" / "characters.json"
+    chapters = json.loads(chapters_path.read_text(encoding="utf-8"))
+    characters = json.loads(characters_path.read_text(encoding="utf-8"))
+    sheets = {c["id"]: c for c in characters}
+    done: set[str] = set()
+    for group in chapters.get("unitGroups", {}).values():
+        for unit in group:
+            character = unit.get("character")
+            if unit.get("slot") is None and unit.get("side") == "player" and not unit.get("autolevel") \
+                    and character in sheets and str(character).startswith("CHARACTER_") and character not in done:
+                done.add(character)
+                sheets[character]["level"] = unit.get("level", sheets[character]["level"])
+    if done:
+        characters_path.write_text(json.dumps(characters, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
 # MIGRATIONS[n] takes a project from format n + 1 to n + 2: it edits the files of `data/` and the project file's dict.
-MIGRATIONS: list[Callable[[Path, dict], None]] = []
+MIGRATIONS: list[Callable[[Path, dict], None]] = [_ally_levels_on_sheets]
 FORMAT_VERSION = 1 + len(MIGRATIONS)
 
 
