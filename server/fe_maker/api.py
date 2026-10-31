@@ -679,7 +679,7 @@ def get_map(layout_id: str, base: str | None = None):
         "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],
         # Tile sheets of the game the map can be drawn with, and the map's own (ticket 21)
         "originalBase": layout["assets"].config.stem,
-        "bases": [{"id": b["id"], "chapters": b["chapters"], "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
+        "bases": [{"id": b["id"], "name": maps.SHEET_NAMES.get(b["id"], b["id"]), "chapters": b["chapters"], "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
                   for b in maps.base_choices(DECOMP_DIR)],
         # Original map changes (doors, villages...); None when the map has no change layer
         "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,

@@ -1169,15 +1169,16 @@
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
           <details class="bases-panel">
-            <summary class="small">{t('maps.base')} : {(chosenBase ?? layout.originalBase).replace('TileConfiguration', '')}
+            <summary class="small">{t('maps.base')} : {layout.bases.find((b) => b.id === (chosenBase ?? layout!.originalBase))?.name ?? (chosenBase ?? layout.originalBase)}
               {#if chosenBase}<span class="edited">✎</span>{/if}</summary>
             <div class="bases" role="radiogroup" aria-label={t('maps.base')}>
               {#each layout.bases as b (b.id)}
                 {@const names = b.chapters.map(chapterTitle)}
                 {@const current = (chosenBase ?? layout.originalBase) === b.id}
-                <button role="radio" aria-checked={current} class="base-choice" class:active={current} title={`${b.id} — ${names.join(', ')}`}
+                <button role="radio" aria-checked={current} class="base-choice" class:active={current} title={`${b.name} — ${names.join(', ')}`}
                         onclick={() => setBase(b.id)}>
                   <span class="thumb" style="background-image: url({mapTilesetUrl(info!.id, b.id)})"></span>
+                  <strong class="tiny">{b.name}</strong>
                   <span class="tiny">{names.slice(0, 2).join(', ')}{names.length > 2 ? ` +${names.length - 2}` : ''}{b.id === layout.originalBase ? ` · ${t('maps.baseOriginal')}` : ''}</span>
                 </button>
               {/each}

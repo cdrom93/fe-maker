@@ -220,7 +220,7 @@ export interface MapLayout {
   palettes: { id: string; chapters: number[]; colors: string[] }[]
   /** the map's tile sheet in the game, and the game's tile sheets it can be drawn with (ticket 21) */
   originalBase: string
-  bases: { id: string; chapters: number[]; palette: string }[]
+  bases: { id: string; name: string; chapters: number[]; palette: string }[]
 }
 
 /** A map change: tiles put over a rectangle of the map during the game (door, village, wall...). */

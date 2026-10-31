@@ -86,3 +86,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 31/10/2026 : tickets 100-102 : un groupe vidé ne garde plus les personnages du jeu, leurs dernières paroles quittent la liste avec eux, lien « Dernières paroles » dans la fiche personnage.
 - 31/10/2026 : ticket 104 : supprimer un dialogue de scène retire sa commande du déroulé, réparation des projets à l'ouverture (`tidy_scripts`), problème écrit en clair.
 - 31/10/2026 : tickets 95, 103 : un village garde le portrait choisi ; commande « Donner un objet », conditions en phrases dans la vue simple, ajout dans une condition, liste de commandes réduite aux commandes simples.
+- 31/10/2026 : ticket 105 : les jeux de tuiles portent les noms de FEBuilder (Fields, Village, Castle...) au lieu de numéros.

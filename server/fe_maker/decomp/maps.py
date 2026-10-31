@@ -287,6 +287,13 @@ def palette_choices(decomp_dir: Path, assets: MapAssets) -> list[dict]:
 BASE_FIELDS = ("obj1Id", "obj2Id", "tileConfigId", "objAnimId", "paletteAnimId")
 
 
+# The tile sheets' usual names (FEBuilderGBA, config/data/mapstyle_FE8.en.txt): the decomp only numbers them.
+SHEET_NAMES = {"TileConfiguration1": "Fields", "TileConfiguration2": "Village", "TileConfiguration3": "Castle",
+               "TileConfiguration4": "Plains", "TileConfiguration5": "Fort", "TileConfiguration6": "Desert",
+               "TileConfiguration7": "Lava Cave", "TileConfiguration8": "Black Temple", "TileConfiguration9": "Mountainous",
+               "TileConfiguration10": "Stronghold", "TowerOfValniTileConfiguration": "Temple"}
+
+
 @lru_cache(maxsize=4)
 def base_choices(decomp_dir: Path) -> list[dict]:
     """Tile sheets of the game, one per tile config: [{"id": tile config symbol, "map": chapter map
