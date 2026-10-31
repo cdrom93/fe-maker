@@ -351,7 +351,10 @@ def _validate_scripts(problems, scripts: dict, decomp: DecompData, characters: l
                             found = int(str(value), 0) in decomp.texts.messages
                     except ValueError:
                         found = True   # a constant: the compiler checks it
-                    if not found:
+                    if not found and str(value).startswith(decomp_dialogues.SCENE_MESSAGE):
+                        problems.append(Problem("error", "dialogues", rid, arg, "lostMessage", {},
+                                                f"{rid}: removed message {value}"))
+                    elif not found:
                         problems.append(Problem("error", "dialogues", rid, arg, "unknownMessage", {"id": str(value)},
                                                 f"{rid}: unknown message {value}"))
                 elif known.get(kind) and not re.fullmatch(r"-?(0x[0-9a-fA-F]+|\d+)", str(value).strip()) \

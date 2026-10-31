@@ -920,6 +920,8 @@
   "problem.unknownScript": "déroulé de scène inconnu",
   "problem.badCommand": "commande mal écrite",
   "problem.badArguments": "arguments manquants ou mal écrits",
+  "dlg.aSequence": "Déroulé d'une scène",
+  "problem.lostMessage": "ce déroulé affiche un dialogue qui a été supprimé",
   "problem.unknownMessage": "message {id} inconnu",
   "ev.op.MUSC": "Musique",
   "ev.op.MUSS": "Musique (temporaire)",

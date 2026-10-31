@@ -352,8 +352,11 @@
     const i = quoteIndex
     if (i < 0) return
     messageId = null
+    const ref = `${NEW}${newQuotes[i]?.key}`
     list.update(0, (d) => {
       d.quotes?.splice(i, 1)
+      // the scene no longer shows it (ticket 104)
+      for (const name of Object.keys(d.scripts ?? {})) d.scripts![name] = d.scripts![name].filter((c) => !c.args?.includes(ref))
     })
   }
 

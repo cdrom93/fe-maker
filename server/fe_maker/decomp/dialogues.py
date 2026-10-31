@@ -409,6 +409,17 @@ def without_scene(source: str, script: str) -> str:
     return re.sub(rf"^[ \t]*\w+\([^\n]*\b{re.escape(script)}\b[^\n]*\)[ \t]*\n", "", source, flags=re.M)
 
 
+def without_lost_messages(scripts: dict, quotes: list[dict]) -> dict:
+    """`scripts` without the commands that show a project message which no longer exists (ticket 104)."""
+    keys = {f"{SCENE_MESSAGE}{q['key']}" for q in quotes if q.get("key")}
+
+    def lost(command: dict) -> bool:
+        return any(isinstance(a, str) and a.startswith(SCENE_MESSAGE) and a not in keys for a in command.get("args") or [])
+
+    return {name: [c for c in commands if not lost(c)] if isinstance(commands, list) else commands
+            for name, commands in scripts.items()}
+
+
 SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")
 
 

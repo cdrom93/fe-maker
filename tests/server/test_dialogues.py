@@ -139,3 +139,11 @@ def test_edited_message_is_laid_out_at_build(decomp_dir):
     assert len(lines) > 2 and "[A][LF]" in body
     files = d.changed_files()
     assert "[é] = 0xE9" in files["texts/textdefs.txt"] and "[é]" in files["texts/texts.txt"]
+
+
+def test_a_removed_message_leaves_its_scene():
+    scripts = {"Scene": [{"op": "Text", "args": ["new:gone"]}, {"op": "Text", "args": ["new:here"]},
+                         {"op": "Text", "args": ["0x10"]},
+                         {"op": "ENDA"}]}
+    kept = dl.without_lost_messages(scripts, [{"kind": "scene", "key": "here"}, {"kind": "death"}])
+    assert kept == {"Scene": scripts["Scene"][1:]}

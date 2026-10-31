@@ -240,6 +240,7 @@ def open_project(body: OpenProjectIn):
     try:
         project = Project(Path(body.path))
         newchapter.tidy_blank(project)
+        newchapter.tidy_scripts(project)
         return _open(project)
     except ProjectError as e:
         raise HTTPException(400, str(e))

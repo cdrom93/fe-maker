@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from .decomp import maps, objectives, story, units
+from .decomp import dialogues, maps, objectives, story, units
 from .decomp.gamedata import DecompData
 from .validation import MAP_MIN_HEIGHT, MAP_MIN_WIDTH, Problem
 
@@ -160,6 +160,15 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
     project.save("chapters", chapters)
     project.save("maps", maps_data)
     project.save("dialogues", dialogues)
+
+
+def tidy_scripts(project) -> None:
+    """A dialogue removed before its command left with it (ticket 104): nothing can show it, and the scene may be hidden."""
+    stored = project.load("dialogues")
+    scripts = stored.get("scripts", {})
+    kept = dialogues.without_lost_messages(scripts, stored.get("quotes", []))
+    if kept != scripts:
+        project.save("dialogues", {**stored, "scripts": kept})
 
 
 def tidy_blank(project) -> None:

@@ -920,6 +920,8 @@
   "problem.unknownScript": "unknown scene sequence",
   "problem.badCommand": "malformed command",
   "problem.badArguments": "missing or malformed arguments",
+  "dlg.aSequence": "A scene's sequence",
+  "problem.lostMessage": "this sequence shows a dialogue that was removed",
   "problem.unknownMessage": "unknown message {id}",
   "ev.op.MUSC": "Music",
   "ev.op.MUSS": "Music (for a while)",

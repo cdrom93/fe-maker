@@ -213,6 +213,8 @@
     if (kind === 'chapters') return (/^\d+$/.test(id) ? chapterList.find((c) => String(c.index) === id)?.title : '') || id.replace('UnitDef_Event_', '')
     if (kind === 'maps') return id
     if (kind === 'dialogues' && id.startsWith('new')) return t('dlg.newQuotes')
+    if (kind === 'dialogues' && id.startsWith('script:')) return t('dlg.aSequence')
+    if (kind === 'dialogues' && id.startsWith('support')) return t('dlg.supports')
     if (kind === 'dialogues') return t('dlg.message', { id: `0x${Number(id.split('#')[0]).toString(16).toUpperCase()}` })
     const record = (lists[kind].records as { id: string; name: string }[]).find((r) => r.id === id)
     return record?.name || id || t(`ws.${kind}`)

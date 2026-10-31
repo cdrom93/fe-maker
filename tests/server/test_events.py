@@ -76,7 +76,7 @@ def test_new_scene_message_and_unknown_names(decomp_dir):
                                                dialogues={"messages": {}, "quotes": quotes, "scripts": scripts})}
     assert ("script:EventScr_TestOpening#0", "unknownMessage") not in codes
     assert ("script:EventScr_TestOpening#1", "unknownName") in codes
-    assert ("script:EventScr_TestOpening#2", "unknownMessage") in codes
+    assert ("script:EventScr_TestOpening#2", "lostMessage") in codes
     assert not any(c == "quoteWithoutCharacter" for _id, c in codes)
     # At build time, "new:s1" becomes the id of the new message
     scripts["EventScr_TestOpening"] = scripts["EventScr_TestOpening"][:1] + [{"op": "ENDA"}]
