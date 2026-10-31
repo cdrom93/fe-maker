@@ -165,6 +165,8 @@ export const api = {
     request<{ brushes: { terrain: number; tile: number }[] }>('GET', `/api/maps/${id}/brushes${base ? `?base=${encodeURIComponent(base)}` : ''}`),
   mapAutotile: (id: string, body: { rows: number[][]; cells: [number, number][]; base: string | null }) =>
     request<{ rows: number[][] }>('POST', `/api/maps/${id}/autotile`, body),
+  mapFill: (id: string, body: { rows: number[][]; keep: [number, number][]; base: string | null }) =>
+    request<{ rows: number[][] }>('POST', `/api/maps/${id}/fill`, body),
   mapPieces: (id: string, base: string | null = null) =>
     request<{ pieces: MapPiece[] }>('GET', `/api/maps/${id}/pieces${base ? `?base=${encodeURIComponent(base)}` : ''}`),
   mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>

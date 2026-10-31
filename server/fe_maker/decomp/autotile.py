@@ -32,6 +32,10 @@ ATTEMPTS = 3
 MIN_USES = 3      # tiles the game uses once or twice are not picked for the ground around a stroke
 MAX_RETRIES = 300
 KEEP_KIND = 400
+FILL_SHARE = 0.25     # share of a map's empty cells that "fill" turns into another ground
+FILL_PATCH = 9        # largest patch of ground it lays
+FILL_TRIES = 60
+ROAD = 0x02           # a patch of road leads nowhere
 
 
 @dataclass
@@ -236,6 +240,13 @@ def paint(model: Model, rows: list[list[int]], cells: list[tuple[int, int]]) -> 
     Every two tiles side by side in the result are tiles the game draws side by side. The cells around may change
     tile, within their terrain first, then to any ground (a slope around a peak) when that is not enough.
     """
+    return _join(model, rows, cells) or [list(row) for row in rows]
+
+
+def _join(model: Model, rows: list[list[int]], cells: list[tuple[int, int]],
+          kept: frozenset | set = frozenset(), only: set | None = None) -> list[list[int]] | None:
+    """`paint`, leaving the `kept` cells alone and using only the terrains `only` around the cells; None when the cells
+    cannot be joined."""
     out = [list(row) for row in rows]
     painted = {(x, y) for x, y in cells if 0 <= y < len(out) and 0 <= x < len(out[y])}
     # the middle of a big area keeps the tile it was filled with: only its border has something to join
@@ -248,24 +259,90 @@ def paint(model: Model, rows: list[list[int]], cells: list[tuple[int, int]]) -> 
     for kind, tiles in model.tiles.items():
         for tile in tiles:
             of_kind[kind] = of_kind.get(kind, 0) | 1 << tile
-            if kind not in NOT_GROUND and tiles[tile] >= MIN_USES:
+            if kind not in NOT_GROUND and tiles[tile] >= MIN_USES and (only is None or kind in only):
                 ground |= 1 << tile
+    # a patch of a fill stays away from water, even as the shore of its own terrain
+    dry = sum(1 << tile for tile, sides in enumerate(model.borders) if not any("w" in side for side in sides))
     rng = random.Random(0)
     for ring, loose in ((1, False), (2, False), (1, True), (2, True), (3, True), (4, True)):
+        if only is not None and ring > 2:
+            return None             # the patch would spread far past its cells
         near = {(x + dx, y + dy) for x, y in painted for dx in range(-ring, ring + 1) for dy in range(-ring, ring + 1)}
         near = {(x, y) for x, y in near if 0 <= y < len(out) and 0 <= x < len(out[y])}
         kinds = {c: model.kind(out[c[1]][c[0]]) for c in near}
         weights = {(x, y): _weights(model, out, x, y, kinds[x, y]) for x, y in near}
         region = {}
         for c in near:
-            if kinds[c] in NOT_GROUND and c not in painted:
+            if c in kept or (kinds[c] in NOT_GROUND and c not in painted):
                 continue                    # buildings and the like stay as they are
             region[c] = (of_kind.get(kinds[c], 0) if c in painted or not loose else ground) or ground
+            if only is not None and model.borders:
+                region[c] &= dry
         for _ in range(ATTEMPTS):
             found = _solve(model, out, region, weights, rng)
             if found:
                 for (x, y), tile in found.items():
                     out[y][x] = tile
                 return out
+    return None
+
+
+def _fill_grounds(model: Model, empty: int, costs: list[int]) -> list[tuple[int, int]]:
+    """Grounds to lay on `empty` cells, (terrain, how much the game uses it): those a unit on foot can cross, so that a
+    filled map stays open, and that the game's maps draw next to the empty terrain."""
+    meets: Counter = Counter()
+    for pairs in (model.right, model.below):
+        for (a, b), uses in pairs.items():
+            kinds = {model.kind(a), model.kind(b)}
+            if empty in kinds:
+                meets[(kinds - {empty} or {empty}).pop()] += uses
+    return [(kind, sum(model.tiles[kind].values())) for kind in model.tiles
+            if kind not in (empty, ROAD) and kind not in NOT_GROUND and meets[kind] >= MIN_CELLS
+            and kind < len(costs) and costs[kind] > 0]
+
+
+def fill(model: Model, rows: list[list[int]], costs: list[int], keep: list[tuple[int, int]] = (),
+         seed: int | None = None) -> list[list[int]]:
+    """Rows where the empty space gets patches of other grounds, joined to what is around them.
+
+    Empty cells are those of the map's most common terrain; everything else stays as it is, with the `keep` cells (map
+    objects and changes, drawn over the rows) and a free cell around it, so that what the user built keeps its approaches.
+    `costs`: the cost of each terrain on foot (-1: impassable).
+    """
+    out = [list(row) for row in rows]
+    height, width = len(out), len(out[0]) if out else 0
+    counts = Counter(model.kind(tile) for row in out for tile in row)
+    if not counts:
+        return out
+    empty = counts.most_common(1)[0][0]
+    kept = {(x, y) for y in range(height) for x in range(width) if model.kind(out[y][x]) != empty} | set(map(tuple, keep))
+    grounds = _fill_grounds(model, empty, costs)
+    if not grounds:
+        return out
+    only = {empty} | {g[0] for g in grounds}     # no water or house comes up around a patch
+    rng = random.Random(seed)
+    free = {(x, y) for y in range(height) for x in range(width)
+            if not any((x + dx, y + dy) in kept for dx in (-1, 0, 1) for dy in (-1, 0, 1))}
+    left = int((height * width - len(kept)) * FILL_SHARE)
+    for _ in range(FILL_TRIES):
+        if left <= 0 or not free:
+            break
+        kind = rng.choices([g[0] for g in grounds], [g[1] ** 0.5 for g in grounds])[0]
+        patch = {rng.choice(sorted(free))}
+        size = rng.randint(2, FILL_PATCH)
+        while len(patch) < size:
+            around = sorted({(x + dx, y + dy) for x, y in patch for dx, dy in SIDE_STEPS} & free - patch)
+            if not around:
+                break
+            patch.add(rng.choice(around))
+        tile = model.tiles[kind].most_common(1)[0][0]
+        laid = [list(row) for row in out]
+        for x, y in patch:
+            laid[y][x] = tile
+        joined = _join(model, laid, sorted(patch), kept, only)
+        if joined:
+            out = joined
+            left -= len(patch)
+        free -= {(x + dx, y + dy) for x, y in patch for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
     return out
     return out

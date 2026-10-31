@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "server"))
 
 from fe_maker.decomp.gamedata import DecompData  # noqa: E402
-from fe_maker.playtest import Game  # noqa: E402
+from fe_maker.playtest import UNIT_SIZE, Game  # noqa: E402
 from fe_maker.project import Project  # noqa: E402
 
 ROM = os.environ.get("FE_MAKER_ROM")
@@ -891,6 +891,30 @@ def test_a_project_keeps_only_what_is_chosen(tmp_path):
     out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
+def test_an_event_changes_a_units_stats(tmp_path):
+    project = Project.create(tmp_path / "stats", "Stats")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    script = "EventScr_Prologue_BeginningScene"
+    original = DecompData(project.decomp_dir).script_commands(script)
+    change = [{"op": "ChangeStat", "args": ["CHARACTER_EIRIKA", stat, amount]}
+              for stat, amount in (("hp", "5"), ("pow", "3"), ("spd", "-2"), ("mov", "2"), ("lck", "-99"))]
+    end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
+    project.save("dialogues", {"scripts": {script: original[:end] + change + original[end:]}})
+    eirika = next(c for c in project.load("characters") if c["id"] == "CHARACTER_EIRIKA")
+    lord = next(c for c in project.load("classes") if c["id"] == eirika["class"])
+    base = {s: eirika["bases"][s] + lord["bases"][s] for s in ("hp", "pow", "spd")}
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
+        index, eirika = next((i, u) for i, u in enumerate(game.units()) if u["character"] == 1)
+        unit = game.address("gUnitArrayBlue") + index * UNIT_SIZE
+        assert eirika["maxHP"] == eirika["hp"] == base["hp"] + 5
+        assert game.read(unit, 0x14) == base["pow"] + 3
+        assert game.read(unit, 0x16) == base["spd"] - 2
+        assert game.read(unit, 0x19) == 0     # never below 0
+        assert game.read(unit, 0x1D) == 2     # the move bonus
 
 
 def test_select_shows_the_danger_zone(tmp_path):

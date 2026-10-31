@@ -804,6 +804,12 @@ def map_tileset(layout_id: str, palette: str | None = None, base: str | None = N
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
+class MapFillIn(BaseModel):
+    rows: list[list[int]]
+    keep: list[tuple[int, int]] = []
+    base: str | None = None
+
+
 class AutotileIn(BaseModel):
     rows: list[list[int]]
     cells: list[tuple[int, int]]
@@ -824,6 +830,15 @@ def map_autotile(layout_id: str, body: AutotileIn):
     _layout(layout_id)
     config = maps.layout_assets(DECOMP_DIR, layout_id, body.base).config
     return {"rows": autotile.paint(autotile.learn(DECOMP_DIR, config), body.rows, body.cells)}
+
+
+@app.post("/api/maps/{layout_id}/fill")
+def map_fill(layout_id: str, body: MapFillIn):
+    """Patches of other grounds in the map's empty space, joined as the game's maps do."""
+    _layout(layout_id)
+    config = maps.layout_assets(DECOMP_DIR, layout_id, body.base).config
+    costs = maps.terrain_effects(DECOMP_DIR)["foot"]
+    return {"rows": autotile.fill(autotile.learn(DECOMP_DIR, config), body.rows, costs, body.keep)}
 
 
 @app.get("/api/maps/{layout_id}/pieces")

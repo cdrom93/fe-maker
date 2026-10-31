@@ -53,6 +53,14 @@ def test_new_switches_are_known_and_stop_on_a_changed_decomp(tmp_path):
         gameoptions.apply(tmp_path, {"quickExpBar": True}, {})
 
 
+def test_a_unit_acts_after_a_talk():
+    source = Path(__file__).parents[2] / "decomp" / gameoptions.RANGE_DISPLAY_FILE
+    if not source.is_file():
+        pytest.skip("no decomp")
+    text = gameoptions.apply(source.parents[1], {"actAfterTalk": True}, {})[gameoptions.RANGE_DISPLAY_FILE]
+    assert "PROC_CALL_2(FemAfterTalk)" in text and "gBmSt.taken_action |= 16;" in text
+
+
 def test_the_danger_zone_is_written_with_the_other_range_option():
     source = (Path(__file__).parents[2] / "decomp" / gameoptions.RANGE_DISPLAY_FILE)
     if not source.exists():

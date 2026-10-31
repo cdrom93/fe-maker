@@ -626,6 +626,7 @@
   // Terrain brushes: the tiles of the painted cells and around them are chosen as the game's maps do.
   let groundBrushes = $state<{ terrain: number; tile: number }[]>([])
   let groundBrush = $state<number | null>(null)
+  let filling = $state(false)
   $effect(() => {
     const id = info?.id
     const base = chosenBase
@@ -712,6 +713,21 @@
       commit((await api.mapAutotile(info.id, { rows: next, cells, base: chosenBase })).rows)
     } catch {
       commit(next)
+    }
+  }
+
+  /** Patches of other grounds in the empty space (the terrain the map has most of); undo takes them back. */
+  async function fillEmpty() {
+    if (!info || filling) return
+    filling = true
+    const keep: [number, number][] = objects.map((o) => [o.x, o.y])
+    for (const c of changes ?? []) {
+      for (let y = c.y; y < c.y + c.h; y++) for (let x = c.x; x < c.x + c.w; x++) keep.push([x, y])
+    }
+    try {
+      commit((await api.mapFill(info.id, { rows: copyGrid(), keep, base: chosenBase })).rows)
+    } finally {
+      filling = false
     }
   }
 
@@ -1369,6 +1385,10 @@
                     <span class="tiny">{terrainName(b.terrain)}</span>
                   </button>
                 {/each}
+              </div>
+              <div class="row">
+                <button class="small" disabled={filling} onclick={fillEmpty}>{filling ? t('maps.filling') : t('maps.fillEmpty')}</button>
+                <Help text={t('maps.fillEmptyHint')} />
               </div>
             {/if}
             {#snippet pieceGroup(group: 'building' | 'decor')}

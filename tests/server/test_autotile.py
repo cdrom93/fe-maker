@@ -4,6 +4,26 @@ GRASS, STRAIGHT, BEND, BANK = 1, 2, 3, 5
 TERRAIN = bytes([0, 1, 16, 16, 16, 1])
 
 
+def test_filling_the_empty_space_keeps_what_was_built():
+    grass, wood, wall = 1, 2, 3
+    model = autotile.Model(bytes([0, 1, 12, 0x1E]))
+    model.borders = [("", "", "", "")] * 4
+    model.tiles[1][grass] = model.tiles[12][wood] = 0   # only terrains the game's maps use are studied below
+    for _ in range(6):
+        autotile.study(model, [[grass, grass, grass, grass], [grass, wood, wood, grass],
+                               [grass, wood, wood, grass], [grass, grass, grass, grass]])
+    rows = [[grass] * 12 for _ in range(10)]
+    rows[0][0] = wall
+    costs = [-1] * 0x40
+    costs[1] = costs[12] = 1
+    out = autotile.fill(model, rows, costs, [(9, 7)], seed=3)
+    assert all(out[y][x] == grass for x in (8, 9, 10) for y in (6, 7, 8))
+    assert out[0][0] == wall and out[0][1] == out[1][0] == out[1][1] == grass    # a free cell around what stays
+    assert sum(row.count(wood) for row in out) > 3
+    costs[12] = -1
+    assert autotile.fill(model, rows, costs, seed=3) == rows      # nothing a unit could not cross
+
+
 def _model() -> autotile.Model:
     model = autotile.Model(TERRAIN)
     autotile.study(model, [[GRASS, STRAIGHT, GRASS],

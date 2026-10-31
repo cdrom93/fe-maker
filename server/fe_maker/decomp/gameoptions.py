@@ -48,7 +48,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 }
 SWITCHES = ("stationaryRange", "skipOpening", "skipStoryIntro", "talkBubbles",
             "quickChapterTitle", "holdAToSpeedUp", "quickExpBar", "quickLevelUp",
-            "noSupportAnimations", "hpBars", "casualMode", "dangerZone")
+            "noSupportAnimations", "hpBars", "casualMode", "dangerZone", "actAfterTalk")
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -275,6 +275,34 @@ static void FemPutBubble(struct Unit * unit)
 """ + _ICONS
 _ICONS_LOOP_BUBBLE = "        FemPutBubble(unit);\n\n" + _ICONS_LOOP
 
+# A unit acts on after Talk or Support, as after a trade (FEBuilder's "Contemporary FE style talk and support", redone
+# in C): one more step of the player phase, right after the action, goes back to the unit's menu; the game's taken_action
+# then turns B into Wait. Its 16 is a free bit of that byte.
+_TALK_HEAD = "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =\n"
+_TALK_HEAD_NEW = "static s8 FemAfterTalk(ProcPtr proc);\n\n" + _TALK_HEAD
+_TALK_STEP = "    PROC_CALL_2(ApplyUnitAction),\n"
+_TALK_STEP_NEW = _TALK_STEP + "    PROC_CALL_2(FemAfterTalk),\n"
+_TALK_CANCEL = "//! FE8U = 0x0801D008\nvoid PlayerPhase_BackToMove(ProcPtr proc)\n"
+_TALK_CANCEL_NEW = """/* FE Maker: back to the unit's menu after Talk or Support, unless the unit left or the map is won */
+static s8 FemAfterTalk(ProcPtr proc)
+{
+    if (gActionData.unitActionType != UNIT_ACTION_TALK && gActionData.unitActionType != UNIT_ACTION_SUPPORT)
+        return 1;
+
+    gActiveUnit = GetUnit(gActionData.subjectIndex);
+    if (gActiveUnit->state & (US_DEAD | US_NOT_DEPLOYED | US_BIT16) || ShouldCallEndEvent())
+        return 1;
+
+    gBmSt.taken_action |= 16;
+    HideUnitSprite(gActiveUnit);
+    EndAllMus();
+    StartMu(gActiveUnit);
+    PlayerPhase_CancelAction(proc);
+    return 1;
+}
+
+""" + _TALK_CANCEL
+
 _STORY_INTRO = "    StartIntroMonologue(proc);\n"
 _STORY_INTRO_NONE = "    /* FE Maker: no story intro */\n"
 
@@ -341,6 +369,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[RANGE_DISPLAY_FILE] = source
     if options.get("skipOpening"):
         files[GAME_CONTROL_FILE] = skip_intro(current(GAME_CONTROL_FILE))
+    if options.get("actAfterTalk"):
+        source = _replace(current(RANGE_DISPLAY_FILE), _TALK_HEAD, _TALK_HEAD_NEW, RANGE_DISPLAY_FILE)
+        source = _replace(source, _TALK_STEP, _TALK_STEP_NEW, RANGE_DISPLAY_FILE)
+        files[RANGE_DISPLAY_FILE] = _replace(source, _TALK_CANCEL, _TALK_CANCEL_NEW, RANGE_DISPLAY_FILE)
     if options.get("skipStoryIntro"):
         files[GAME_CONTROL_FILE] = _replace(current(GAME_CONTROL_FILE), _STORY_INTRO, _STORY_INTRO_NONE, GAME_CONTROL_FILE)
     if options.get("quickChapterTitle"):

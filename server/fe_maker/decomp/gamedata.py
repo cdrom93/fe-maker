@@ -35,6 +35,7 @@ from . import (
     supports,
     tileedit,
     units,
+    unitstats,
     weaponrange,
 )
 from .cparse import (
@@ -2137,6 +2138,9 @@ class DecompData:
             out[seize.FILE] = seize.with_seizers(self._read(seize.FILE), self.seizers)
         if chapterflags.uses_late_flags(list(self.event_sources.values())) or self._new_quote_flags:
             out[chapterflags.FILE] = chapterflags.with_late_flags(self._read(chapterflags.FILE))
+        if unitstats.uses(list(self.event_sources.values())):
+            out[unitstats.FILE] = unitstats.with_function(self._read(unitstats.FILE))
+            out[unitstats.HEADER] = unitstats.with_declaration(self._read(unitstats.HEADER))
         if self.other_dancers:
             out[danceanim.FILE] = danceanim.with_guard(self._read(danceanim.FILE))
         if self.other_ranges:

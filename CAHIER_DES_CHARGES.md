@@ -173,7 +173,8 @@ fe-maker/
 - Avertissement des armes que les unités ne pourront pas utiliser (24/10/2026).
 
 ### Phase 3 — Chapitres 🚧 (en cours)
-**État (30/10/2026)** — le détail daté est dans `docs/journal.md`.
+**État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
+- « Remplir le vide » (panneau Terrains de la carte) : des bosquets, collines et autres sols praticables dans le terrain le plus présent ; le reste est gardé, objets et changements compris. Vu dans l'éditeur, pas encore joué.
 - **Unités** : placement par glisser-déposer, ajout, duplication et suppression, personnage, classe (unités génériques), niveau, inventaire, IA ; unités de cinématique séparées ; renforts au tour N, « Dupliquer ce groupe ».
 - **Objectifs** : s'emparer d'une case, vaincre tous les ennemis ou le chef, survivre N tours (ou vaincre le chef), atteindre une zone, personnage à protéger ; texte de l'écran de statut. Lecture seule : tour de Valni et ruines de Lagdou. Brouillard de guerre par chapitre.
 - **Cartes** : peinture (crayon, rectangle, remplissage, pipette, blocs, bâtiments entiers), terrains et leurs effets, taille, changements de carte (zone tracée à la souris), objets automatiques (villages et leurs ruines, maisons, coffres, portes, murs fissurés, bois morts, magasins), tuiles tournées et retournées, terrain d'une tuile, palettes, jeux de tuiles, aller-retour avec Tiled.
@@ -186,7 +187,9 @@ fe-maker/
 - **Changements de carte automatiques** (demande de l'utilisateur, 23/10/2026, priorité) : régler les couches de changements à la main est trop pénible. On dessine la carte, on pose un coffre, un village à visiter, une porte, un mur fissuré… et FE Maker crée tout seul le changement (état « après » : coffre ouvert, village fermé, porte ouverte, décombres), sa position, son numéro et ce qu'il faut pour qu'il fonctionne (événements de village, contenu du coffre), au moins pour les cas classiques. But : dessiner la carte simplement et qu'elle fonctionne quasiment toute seule. Le réglage manuel des changements reste disponible pour les cas particuliers.
 
 ### Phase 4 — Dialogues et événements 🚧 (commencée le 23/10/2026)
-**État (30/10/2026)** — le détail daté est dans `docs/journal.md`.
+**État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
+- Commande « Changer une caractéristique » (PV, Force, Tech, Vit, Déf, Rés, Chance, Cons, Dépl) : vérifiée en jeu dans une scène de prologue ; le report d'un chapitre à l'autre ou après une sauvegarde n'a pas été joué.
+- Option « Agir après avoir parlé » : vérifiée en jeu après Parler et après Soutien (le menu revient, B termine le tour).
 - **Dialogues** : vue « Conversation » (bulles, portraits glissés sur la scène, expressions comme états) et vue « Étapes » ; mise en page automatique avec la police du jeu, lettres accentuées ; les 3404 messages du jeu passent l'aller-retour.
 - **Répliques et conversations** : répliques de combat et dernières paroles, conversations « Parler » et recrutements, scènes au début d'un tour, soutiens (83 paires du jeu, ajout et retrait).
 - **Événements** : éditeur visuel en blocs (1234 scripts du jeu sans perte), « scène simple » d'ouverture et de fin, nouveaux dialogues dans les scripts.

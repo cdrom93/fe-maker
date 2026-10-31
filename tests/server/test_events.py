@@ -99,6 +99,15 @@ def test_conditions_and_jumps():
     assert ev.parse_script(ev.render_script(ok)) == ok
 
 
+def test_changing_a_stat_is_three_slots_and_a_call():
+    command = {"op": "ChangeStat", "args": ["CHARACTER_SETH", "spd", "-2"]}
+    assert ev.validate_command(command) is None
+    assert ev.render_script([command]) == ("\n    SVAL(EVT_SLOT_1, CHARACTER_SETH)\n    SVAL(EVT_SLOT_2, 3)\n"
+                                           "    SVAL(EVT_SLOT_3, -2)\n    ASMC(FemChangeStat)\n")
+    assert ev.validate_command({"op": "ChangeStat", "args": ["CHARACTER_SETH", "beauty", "1"]}) == "badArguments"
+    assert ev.validate_command({"op": "ChangeStat", "args": ["CHARACTER_SETH", "spd", "x"]}) == "badArguments"
+
+
 def test_giving_an_item_is_written_as_the_game_does():
     command = {"op": "GiveItem", "args": ["CHARACTER_SETH", "ITEM_ELIXIR"]}
     assert ev.validate_command(command) is None

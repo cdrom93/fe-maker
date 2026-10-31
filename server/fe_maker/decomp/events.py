@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import re
 
+from . import unitstats
 from .cparse import _match_brace
 
 _SCRIPT_RE = re.compile(r"(?:CONST_DATA\s+)?EventListScr\s+(\w+)\s*\[\s*\]\s*=\s*\{")
 _IDENT_RE = re.compile(r"[A-Za-z_]\w*")
 
 # Argument kinds: song, message, character, group (unit group), x, y, frames, background, flag, speed,
-# item, number, raw, slot (a memory slot of the event engine, EVT_SLOT_0 to EVT_SLOT_D), label (a LABEL
-# number of the script), script (another script, for CALL). The editor shows a field for each.
+# item, number, stat, amount (a signed number), raw, slot (a memory slot of the event engine, EVT_SLOT_0 to
+# EVT_SLOT_D), label (a LABEL number of the script), script (another script, for CALL). The editor shows a field for each.
 #
 # Conditions: a check (CHECK_x) puts its result in slot C, then a branch (BEQ, BNE...) jumps to a LABEL of
 # the script when its two slots compare; the game writes "if alive" as CHECK_ALIVE(x), BEQ(n, EVT_SLOT_C,
@@ -88,13 +89,14 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "GOTO": [("label", "label")],
     "CALL": [("script", "script")],
     "GiveItem": [("character", "character"), ("item", "item")],   # the editor's: written as two commands (render_command)
+    "ChangeStat": [("character", "character"), ("stat", "stat"), ("amount", "amount")],   # the editor's too (unitstats.py)
     **{op: [("label", "label"), ("left", "slot"), ("right", "slot")] for op in ("BEQ", "BNE", "BGE", "BGT", "BLE", "BLT")},
 }
 # Commands the editor offers to add (the others can only be kept, moved or removed).
 ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "CAMERA", "CUMO_AT", "CURE", "FlashCursor",
            "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
            "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
-           "GiveItem", "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+           "GiveItem", "ChangeStat", "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
 # Memories, the player's past choices: permanent event flags the game does not use (saved with the game, flags up to
 # 300), named in data/dialogues.json "memories" [{flag, name}]; scripts hold their number (ENUT, ENUF, CHECK_EVENTID).
 MEMORY_FLAGS = (240, 300)
@@ -185,6 +187,10 @@ def render_command(c: dict) -> str:
     if c.get("op") == "GiveItem":
         character, item = c["args"]
         return f"SVAL(EVT_SLOT_3, {item})\n    GIVEITEMTO({character})"
+    if c.get("op") == "ChangeStat":
+        character, stat, amount = c["args"]
+        return (f"SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, {unitstats.STATS.index(stat)})\n"
+                f"    SVAL(EVT_SLOT_3, {int(amount)})\n    ASMC({unitstats.FUNCTION})")
     if "args" in c:
         return f"{c['op']}({', '.join(str(a) for a in c['args'])})"
     return c["op"]
@@ -232,7 +238,8 @@ def validate_command(c: dict) -> str | None:
         return "badArguments"
     if any(not str(a).strip() or any(ch in str(a) for ch in ";{}") for a in (args or [])):
         return "badArguments"
-    patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}")}
+    patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}"),
+                "stat": re.compile("|".join(unitstats.STATS)), "amount": re.compile(r"[+-]?\d{1,2}")}
     if any(kind in patterns and not patterns[kind].fullmatch(str(a).strip()) for (_n, kind), a in zip(spec, args or [])):
         return "badArguments"
     return None

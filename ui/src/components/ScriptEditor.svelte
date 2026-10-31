@@ -47,7 +47,7 @@
     NoFade: '⏹️', ENDA: '⏹️',
     CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
-    GiveItem: '🎁', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
+    GiveItem: '🎁', ChangeStat: '💪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
   }
   // Memory slots of the event engine (server: events.COMMANDS, kind "slot"): checks write their result in C.
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
@@ -56,6 +56,7 @@
   const CONDITIONS = ['if:alive', 'if:memory', 'if:notMemory', 'if:flag', 'if:turn']
   // Memories: the player's past choices, named here; their flag numbers stay out of sight (server: events.MEMORY_FLAGS).
   const MEMORY_ACTIONS = ['ask', 'memory:set', 'memory:forget']
+  const STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con', 'mov']
   const NEW_MEMORY = 'new'
 
   let reference = $state<EventsReference | null>(null)
@@ -192,7 +193,7 @@
       song: reference?.songs.find((s) => s !== 'SONG_NONE') ?? '0', background: reference?.backgrounds[0] ?? '0',
       message: '0x0', character: first, group: groups[0] ?? '0', x: '0', y: '0', frames: '60', flag: 'EVFLAG_TMP(20)',
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
-      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0',
+      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1',
     }
     return {
       op,
@@ -248,7 +249,7 @@
     if (remembering) added[0].args = [flag]
     // what a condition on someone holds is usually for them
     const about = inCondition ? commands.slice(0, at).reverse().find((c) => c.op === 'CHECK_ALIVE')?.args?.[0] : undefined
-    if (adding === 'GiveItem' && about) added[0].args![0] = about
+    if ((adding === 'GiveItem' || adding === 'ChangeStat') && about) added[0].args![0] = about
     save([...commands.slice(0, at), ...added, ...commands.slice(at)], memory)
     if (memory) renaming = memory.flag
     // a condition: select its branch, the next command added goes inside it
@@ -327,6 +328,8 @@
       const v = c.args?.[k] ?? ''
       if (a.kind === 'character') return [charName(v)]
       if (a.kind === 'item') return [itemName(v)]
+      if (a.kind === 'stat') return [t(`stat.${v}`)]
+      if (a.kind === 'amount') return [Number(v) > 0 ? `+${Number(v)}` : v]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
       if (a.kind === 'song') return [pretty(v, 'SONG_')]
       if (a.kind === 'background') return [pretty(v, 'BG_')]
@@ -495,6 +498,10 @@
                       </select>
                       <Mention kind="items" id={v}><span class="open">↗</span></Mention>
                     </span>
+                  {:else if a.kind === 'stat'}
+                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#each STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
+                    </select>
                   {:else if a.kind === 'character' && (v.startsWith('CHARACTER_') || !v)}
                     <span class="inline">
                       <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
@@ -534,7 +541,7 @@
                   {:else if a.kind === 'group'}
                     <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else}
-                    <input class:short={['x', 'y', 'frames', 'number'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                    <input class:short={['x', 'y', 'frames', 'number', 'amount'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                     {#if a.kind === 'frames' && /^\d+$/.test(v)}<span class="tiny muted">{(Number(v) / 60).toFixed(1)} s</span>{/if}
                     {#if a.kind === 'character' && v}<span class="tiny muted">{charName(v)}</span>{/if}
                   {/if}

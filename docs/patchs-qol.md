@@ -45,8 +45,8 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 | Patch | Dans FEBuilder | Réalisation |
 |---|---|---|
 | Convoi agrandi à 200 objets | `ExpandedModularSave_ExpandSupply` (fait partie de la sauvegarde modulaire étendue) | C : taille du convoi et format de sauvegarde (la décomp le permet sans patch de sauvegarde à part, à étudier) |
-| Parler ne termine pas l'action | à chercher (SYSTEM) | C |
-| Soutien ne termine pas l'action | à chercher (SYSTEM) | C |
+| Parler ne termine pas l'action | fait (option « Agir après avoir parlé ») | C |
+| Soutien ne termine pas l'action | fait (même option) | C |
 | Voler avec l'inventaire plein (l'objet part au convoi) | `StealWithFullInv` | C |
 | Soutiens plus rapides ou autrement (portée, une fois par chapitre « façon FE9 ») | `SYSTEM/Change increases support level continuously even with one map`, `Gain support points by than adjacent`, `Change SupportLevel fot next level C/B/A` | FE Maker règle déjà les points par paire ; ajouter la portée et le mode « par chapitre » |
 
