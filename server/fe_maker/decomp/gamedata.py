@@ -410,16 +410,18 @@ class DecompData:
         edits = {k: v for k, v in chapters.get("unitGroups", {}).items() if k not in new_groups}
         if edits:
             self.unit_defs = units.apply_unit_groups(self.unit_defs, edits, units.ai_macros(self.decomp_dir))
-        for name, meta in new_groups.items():
-            group_units = chapters.get("unitGroups", {}).get(name, [])
-            if group_units:
-                self._add_reinforcements(name, meta, group_units)
         for index, objective in chapters.get("objectives", {}).items():
             self.apply_objective(int(index), objective)
         for index in chapters.get("cleared", []):   # chapters the project cleared (newchapter.py)
             self._load_chapter_events()
             self.event_sources = objectives.clear_events(
                 self.event_sources, self._chapter_event_symbol(self.chapter_settings["chapters"][index]))
+        # After the clearing, which would take their events away
+        for name, meta in new_groups.items():
+            group_units = chapters.get("unitGroups", {}).get(name, [])
+            if group_units:
+                self._add_reinforcements(name, meta, group_units)
+        self._apply_group_turns(chapters)
         # Fog of war: the units' vision range, 0 for none (chapter settings' initialFogLevel, ticket 43)
         fog = {int(k): int(v) for k, v in chapters.get("fog", {}).items()}
         if fog:
@@ -926,12 +928,43 @@ class DecompData:
             raise GameDataError(f"Bad name for a new unit group: {name}")
         self.unit_defs[units.NEW_GROUPS_FILE] = self.unit_defs[units.NEW_GROUPS_FILE].rstrip("\n") + "\n" + \
             units.render_new_group(name, group_units, units.ai_macros(self.decomp_dir))
+        self._add_turn_event(name, meta)
+
+    def _apply_group_turns(self, chapters: dict) -> None:
+        """The game's reinforcement groups (ticket 109): "groupTurns" {group: {chapter, turn, phase}} moves their turn;
+        in a chapter the project cleared their events are gone, so the groups it filled get new ones."""
+        turns = chapters.get("groupTurns", {})
+        cleared = chapters.get("cleared", [])
+        for index in cleared:
+            symbol = self._chapter_event_symbol(maps.chapter_settings(self.decomp_dir)[index])
+            for group in units.chapter_unit_groups(self.decomp_dir, symbol) if symbol else []:
+                filled = chapters.get("unitGroups", {}).get(group["name"])
+                if group["origin"] == "turn" and filled:
+                    allies = all(u.get("side") == "ally" for u in filled)
+                    self._add_turn_event(group["name"], {"chapter": index, "turn": group["turn"],
+                                                         "phase": "ally" if allies else "enemy", **turns.get(group["name"], {})})
+        for name, meta in turns.items():
+            if meta.get("chapter") not in cleared:
+                self._move_turn_event(name, meta)
+
+    def _move_turn_event(self, name: str, meta: dict) -> None:
+        rel, start, end = self._event_list(int(meta.get("chapter", 0)), "turnBasedEvents")
+        source = self.event_sources[rel]
+
+        def moved(m: re.Match) -> str:
+            loaded = [group for group, _ in units._script_loads(self.decomp_dir, m.group(2))]
+            return f"{m.group(1)}{max(1, int(meta['turn']))}{m.group(4)}" if name in loaded else m.group(0)
+
+        body = re.sub(r"(\bTURN\s*\(\s*[^,]+,\s*(\w+)\s*,\s*)(\d+)(\s*,)", moved, source[start:end])
+        self.event_sources[rel] = source[:start] + body + source[end:]
+
+    def _add_turn_event(self, name: str, meta: dict) -> None:
         index = int(meta.get("chapter", 0))
         found = self._event_list(index, "turnBasedEvents")
         turn = max(1, int(meta.get("turn", 1)))
         faction = dialogues.FACTIONS.get(meta.get("phase", "enemy"), "FACTION_RED")
         flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
-        script_name = f"EventScr_FEM_Load_{name[len('UnitDef_FEM_'):]}"
+        script_name = f"EventScr_FEM_Load_{name.removeprefix('UnitDef_').removeprefix('FEM_')}"
         script = (f"extern CONST_DATA struct UnitDefinition {name}[];\n\n"
                   f"CONST_DATA EventListScr {script_name}[] = {{\n"
                   f"    SVAL(EVT_SLOT_2, {name})\n    CALL(EventScr_LoadReinforce)\n    NoFade\n    ENDA\n}};\n\n")

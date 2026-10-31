@@ -148,6 +148,10 @@ export interface ChaptersData {
   objectives?: Record<string, ObjectiveEdit>
   /** convoy available or not, by chapter index, once changed from the game (server: convoy.py) */
   convoy?: Record<string, boolean>
+  /** chapters the project cleared (server: newchapter.py) */
+  cleared?: number[]
+  /** the game's reinforcement groups moved to another turn, by group (server: DecompData._apply_group_turns) */
+  groupTurns?: Record<string, { chapter: number; turn?: number; phase?: NewGroup['phase'] }>
   /** preparations screen or not, by chapter index, once changed (server: prep.py) */
   prep?: Record<string, boolean>
   /** fog of war (vision range, 0: none), by chapter index, once changed from the game */

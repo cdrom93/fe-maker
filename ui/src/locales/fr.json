@@ -340,6 +340,8 @@
   "chapter.origin.opening": "Présents au début",
   "chapter.origin.turn": "Renforts tour {n}",
   "chapter.generic": "Unité générique",
+  "chapter.sideLabel": "Camp",
+  "chapter.sideHint": "Pour recruter une unité alliée : un dialogue « Parler » dans Dialogues, avec « recrute ».",
   "chapter.side.player": "Joueur",
   "chapter.side.ally": "Allié (PNJ)",
   "chapter.side.enemy": "Ennemi",

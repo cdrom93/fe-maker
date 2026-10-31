@@ -340,6 +340,8 @@
   "chapter.origin.opening": "Present at the start",
   "chapter.origin.turn": "Turn {n} reinforcements",
   "chapter.generic": "Generic unit",
+  "chapter.sideLabel": "Side",
+  "chapter.sideHint": "To recruit an allied unit: a \"Talk\" dialogue in Dialogues, with \"recruits\".",
   "chapter.side.player": "Player",
   "chapter.side.ally": "Ally (NPC)",
   "chapter.side.enemy": "Enemy",

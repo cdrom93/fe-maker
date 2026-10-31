@@ -48,6 +48,8 @@ piège dans sa section.
 
 ## Événements et enchaînement des chapitres
 
+- `objectives.clear_events` vide les listes d'un chapitre : ce qui ajoute un événement (renforts) doit passer après (ticket 109). Les groupes de tour du jeu n'ont plus d'événement dans un chapitre vidé : `_apply_group_turns` en remet un à ceux que le projet a remplis.
+
 - Chemin d'entrée impossible (REDA, ticket 108) : si une unité ne peut pas atteindre sa destination, `GenerateBestMovementScript` écrit des pas sans fin et écrase l'EWRAM (procs compris), plantage quelques secondes plus tard. Une unité déplacée perd donc son chemin, et les groupes d'une carte repeinte apparaissent à leur place (`DecompData.apply_maps`). Une commande MOVE d'un déroulé vers une case impossible a le même défaut.
 
 - Opening scenes often load units on other maps (cutscenes): `chapter_unit_groups` marks groups loaded before the last `LOMA` as "cutscene"; editing them does not change the battle.

@@ -106,10 +106,13 @@
   // The chapter's groups, and the reinforcements made in the project.
   const newGroups = $derived(Object.entries(list.records[0]?.newGroups ?? {}).filter(([, g]) => g.chapter === chapter?.index))
   const groups = $derived<UnitGroup[]>([
-    ...(data?.groups ?? []),
+    ...(data?.groups ?? []).map((g) => ({ ...g, turn: list.records[0]?.groupTurns?.[g.name]?.turn ?? g.turn })),
     ...newGroups.map(([name, g]) => ({ name, origin: 'turn' as const, turn: g.turn, units: [], edited: true, new: true })),
   ])
   const openNew = $derived(openGroup ? list.records[0]?.newGroups?.[openGroup] : undefined)
+  /** One of the game's reinforcement groups, open: its turn can change (ticket 109). */
+  const openTurnGroup = $derived(!openNew ? groups.find((g) => g.name === openGroup && g.origin === 'turn') : undefined)
+  const clearedChapter = $derived(!!chapter && !!list.records[0]?.cleared?.includes(chapter.index))
 
   /** New reinforcements: one copy of the chapter's first enemy (or a generic unit), at turn 2. */
   function addReinforcements() {
@@ -163,6 +166,15 @@
   function editNewGroup(name: string, change: Partial<NewGroup>) {
     list.update(0, (c) => {
       if (c.newGroups?.[name]) Object.assign(c.newGroups[name], change)
+    })
+  }
+
+  function editGroupTurn(name: string, change: { turn?: number; phase?: NewGroup['phase'] }) {
+    if (!chapter) return
+    const index = chapter.index
+    list.update(0, (c) => {
+      c.groupTurns ??= {}
+      c.groupTurns[name] = { ...c.groupTurns[name], chapter: index, ...change }
     })
   }
 
@@ -507,6 +519,19 @@
                   <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeReinforcements')}</button>
                 </div>
                 <Help text={t('chapter.newGroupHint')} />
+              {:else if openTurnGroup}
+                <div class="row new-group">
+                  <NumberField label={t('dlg.turn')} value={openTurnGroup.turn ?? 1} min={1} max={99} compact onchange={(v) => editGroupTurn(og, { turn: v })} />
+                  {#if clearedChapter}
+                    <label>
+                      <span>{t('dlg.phase')}</span>
+                      <select value={list.records[0]?.groupTurns?.[og]?.phase ?? (unitsOf(og).every((u) => u.side === 'ally') ? 'ally' : 'enemy')}
+                        onchange={(e) => editGroupTurn(og, { phase: (e.target as HTMLSelectElement).value as NewGroup['phase'] })}>
+                        {#each ['enemy', 'player', 'ally'] as ph (ph)}<option value={ph}>{t(`dlg.phase.${ph}`)}</option>{/each}
+                      </select>
+                    </label>
+                  {/if}
+                </div>
               {/if}
               {#if !cutsceneGroups.some((g) => g.name === og) && unitsOf(og).length}
                 <button class="dup" title={t('chapter.duplicateGroupHint')} onclick={() => duplicateGroup(og)}>⧉ {t('chapter.duplicateGroup')}</button>
@@ -604,7 +629,12 @@
           {#if unit && picked}
             {@const cls = classById.get(effectiveClass(unit))}
             {@const p = picked}
-            <h3>{t(`chapter.side.${unit.side}`)}</h3>
+            <label>
+              <span>{t('chapter.sideLabel')} <Help text={t('chapter.sideHint')} /></span>
+              <select value={unit.side} onchange={(e) => editUnit(p.group, p.index, (u) => (u.side = (e.target as HTMLSelectElement).value as MapUnit['side']))}>
+                {#each ['player', 'ally', 'enemy'] as side (side)}<option value={side}>{t(`chapter.side.${side}`)}</option>{/each}
+              </select>
+            </label>
             {#if pickedOrigin === 'cutscene'}
               {@const battle = battleUnitOf(unit.character)}
               <div class="cutscene-warning">
@@ -651,7 +681,7 @@
             </div>
             <p class="muted small">
               {t('chapter.position')} : {unit.endX}, {unit.endY}
-              {#if unit.x !== unit.endX || unit.y !== unit.endY} · {t('chapter.entersFrom', { x: unit.x, y: unit.y })}{/if}
+              {#if unit.slot !== null && (unit.x !== unit.endX || unit.y !== unit.endY)} · {t('chapter.entersFrom', { x: unit.x, y: unit.y })}{/if}
             </p>
             {#if unit.fixedPath}<p class="warn small">{t('chapter.fixedPath')}</p>{/if}
             <h3>{t('chapter.items')}</h3>

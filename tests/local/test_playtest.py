@@ -20,6 +20,13 @@ ROM = os.environ.get("FE_MAKER_ROM")
 pytestmark = pytest.mark.skipif(not ROM, reason="set FE_MAKER_ROM to run tests that need the ROM")
 
 
+def _without_preparations(project, *chapters):
+    """Added chapters stop on the preparations screen: these tests go straight to the battle."""
+    data = project.load("chapters")
+    data["prep"] = {str(index): False for index in chapters}
+    project.save("chapters", data)
+
+
 def test_edited_character_is_on_the_prologue_map(tmp_path):
     project = Project.create(tmp_path / "play", "Play")
     chars = project.load("characters")
@@ -565,6 +572,7 @@ def test_added_chapter(tmp_path):
 
     project = Project.create(tmp_path / "added", "Added")
     index = newchapter.add_chapter(project, 0, 15, 10, "Le Fort")
+    _without_preparations(project, index)
     project.set_test_options({"start": "map", "chapter": index})
     out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
     with Game(out.rom_path, out.map_path) as game:
@@ -607,6 +615,7 @@ def test_added_chapter_title_picture(tmp_path):
 
     project = Project.create(tmp_path / "title", "Title")
     index = newchapter.add_chapter(project, 0, 15, 10, "Le Fort de l'Aube")
+    _without_preparations(project, index)
     scripts = project.load("dialogues")["scripts"]
     assert [link["to"] for link in DecompData(project.decomp_dir).chapter_links(scripts)[index]] == [1]
     project.set_test_options({"start": "map", "chapter": index})
@@ -673,6 +682,7 @@ def test_a_three_chapter_hack_from_a_blank_project_to_the_end(tmp_path):
     project.save("chapters", chapters)
     second = newchapter.add_chapter(project, 0, 15, 10, "La Forêt")
     third = newchapter.add_chapter(project, second, 15, 10, "Le Château")
+    _without_preparations(project, second, third)
     chapters = project.load("chapters")
     dialogues = project.load("dialogues")
     data = DecompData(project.decomp_dir)
@@ -846,6 +856,7 @@ def test_casual_mode_brings_a_fallen_unit_back(tmp_path):
         "fixedPath": False}]
     project.save("chapters", chapters)
     second = newchapter.add_chapter(project, 0, 15, 10, "Deux")
+    _without_preparations(project, second)
     out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
 
     with Game(out.rom_path, out.map_path) as game:

@@ -147,6 +147,22 @@ def test_edit_unit_ai(tmp_path, decomp_dir):
     assert units.apply_unit_groups(sources, {"UnitDef_TestChapter": group})[rel] == sources[rel]
 
 
+def test_reinforcements_of_a_cleared_chapter_keep_their_events(monkeypatch, decomp_dir):
+    from fe_maker.decomp.gamedata import DecompData
+
+    d = DecompData(decomp_dir)
+    added = []
+    monkeypatch.setattr(d, "_add_turn_event", lambda name, meta: added.append((name, meta)))
+    monkeypatch.setattr(d, "_chapter_event_symbol", lambda _c: "Group")
+    monkeypatch.setattr("fe_maker.decomp.gamedata.maps.chapter_settings", lambda _d: [{}])
+    monkeypatch.setattr(units, "chapter_unit_groups", lambda _d, _s: [
+        {"name": "Empty", "origin": "turn", "turn": 3}, {"name": "Full", "origin": "turn", "turn": 3},
+        {"name": "Opening", "origin": "opening", "turn": None}])
+    d._apply_group_turns({"cleared": [0], "unitGroups": {"Empty": [], "Full": [{"side": "enemy"}], "Opening": [{}]},
+                          "groupTurns": {"Full": {"chapter": 0, "turn": 5}}})
+    assert added == [("Full", {"chapter": 0, "turn": 5, "phase": "enemy"})]
+
+
 def test_a_moved_unit_no_longer_walks_in():
     source = """CONST_DATA struct REDA REDAs_Test[] = {
     { .x = 2, .y = 3 },
