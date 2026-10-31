@@ -25,6 +25,8 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] #100 Les dernières paroles des personnages sortis du projet ne sont plus proposées.
 - [ ] #101 Fiche d'un personnage, lien « Dernières paroles » : ouvre sa réplique, créée s'il n'en a pas.
 - [ ] #102 Options du jeu : les personnages des groupes vidés (Seth, Franz...) peuvent être décochés.
+- [ ] #95 Un village affiche bien le portrait choisi (Vorgan), plus le vieil homme.
+- [ ] #103 Déroulé d'une scène : « Si un personnage est vivant… » puis « Donner un objet » dans la condition.
 - [ ] #104 Plus d'erreur « message new:… inconnu » à la réouverture du projet ; supprimer un dialogue de scène l'enlève aussi de son déroulé.
 - [ ] Répondre à un ticket ouvert pour le compléter, avec du texte et des captures (bouton « Répondre » dans la liste, panneau Tickets).
 - [ ] #99 Options du jeu, « Zone de danger avec Select » : Select montre la portée des ennemis, Select ou B revient à la carte, A passe aux portées de bâton si des ennemis en ont.

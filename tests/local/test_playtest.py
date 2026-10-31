@@ -12,6 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "server"))
 
+from fe_maker.decomp.gamedata import DecompData  # noqa: E402
 from fe_maker.playtest import Game  # noqa: E402
 from fe_maker.project import Project  # noqa: E402
 
@@ -905,3 +906,25 @@ def test_select_shows_the_danger_zone(tmp_path):
         game.press("SELECT", wait=60)
         assert not range_shown()
         print("screenshot:", tmp_path / "danger.png")
+
+
+def _items(game):
+    return next((u["items"] for u in game.units() if u["character"] == 1), [])
+
+
+def test_a_condition_gives_an_item_to_a_living_character(tmp_path):
+    project = Project.create(tmp_path / "gift", "Gift")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    script = "EventScr_Prologue_BeginningScene"
+    original = DecompData(project.decomp_dir).script_commands(script)
+    gift = [{"op": "CHECK_ALIVE", "args": ["CHARACTER_EIRIKA"]}, {"op": "BEQ", "args": ["0x70", "EVT_SLOT_C", "EVT_SLOT_0"]},
+            {"op": "GiveItem", "args": ["CHARACTER_EIRIKA", "ITEM_ELIXIR"]}, {"op": "LABEL", "args": ["0x70"]},
+            {"op": "CHECK_ALIVE", "args": ["CHARACTER_EIRIKA"]}, {"op": "BNE", "args": ["0x71", "EVT_SLOT_C", "EVT_SLOT_0"]},
+            {"op": "GiveItem", "args": ["CHARACTER_EIRIKA", "ITEM_ANTITOXIN"]}, {"op": "LABEL", "args": ["0x71"]}]
+    end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
+    project.save("dialogues", {"scripts": {script: original[:end] + gift + original[end:]}})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        elixir, antitoxin = 0x6D, 0x6F
+        assert game.wait_until(lambda: game.chapter() == 0 and elixir in _items(game), seconds=240, step=20, tap="START")
+        assert antitoxin not in _items(game)   # the second condition's block is skipped

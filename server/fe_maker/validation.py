@@ -237,7 +237,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         if dialogues.get("scripts"):
             _validate_scripts(problems, dialogues["scripts"], decomp, characters,
                               set((chapters or {}).get("newGroups", {})),
-                              {q.get("key") for q in dialogues.get("quotes", []) if q.get("kind") == "scene"})
+                              {q.get("key") for q in dialogues.get("quotes", []) if q.get("kind") == "scene"},
+                              {i["id"] for i in items})
         if dialogues.get("supports") is not None:
             original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
             _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
@@ -322,12 +323,14 @@ def _script_constants(decomp: DecompData) -> dict[str, set[str]]:
 
 
 def _validate_scripts(problems, scripts: dict, decomp: DecompData, characters: list[dict] | None = None,
-                      new_groups: set[str] | None = None, scene_messages: set[str] | None = None):
+                      new_groups: set[str] | None = None, scene_messages: set[str] | None = None,
+                      items: set[str] | None = None):
     """Event scripts edited in the visual editor ("script:<name>#<n>"): known script, well-formed
     commands, existing messages, and unit groups, characters, songs and backgrounds the game has
     (else the build stops with a compiler error)."""
     known = _script_constants(decomp)
     known["group"] |= new_groups or set()
+    known["item"] = items or set()
     if characters:
         known["character"] = {c["id"] for c in characters if c["id"].startswith("CHARACTER_")}
     for name, commands in scripts.items():

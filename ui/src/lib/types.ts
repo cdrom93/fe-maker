@@ -419,6 +419,8 @@ export interface EventsReference {
   backgrounds: string[]
   /** the chapters' event scripts, for CALL */
   scripts: string[]
+  /** the project's items, to give one */
+  items: { id: string; name: string }[]
 }
 
 export interface SupportPair {

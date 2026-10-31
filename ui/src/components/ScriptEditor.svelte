@@ -47,7 +47,7 @@
     NoFade: '⏹️', ENDA: '⏹️',
     CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
-    LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
+    GiveItem: '🎁', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
   }
   // Memory slots of the event engine (server: events.COMMANDS, kind "slot"): checks write their result in C.
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
@@ -68,6 +68,7 @@
   const edited = $derived(!!list.records[0]?.scripts?.[name])
   const named = $derived(characters.filter((c) => c.id.startsWith('CHARACTER_')))
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
+  const itemName = (id: string) => reference?.items.find((i) => i.id === id)?.name || id.replace('ITEM_', '')
   const pretty = (constant: string, prefix: string) =>
     constant.replace(prefix, '').toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
   const scriptProblems = $derived(problems.filter((p) => p.kind === 'dialogues' && (p.id === `script:${name}` || p.id.startsWith(`script:${name}#`))))
@@ -151,7 +152,7 @@
       song: reference?.songs.find((s) => s !== 'SONG_NONE') ?? '0', background: reference?.backgrounds[0] ?? '0',
       message: '0x0', character: first, group: groups[0] ?? '0', x: '0', y: '0', frames: '60', flag: 'EVFLAG_TMP(20)',
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
-      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C',
+      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0',
     }
     return {
       op,
@@ -174,11 +175,16 @@
   function add() {
     if (!adding) return
     let at = selected !== null ? selected + 1 : commands.length
-    if (selected === null) while (at > 0 && ['NoFade', 'ENDA', ''].includes(commands[at - 1].op)) at--
+    // before the end of the scene: nothing runs once the chapter changes
+    if (selected === null) while (at > 0 && ['NoFade', 'ENDA', '', ...CHANGE_OPS].includes(commands[at - 1].op)) at--
     const added = CONDITIONS.includes(adding) ? condition(adding) : [fresh(adding)]
+    // what a condition on someone holds is usually for them
+    const about = inCondition ? commands.slice(0, at).reverse().find((c) => c.op === 'CHECK_ALIVE')?.args?.[0] : undefined
+    if (adding === 'GiveItem' && about) added[0].args![0] = about
     save([...commands.slice(0, at), ...added, ...commands.slice(at)])
     // a condition: select its branch, the next command added goes inside it
     selected = at + added.length - (CONDITIONS.includes(adding) ? 2 : 1)
+    openStep = at
     adding = ''
   }
 
@@ -250,12 +256,25 @@
     return spec.flatMap((a, k) => {
       const v = c.args?.[k] ?? ''
       if (a.kind === 'character') return [charName(v)]
+      if (a.kind === 'item') return [itemName(v)]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
       if (a.kind === 'song') return [pretty(v, 'SONG_')]
       if (a.kind === 'background') return [pretty(v, 'BG_')]
       if (a.kind === 'x' || a.kind === 'y') return [v]
       return []
     }).join(', ')
+  }
+
+  /** The sentence of a condition made by `condition()`, whose block runs when it holds. */
+  function readyMade(start: number, end: number): string | null {
+    const [check, branch] = [commands[start], commands[end]]
+    if (check.op === 'CHECK_ALIVE' && branch.op === 'BEQ' && branch.args?.[1] === 'EVT_SLOT_C' && branch.args?.[2] === 'EVT_SLOT_0') {
+      return t('ev.simple.ifAlive', { name: summary(check) })
+    }
+    if (check.op === 'CHECK_TURNS' && branch.op === 'BLT' && commands[start + 1]?.op === 'SVAL') {
+      return t('ev.simple.ifTurn', { n: commands[start + 1].args?.[1] ?? '' })
+    }
+    return null
   }
 
   const steps = $derived.by(() => {
@@ -277,7 +296,7 @@
         while (end < Math.min(i + 4, commands.length - 1) && !BRANCHES.includes(commands[end].op)) end++
         const what = c.op.startsWith('CHECK_EVENTID') ? t('ev.simple.flag') : label(c.op).replace(/^[^:]*:\s*/, '')
         const detail = summary(c)
-        out.push({ start: i, end, icon: '❓', text: t('ev.simple.if', { what: detail ? `${what} (${detail})` : what }), message: '' })
+        out.push({ start: i, end, icon: '❓', text: readyMade(i, end) ?? t('ev.simple.if', { what: detail ? `${what} (${detail})` : what }), message: '' })
         i = end + 1
       } else if (TECHNICAL.has(c.op)) {
         i++
@@ -293,8 +312,16 @@
 
   function openOf(s: Step) {
     openStep = openStep === s.start ? null : s.start
-    selected = s.end
+    selected = openStep === null ? null : s.end
   }
+
+  /** A condition without anything in its block yet. */
+  const isEmpty = (s: Step) => BRANCHES.includes(commands[s.end]?.op) && s.end > s.start
+    && labels.get(labelNumber(commands[s.end].args?.[0] ?? '')) === s.end + 1
+  const inCondition = $derived(selected !== null && (BRANCHES.includes(commands[selected]?.op) || depths[selected] > 0))
+  // The simple view leaves out what only the detailed view explains.
+  const offered = $derived((reference?.addable ?? []).filter((op) => advanced
+    || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || op === 'CALL')))
 
   function removeStep(s: Step) {
     const branch = commands[s.end]
@@ -360,6 +387,14 @@
                       {#if !reference.backgrounds.includes(v)}<option value={v}>{v}</option>{/if}
                       {#each reference.backgrounds as b (b)}<option value={b}>{pretty(b, 'BG_')}</option>{/each}
                     </select>
+                  {:else if a.kind === 'item' && reference}
+                    <span class="inline">
+                      <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                        {#if !reference.items.some((n) => n.id === v)}<option value={v}>{v}</option>{/if}
+                        {#each reference.items as n (n.id)}<option value={n.id}>{n.name || n.id}</option>{/each}
+                      </select>
+                      <Mention kind="items" id={v}><span class="open">↗</span></Mention>
+                    </span>
                   {:else if a.kind === 'character' && (v.startsWith('CHARACTER_') || !v)}
                     <span class="inline">
                       <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
@@ -433,7 +468,12 @@
           <button class="danger" onclick={() => removeStep(s)} title={t('dlg.remove')}>✕</button>
         </li>
         {#if openStep === s.start}
-          {#each commands.slice(s.start, s.end + 1) as c, k (k)}{@render block(c, s.start + k)}{/each}
+          {#each commands.slice(s.start, s.end + 1) as c, k (k)}
+            {#if s.end === s.start || !BRANCHES.includes(c.op)}{@render block(c, s.start + k)}{/if}
+          {/each}
+        {/if}
+        {#if isEmpty(s)}
+          <li class="muted small nothing" style:margin-left="{(depths[s.start] + 1) * 1.2}rem">{t('ev.simple.emptyCondition')}</li>
         {/if}
       {/each}
       {#if !steps.length}<li class="muted small">{t('ev.simple.empty')}</li>{/if}
@@ -450,10 +490,10 @@
           {#each CONDITIONS as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
         </optgroup>
         <optgroup label={t('ev.commands')}>
-          {#each reference.addable as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
+          {#each offered as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
         </optgroup>
       </select>
-      <button onclick={add} disabled={!adding}>＋ {selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
+      <button onclick={add} disabled={!adding}>＋ {inCondition ? t('ev.addInside') : selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
     </div>
   {/if}
 </div>
@@ -488,6 +528,7 @@
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .view { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
   .blocks li.step { align-items: center; }
+  .blocks li.nothing { border-style: dashed; background: none; }
   .row { flex: 1; display: flex; gap: 0.4rem; align-items: center; min-width: 0; border: none; background: none; padding: 0.15rem; text-align: left; font-weight: 600; }
   .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .step .danger { padding: 0 0.35rem; font-size: 0.8rem; }

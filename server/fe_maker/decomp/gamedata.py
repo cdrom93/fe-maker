@@ -673,7 +673,7 @@ class DecompData:
                 else:
                     name = f"EventScr_FEM_{layout_id}_{x}_{y}"
                     message = self.texts.add(mapobjects.dialogue_message(
-                        s.get("face") if s.get("face") in mapobjects.FACES else "FID_VillagerOldMan", s.get("text") or "...",
+                        s.get("face") or mapobjects.DEFAULTS[kind]["face"], s.get("text") or "...",
                         fonts.widths(self.decomp_dir)))
                     house = kind == "house"
                     scripts += mapobjects.village_script(name, message, None if house else s.get("item"),

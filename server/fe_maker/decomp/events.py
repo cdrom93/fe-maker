@@ -87,13 +87,14 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "LABEL": [("label", "label")],
     "GOTO": [("label", "label")],
     "CALL": [("script", "script")],
+    "GiveItem": [("character", "character"), ("item", "item")],   # the editor's: written as two commands (render_command)
     **{op: [("label", "label"), ("left", "slot"), ("right", "slot")] for op in ("BEQ", "BNE", "BGE", "BGT", "BLE", "BLT")},
 }
 # Commands the editor offers to add (the others can only be kept, moved or removed).
 ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "CAMERA", "CUMO_AT", "CURE", "FlashCursor",
            "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
            "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
-           "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+           "GiveItem", "CHECK_MONEY", "CHECK_ACTIVE", "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
 _SLOT_RE = re.compile(r"EVT_SLOT_[0-9A-D]|0x[0-9A-Da-d]|1[0-3]|[0-9]")
 _LABEL_RE = re.compile(r"0x[0-9A-Fa-f]+|\d+")
 
@@ -178,6 +179,9 @@ def parse_script(body: str) -> list[dict]:
 def render_command(c: dict) -> str:
     if c.get("op") == "#":
         return c.get("text", "")
+    if c.get("op") == "GiveItem":
+        character, item = c["args"]
+        return f"SVAL(EVT_SLOT_3, {item})\n    GIVEITEMTO({character})"
     if "args" in c:
         return f"{c['op']}({', '.join(str(a) for a in c['args'])})"
     return c["op"]
