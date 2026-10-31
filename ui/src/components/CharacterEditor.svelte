@@ -82,13 +82,27 @@
   }
 
   let averageLevel = $state(20)
-  /** What the character has on average at `averageLevel`, within the class's limits (without a promotion). */
+  let promoteTo = $state('')
+  let levelAfter = $state(10)
+  const promotions = $derived((cls?.promotions ?? []).flatMap((id) => classes.filter((c) => c.id === id)))
+  const promoted = $derived(promotions.find((c) => c.id === promoteTo))
+
+  /** What the character has on average: `averageLevel` in their class, then, once promoted, `levelAfter` in the new one
+   * (as ApplyUnitPromotion: gains, then the new class's limits; constitution comes with the class). */
   function average(s: StatKey): number {
-    const start = ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)
+    const within = (value: number, c?: ClassView) => {
+      const limit = s === 'lck' ? LUCK_CAP : c?.maxes[s as ClassStatKey]
+      return Math.min(value, limit ?? value)
+    }
     const growth = s === 'con' ? 0 : ch.growths[s]
-    const value = start + (growth * Math.max(0, averageLevel - ch.level)) / 100
-    const limit = s === 'lck' ? LUCK_CAP : cls?.maxes[s as ClassStatKey]
-    return Number(Math.min(value, limit ?? value).toFixed(1))
+    const start = ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)
+    let value = within(start + (growth * Math.max(0, averageLevel - ch.level)) / 100, cls)
+    if (promoted) {
+      if (s === 'con') value = ch.bases.con + promoted.bases.con
+      else if (s !== 'lck') value += promoted.promotionGains[s]
+      value = within(value + (growth * Math.max(0, levelAfter - 1)) / 100, promoted)
+    }
+    return Number(value.toFixed(1))
   }
   const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
   let colorsOpen = $state(false)
@@ -219,14 +233,28 @@
                 <td></td>
               </tr>
               <tr class="average">
-                <th>
-                  <span class="at-level">{t('field.averageAt')} <NumberField compact label="" value={averageLevel} min={1} max={127} onchange={(v) => (averageLevel = v)} /></span>
-                </th>
+                <th>{t('field.average')}</th>
                 {#each STATS as s (s)}<td>{average(s)}</td>{/each}
-                <td><Help text={t('field.averageHint')} /></td>
+                <td>{(promoted ?? cls)?.mov ?? '?'}</td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="average-of">
+          <span>{t('field.averageLevel')}</span>
+          <NumberField compact label="" value={averageLevel} min={1} max={127} onchange={(v) => (averageLevel = v)} />
+          {#if promotions.length}
+            <span>→</span>
+            <select bind:value={() => promoted?.id ?? '', (v) => (promoteTo = v)} aria-label={t('field.averageNoPromotion')}>
+              <option value="">{t('field.averageNoPromotion')}</option>
+              {#each promotions as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+            </select>
+            {#if promoted}
+              <span>{t('field.averageLevel')}</span>
+              <NumberField compact label="" value={levelAfter} min={1} max={127} onchange={(v) => (levelAfter = v)} />
+            {/if}
+          {/if}
+          <Help text={t('field.averageHint')} />
         </div>
       </section>
 
@@ -299,7 +327,7 @@
   .mini { width: 32px; height: 32px; flex-shrink: 0; }
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
-  .at-level { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+  .average-of { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { padding: 0.2rem 0.3rem; text-align: right; }

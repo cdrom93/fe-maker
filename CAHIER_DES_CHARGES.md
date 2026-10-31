@@ -171,7 +171,7 @@ fe-maker/
 - Aperçu de la fiche personnage complète (perso + classe).
 - Ajouté en cours de route : capacités (dont verrous d'armes) et affinité des personnages ; options de test (démarrage direct sur la carte).
 - Avertissement des armes que les unités ne pourront pas utiliser (24/10/2026).
-- Comparaison de la fiche personnage avec FEBuilder (31/10/2026) : niveau de départ, moyenne à un niveau choisi, somme des croissances et couleurs en combat par classe ajoutés ; couleurs vérifiées en combat, sur l'animation du jeu et sur une animation importée. Non repris pour l'instant : ordre de tri, mini-portrait, animation propre au personnage, groupe de conversation, valeurs intermédiaires des rangs d'armes.
+- Comparaison de la fiche personnage avec FEBuilder (31/10/2026) : niveau de départ, moyenne à un niveau choisi avec une promotion, somme des croissances et couleurs en combat par classe ajoutés (clic sur le sprite, familles de nuances calculées d'après les teintes, cases gardées) ; couleurs vérifiées en combat, sur l'animation du jeu et sur une animation importée. Non repris pour l'instant : ordre de tri, mini-portrait, animation propre au personnage, groupe de conversation, valeurs intermédiaires des rangs d'armes.
 
 ### Phase 3 — Chapitres 🚧 (en cours)
 **État (31/10/2026)** — le détail daté est dans `docs/journal.md`.

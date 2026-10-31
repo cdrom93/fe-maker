@@ -26,10 +26,12 @@
     ['talents', ['steal', 'thiefSkills', 'dance', 'play', 'summon', 'critBonus', 'lethality', 'lock3']],
   ]
   // Rare engine abilities, hidden unless asked for.
-  const ADVANCED = [
+  const ADVANCED = $derived([
     'mountedAid', 'ballista', 'maxLevel10', 'unselectable', 'magicSeal',
-    'triangleAttackPegasi', 'triangleAttackArmors', 'negateLethality', 'bit23',
-  ]
+    'triangleAttackPegasi', 'triangleAttackArmors', 'negateLethality',
+    // No character or class of the game has it, and it swaps the unit for the character before it: only shown to be unticked.
+    ...(abilities.includes('bit23') || fromClass.includes('bit23') ? ['bit23'] : []),
+  ])
 
   // Show the advanced section open when one of its abilities is in use.
   let showAdvanced = $state(false)

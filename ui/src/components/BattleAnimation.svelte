@@ -8,7 +8,7 @@
   import type { ClassAnimation, FeRepoEntry, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
-  let { classId, className, items, wtypes, onchanged, preview = false, colors, palette = $bindable(0) }: {
+  let { classId, className, items, wtypes, onchanged, preview = false, colors, focus = null, onpick, palette = $bindable(0) }: {
     classId: string; className: string; items: Item[]; wtypes: string[]
     /** the class's animations changed (imported, restored, removed): weapons animated and problems to refresh */
     onchanged?: () => void
@@ -16,6 +16,10 @@
     preview?: boolean
     /** the lines of colours to draw with, one per side, instead of the animation's */
     colors?: string[][]
+    /** with `colors`: the only colour numbers in colour, the others in grey */
+    focus?: number[] | null
+    /** with `colors`: a click on the sprite, with the colour number of the pixel */
+    onpick?: (index: number) => void
     /** the side shown */
     palette?: number
   } = $props()
@@ -29,9 +33,9 @@
 
   let animations = $state<ClassAnimation[]>([])
   let chosen = $state(0)
-  let mode = $state<string>('attack_close')
-  let playing = $state(true)
-  let strip = $state<{ img: HTMLImageElement; durations: number[]; width: number; height: number } | null>(null)
+  let mode = $state<string>(untrack(() => (preview ? 'stand' : 'attack_close')))
+  let playing = $state(untrack(() => !preview))
+  let strip = $state<{ img: CanvasImageSource; durations: number[]; width: number; height: number; indexes?: Uint8Array } | null>(null)
   let canvas = $state<HTMLCanvasElement | null>(null)
   let error = $state(false)
 
@@ -79,14 +83,61 @@
     if (!m) return
     const number = anim.ref
     const pal = palette
-    const url = animationUrl(number, m, pal, colors?.[pal])
+    const url = animationUrl(number, m, pal, preview ? NUMBERS : undefined)
     error = false
     Promise.all([api.animationMode(number, m, pal), loadImage(url)])
       .then(([info, img]) => {
-        if (anim?.ref === number && palette === pal) strip = { img, ...info }
+        if (anim?.ref === number && palette === pal) strip = preview ? numbered(img, info) : { img, ...info }
       })
       .catch(() => (error = true))
   })
+
+  /** Colours that give away a pixel's colour number, to read it back from the strip (255: transparent). */
+  const NUMBERS = Array.from({ length: 16 }, (_, i) => `#${(i * 16).toString(16).padStart(2, '0')}0000`)
+  function numbered(img: HTMLImageElement, info: { durations: number[]; width: number; height: number }) {
+    const sheet = document.createElement('canvas')
+    sheet.width = img.width
+    sheet.height = img.height
+    const ctx = sheet.getContext('2d', { willReadFrequently: true })!
+    ctx.drawImage(img, 0, 0)
+    const data = ctx.getImageData(0, 0, img.width, img.height).data
+    const indexes = new Uint8Array(img.width * img.height)
+    for (let i = 0; i < indexes.length; i++) indexes[i] = data[i * 4 + 3] ? data[i * 4] / 16 : 255
+    return { img: sheet, indexes, ...info }
+  }
+
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  /** Paint the strip again from its colour numbers: at once, without asking the server. */
+  $effect(() => {
+    const s = strip
+    const line = colors?.[palette]
+    const shown = focus
+    if (!s?.indexes || !line) return
+    const sheet = s.img as HTMLCanvasElement
+    const ctx = sheet.getContext('2d')!
+    const picture = ctx.createImageData(sheet.width, sheet.height)
+    const paint = line.map((hex, i) => {
+      const [r, g, b] = rgb(hex)
+      const grey = Math.round(0.3 * r + 0.59 * g + 0.11 * b)
+      return !shown || shown.includes(i) ? [r, g, b] : [grey, grey, grey]
+    })
+    s.indexes.forEach((index, i) => {
+      if (index === 255) return
+      picture.data.set([...paint[index], 255], i * 4)
+    })
+    ctx.putImageData(picture, 0, 0)
+    redraw?.()
+  })
+
+  function pick(e: MouseEvent) {
+    const s = strip
+    if (!s?.indexes || !onpick) return
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const x = Math.floor(((e.clientX - box.left) / box.width) * s.width)
+    const y = Math.floor(((e.clientY - box.top) / box.height) * s.height)
+    const index = s.indexes[y * s.width * s.durations.length + shownFrame * s.width + x]
+    if (index !== undefined && index !== 255) onpick(index)
+  }
 
   function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -98,6 +149,8 @@
   }
 
   const SCALE = 2
+  let redraw: (() => void) | null = null
+  let shownFrame = 0
   // Play the frames with the game's timings (1/60 s each), then wait a little and start again.
   $effect(() => {
     const s = strip
@@ -112,11 +165,13 @@
     let last = performance.now()
     let acc = 0
     const draw = () => {
+      shownFrame = frame
       ctx.imageSmoothingEnabled = false
       ctx.clearRect(0, 0, c.width, c.height)
       ctx.drawImage(s.img, frame * s.width, 0, s.width, s.height, 0, 0, s.width * SCALE, s.height * SCALE)
     }
     draw()
+    redraw = draw
     const tick = (now: number) => {
       acc += now - last
       last = now
@@ -163,7 +218,7 @@
     <div class="player">
       <div class="stage">
         {#if strip}
-          <canvas bind:this={canvas} width={strip.width * SCALE} height={strip.height * SCALE}></canvas>
+          <canvas bind:this={canvas} class:pick={!!onpick} width={strip.width * SCALE} height={strip.height * SCALE} onclick={pick}></canvas>
         {:else if error}
           <span class="muted small">{t('banim.none')}</span>
         {:else}
@@ -214,6 +269,7 @@
   .weapons { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.6rem; }
   .weapons button.active { background: var(--header); color: var(--header-text); }
   .player { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  canvas.pick { cursor: crosshair; }
   .stage {
     min-width: 200px; min-height: 140px; display: flex; align-items: center; justify-content: center;
     background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius);
