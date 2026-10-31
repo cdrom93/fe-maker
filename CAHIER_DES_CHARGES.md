@@ -191,7 +191,7 @@ fe-maker/
 - **Répliques et conversations** : répliques de combat et dernières paroles, conversations « Parler » et recrutements, scènes au début d'un tour, soutiens (83 paires du jeu, ajout et retrait).
 - **Événements** : éditeur visuel en blocs (1234 scripts du jeu sans perte), « scène simple » d'ouverture et de fin, nouveaux dialogues dans les scripts ; lignes glissées à la souris (un bloc de condition part entier, avec sa ligne de fin), « Passer à un autre chapitre » comme commande, alerte sur une scène de fin sans suite ; « Changer une caractéristique » ; souvenirs (choix passés du joueur, nommés, et questions Oui / Non).
 - **Vérifié en jeu** (playtest) : accents et coupure des bulles, dialogue de tour, répliques, soutien, prologue → chapitre 1 avec une scène simple, option « Agir après avoir parlé » (Parler et Soutien), changement de caractéristique dans une scène. Pas joué : son report d'un chapitre à l'autre ou après une sauvegarde.
-- **Reste** : formulaires pour les appels de scripts, ajout d'une scène à n'importe quel déclencheur, épilogue (ticket 116).
+- **Reste** : formulaires pour les appels de scripts, ajout d'une scène à n'importe quel déclencheur, épilogue (remis à plus tard).
 
 - Éditeur de dialogues avec aperçu (portraits, position, émotions).
 - Éditeur d'événements **visuel** (blocs ou formulaires, pas de code) : début/fin de chapitre, recrutements, villages, conversations, conditions de victoire.
@@ -263,7 +263,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux 
 - **État (31/10/2026)** :
   - Étape 1 : faite. Historique propre, code et texte seulement ; mainteneurs déjà prononcés (#728). Le dépôt peut passer en public quand l'utilisateur le décide.
   - Étape 2 : faite. Personnages, armes, classes et chapitres ajoutés, conditions et sauts, sprites de carte, démo de musique, patchs de confort (d'autres restent dans `docs/patchs-qol.md`).
-  - Étape 3 : à faire par l'utilisateur. Le hack témoin automatique passe (`tests/local`) ; le même à la main, « La Fuite de Lorn » (`docs/a-tester.md`), est en cours chez l'utilisateur, avec la validation des tickets ouverts.
+  - Étape 3 : faite le 31/10/2026 pour le hack et les tickets : l'utilisateur a joué « La Fuite de Lorn » (`docs/a-tester.md`), fonctionnel dans l'ensemble, et aucun ticket n'est ouvert. Le hack témoin automatique passe (`tests/local`). Reste à décider le gel de la version `0.1.0-alpha`.
   - Étapes 4 à 8 : préparées, rien n'est publié. `tools/make_release.py`, lanceurs, `release.yml` (brouillon sur tag), image par hash et `image.yml`, `checks.py`, « Envoyer sur GitHub », guide FR/EN, CHANGELOG. Premier push du 30/10/2026 : CI et `image.yml` passés (l'image n'est montée qu'au second essai, « denied » au premier), `release.yml` n'a pas encore tourné (il attend un tag). L'image est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
   - Étape 9 : à faire. Passer le dépôt en public, pousser, vérifier les workflows, tester sur une machine vierge, tag et annonce sont des décisions de l'utilisateur.
 
