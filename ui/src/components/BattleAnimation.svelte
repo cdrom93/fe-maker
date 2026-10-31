@@ -8,10 +8,16 @@
   import type { ClassAnimation, FeRepoEntry, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
-  let { classId, className, items, wtypes, onchanged }: {
+  let { classId, className, items, wtypes, onchanged, preview = false, colors, palette = $bindable(0) }: {
     classId: string; className: string; items: Item[]; wtypes: string[]
     /** the class's animations changed (imported, restored, removed): weapons animated and problems to refresh */
     onchanged?: () => void
+    /** only the player: nothing to import or restore */
+    preview?: boolean
+    /** the lines of colours to draw with, one per side, instead of the animation's */
+    colors?: string[][]
+    /** the side shown */
+    palette?: number
   } = $props()
   let showLibrary = $state(false)
   let showLocal = $state(false)
@@ -24,7 +30,6 @@
   let animations = $state<ClassAnimation[]>([])
   let chosen = $state(0)
   let mode = $state<string>('attack_close')
-  let palette = $state(0)
   let playing = $state(true)
   let strip = $state<{ img: HTMLImageElement; durations: number[]; width: number; height: number } | null>(null)
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -74,8 +79,9 @@
     if (!m) return
     const number = anim.ref
     const pal = palette
+    const url = animationUrl(number, m, pal, colors?.[pal])
     error = false
-    Promise.all([api.animationMode(number, m, pal), loadImage(animationUrl(number, m, pal))])
+    Promise.all([api.animationMode(number, m, pal), loadImage(url)])
       .then(([info, img]) => {
         if (anim?.ref === number && palette === pal) strip = { img, ...info }
       })
@@ -180,7 +186,7 @@
         <button onclick={() => (playing = !playing)}>{playing ? t('banim.pause') : t('banim.play')}</button>
       </div>
     </div>
-    {#if anim?.changed}
+    {#if anim?.changed && !preview}
       <p class="small">
         {#if anim.source}
           {t('banim.importedLabel')}
@@ -192,6 +198,7 @@
         {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
       </p>
     {/if}
+    {#if !preview}
     <Help text={t('banim.hint')} />
     <div class="sources">
       <button class:active={showLibrary} onclick={() => { showLibrary = !showLibrary; showLocal = false }}>{t('banim.lib.title')}</button>
@@ -199,6 +206,7 @@
     </div>
     {#if showLibrary}<AnimationLibrary initial={className} {classId} wtypes={wtypes} open={reopen} onimported={changed} />{/if}
     {#if showLocal}<LocalAnimationImport {classId} {wtypes} onimported={changed} />{/if}
+    {/if}
   </section>
 {/if}
 

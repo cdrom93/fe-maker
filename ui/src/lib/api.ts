@@ -1,5 +1,5 @@
 import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
-import type { BuildStatus, Character, Check, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 /** What a project keeps of the game (server: scope.py) */
 export type ScopeRow = { id: string | number; name: string; kept: boolean }
@@ -53,6 +53,7 @@ export const api = {
   },
   createProject: (name: string, author: string, blank?: { characters: boolean; title: string; hero: string }) =>
     request<ProjectInfo>('POST', '/api/projects', { name, author, blank }),
+  battleColors: (character: string, classId: string) => request<BattleColors>('GET', `/api/characters/${character}/battle-colors/${classId}`),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
@@ -202,7 +203,8 @@ export const api = {
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
 /** `version` changes when the project's painted layout changes (the image is not cached then). */
 export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${index}/map.png${version ? `?v=${version}` : ''}`
-export const animationUrl = (number: number | string, mode: string, palette = 0) => `/api/animations/${number}/${mode}.png?palette=${palette}`
+export const animationUrl = (number: number | string, mode: string, palette = 0, colors?: string[]) =>
+  `/api/animations/${number}/${mode}.png?palette=${palette}${colors ? `&colors=${colors.map((c) => c.slice(1)).join(',')}` : ''}`
 export const mapTilesetUrl = (id: string, base: string | null = null) =>
   `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>

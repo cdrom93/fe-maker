@@ -292,11 +292,76 @@ def test_fog_of_war(tmp_path):
 def test_imported_battle_animation(tmp_path):
     """Ticket 44: a battle animation converted from FEditor's format (here one of the game's, exported then
     imported back) is added after the game's and played when Seth (Paladin) attacks with his sword."""
+
+    from fe_maker.decomp import banim
+
+    project = Project.create(tmp_path / "banim", "Banim")
+    decomp = project.decomp_dir
+    _import_paladin_animation(project)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    new_index = len(banim.table(decomp))   # numbers start at 1, indexes at 0
+
+    with Game(out.rom_path, out.map_path) as game:
+        enemy = _seth_attacks(game)
+        seen = game.wait_until(lambda: game.read("gBanimIdx", 2, width=16) == new_index
+                               or game.read("gBanimIdx", 0, width=16) == new_index, seconds=20, step=5)
+        game.run(120)
+        game.screenshot().save(tmp_path / "battle.png")
+        print("screenshot:", tmp_path / "battle.png")
+        assert seen
+        # The battle ends and the game goes on: the enemy loses HP or dies.
+        assert game.wait_until(lambda: all(u["hp"] < enemy["hp"] for u in game.units("Red")
+                                           if (u["x"], u["y"]) == (enemy["x"], enemy["y"]))
+                               and game.phase() == "player", seconds=60, step=20)
+
+
+@pytest.mark.parametrize("imported", [False, True])
+def test_character_colours_in_battle(tmp_path, imported):
+    """A character's own colours for a class are drawn in battle, over the game's animation or an imported one."""
+    project = Project.create(tmp_path / "colours", "Colours")
+    if imported:
+        _import_paladin_animation(project)
+    characters = project.load("characters")
+    seth = next(c for c in characters if c["id"] == "CHARACTER_SETH")
+    line = ["#000000"] + ["#ff0000"] * 15
+    seth["battleColors"] = {"CLASS_PALADIN": [line] * 5}
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    row = 108   # the first after the game's
+
+    with Game(out.rom_path, out.map_path) as game:
+        _seth_attacks(game)
+        assert game.wait_until(lambda: row in (game.read("gBanimUniquePal", 0, width=16, signed=True),
+                                               game.read("gBanimUniquePal", 2, width=16, signed=True)), seconds=20, step=5)
+        game.run(120)
+        shot = game.screenshot().convert("RGB")
+        shot.save(tmp_path / "battle.png")
+        print("screenshot:", tmp_path / "battle.png")
+        red = sum(1 for pixel in shot.get_flattened_data() if pixel[0] > 230 and pixel[1] < 16 and pixel[2] < 16)
+        assert red > 200
+
+
+def _seth_attacks(game):
+    """Seth attacks the enemy next to him in the simplified prologue; returns this enemy."""
+    _on_map(game)
+    game.run(210)
+    seth = next(u for u in game.units() if u["character"] == 2)
+    enemy = next(u for u in game.units("Red") if abs(u["x"] - seth["x"]) + abs(u["y"] - seth["y"]) == 1)
+    game.move_cursor(seth["x"], seth["y"])
+    game.press("A")
+    game.press("A", wait=60)
+    game.press("A", wait=30)      # Attack
+    game.press("A", wait=30)      # his first weapon, a sword
+    game.press("A", wait=30)      # the target
+    game.press("A", wait=30)      # the forecast
+    return enemy
+
+
+def _import_paladin_animation(project):
     import shutil
 
     from fe_maker.decomp import banim, banim_import
 
-    project = Project.create(tmp_path / "banim", "Banim")
     decomp = project.decomp_dir
     entry = next(e for e in project_classes(decomp) if e.fields["number"] == "CLASS_PALADIN")
     conf = entry.fields["pBattleAnimDef"].lstrip("&").strip()
@@ -313,32 +378,6 @@ def test_imported_battle_animation(tmp_path):
     project.save("animations", {"animations": {"1": {"name": "Paladin (round trip)", "frames": converted.frames,
                                                      "sheets": len(converted.sheets)}},
                                 "classes": {"CLASS_PALADIN": {"sword": "new:1"}}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
-    new_index = len(banim.table(decomp))   # numbers start at 1, indexes at 0
-
-    with Game(out.rom_path, out.map_path) as game:
-        _on_map(game)
-        game.run(210)
-        seth = next(u for u in game.units() if u["character"] == 2)
-        # The simplified prologue puts an enemy right next to Seth: he attacks without moving.
-        enemy = next(u for u in game.units("Red") if abs(u["x"] - seth["x"]) + abs(u["y"] - seth["y"]) == 1)
-        game.move_cursor(seth["x"], seth["y"])
-        game.press("A")
-        game.press("A", wait=60)
-        game.press("A", wait=30)      # Attack
-        game.press("A", wait=30)      # his first weapon, a sword
-        game.press("A", wait=30)      # the target
-        game.press("A", wait=30)      # the forecast
-        seen = game.wait_until(lambda: game.read("gBanimIdx", 2, width=16) == new_index
-                               or game.read("gBanimIdx", 0, width=16) == new_index, seconds=20, step=5)
-        game.run(120)
-        game.screenshot().save(tmp_path / "battle.png")
-        print("screenshot:", tmp_path / "battle.png")
-        assert seen
-        # The battle ends and the game goes on: the enemy loses HP or dies.
-        assert game.wait_until(lambda: all(u["hp"] < enemy["hp"] for u in game.units("Red")
-                                           if (u["x"], u["y"]) == (enemy["x"], enemy["y"]))
-                               and game.phase() == "player", seconds=60, step=20)
 
 
 def project_classes(decomp):

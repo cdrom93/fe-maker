@@ -139,14 +139,15 @@ def _sprite(sheet: Image.Image, attr0: int, attr1: int, attr2: int,
 
 
 @lru_cache(maxsize=64)
-def mode_strip(decomp_dir: Path, symbol: str, mode: str, which: int = 0) -> tuple[bytes, dict]:
+def mode_strip(decomp_dir: Path, symbol: str, mode: str, which: int = 0,
+               colours: tuple[tuple[int, int, int], ...] | None = None) -> tuple[bytes, dict]:
     """PNG strip of a mode's frames side by side (same size, the animation's origin at the same place)
-    and {"durations": [...], "width", "height"} (durations in 1/60 s)."""
+    and {"durations": [...], "width", "height"} (durations in 1/60 s). `colours`: 16, instead of the animation's."""
     m = motion(decomp_dir, symbol)
     steps = m.modes.get(mode)
     if not steps:
         raise KeyError(mode)
-    colours = palette(decomp_dir, symbol, which)
+    colours = colours or palette(decomp_dir, symbol, which)
     drawn = []
     for _duration, sheet, label in steps:
         sprites = [(_sprite(_sheet(decomp_dir, sheet), a0, a1, a2, colours), dx, dy)

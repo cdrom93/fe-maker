@@ -16,6 +16,7 @@ from . import (
     banim_import,
     chapterflags,
     chaptitle,
+    charpalettes,
     combat,
     convoy,
     danceanim,
@@ -236,6 +237,7 @@ class DecompData:
         self.portrait_moves: dict[int, int] = {}
         self.character_portraits: dict[str, int] = {}
         # Who can seize, when the project changes it (seize.py)
+        self.first_new_palette: int | None = None   # charpalettes.py
         self.seizers: list[str] | None = None
         self.other_ranges = False   # a weapon has a range the game does not list (weaponrange.py)
         self._new_quote_flags = False  # quotes numbered past the game's chapter flags (chapterflags.py)
@@ -721,6 +723,20 @@ class DecompData:
         "new:<key>"}} (the class's animation for that weapon, replaced or added)."""
         return {"animations": {}, "classes": {}}
 
+    def apply_character_palettes(self, characters: list[dict]) -> None:
+        """Characters' own colours in battle, before the animations, which must know about them (charpalettes.py)."""
+        known = {e.fields["number"] for e in self.classes.entries}
+        edits = {ch["id"]: {k: v for k, v in ch["battleColors"].items() if k in known}
+                 for ch in characters if ch.get("battleColors")}
+        if not any(edits.values()):
+            return
+        names = (charpalettes.CONFIG_FILE, charpalettes.TABLE_FILE, charpalettes.DATA_FILE)
+        try:
+            files, self.first_new_palette = charpalettes.apply({n: self._read(n) for n in names}, edits)
+        except charpalettes.PaletteError as e:
+            raise GameDataError(str(e)) from e
+        self.asset_files.update(files)
+
     def apply_animations(self, data: dict, assets_dir: Path) -> None:
         """Imported animations added after the game's (table, sheets, scripts), and the classes' changed
         animations written as new settings arrays (banim_import.py)."""
@@ -748,7 +764,7 @@ class DecompData:
             try:
                 self.asset_files.update(banim_import.register({n: self._read(n) for n in names}, added, first))
                 self.asset_files[banim_import.MAIN_FILE] = banim_import.without_unique_palettes(
-                    self._read(banim_import.MAIN_FILE), first - 1)
+                    self._read(banim_import.MAIN_FILE), first - 1, self.first_new_palette)
             except banim_import.ImportError_ as e:
                 raise GameDataError(f"Battle animations: {e.args[0]}") from e
         if not overrides:

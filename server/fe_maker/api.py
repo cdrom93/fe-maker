@@ -6,6 +6,7 @@ import base64
 import dataclasses
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from .decomp import (
     autotile,
     banim,
     banim_import,
+    charpalettes,
     convoy,
     dialogues,
     events,
@@ -1310,6 +1312,45 @@ def animations():
     return [{"number": a.number, "name": a.name, "classes": users.get(a.number, [])} for a in banim.table(DECOMP_DIR)]
 
 
+def _class_palette(class_id: str) -> list[list[str]]:
+    """The 5 lines of colours a character starts from: those of the class's first animation."""
+    animations = class_animations(class_id)
+    if not animations:
+        raise HTTPException(404)
+    base, symbol = _animation_source(str(animations[0]["ref"]))
+    lines = [["#{:02x}{:02x}{:02x}".format(*c) for c in banim.palette(base, symbol, which)] for which in range(4)]
+    return lines + [lines[0]]
+
+
+@app.get("/api/characters/{character_id}/battle-colors/{class_id}")
+def character_battle_colors(character_id: str, class_id: str):
+    """A character's colours for a class: the class's, the game's own for this character, and those of the other
+    characters the game gives colours in this class (a palette only fits the animation it was made for)."""
+    source = (DECOMP_DIR / charpalettes.CONFIG_FILE).read_text(encoding="utf-8")
+    symbols = charpalettes.game_palettes((DECOMP_DIR / charpalettes.TABLE_FILE).read_text(encoding="utf-8"))
+    rows = {c: slots[class_id] for c, slots in charpalettes.game_slots(source).items() if class_id in slots}
+    own = rows.pop(character_id, None)
+    others = {}   # one character can have several entries (Orson), the same colours once
+    for character, row in rows.items():
+        if row != own:
+            others.setdefault(row, character)
+    return {
+        "base": _class_palette(class_id),
+        "game": None if own is None else charpalettes.read_lines(DECOMP_DIR, symbols[own]),
+        "others": [{"character": c, "lines": charpalettes.read_lines(DECOMP_DIR, symbols[row])} for row, c in others.items()],
+    }
+
+
+def _colours(text: str | None) -> tuple[tuple[int, int, int], ...] | None:
+    """16 "rrggbb" separated by commas, from the URL of a strip drawn with a character's colours."""
+    if text is None:
+        return None
+    colours = text.split(",")
+    if len(colours) != 16 or not all(re.fullmatch(r"[0-9a-fA-F]{6}", c) for c in colours):
+        raise HTTPException(400, "colors")
+    return tuple(charpalettes.to_rgb("#" + c) for c in colours)
+
+
 @app.get("/api/animations/{ref}/{mode}.json")
 def animation_mode(ref: str, mode: str, palette: int = 0):
     base, symbol = _animation_source(ref)
@@ -1321,11 +1362,11 @@ def animation_mode(ref: str, mode: str, palette: int = 0):
 
 
 @app.get("/api/animations/{ref}/{mode}.png")
-def animation_strip(ref: str, mode: str, palette: int = 0):
+def animation_strip(ref: str, mode: str, palette: int = 0, colors: str | None = None):
     """The mode's frames side by side; their durations come from the .json route."""
     base, symbol = _animation_source(ref)
     try:
-        png, _info = banim.mode_strip(base, symbol, mode, palette)
+        png, _info = banim.mode_strip(base, symbol, mode, palette, _colours(colors))
     except (KeyError, FileNotFoundError):
         raise HTTPException(404)
     return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})

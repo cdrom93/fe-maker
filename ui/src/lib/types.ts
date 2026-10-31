@@ -1,6 +1,15 @@
 export type StatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'lck' | 'con'
 
+/** A character's colours for a class: 5 lines of 16 colours (server: decomp/charpalettes.py). */
+export interface BattleColors {
+  base: string[][]
+  game: string[][] | null
+  others: { character: string; lines: string[][] }[]
+}
+
 export interface Character {
+  /** by class; null: the class's colours; a class left out stays as in the game */
+  battleColors?: Record<string, string[][] | null>
   /** the help text, when the project changes it */
   description?: string
   id: string

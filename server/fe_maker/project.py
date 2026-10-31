@@ -224,6 +224,7 @@ class Project:
         data.apply_dialogues(self.load("dialogues"))
         data.apply_prep(self.load("chapters"))
         data.apply_portraits(self.load("portraits"), self.root / "assets")
+        data.apply_character_palettes(self.load("characters"))
         data.apply_animations(self.load("animations"), self.root / "assets")
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
         data.apply_music(self.load("music"), self.root / "assets")

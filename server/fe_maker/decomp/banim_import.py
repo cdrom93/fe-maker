@@ -510,10 +510,13 @@ MAIN_FILE = "src/banim-ekrmain.c"
 _UNIQUE_PALETTE = "        if (chara_pal != -1) {\n"
 
 
-def without_unique_palettes(source: str, game_count: int) -> str:
+def without_unique_palettes(source: str, game_count: int, first_new_palette: int | None = None) -> str:
     """A character's own battle palette (gAnimCharaPalConfig: Seth as a Paladin...) is drawn for the
-    game's animation of his class: not over an imported animation, whose colours it would spoil."""
+    game's animation of his class: not over an imported animation, whose colours it would spoil. A palette
+    the project made (from `first_new_palette`) was made for the animation the class has: it stays."""
     if source.count(_UNIQUE_PALETTE) != 2:
         raise ImportError_("paletteCodeNotFound")
-    return source.replace(_UNIQUE_PALETTE, f"        if (chara_pal != -1 && bid < 0x{game_count:X}) {{"
+    game = f"bid < 0x{game_count:X}"
+    wanted = game if first_new_palette is None else f"({game} || chara_pal >= {first_new_palette})"
+    return source.replace(_UNIQUE_PALETTE, f"        if (chara_pal != -1 && {wanted}) {{"
                           "   /* FE Maker: imported animations keep their colours */\n")

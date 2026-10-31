@@ -13,6 +13,7 @@
   import DescriptionField from './DescriptionField.svelte'
   import PortraitPanel from './PortraitPanel.svelte'
   import ClassPicker from './ClassPicker.svelte'
+  import CharacterColors from './CharacterColors.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
 
   let {
@@ -80,6 +81,28 @@
     selected = Math.max(0, selected - 1)
   }
 
+  let averageLevel = $state(20)
+  /** What the character has on average at `averageLevel`, within the class's limits (without a promotion). */
+  function average(s: StatKey): number {
+    const start = ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)
+    const growth = s === 'con' ? 0 : ch.growths[s]
+    const value = start + (growth * Math.max(0, averageLevel - ch.level)) / 100
+    const limit = s === 'lck' ? LUCK_CAP : cls?.maxes[s as ClassStatKey]
+    return Number(Math.min(value, limit ?? value).toFixed(1))
+  }
+  const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
+  let colorsOpen = $state(false)
+
+  function setColors(classId: string, lines: string[][] | null | undefined) {
+    edit((c) => {
+      const colors = { ...c.battleColors }
+      if (lines === undefined) delete colors[classId]
+      else colors[classId] = lines
+      if (Object.keys(colors).length) c.battleColors = colors
+      else delete c.battleColors
+    })
+  }
+
   function setRank(wtype: string, rank: string) {
     edit((c) => {
       if (rank) c.weaponRanks[wtype] = rank
@@ -128,6 +151,7 @@
           <Help text={t('field.classHint')} />
           <ReservedWeapons {items} characterId={ch.id} classId={ch.class} className={cls?.name ?? ''} />
           <div class="row">
+            <NumberField label={t('field.level')} value={ch.level} min={0} max={127} problem={problemFor('level')} onchange={(v) => edit((c) => (c.level = v))} />
             <NumberField label={t('field.portrait')} value={ch.portraitId} min={0} max={reference.portraits.length - 1} onchange={(v) => edit((c) => (c.portraitId = v))} />
             <label title={problemFor('affinity')}>
               {t('field.affinity')}
@@ -194,6 +218,13 @@
                 {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (cls?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
                 <td></td>
               </tr>
+              <tr class="average">
+                <th>
+                  <span class="at-level">{t('field.averageAt')} <NumberField compact label="" value={averageLevel} min={1} max={127} onchange={(v) => (averageLevel = v)} /></span>
+                </th>
+                {#each STATS as s (s)}<td>{average(s)}</td>{/each}
+                <td><Help text={t('field.averageHint')} /></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -206,6 +237,7 @@
             <NumberField label={t(`stat.${s}`)} value={ch.growths[s]} min={0} max={255} problem={problemFor(`growths.${s}`)} onchange={(v) => edit((c) => (c.growths[s] = v))} />
           {/each}
         </div>
+        <p class="small muted">{t('field.growthSum', { n: growthSum })}</p>
       </details>
 
       <details class="panel fold">
@@ -222,6 +254,15 @@
           {/each}
         </div>
         <Help text={`${t('field.noAnimationHint')} ${t('field.inventoryLater')}`} />
+      </details>
+
+      <details class="panel fold" ontoggle={(e) => (colorsOpen = (e.target as HTMLDetailsElement).open)}>
+        <summary>{t('character.colors.title')}</summary>
+        {#if colorsOpen}
+          {#key ch.id}
+            <CharacterColors character={ch} characters={list.records} {classes} {items} side={isEnemy(ch.id) ? 1 : 0} onchange={setColors} />
+          {/key}
+        {/if}
       </details>
 
       <details class="panel fold">
@@ -258,6 +299,7 @@
   .mini { width: 32px; height: 32px; flex-shrink: 0; }
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
+  .at-level { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { padding: 0.2rem 0.3rem; text-align: right; }
