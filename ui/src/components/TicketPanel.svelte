@@ -26,6 +26,8 @@
   let showClosed = $state(false)
   let editing = $state<{ id: string; body: string } | null>(null)
   let confirmDelete = $state<string | null>(null)
+  let reply = $state<{ id: string; body: string; images: string[]; error: string } | null>(null)
+  let replying = $state(false)
   let textarea = $state<HTMLTextAreaElement>()
   let panel = $state<HTMLElement>()
 
@@ -46,7 +48,9 @@
   /** A GitHub issue filled in from a ticket, in the user's browser: they read it and send it, or not (alpha, step 7). */
   function issueUrl(tk: Ticket): string {
     const lines = [tk.body, '', ...Object.entries(tk.context).map(([k, v]) => `- ${k}: ${v}`), `- FE Maker: ${version}`]
-    if (tk.images.length) lines.push('', t('ticket.issueImages', { n: tk.images.length }))
+    for (const comment of tk.comments) lines.push('', '---', comment.body)
+    const pictures = tk.images.length + tk.comments.reduce((n, comment) => n + comment.images.length, 0)
+    if (pictures) lines.push('', t('ticket.issueImages', { n: pictures }))
     const query = new URLSearchParams({ title: `[${tk.kind}] ${tk.body.split('\n')[0].slice(0, 70)}`, body: lines.join('\n').slice(0, 6000) })
     return `https://github.com/${ISSUES_REPO}/issues/new?${query}`
   }
@@ -56,24 +60,53 @@
     onChanged(tickets.filter((x) => x.status === 'open').length)
   }
 
-  function readImage(file: File) {
+  function readImage(file: File, add = (src: string) => { images = [...images, src] }, fail = (message: string) => { error = message }) {
     if (!file.type.startsWith('image/')) return
     if (file.size > MAX_IMAGE_BYTES) {
-      error = t('ticket.error.imageTooBig')
+      fail(t('ticket.error.imageTooBig'))
       return
     }
     const reader = new FileReader()
-    reader.onload = () => (images = [...images, String(reader.result)])
+    reader.onload = () => add(String(reader.result))
     reader.readAsDataURL(file)
   }
 
   /** Screenshots pasted with Ctrl+V while typing a ticket. */
-  function paste(e: ClipboardEvent) {
+  function paste(e: ClipboardEvent, read = (file: File) => readImage(file)) {
     const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'))
     if (!files.length) return
     e.preventDefault()
-    files.forEach(readImage)
+    files.forEach(read)
   }
+
+  /** A screenshot for the reply being written. */
+  function readReplyImage(file: File) {
+    readImage(file, (src) => { if (reply) reply.images = [...reply.images, src] }, (message) => { if (reply) reply.error = message })
+  }
+
+  async function sendReply() {
+    if (!reply || replying) return
+    const { id, body: text, images: pictures } = $state.snapshot(reply)
+    replying = true
+    reply.error = ''
+    try {
+      await api.addTicketComment(id, { body: text, images: pictures })
+      reply = null
+      await load()
+    } catch (e) {
+      if (reply) reply.error = e instanceof ApiError ? t(`ticket.error.${e.detail}`) : String(e)
+    } finally {
+      replying = false
+    }
+  }
+
+  async function removeComment(id: string, commentId: string) {
+    await api.deleteTicketComment(id, commentId)
+    confirmDelete = null
+    await load()
+  }
+
+  const focus = (element: HTMLElement) => element.focus()
 
   async function send() {
     error = ''
@@ -149,7 +182,7 @@
       <label class="add-image">
         <input type="file" accept="image/*" multiple onchange={(e) => {
           const input = e.target as HTMLInputElement
-          ;[...(input.files ?? [])].forEach(readImage)
+          ;[...(input.files ?? [])].forEach((file) => readImage(file))
           input.value = ''
         }} />
         {t('ticket.addImage')}
@@ -199,8 +232,60 @@
               {/each}
             </div>
           {/if}
+          {#each tk.comments as comment (comment.id)}
+            <div class="comment">
+              <div class="meta">
+                <span class="muted tiny">{date(comment.createdAt)}</span>
+                {#if confirmDelete === comment.id}
+                  <button class="link danger" onclick={() => removeComment(tk.id, comment.id)}>{t('ticket.confirmDeleteShort')}</button>
+                  <button class="link" onclick={() => (confirmDelete = null)}>{t('ticket.cancelEdit')}</button>
+                {:else}
+                  <button class="link" onclick={() => (confirmDelete = comment.id)}>{t('ticket.delete')}</button>
+                {/if}
+              </div>
+              <p class="comment-body">{comment.body}</p>
+              {#if comment.images.length}
+                <div class="images">
+                  {#each comment.images as name (name)}
+                    <a class="thumb" href={ticketImageUrl(name)} target="_blank" rel="noreferrer"><img src={ticketImageUrl(name)} alt={name} /></a>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
+          {#if reply?.id === tk.id}
+            <div class="reply">
+              <textarea use:focus bind:value={reply.body} rows="3" aria-label={t('ticket.reply')} placeholder={t('ticket.replyPlaceholder')}
+                onpaste={(e) => paste(e, readReplyImage)}
+                onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && reply?.body.trim()) sendReply() }}></textarea>
+              <div class="images">
+                {#each reply.images as src, i (i)}
+                  <span class="thumb">
+                    <img {src} alt={t('ticket.image', { n: i + 1 })} />
+                    <button class="x" aria-label={t('ticket.removeImage')} onclick={() => { if (reply) reply.images = reply.images.filter((_, j) => j !== i) }}>✕</button>
+                  </span>
+                {/each}
+                <label class="add-image">
+                  <input type="file" accept="image/*" multiple onchange={(e) => {
+                    const input = e.target as HTMLInputElement
+                    ;[...(input.files ?? [])].forEach(readReplyImage)
+                    input.value = ''
+                  }} />
+                  {t('ticket.addImage')}
+                </label>
+              </div>
+              {#if reply.error}<p class="bad small">{reply.error}</p>{/if}
+              <div class="actions">
+                <button onclick={() => (reply = null)}>{t('ticket.cancelEdit')}</button>
+                <button class="primary" disabled={!reply.body.trim() || replying} onclick={sendReply}>{t('ticket.replySend')}</button>
+              </div>
+            </div>
+          {/if}
           <div class="actions left">
             {#if tk.status === 'open'}
+              {#if reply?.id !== tk.id}
+                <button onclick={() => (reply = { id: tk.id, body: '', images: [], error: '' })}>{t('ticket.reply')}</button>
+              {/if}
               <a class="issue" href={issueUrl(tk)} target="_blank" rel="noreferrer" title={t('ticket.issueHint')}>{t('ticket.issue')}</a>
               <button onclick={() => update(tk.id, { status: 'done' })}>{t('ticket.markDone')}</button>
               <button onclick={() => update(tk.id, { status: 'cancelled' })}>{t('ticket.markCancelled')}</button>
@@ -264,6 +349,10 @@
   .tag { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); }
   button.tag { line-height: 1.4; }
   .body { text-align: left; white-space: pre-wrap; border: none; background: none; padding: 0; font: inherit; font-size: 0.88rem; color: var(--text); cursor: text; }
+  .comment { display: flex; flex-direction: column; gap: 0.2rem; padding-left: 0.6rem; border-left: 2px solid var(--border); }
+  .comment-body { white-space: pre-wrap; font-size: 0.88rem; }
+  .reply { display: flex; flex-direction: column; gap: 0.4rem; }
+  .link { border: none; background: none; padding: 0; font-size: 0.72rem; color: var(--muted); text-decoration: underline; }
   .danger { color: var(--bad); }
   .ghost { border-color: transparent; background: none; color: var(--muted); }
 </style>

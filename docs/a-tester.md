@@ -22,6 +22,7 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] #84 Nouveau personnage : le portrait importé s'affiche tout de suite, sans rafraîchir la page.
 - [ ] #96 Une description avec des accents (« Le héro de ce hack de test ! ») s'affiche sans lettres en trop en jeu. Vaut aussi pour les dialogues et les objectifs.
 - [ ] #97 La description d'une classe modifiée apparaît en jeu.
+- [ ] Répondre à un ticket ouvert pour le compléter, avec du texte et des captures (bouton « Répondre » dans la liste, panneau Tickets).
 - [ ] #99 Options du jeu, « Zone de danger avec Select » : Select montre la portée des ennemis, Select ou B revient à la carte, A passe aux portées de bâton si des ennemis en ont.
 
 ## Tickets 70, 79 et 80

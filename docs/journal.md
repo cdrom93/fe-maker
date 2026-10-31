@@ -82,3 +82,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 31/10/2026 : tickets 90, 91, 93 : renommer un chapitre en cliquant sur son titre, palette de carte en Terrains / Bâtiments / Décors / Toutes les tuiles avec les pièces d'une case, supprimer et rétablir une scène du jeu.
 - 31/10/2026 : tickets 94-95 : les portraits portent le nom du personnage du projet, un village ou une maison peut faire parler n'importe quel portrait.
 - 31/10/2026 : tickets 96-97, 99 : textes à accents complétés octet par octet comme le compresseur (`pad_text`), descriptions des classes écrites, option « Zone de danger avec Select ».
+- 31/10/2026 : tickets : réponses (commentaires avec captures) pour compléter un ticket ouvert, lues avec le ticket par `python -m fe_maker.tickets` et jointes au signalement GitHub.

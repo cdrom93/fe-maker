@@ -58,6 +58,10 @@ def sort_tickets(tickets: list[dict]) -> list[dict]:
     return sorted(tickets, key=lambda t: (t["status"] != "open", PRIORITY_RANK.get(t["priority"], 1), t["createdAt"]))
 
 
+def _image_names(ticket: dict) -> list[str]:
+    return ticket["images"] + [name for comment in ticket["comments"] for name in comment["images"]]
+
+
 class TicketStore:
     def __init__(self, root: Path | None = None):
         self.root = root or tickets_dir()
@@ -74,7 +78,10 @@ class TicketStore:
     def _read(self) -> list[dict]:
         if not self.file.is_file():
             return []
-        return json.loads(self.file.read_text(encoding="utf-8"))
+        tickets = json.loads(self.file.read_text(encoding="utf-8"))
+        for ticket in tickets:
+            ticket.setdefault("comments", [])   # tickets written before comments existed
+        return tickets
 
     def _write(self, tickets: list[dict]) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -106,6 +113,7 @@ class TicketStore:
                 "body": body,
                 "context": {**(context or {}), "version": app_version()},
                 "images": [self._save_image(ticket_id, i, data) for i, data in enumerate(images or [])],
+                "comments": [],
                 "createdAt": _now(),
                 "updatedAt": _now(),
             }
@@ -148,13 +156,50 @@ class TicketStore:
             self._write(tickets)
             return ticket
 
+    def add_comment(self, ticket_id: str, body: str, images: list[str] | None = None) -> dict:
+        """A reply that completes the ticket, with its own screenshots; the ticket stays as it was written."""
+        body = body.strip()
+        if not body:
+            raise TicketError("bodyEmpty")
+        with self._lock:
+            tickets = self._read()
+            ticket = next((t for t in tickets if t["id"] == ticket_id), None)
+            if ticket is None:
+                raise KeyError(ticket_id)
+            taken = [int(name.split("-")[1].split(".")[0]) for name in _image_names(ticket)]
+            first = max(taken, default=0)   # a comment removed frees its numbers: never reuse a name still on disk
+            ticket["comments"].append({
+                "id": uuid.uuid4().hex[:8],
+                "body": body,
+                "images": [self._save_image(ticket_id, first + i, data) for i, data in enumerate(images or [])],
+                "version": app_version(),
+                "createdAt": _now(),
+            })
+            ticket["updatedAt"] = _now()
+            self._write(tickets)
+            return ticket
+
+    def delete_comment(self, ticket_id: str, comment_id: str) -> dict:
+        with self._lock:
+            tickets = self._read()
+            ticket = next((t for t in tickets if t["id"] == ticket_id), None)
+            comment = next((c for c in ticket["comments"] if c["id"] == comment_id), None) if ticket else None
+            if comment is None:
+                raise KeyError(comment_id)
+            for name in comment["images"]:
+                (self.images_dir / name).unlink(missing_ok=True)
+            ticket["comments"].remove(comment)
+            ticket["updatedAt"] = _now()
+            self._write(tickets)
+            return ticket
+
     def delete(self, ticket_id: str) -> None:
         with self._lock:
             tickets = self._read()
             ticket = next((t for t in tickets if t["id"] == ticket_id), None)
             if ticket is None:
                 raise KeyError(ticket_id)
-            for name in ticket["images"]:
+            for name in _image_names(ticket):
                 (self.images_dir / name).unlink(missing_ok=True)
             self._write([t for t in tickets if t["id"] != ticket_id])
 
@@ -184,6 +229,12 @@ def main() -> None:
             print(f"    {line}")
         for name in t["images"]:
             print(f"    image: {store.images_dir / name}")
+        for comment in t["comments"]:
+            print(f"    --- comment · {comment['createdAt']} · {comment['version']}")
+            for line in comment["body"].splitlines():
+                print(f"    {line}")
+            for name in comment["images"]:
+                print(f"    image: {store.images_dir / name}")
         print()
 
 

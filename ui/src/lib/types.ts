@@ -507,8 +507,17 @@ export interface Ticket {
   body: string
   context: Record<string, string>
   images: string[]
+  comments: TicketComment[]
   createdAt: string
   updatedAt: string
+}
+
+/** A reply that completes a ticket. */
+export interface TicketComment {
+  id: string
+  body: string
+  images: string[]
+  createdAt: string
 }
 
 export interface TicketIn {

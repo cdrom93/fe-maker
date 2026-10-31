@@ -1935,6 +1935,29 @@ def update_ticket(ticket_id: str, changes: dict):
         raise HTTPException(400, str(e))
 
 
+class TicketCommentIn(BaseModel):
+    body: str
+    images: list[str] = []  # data URLs
+
+
+@app.post("/api/tickets/{ticket_id}/comments")
+def add_ticket_comment(ticket_id: str, body: TicketCommentIn):
+    try:
+        return tickets.add_comment(ticket_id, body.body, body.images)
+    except KeyError:
+        raise HTTPException(404)
+    except TicketError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/tickets/{ticket_id}/comments/{comment_id}")
+def delete_ticket_comment(ticket_id: str, comment_id: str):
+    try:
+        return tickets.delete_comment(ticket_id, comment_id)
+    except KeyError:
+        raise HTTPException(404)
+
+
 @app.delete("/api/tickets/{ticket_id}")
 def delete_ticket(ticket_id: str):
     try:

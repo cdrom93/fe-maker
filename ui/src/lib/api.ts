@@ -192,6 +192,9 @@ export const api = {
   updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
     request<Ticket>('PATCH', `/api/tickets/${id}`, changes),
   deleteTicket: (id: string) => request<{ ok: boolean }>('DELETE', `/api/tickets/${id}`),
+  addTicketComment: (id: string, comment: { body: string; images: string[] }) =>
+    request<Ticket>('POST', `/api/tickets/${id}/comments`, comment),
+  deleteTicketComment: (id: string, commentId: string) => request<Ticket>('DELETE', `/api/tickets/${id}/comments/${commentId}`),
 }
 
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
