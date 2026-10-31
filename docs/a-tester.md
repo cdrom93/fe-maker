@@ -6,8 +6,10 @@ Relancer FE Maker avant de tester. Les cases se cochent sur https://claude.ai/ar
 - [ ] Onglet Chapitres, vue Carte, panneau « Terrains » : choisis Rivière, Route ou Montagne et peins au crayon. À la fin du trait, les tuiles se raccordent toutes seules, comme sur les cartes du jeu, et un Annuler retire tout le trait. Peindre de la Plaine efface proprement. Marche aussi avec Rectangle et Remplir.
 - [ ] Solveur refait : autour du trait, le terrain voisin peut changer pour que tout se raccorde (une pente autour d'un pic, une côte le long de la mer). À vérifier à l'œil. Limite connue : les routes, que le jeu dessine souvent en plaine.
 
-## Tickets 82 à 93
+## Tickets 82 à 95
 
+- [ ] #94 Dialogues : un portrait porté par un de tes personnages affiche son nom (Lorn, Mira), dans le choix des portraits comme dans le dialogue.
+- [ ] #95 Objets de la carte, village ou maison : « Autre personnage… » fait parler n'importe quel portrait, tes personnages en tête.
 - [ ] #90 Onglets Chapitres et Campagne : un clic sur le titre du chapitre, en haut de sa fiche, le renomme (Entrée pour garder, Échap pour annuler).
 - [ ] #91 Palette de carte : quatre parties, Terrains, Bâtiments, Décors, Toutes les tuiles. Les maisons, forts, arènes sont là même sur une seule case ; coffres et ponts dans Décors, selon le jeu de tuiles. Tourner une tuile est replié tout en bas.
 - [ ] #93 Onglet Dialogues : un ✕ supprime une scène du jeu (tour, « Parler », village, scène appelée) ; elle se rétablit depuis « Scènes supprimées ». L'ouverture et la fin du chapitre restent. Les scènes appelées vides d'un chapitre vidé ne s'affichent plus.

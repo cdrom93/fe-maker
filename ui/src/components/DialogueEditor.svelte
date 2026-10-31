@@ -14,6 +14,7 @@
   import RecordList from './RecordList.svelte'
   import ScriptEditor from './ScriptEditor.svelte'
   import ConversationThread from './ConversationThread.svelte'
+  import { faceName } from '../lib/faces'
   import FacePicker from './FacePicker.svelte'
   import SupportList from './SupportList.svelte'
   import TalkBubble from './TalkBubble.svelte'
@@ -471,7 +472,7 @@
     if (!font || layout(text, font, maxWidth) === text) return 0
     return layoutBoxes(text, font, maxWidth).length
   }
-  const faceLabel = (fid: string) => faces.find((f) => f.id === fid)?.name ?? fid.replace('FID_', '').replace(/([a-z])([A-Z])/g, '$1 $2')
+  const faceLabel = (fid: string) => faceName(fid, faces, characters)
   const posLabel = (pos: string) => t(`dlg.pos.${pos}`)
 </script>
 

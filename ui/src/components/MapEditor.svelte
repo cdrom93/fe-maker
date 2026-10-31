@@ -39,13 +39,22 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { addedTileUsage, keepUsed, withoutMetatiles } from '../lib/tileEdits'
-  import type { ChapterInfo, Item, MapChange, MapPiece, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
+  import type { ChapterInfo, Character, DialogueFace, Item, MapChange, MapPiece, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
+  import { faceName } from '../lib/faces'
+  import FacePicker from './FacePicker.svelte'
   import Mention from './Mention.svelte'
   import ItemPicker from './ItemPicker.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
-  let { list, items, problems }: { list: EditableList<MapsData>; items: Item[]; problems: Problem[] } = $props()
+  let { list, items, characters, problems }: { list: EditableList<MapsData>; items: Item[]; characters: Character[]; problems: Problem[] } = $props()
+
+  // Anyone can talk in a village or a house, not only the villagers (ticket 95).
+  let allFaces = $state<DialogueFace[]>([])
+  let pickingFace = $state(false)
+  api.dialogueFaces().then((f) => (allFaces = f)).catch(() => {})
+  const faceLabel = (fid: string) => faceName(fid, allFaces, characters)
+  const projectFaces = $derived(allFaces.filter((f) => characters.some((c) => c.id.startsWith('CHARACTER_') && c.portraitId === f.portrait)).map((f) => f.id))
 
   type Tool = 'pen' | 'rect' | 'fill' | 'pick' | 'select'
   type Cell = { x: number; y: number }
@@ -1576,7 +1585,18 @@
                     <img src={portraitUrl(f.portrait, true)} alt={f.id} />
                   </button>
                 {/each}
+                {#if st.face && !objectsInfo?.faces.some((f) => f.id === st.face)}
+                  {@const other = allFaces.find((f) => f.id === st.face)}
+                  {#if other}
+                    <button role="radio" aria-checked="true" class="active" title={faceLabel(other.id)}><img src={portraitUrl(other.portrait, true)} alt={other.id} /></button>
+                  {/if}
+                {/if}
+                <button class="other-face" onclick={() => (pickingFace = !pickingFace)}>{t('maps.obj.otherFace')}</button>
               </div>
+              {#if pickingFace}
+                <FacePicker faces={allFaces} label={faceLabel} first={projectFaces} onclose={() => (pickingFace = false)}
+                  onpick={(face) => { pickingFace = false; setObject(o, { face }) }} />
+              {/if}
               <label>
                 <span>{t('maps.obj.text')}</span>
                 <textarea rows="3" value={st.text ?? ''} onchange={(e) => setObject(o, { text: (e.target as HTMLTextAreaElement).value })}></textarea>
@@ -1659,6 +1679,7 @@
   .faces button { padding: 0.1rem; border-radius: 6px; line-height: 0; }
   .faces button.active { border-color: var(--accent); background: var(--accent-soft); }
   .faces img { width: 48px; height: 40px; image-rendering: pixelated; }
+  .faces .other-face { padding: 0 0.5rem; line-height: 1.2; font-size: 0.8rem; }
   .pixel { image-rendering: pixelated; vertical-align: middle; }
   .transforms { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
   .transforms button { min-width: 2rem; padding: 0.15rem 0.4rem; font-size: 0.95rem; }

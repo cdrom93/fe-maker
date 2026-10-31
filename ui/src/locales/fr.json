@@ -739,6 +739,7 @@
   "maps.obj.replace": "Le remplacer par un message simple",
   "maps.obj.gift": "Cadeau",
   "maps.obj.face": "Qui parle",
+  "maps.obj.otherFace": "Autre personnage…",
   "maps.obj.text": "Message",
   "maps.obj.textHint": "Texte du jeu (anglais, sans accents). Les lignes sont coupées toutes seules, deux par bulle.",
   "maps.obj.resetNew": "Revenir au réglage automatique",

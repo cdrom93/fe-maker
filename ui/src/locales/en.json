@@ -739,6 +739,7 @@
   "maps.obj.replace": "Replace it with a simple message",
   "maps.obj.gift": "Gift",
   "maps.obj.face": "Who speaks",
+  "maps.obj.otherFace": "Another character…",
   "maps.obj.text": "Message",
   "maps.obj.textHint": "Game text (no accented letters). Lines are wrapped by themselves, two per box.",
   "maps.obj.resetNew": "Back to the automatic settings",

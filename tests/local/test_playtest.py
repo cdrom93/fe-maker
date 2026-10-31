@@ -61,7 +61,7 @@ def _objects_project(tmp_path):
         rows[y][5:14] = [plain] * 9
     for t, (x, y) in ((0x03, (11, 5)), (0x21, (9, 7)), (0x1E, (7, 5))):
         rows[y][x] = next(m for m in rule["tiles"] if terrain[m] == t)
-    objects = {"11,5": {"item": "ITEM_ELIXIR", "face": "FID_VillagerGirlYoung", "text": "Prenez cet élixir."},
+    objects = {"11,5": {"item": "ITEM_ELIXIR", "face": "FID_Seth", "text": "Prenez cet élixir."},
                "9,7": {"gold": 3000}}
     project.save("maps", {"layouts": {"PrologueMap": {"rows": rows}}, "bases": {"PrologueMap": "TileConfiguration2"},
                           "objects": {"PrologueMap": objects}})
