@@ -53,6 +53,8 @@ export const api = {
   },
   createProject: (name: string, author: string, blank?: { characters: boolean; title: string; hero: string }) =>
     request<ProjectInfo>('POST', '/api/projects', { name, author, blank }),
+  portraitColors: (classId: string, portrait: number, line: number) =>
+    request<{ colours: string[] }>('GET', `/api/classes/${classId}/portrait-colors?portrait=${portrait}&line=${line}`),
   battleColors: (character: string, classId: string) => request<BattleColors>('GET', `/api/characters/${character}/battle-colors/${classId}`),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),

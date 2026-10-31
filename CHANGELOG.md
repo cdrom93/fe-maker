@@ -8,6 +8,7 @@ First public test version, Windows first.
 - Edit characters, classes, items, combat rules, chapters, maps, dialogues, supports and events without code.
 - Scenes with a visual sequence: drag lines and condition blocks, change stats, go to another chapter, and memories: Yes / No questions and the player's past choices, by name.
 - Character sheet: starting level, average stats at a chosen level with a promotion, and a character's own colours in battle: click the sprite to recolour a part with its shades.
+- Battle colours drawn from the character's portrait, tried on the class shown and kept only if you want; horses, pegasus wings and weapons stay, wyverns take a tint.
 - A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter, with an "Automatic levels" box for every unit.
 - Character sheet: portrait picked by its picture, affinities with the game's icons and their bonuses, limits of the promoted class in the calculator.
 - Enemy levels by difficulty, chapter by chapter; the calculator follows both promotions of trainee classes; a character's gender follows their class.

@@ -41,13 +41,16 @@
   const lines = $derived(saved === null ? info?.base : (saved ?? info?.game ?? info?.base))
   /** the colours being chosen, shown at once and saved when the colour window closes */
   let draft = $state<string[][] | null>(null)
-  const shown = $derived(draft ?? lines)
+  /** the colours drawn from the portrait, shown until the user keeps or drops them */
+  let proposal = $state<string[][] | null>(null)
+  const start = $derived(proposal ?? lines)
+  const shown = $derived(draft ?? start)
   /** the colour number clicked on the sprite, and the numbers to show alone */
   let picked = $state<number | null>(null)
   let hovered = $state<number[] | null>(null)
   $effect(() => {
     void key
-    picked = hovered = draft = null
+    picked = hovered = draft = proposal = null
   })
 
   /** Hue, saturation and lightness, from 0 to 1. */
@@ -98,7 +101,7 @@
   }
   /** The picked colour becomes `colour`, its shades follow and keep their relief. */
   function setFamily(colour: string) {
-    const current = (lines ?? [])[line]
+    const current = (start ?? [])[line]
     if (!current || picked === null) return
     const [h, s, l] = hsl(colour)
     const from = hsl(current[picked])[2]
@@ -111,7 +114,24 @@
   }
   function commit() {
     if (draft) onchange(classId, draft)
-    draft = null
+    draft = proposal = null
+  }
+  function keep() {
+    if (proposal) onchange(classId, proposal)
+    proposal = null
+  }
+
+  /** The class shown takes the portrait's colours on the side shown; the player's two lines go together. */
+  let painting = $state(false)
+  async function fromPortrait() {
+    const wanted = key
+    painting = true
+    try {
+      const { colours } = await api.portraitColors(classId, character.portraitId, line)
+      if (wanted === key) proposal = (lines ?? []).map((l, i) => (i === line || (line === 0 && i === 4) ? colours : l))
+    } finally {
+      painting = false
+    }
   }
 
   const same = (a?: string[][] | null, b?: string[][] | null) => JSON.stringify(a) === JSON.stringify(b)
@@ -148,6 +168,12 @@
       </select>
     </label>
     <Help text={t('character.colors.hint')} />
+    <button disabled={!info || painting || !character.portraitId} onclick={fromPortrait}>{t('character.colors.portrait')}</button>
+    <Help text={t('character.colors.portraitHint')} />
+    {#if proposal}
+      <button class="primary" onclick={keep}>{t('character.colors.keep')}</button>
+      <button onclick={() => (proposal = null)}>{t('character.colors.drop')}</button>
+    {/if}
   </div>
   {#if shown}
     {#if picked !== null}

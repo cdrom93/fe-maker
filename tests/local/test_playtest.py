@@ -12,6 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "server"))
 
+from fe_maker import api  # noqa: E402
 from fe_maker.decomp.gamedata import DecompData  # noqa: E402
 from fe_maker.playtest import UNIT_SIZE, Game  # noqa: E402
 from fe_maker.project import Project  # noqa: E402
@@ -353,6 +354,32 @@ def test_character_colours_in_battle(tmp_path, imported):
         print("screenshot:", tmp_path / "battle.png")
         red = sum(1 for pixel in shot.get_flattened_data() if pixel[0] > 230 and pixel[1] < 16 and pixel[2] < 16)
         assert red > 200
+
+
+def test_portrait_colours_in_battle(tmp_path):
+    """Colours drawn from a portrait build and show in battle, in the slots of the game's animation."""
+    project = Project.create(tmp_path / "portrait", "Portrait")
+    api.state.project = project
+    characters = project.load("characters")
+    seth = next(c for c in characters if c["id"] == "CHARACTER_SETH")
+    franz = next(c for c in characters if c["id"] == "CHARACTER_FRANZ")     # Seth in Franz's green
+    colours = api.portrait_colors("CLASS_PALADIN", portrait=franz["portraitId"])["colours"]
+    assert colours != api._class_palette("CLASS_PALADIN")[0]
+    seth["battleColors"] = {"CLASS_PALADIN": [colours] * 5}
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        _seth_attacks(game)
+        assert game.wait_until(lambda: 108 in (game.read("gBanimUniquePal", 0, width=16, signed=True),
+                                               game.read("gBanimUniquePal", 2, width=16, signed=True)), seconds=20, step=5)
+        game.run(120)
+        shot = game.screenshot().convert("RGB")
+        shot.save(tmp_path / "battle.png")
+        print("screenshot:", tmp_path / "battle.png")
+        wanted = {tuple(int(c[i:i + 2], 16) >> 3 for i in (1, 3, 5)) for c in colours[8:12]}
+        found = sum(1 for pixel in shot.get_flattened_data() if tuple(c >> 3 for c in pixel) in wanted)
+        assert found > 100
 
 
 def _seth_attacks(game):

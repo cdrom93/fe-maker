@@ -43,6 +43,7 @@ from .decomp import (
     mapsprites,
     music,
     pieces,
+    portraitcolors,
     portraits,
     prep,
     quotes,
@@ -1344,6 +1345,46 @@ def character_battle_colors(character_id: str, class_id: str):
         "game": None if own is None else charpalettes.read_lines(DECOMP_DIR, symbols[own]),
         "others": [{"character": c, "lines": charpalettes.read_lines(DECOMP_DIR, symbols[row])} for row, c in others.items()],
     }
+
+
+def _face(portrait_id: int):
+    """The big portrait as an image: the project's sheet when it replaced this one."""
+    sheet = _imported_sheet(portrait_id)
+    png = portraits.face_png(sheet) if sheet is not None else face_preview(DECOMP_DIR, portrait_id)
+    if png is None:
+        raise HTTPException(404)
+    return Image.open(io.BytesIO(png))
+
+
+@app.get("/api/classes/{class_id}/portrait-colors")
+def portrait_colors(class_id: str, portrait: int, line: int = 0):
+    """The 16 colours of a line of this class's palette, with the character's parts taken from a portrait."""
+    if not 0 <= line < charpalettes.LINES:
+        raise HTTPException(400, "line")
+    animations = class_animations(class_id)
+    if not animations:
+        raise HTTPException(404)
+    entry = _game_class(class_id)
+    base_lines = _class_palette(class_id)
+    # The game's palettes fit the game's animation only
+    game = []
+    if not animations[0].get("imported"):
+        source = (DECOMP_DIR / charpalettes.CONFIG_FILE).read_text(encoding="utf-8")
+        symbols = charpalettes.game_palettes((DECOMP_DIR / charpalettes.TABLE_FILE).read_text(encoding="utf-8"))
+        rows = {slots[class_id] for slots in charpalettes.game_slots(source).values() if class_id in slots}
+        game = [[charpalettes.to_rgb(c) for c in charpalettes.read_lines(DECOMP_DIR, symbols[row])[line]] for row in rows]
+    base_folder, symbol = _animation_source(str(animations[0]["ref"]))
+    modes = banim.modes_of(base_folder, symbol)
+    mode = "stand" if "stand" in modes else modes[0]
+    try:
+        strip, info = banim.mode_strip(base_folder, symbol, mode, 0, portraitcolors.CODED)
+    except (KeyError, FileNotFoundError):
+        raise HTTPException(404)
+    seen = portraitcolors.usage(Image.open(io.BytesIO(strip)), info["width"])
+    colours = portraitcolors.from_portrait([charpalettes.to_rgb(c) for c in base_lines[line]], game, seen,
+                                           portraitcolors.portrait_ramps(_face(portrait)),
+                                           wyvern="CA_WYVERN" in entry.fields.get("attributes", ""))
+    return {"colours": ["#{:02x}{:02x}{:02x}".format(*c) for c in colours]}
 
 
 def _colours(text: str | None) -> tuple[tuple[int, int, int], ...] | None:
