@@ -11,9 +11,9 @@ En développement / *In development* — avancement détaillé : [cahier des cha
 | | Français | English |
 |---|---|---|
 | Unités | Personnages, classes (animations de combat, import depuis le FE-Repo ou le PC), objets et armes réservées, triangle des armes, efficacités | Characters, classes (battle animations, FE-Repo or PC import), items and reserved weapons, weapon triangle, effectiveness |
-| Cartes | Peinture de tuiles, pinceaux de terrain qui se raccordent tout seuls, terrains et leurs effets, taille, bâtiments entiers, changements de carte, villages / coffres / portes automatiques, tuiles tournées, palettes et jeux de tuiles, brouillard de guerre, aller-retour avec Tiled | Tile painting, terrain brushes that join by themselves, terrains and their effects, size, whole buildings, map changes, automatic villages / chests / doors, turned tiles, palettes and tile sheets, fog of war, round trip with Tiled |
+| Cartes | Peinture de tuiles, pinceaux de terrain qui se raccordent tout seuls, remplissage du vide, terrains et leurs effets, taille, bâtiments entiers, changements de carte, villages / coffres / portes automatiques, tuiles tournées, palettes et jeux de tuiles, brouillard de guerre, aller-retour avec Tiled | Tile painting, terrain brushes that join by themselves, filling empty space, terrains and their effects, size, whole buildings, map changes, automatic villages / chests / doors, turned tiles, palettes and tile sheets, fog of war, round trip with Tiled |
 | Chapitres | Unités (placement, IA, inventaire, renforts), objectifs, page Campagne (enchaînement des chapitres, option sans carte du monde, liste « À faire ») | Units (placement, AI, items, reinforcements), objectives, Campaign page (story flow, no world map option, to-do list) |
-| Dialogues | Conversations (mise en page automatique, accents), scènes et éditeur d'événements visuel, répliques de combat, soutiens | Conversations (automatic layout, accented letters), scenes and visual event editor, battle quotes, supports |
+| Dialogues | Conversations (mise en page automatique, accents), scènes et éditeur d'événements visuel, souvenirs des choix du joueur, répliques de combat, soutiens | Conversations (automatic layout, accented letters), scenes and visual event editor, memories of the player's choices, battle quotes, supports |
 | Ressources | Import et ajout de portraits, bibliothèque FE-Repo (portraits, animations de combat, sprites de carte), crédits automatiques | Portrait import and new portraits, FE-Repo library (portraits, battle animations, map sprites), automatic credits |
 | Options du jeu | Réglages de départ, confort (barres de PV, mode débutant, animations rapides...), ce que garde le projet | Starting settings, comfort (HP bars, beginner mode, quick animations...), what the project keeps |
 | Tester | Bouton « Tester » (depuis le début ou un chapitre choisi), export en patch .ups | "Test" button (from the start or a chosen chapter), .ups patch export |
@@ -70,6 +70,7 @@ L'interface s'ouvre dans le navigateur (http://127.0.0.1:8765). Au premier lance
 - [Cahier des charges](CAHIER_DES_CHARGES.md) (en français)
 - [Audit de la décomp / Decomp audit](docs/audit-decomp.md) (en français) : ce qui est éditable, limites et bugs connus du jeu d'origine
 - [Crédits / Credits](CREDITS.md)
+- Pour contribuer (en français) : [journal](docs/journal.md), [pièges](docs/pieges.md), études ([patchs de confort](docs/patchs-qol.md), [bibliothèque de classes](docs/bibliotheque-classes.md), [mécaniques de hacks](docs/inspirations-hacks.md), [force et magie](docs/separation-force-magie.md))
 
 ## Licence / License
 

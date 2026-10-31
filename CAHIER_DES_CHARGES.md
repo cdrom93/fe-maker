@@ -165,7 +165,7 @@ fe-maker/
 - Bouton « Tester » qui lance mGBA.
 - **Critère de réussite** : je modifie un personnage dans l'interface, je clique sur « Tester », je vois la modification en jeu.
 
-### Phase 2 — Classes et système de combat 🚧 (implémentée le 18/10/2026, test en jeu à faire)
+### Phase 2 — Classes et système de combat 🚧 (implémentée le 18/10/2026, vérifiée par playtests)
 - Éditeur de classes : stats de base et maximales, mouvement, type de déplacement, armes utilisables, promotions, compétences.
 - Triangle des armes, efficacités (armes anti-cavalerie, anti-volants…).
 - Aperçu de la fiche personnage complète (perso + classe).
@@ -174,12 +174,11 @@ fe-maker/
 
 ### Phase 3 — Chapitres 🚧 (en cours)
 **État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
-- « Remplir le vide » (panneau Terrains de la carte) : des bosquets, collines et autres sols praticables dans le terrain le plus présent ; le reste est gardé, objets et changements compris. Vu dans l'éditeur, pas encore joué.
 - **Unités** : placement par glisser-déposer, ajout, duplication et suppression, personnage, classe (unités génériques), niveau, inventaire, IA ; unités de cinématique séparées ; renforts au tour N, « Dupliquer ce groupe ».
 - **Objectifs** : s'emparer d'une case, vaincre tous les ennemis ou le chef, survivre N tours (ou vaincre le chef), atteindre une zone, personnage à protéger ; texte de l'écran de statut. Lecture seule : tour de Valni et ruines de Lagdou. Brouillard de guerre par chapitre.
-- **Cartes** : peinture (crayon, rectangle, remplissage, pipette, blocs, bâtiments entiers), terrains et leurs effets, taille, changements de carte (zone tracée à la souris), objets automatiques (villages et leurs ruines, maisons, coffres, portes, murs fissurés, bois morts, magasins), tuiles tournées et retournées, terrain d'une tuile, palettes, jeux de tuiles, aller-retour avec Tiled.
+- **Cartes** : peinture (crayon, rectangle, remplissage, pipette, blocs, bâtiments entiers), terrains et leurs effets, taille, changements de carte (zone tracée à la souris), objets automatiques (villages et leurs ruines, maisons, coffres, portes, murs fissurés, bois morts, magasins), tuiles tournées et retournées, terrain d'une tuile, palettes, jeux de tuiles, aller-retour avec Tiled, « Remplir le vide » (bosquets et collines dans le terrain le plus présent, le reste gardé).
 - **Règles** : convoi par personnage et par chapitre (disponible par défaut dans un projet vierge et les chapitres ajoutés), préparation avant le combat par chapitre, qui peut s'emparer des cases.
-- **Pas encore testé en jeu** : murs fissurés, achats, Tiled lui-même (pas installé).
+- **Pas encore testé en jeu** : murs fissurés, achats, Tiled lui-même (pas installé), une carte remplie (vue dans l'éditeur seulement).
 - **Reste** : import de cartes du FE-Repo (phase 5), couche de changements pour une carte qui n'en a pas.
 - Liste et ordre des chapitres, objectifs (déroute, boss, survie, s'emparer…).
 - **Placement des unités** sur les cartes existantes : alliés, ennemis, renforts, IA des ennemis, par glisser-déposer sur un aperçu de la carte.
@@ -188,14 +187,11 @@ fe-maker/
 
 ### Phase 4 — Dialogues et événements 🚧 (commencée le 23/10/2026)
 **État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
-- Commande « Changer une caractéristique » (PV, Force, Tech, Vit, Déf, Rés, Chance, Cons, Dépl) : vérifiée en jeu dans une scène de prologue ; le report d'un chapitre à l'autre ou après une sauvegarde n'a pas été joué.
-- Déroulé : les lignes se réordonnent en les glissant (un bloc de condition part entier), « Passer à un autre chapitre » s'ajoute comme une commande, une scène de fin qui ne mène nulle part est signalée.
-- Option « Agir après avoir parlé » : vérifiée en jeu après Parler et après Soutien (le menu revient, B termine le tour).
 - **Dialogues** : vue « Conversation » (bulles, portraits glissés sur la scène, expressions comme états) et vue « Étapes » ; mise en page automatique avec la police du jeu, lettres accentuées ; les 3404 messages du jeu passent l'aller-retour.
 - **Répliques et conversations** : répliques de combat et dernières paroles, conversations « Parler » et recrutements, scènes au début d'un tour, soutiens (83 paires du jeu, ajout et retrait).
-- **Événements** : éditeur visuel en blocs (1234 scripts du jeu sans perte), « scène simple » d'ouverture et de fin, nouveaux dialogues dans les scripts.
-- **Vérifié en jeu** (playtest) : accents et coupure des bulles, dialogue de tour, répliques, soutien, prologue → chapitre 1 avec une scène simple.
-- **Reste** : formulaires pour les commandes avancées (conditions, sauts, appels), ajout d'une scène à n'importe quel déclencheur, conversations sur une frise (choix B).
+- **Événements** : éditeur visuel en blocs (1234 scripts du jeu sans perte), « scène simple » d'ouverture et de fin, nouveaux dialogues dans les scripts ; lignes glissées à la souris (un bloc de condition part entier, avec sa ligne de fin), « Passer à un autre chapitre » comme commande, alerte sur une scène de fin sans suite ; « Changer une caractéristique » ; souvenirs (choix passés du joueur, nommés, et questions Oui / Non).
+- **Vérifié en jeu** (playtest) : accents et coupure des bulles, dialogue de tour, répliques, soutien, prologue → chapitre 1 avec une scène simple, option « Agir après avoir parlé » (Parler et Soutien), changement de caractéristique dans une scène. Pas joué : son report d'un chapitre à l'autre ou après une sauvegarde.
+- **Reste** : formulaires pour les appels de scripts, ajout d'une scène à n'importe quel déclencheur, épilogue (ticket 116).
 
 - Éditeur de dialogues avec aperçu (portraits, position, émotions).
 - Éditeur d'événements **visuel** (blocs ou formulaires, pas de code) : début/fin de chapitre, recrutements, villages, conversations, conditions de victoire.
@@ -241,7 +237,7 @@ Choix de l'utilisateur (25/10/2026) :
 - **Carte** : mode simple par défaut ; le contenu exact du mode simple et du mode avancé sera réglé plus tard. Objectif : que le mode simple couvre environ 80 % des besoins, en automatisant le plus possible les éléments de carte (villages, coffres, portes, murs, bois morts, magasins : déjà automatiques quand ils sont peints).
 - **Conversations** : la scène sur une frise (direction B).
 - **Thème** (fait le 25/10/2026) : l'appli entière prend l'apparence des maquettes : fond clair chaud, barre du haut sombre, police Nunito (OFL, fournie avec l'appli), gros boutons arrondis, onglets en pastilles, bouton « Tester » vert. La disposition des écrans ne change pas encore : chaque écran rejoindra sa maquette quand il sera refait.
-- **Fait** : page Campagne (graphe de haut en bas avec zoom et glisser, fiche du chapitre avec ses étapes, liste « À faire », « ▶ Tester ce chapitre », case « Fin du jeu ») ; onglet Chapitres en trois vues sur un même chapitre ; explications en infobulles et textes courts ; fiches longues repliées ; effets du terrain, portée et zone de danger ; historique des changements ; vue simple des scripts.
+- **Fait** : page Campagne (graphe de haut en bas, sans zoom ni ascenseur, fiche du chapitre avec ses étapes, liste « À faire », « ▶ Tester ce chapitre », case « Fin du jeu ») ; onglet Chapitres en trois vues sur un même chapitre ; explications en infobulles et textes courts ; fiches longues repliées ; effets du terrain, portée et zone de danger ; historique des changements ; vue simple des scripts.
 - **Reste** : créer un embranchement de routes depuis le graphe, à concevoir avec l'utilisateur ; unités de l'onglet Chapitres rangées par camp et par tour d'arrivée (ticket 6).
 - **Déclencheurs** : phrases aux mots cliquables (direction A, confirmée le 30/10/2026) pour les tours et « Parler », `TriggerPhrase.svelte`, `dialogues.with_trigger`, `data/dialogues.json` « triggers » ; villages, zones et drapeaux restent en lecture.
 
@@ -264,10 +260,10 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord (Linux 
 9. **Test sur une machine vierge** (Windows Sandbox, job CI d'installation depuis la release), tag, annonce sur FEU.
 - **À faire plus tard** (retours du 30/10/2026) : musique en pause (ticket 56, sujet à creuser) ; agrandir les tables ; projet vierge : retirer aussi les classes et les armes (gardées pour l'instant, le moteur en dépend) ; idée du ticket 67 : créer un chapitre d'après une fiche au format du wiki Fire Emblem (ex. Scorched Sand : objectif, unités, terrain), pour recréer facilement un chapitre d'un autre jeu.
 - **Tickets des testeurs (ticket 75)** : mis de côté le 30/10/2026, l'utilisateur imagine autre chose. Proposition écartée pour l'instant : un petit relais (Cloudflare Worker gratuit) reçoit le ticket envoyé depuis FE Maker et crée une issue dans un dépôt privé ; les testeurs n'ont pas besoin de compte et ne voient que leurs propres tickets, déjà stockés chez eux ; ni jeton ni secret dans l'appli, nombre d'envois limité, et le contenu est montré avant l'envoi. Il remplacera « Envoyer sur GitHub » si l'utilisateur le retient.
-- **État (30/10/2026)** :
+- **État (31/10/2026)** :
   - Étape 1 : faite. Historique propre, code et texte seulement ; mainteneurs déjà prononcés (#728). Le dépôt peut passer en public quand l'utilisateur le décide.
   - Étape 2 : faite. Personnages, armes, classes et chapitres ajoutés, conditions et sauts, sprites de carte, démo de musique, patchs de confort (d'autres restent dans `docs/patchs-qol.md`).
-  - Étape 3 : à faire par l'utilisateur. Le hack témoin automatique passe (`tests/local`) ; manque le même à la main, avec de vraies cartes et des dialogues, et la validation des tickets ouverts.
+  - Étape 3 : à faire par l'utilisateur. Le hack témoin automatique passe (`tests/local`) ; le même à la main, « La Fuite de Lorn » (`docs/a-tester.md`), est en cours chez l'utilisateur, avec la validation des tickets ouverts.
   - Étapes 4 à 8 : préparées, rien n'est publié. `tools/make_release.py`, lanceurs, `release.yml` (brouillon sur tag), image par hash et `image.yml`, `checks.py`, « Envoyer sur GitHub », guide FR/EN, CHANGELOG. Premier push du 30/10/2026 : CI et `image.yml` passés (l'image n'est montée qu'au second essai, « denied » au premier), `release.yml` n'a pas encore tourné (il attend un tag). L'image est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
   - Étape 9 : à faire. Passer le dépôt en public, pousser, vérifier les workflows, tester sur une machine vierge, tag et annonce sont des décisions de l'utilisateur.
 
