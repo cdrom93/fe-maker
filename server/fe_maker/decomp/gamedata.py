@@ -27,6 +27,7 @@ from . import (
     music,
     objectives,
     portraits,
+    prep,
     quotes,
     seize,
     story,
@@ -1246,6 +1247,16 @@ class DecompData:
         talks = self.decomp_dir / objectives.DEFEAT_TALK_FILE
         self.defeat_talks = self._read(objectives.DEFEAT_TALK_FILE) if talks.is_file() else ""
         self._original_defeat_talks = self.defeat_talks
+
+    def apply_prep(self, chapters: dict) -> None:
+        """The preparations screen of the chapters the project changed or added (prep.py), after the edited scripts."""
+        edited = {int(k): bool(v) for k, v in chapters.get("prep", {}).items()}
+        for index in sorted(set(edited) | {int(k) for k in chapters.get("added", {})}):
+            symbol = self._chapter_event_symbol(maps.chapter_settings(self.decomp_dir)[index])
+            scene = units.beginning_scene(self.decomp_dir, symbol) if symbol else None
+            if scene:
+                self._load_chapter_events()
+                self._apply_scripts({scene: prep.with_prep(self.script_commands(scene), edited.get(index, True))})
 
     def _chapter_groups(self, index: int) -> list[str]:
         symbol = self._chapter_event_symbol(maps.chapter_settings(self.decomp_dir)[index])

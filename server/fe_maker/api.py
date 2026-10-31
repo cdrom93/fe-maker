@@ -41,6 +41,7 @@ from .decomp import (
     music,
     pieces,
     portraits,
+    prep,
     quotes,
     reach,
     story,
@@ -398,6 +399,16 @@ def _event_symbol(chapter: dict) -> str | None:
     return table[index] if 0 < index < len(table) else None
 
 
+def _has_prep(index: int, chapter: dict, stored: dict, scripts: dict) -> bool:
+    symbol = _event_symbol(chapter)
+    scene = units.beginning_scene(DECOMP_DIR, symbol) if symbol else None
+    if scene in scripts:
+        found = prep.scene_has_it(scripts[scene])
+    else:
+        found = bool(scene) and prep.SCRIPT in units.scene_text(DECOMP_DIR, scene)
+    return prep.default(index, stored, found)
+
+
 @app.get("/api/chapters")
 def list_chapters():
     d = state.get_decomp()
@@ -409,6 +420,7 @@ def list_chapters():
     if stored.get("blank"):
         shown = newchapter.reached_chapters(d.chapter_links(state.project.load("dialogues").get("scripts", {})))
         shown |= {int(k) for k in stored.get("added", {})}
+    scripts = state.project.load("dialogues").get("scripts", {}) if state.project is not None else {}
     result = []
     for i, ch in enumerate(maps.chapter_settings(DECOMP_DIR)):
         title_id = ch.get("chapTitleTextId", 0)
@@ -425,6 +437,7 @@ def list_chapters():
             "map": layout,
             "events": _event_symbol(ch),
             "convoy": convoy.has_convoy(i, stored),   # unless changed (tickets 29, 106)
+            "prep": _has_prep(i, ch, stored, scripts),   # unless changed (ticket 107)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
         })
     return result

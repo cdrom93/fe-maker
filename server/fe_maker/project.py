@@ -226,6 +226,7 @@ class Project:
         data.apply_chapters(self.load("chapters"))
         data.apply_maps(self.load("maps"))
         data.apply_dialogues(self.load("dialogues"))
+        data.apply_prep(self.load("chapters"))
         data.apply_portraits(self.load("portraits"), self.root / "assets")
         data.apply_animations(self.load("animations"), self.root / "assets")
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")

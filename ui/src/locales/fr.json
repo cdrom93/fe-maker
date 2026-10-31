@@ -1134,6 +1134,8 @@
   "maps.piece.church": "Église",
   "maps.piece.inn": "Auberge",
   "maps.piece.gate": "Porte",
+  "chapter.prep": "Préparation avant le combat",
+  "chapter.prepHint": "L'écran où le joueur choisit ses unités, échange et place son armée. Actif par défaut dans les chapitres ajoutés.",
   "chapter.fog": "Brouillard de guerre",
   "chapter.fogRange": "Portée de vue",
   "chapter.fogRangeN": "vue à {n} cases",

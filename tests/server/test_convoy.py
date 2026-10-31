@@ -77,6 +77,16 @@ def test_only_changes_are_written(decomp_dir):
     assert d.convoy_openers == [chars[0]["id"]]
 
 
+def test_preparations_screen():
+    from fe_maker.decomp import prep
+    scene = [{"op": "LOAD1", "args": ["1", "U"]}, {"op": "ENUN"}, {"op": "NoFade"}, {"op": "ENDA"}]
+    added = prep.with_prep(scene, True)
+    assert added[2] == {"op": "CALL", "args": [prep.SCRIPT]} and added[3:] == scene[2:]
+    assert prep.with_prep(added, True) == added and prep.with_prep(added, False) == scene
+    assert prep.default(1, {"added": {"1": {}}}, False) and not prep.default(0, {"added": {"1": {}}}, False)
+    assert prep.default(0, {}, True)
+
+
 def test_who_can_seize():
     from fe_maker.decomp import seize
     source = "x\ns8 CanUnitSeize(struct Unit* unit) {\n    int leaderId;\n    return 0;\n}\n"

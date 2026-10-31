@@ -67,6 +67,19 @@
       else c.convoy[key] = on
     })
   }
+  const prepEdit = $derived(chapter ? list.records[0]?.prep?.[String(chapter.index)] : undefined)
+
+  /** Preparations screen before the battle (ticket 107); the default value is not stored. */
+  function setPrep(on: boolean) {
+    if (!chapter) return
+    const key = String(chapter.index)
+    const same = on === chapter.prep
+    list.update(0, (c) => {
+      c.prep ??= {}
+      if (same) delete c.prep[key]
+      else c.prep[key] = on
+    })
+  }
   const fogEdit = $derived(chapter ? list.records[0]?.fog?.[String(chapter.index)] : undefined)
   const fog = $derived(fogEdit ?? chapter?.fog ?? 0)
 
@@ -435,6 +448,11 @@
           <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
           {t('chapter.convoy')}
           {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+        </label>
+        <label class="check small convoy" title={t('chapter.prepHint')}>
+          <input type="checkbox" checked={prepEdit ?? chapter.prep} onchange={(e) => setPrep((e.target as HTMLInputElement).checked)} />
+          {t('chapter.prep')}
+          {#if prepEdit !== undefined}<span class="edited">✎</span>{/if}
         </label>
         <label class="check small convoy" title={t('chapter.fogHint')}>
           <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />

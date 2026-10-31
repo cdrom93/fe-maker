@@ -431,6 +431,17 @@ def _script_loads(decomp_dir: Path, script: str) -> list[tuple[str, bool]]:
     return [(name, i < last_map) for i, (kind, name) in enumerate(steps) if kind == "load"]
 
 
+def beginning_scene(decomp_dir: Path, event_group_symbol: str) -> str | None:
+    """Name of a chapter's opening scene script."""
+    info = _find_block(decomp_dir, rf"struct\s+ChapterEventGroup\s+{re.escape(event_group_symbol)}\s*=\s*\{{")
+    return parse_fields(info).get("beginningSceneEvents") if info else None
+
+
+def scene_text(decomp_dir: Path, script: str) -> str:
+    """The game's text of an event script."""
+    return _find_block(decomp_dir, rf"EventListScr\s+{re.escape(script)}\s*\[\s*\]\s*=\s*\{{") or ""
+
+
 def chapter_unit_groups(decomp_dir: Path, event_group_symbol: str) -> list[dict]:
     """[{name, origin, turn}] for a chapter, in loading order. origin: "players" (the
     chapter's player units), "opening" (loaded by the opening scene), "cutscene" (only

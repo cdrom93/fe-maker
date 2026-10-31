@@ -1134,6 +1134,8 @@
   "maps.piece.church": "Church",
   "maps.piece.inn": "Inn",
   "maps.piece.gate": "Gate",
+  "chapter.prep": "Preparations before the battle",
+  "chapter.prepHint": "The screen where the player picks units, trades and places the army. On by default in added chapters.",
   "chapter.fog": "Fog of war",
   "chapter.fogRange": "Vision range",
   "chapter.fogRangeN": "sees {n} cells",
