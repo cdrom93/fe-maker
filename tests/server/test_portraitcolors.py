@@ -29,8 +29,11 @@ def test_the_rider_takes_the_portrait_and_the_horse_stays():
     colours = portraitcolors.from_portrait(BASE, [game_palette()], SEEN, RAMPS)
     assert colours[10:13] == HORSE
     assert colours[4:6] == GOLD
-    assert all(c[0] > 2 * c[2] for c in colours[6:10])          # three reds for four shades: the armour's own relief
-    assert [portraitcolors._hsv(c)[2] for c in colours[6:10]] == [portraitcolors._hsv(c)[2] for c in ARMOUR]
+    assert colours[6] == RED[0] and colours[9] == RED[2]         # three reds for four shades, spread over them
+    far = dict(RAMPS, cloth=[[(10, 0, 0), (40, 5, 5), (60, 10, 10)]], hair=[(20, 0, 0), (50, 10, 10)])
+    dark = portraitcolors.from_portrait(BASE, [game_palette()], SEEN, far)
+    assert [portraitcolors._hsv(c)[2] for c in dark[6:10]] == [portraitcolors._hsv(c)[2] for c in ARMOUR]   # its own relief
+    assert dark[4:6] == far["hair"]                              # but the hair stays what the portrait shows
     assert colours[1:4] == SKIN                                  # the game keeps skin colours: not the character's
     assert colours[13:] == [BLACK, (255, 255, 255)]
 
@@ -48,22 +51,50 @@ def test_a_skin_with_a_dark_shade_is_skin_without_game_palettes():
     assert all(c[0] > 2 * c[2] for c in colours[4:8])
 
 
-def test_a_wyvern_is_all_of_the_clothes_colour_and_its_rider_keeps_the_hair():
-    wings = [(150, 200, 200), (200, 240, 240)]
-    body = [(40, 60, 90), (70, 90, 120), (110, 140, 160), (150, 180, 200)]
-    base = [(0, 0, 0), (60, 100, 240), (90, 200, 255), *SKIN, *wings, *body, *[BLACK] * 3, (255, 255, 255)]
+def test_hair_glued_to_the_skin_in_the_palette_is_still_hair():
+    """Like the Cleric: slots 3-9 are all warm shades, the hair is the part of them the game changes."""
+    base = [(0, 0, 0), (255, 255, 255), (255, 255, 213), (255, 197, 148), (115, 74, 49), (246, 189, 156), (197, 123, 90),
+            (115, 74, 49), *ARMOUR, *[BLACK] * 4]
     other = list(base)
-    other[1:3] = [(120, 120, 60), (200, 200, 120)]
-    other[6:8] = [(180, 180, 90), (220, 220, 140)]
-    other[8:12] = [(100, 40, 20), (140, 80, 50), (190, 120, 90), (230, 170, 140)]
-    seen = {1: (20, 25.0), 2: (20, 25.0), **{s: (200, 10.0) for s in (6, 7)}, **{s: (400, 20.0) for s in (8, 9, 10, 11)}}
+    other[5:8] = [(250, 230, 120), (200, 170, 60), (120, 90, 30)]
+    seen = {3: (6, 6.0), 4: (15, 11.0), 5: (2, 0.0), 6: (9, 2.0), 7: (18, 2.0), 8: (100, 12.0), 9: (100, 12.0)}
+    pink = [(192, 88, 112), (224, 144, 176), (240, 200, 216)]
+    colours = portraitcolors.from_portrait(base, [other], seen, dict(RAMPS, hair=pink))
+    assert colours[5:8] == [pink[2], pink[1], pink[0]]
+    assert colours[3:5] == base[3:5]
+
+
+def test_a_class_with_a_helmet_has_its_clothes_in_slots_6_and_7():
+    base = list(BASE)
+    other = game_palette()
+    seen = {4: (10, 2.0), 5: (10, 2.0), 6: (54, 10.0), 7: (61, 10.0), 8: (300, 15.0), 9: (300, 15.0)}
+    assert portraitcolors.from_portrait(base, [other], seen, RAMPS)[6] != RAMPS["hair"][0]
+
+
+def wyvern_palette():
+    wings = [(222, 222, 164), (156, 156, 106), (205, 197, 148)]
+    body = [(123, 238, 213), (74, 189, 156), (65, 139, 106), (41, 98, 82)]
+    return [(172, 213, 164), (255, 255, 255), (57, 106, 230), (41, 189, 255), *SKIN, *wings, *body, (65, 49, 32), BLACK]
+
+
+def test_a_wyvern_keeps_its_wings_apart_from_its_body():
+    base = wyvern_palette()
+    other = list(base)
+    other[2:4] = [(123, 123, 57), (205, 205, 123)]
+    other[7:10] = [(189, 189, 123), (123, 123, 57), (213, 213, 98)]
+    other[10:14] = [(230, 172, 139), (189, 123, 90), (139, 82, 49), (106, 41, 16)]
+    seen = {slot: (100, 20.0) for slot in (2, 3, 7, 8, 9, 10, 11, 12, 13)}
     colours = portraitcolors.from_portrait(base, [other], seen, RAMPS, wyvern=True)
-    assert colours[1:3] == GOLD
-    assert all(c[0] > 2 * c[2] for c in colours[6:12])
-    assert [portraitcolors._hsv(c)[2] for c in colours[8:12]] == [portraitcolors._hsv(c)[2] for c in body]
-    pale = dict(RAMPS, cloth=[[(240, 240, 240)]])
-    assert portraitcolors.from_portrait(base, [other], seen, pale, wyvern=True)[8][0] > 0
-    assert portraitcolors.from_portrait(base, [other], seen, pale, wyvern=True)[8][2] < 60     # the hair's gold, not white
+    assert colours[2:4] == GOLD
+    value = [portraitcolors._hsv(c)[2] for c in colours[10:14]]
+    assert value == [portraitcolors._hsv(c)[2] for c in base[10:14]]               # the body keeps its shades, in red
+    assert all(c[0] > c[1] and c[0] > c[2] for c in colours[10:14])
+    assert all(c[0] > c[2] and c[1] > c[2] for c in colours[7:10])                 # the wings in the gold of the hair
+
+    pale = portraitcolors.from_portrait(base, [other], seen, dict(RAMPS, cloth=[[(240, 240, 240)]]), wyvern=True)
+    assert all(c[0] > c[2] and c[1] > c[2] for c in pale[10:14])                   # white clothes: the hair for the body
+    same = portraitcolors.from_portrait(base, [other], seen, dict(RAMPS, hair=RED), wyvern=True)
+    assert same[7] != same[10] and portraitcolors._hsv(same[7])[0] != portraitcolors._hsv(same[10])[0]
 
 
 def test_portrait_ramps_read_by_place():
@@ -73,7 +104,21 @@ def test_portrait_ramps_read_by_place():
     ramps = portraitcolors.portrait_ramps(face)
     assert ramps == {"hair": [GOLD[1]], "skin": [SKIN[1]], "cloth": [[RED[1]]]}
     face.paste((60, 30, 90, 255), (34, 34, 40, 58))
-    assert portraitcolors.portrait_ramps(face)["skin"] == [SKIN[1]]
+    ramps = portraitcolors.portrait_ramps(face)
+    assert ramps["skin"] == [SKIN[1]] and ramps["hair"] == [GOLD[1]]
+    face.paste((30, 30, 60, 255), (8, 64, 20, 80))
+    assert portraitcolors.portrait_ramps(face)["cloth"] == [[RED[1]]]    # too dark to be anything but a shadow
+
+
+def test_hair_under_a_crown_of_flowers_is_found_by_its_hue():
+    face = Image.new("RGBA", portraitcolors.FACE_SIZE, (0, 0, 0, 0))
+    face.paste((70, 190, 130, 255), (20, 0, 76, 10))        # the crown
+    face.paste((240, 200, 216, 255), (34, 34, 62, 40))      # the fringe, over the face
+    face.paste((224, 144, 176, 255), (20, 10, 76, 30))
+    face.paste((224, 144, 176, 255), (4, 10, 20, 30))       # the hair on the sides
+    face.paste((192, 88, 112, 255), (76, 10, 92, 30))
+    face.paste(SKIN[1] + (255,), (34, 40, 62, 58))
+    assert portraitcolors.portrait_ramps(face)["hair"] == [(192, 88, 112), (224, 144, 176), (240, 200, 216)]
 
 
 def test_usage_reads_the_coded_colours():

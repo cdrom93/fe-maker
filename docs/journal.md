@@ -107,3 +107,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : calculateur à deux promotions pour les pré-classes et plafond de niveau 10 ; affinités en liste avec les bonnes couleurs d'icônes (ticket 122) ; sexe du personnage suivant sa classe (ticket 124) ; niveaux des ennemis selon la difficulté par chapitre.
 - 01/11/2026 : ticket 124, la case Féminin d'une fiche de classe montre le sexe tiré de ses animations ; essai de palette tirée du portrait (rien dans le produit, résultat dans le cahier).
 - 01/11/2026 : couleurs tirées du portrait dans la fiche personnage (`portraitcolors.py`), proposition à garder ou annuler ; règles pour les pégases, les wyvernes et les montures ; vérifié en combat par playtest.
+- 01/11/2026 : couleurs du portrait, cheveux d'abord (retour sur Mira : couronne de fleurs, cheveux collés à la peau dans la palette du Clerc) ; corps et ailes de wyverne séparés.

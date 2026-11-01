@@ -172,7 +172,7 @@ fe-maker/
 - Ajouté en cours de route : capacités (dont verrous d'armes) et affinité des personnages ; options de test (démarrage direct sur la carte).
 - Avertissement des armes que les unités ne pourront pas utiliser (24/10/2026).
 - Comparaison de la fiche personnage avec FEBuilder (31/10/2026) : niveau de départ, moyenne à un niveau choisi avec une promotion, somme des croissances et couleurs en combat par classe ajoutés (clic sur le sprite, familles de nuances calculées d'après les teintes, cases gardées) ; couleurs vérifiées en combat, sur l'animation du jeu et sur une animation importée. Non repris pour l'instant : ordre de tri, mini-portrait, animation propre au personnage, groupe de conversation, valeurs intermédiaires des rangs d'armes.
-- Couleurs du portrait (01/11/2026) : bouton du panneau « Couleurs en combat », essayé sur la classe et le camp affichés, gardé ou annulé, retouchable ; cheval, ailes de pégase et arme protégés, wyvernes teintées. Vérifié en combat (playtest, Paladin). Limites : résultat approché, animations importées sans protection de la monture, camps ennemis et portraits importés non comparés à une référence.
+- Couleurs du portrait (01/11/2026) : bouton du panneau « Couleurs en combat », essayé sur la classe et le camp affichés, gardé ou annulé, retouchable ; cheveux d'abord, trouvés par teinte sur tout le portrait ; cheval, ailes de pégase et arme protégés ; corps et ailes de wyverne teintés séparément. Vérifié en combat (playtest, Paladin). Limites : résultat approché, animations importées sans protection de la monture, camps ennemis et portraits importés non comparés à une référence.
 
 ### Phase 3 — Chapitres 🚧 (en cours)
 **État (31/10/2026)** — le détail daté est dans `docs/journal.md`.
