@@ -21,6 +21,16 @@ Docs are written in French (README in French and English, this file and `docs/ar
 for now (`ui/src/locales/fr.json`, `en.json`): every new UI string goes into both (`tests/server/test_locales.py`).
 Spanish and Italian (`es.json`, `it.json`) are set aside, frozen and not loaded, until a more complete version.
 
+### Doc cleanup routine
+
+Regularly: after a big batch of work, before a release, or when the user asks. The one exception to "never reread a whole doc".
+
+- `CAHIER_DES_CHARGES.md`, read whole: finished work summed up by phase, what is left and not tested in game checked against the code, open questions in section 8. Keep the section numbers (code, CI and `CREDITS.md` point to them) and every open item.
+- `CLAUDE.md`: rules only, under 9 KB; module details go to `docs/architecture.md`.
+- `README.md`, `CHANGELOG.md` (by theme), `docs/guide.md` and `docs/guide.en.md`: match what FE Maker does today.
+- `docs/journal.md` and `docs/audit-decomp.md` are history and reference: leave them, apart from one journal line.
+- Commit; push on the user's word.
+
 ## Rules
 
 - Never commit ROMs, `.gba` files or assets extracted from the game. The decomp stays an unmodified submodule; modified decomp files exist only in the build overlay (the decomp has no license, so modified decomp code is never redistributed).
