@@ -2,13 +2,13 @@
   // The help text the game shows with R: two short lines.
   import { t } from '../lib/i18n.svelte'
 
-  let { value, onchange }: { value: string; onchange: (text: string) => void } = $props()
+  let { value, label, onchange }: { value: string; label?: string; onchange: (text: string) => void } = $props()
   const LINE = 32
   const tooLong = $derived(value.split('\n').length > 2 || value.split('\n').some((l) => l.length > LINE))
 </script>
 
 <label class="description">
-  {t('field.description')}
+  {label ?? t('field.description')}
   <textarea rows="2" {value} class:invalid={tooLong} oninput={(e) => onchange((e.target as HTMLTextAreaElement).value)}></textarea>
   {#if tooLong}<span class="warn">{t('field.descriptionLong', { n: LINE })}</span>{/if}
 </label>

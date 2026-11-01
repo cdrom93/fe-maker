@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Help from './Help.svelte'
+
   let {
     label,
     value,
@@ -7,6 +9,7 @@
     onchange,
     problem = '',
     compact = false,
+    hint = '',
   }: {
     label: string
     value: number
@@ -15,6 +18,7 @@
     onchange: (v: number) => void
     problem?: string
     compact?: boolean
+    hint?: string
   } = $props()
 
   let text = $state('')
@@ -39,7 +43,7 @@
 </script>
 
 <label class:compact title={problem || undefined}>
-  {label}
+  <span>{label}{#if hint} <Help text={hint} />{/if}</span>
   <input
     type="text"
     inputmode="numeric"

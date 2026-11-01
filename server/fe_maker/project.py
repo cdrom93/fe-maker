@@ -36,7 +36,9 @@ PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's asset
 ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
 DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True, "chapter": 0}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
-FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon"),
+FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"),
+                     "items": ("effectiveness", "reservedFor", "monsterWeapon", "properties", "weaponEffect", "weaponExp",
+                               "statBonuses"),
                      "classes": ("genericPortrait",)}
 
 RESOURCES_HEADER = "Community resources (written by FE Maker)\n----------------------------------------\n"
@@ -113,7 +115,13 @@ class Project:
             # Data type added after this project was created: start from the original game.
             _write_json(path, getattr(DecompData(self.decomp_dir), DATA_FILES[kind])())
         records = json.loads(path.read_text(encoding="utf-8"))
-        return self._fill_new_fields(kind, records) if isinstance(records, list) else records
+        if not isinstance(records, list):
+            return records
+        fields = sum(map(len, records))
+        self._fill_new_fields(kind, records)
+        if sum(map(len, records)) != fields:      # reading the game again at each load is slow: once is enough
+            _write_json(path, records)
+        return records
 
     def _fill_new_fields(self, kind: str, records: list[dict], decomp_dir: Path | None = None) -> list[dict]:
         """Projects created by an older FE Maker lack fields added since: take them from the original game."""
@@ -123,9 +131,10 @@ class Project:
         data = DecompData(decomp_dir or self.decomp_dir)
         original = {r["id"]: r for r in getattr(data, DATA_FILES[kind])()}
         for record in records:
+            game = original.get(record["id"]) or original.get(record.get("model"), {})    # what the project added: its model's
             for key in added:
-                if key not in record and key in original.get(record["id"], {}):
-                    record[key] = original[record["id"]][key]
+                if key not in record and key in game:
+                    record[key] = game[key]
         return records
 
     def save(self, kind: str, records) -> list[Problem]:
@@ -147,8 +156,8 @@ class Project:
         # What the original game already does is not the user's to fix: only warnings on what the project changed.
         data = DecompData(self.decomp_dir)
         games = {"items": data.export_items(), "classes": data.export_classes(), "characters": data.export_characters()}
-        untouched = {(kind, g["id"]) for kind, records in games.items() for g in records
-                     if g in (characters if kind == "characters" else self.load(kind))}
+        mine = {"items": self.load("items"), "classes": self.load("classes"), "characters": characters}
+        untouched = {(kind, g["id"]) for kind, records in games.items() for g in records if g in mine[kind]}
         problems = [p for p in problems if p.severity == "error" or (p.kind, p.id) not in untouched]
         return newchapter.story_problems(self) + problems
 

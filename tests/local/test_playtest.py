@@ -368,6 +368,40 @@ def test_class_generic_portrait_reaches_the_game(tmp_path):
         assert game.read("gClassData", (0x4E - 1) * 0x54 + 8, width=16) == 0x7F
 
 
+def test_item_sheet_reaches_the_game(tmp_path):
+    """Type, properties, effect, rank points, bonuses and spell, as the engine reads them."""
+    project = Project.create(tmp_path / "items", "Items")
+    items = project.load("items")
+    sheet = {i["id"]: i for i in items}
+    sheet["ITEM_VULNERARY"]["weaponType"] = "sword"
+    sheet["ITEM_SWORD_IRON"].update(properties=["brave", "unbreakable"], weaponEffect="poison", weaponExp=3,
+                                    statBonuses={"spd": 5, "lck": -2})
+    sheet["ITEM_ANIMA_FIRE"]["spellFrom"] = "ITEM_ANIMA_THUNDER"
+    sheet["ITEM_ANIMA_EXCALIBUR"]["statBonuses"] = None
+    project.save("items", items)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    size, row_size, vulnerary, iron_sword, excalibur = 0x24, 0x10, 0x6C, 0x01, 0x3E
+    with Game(out.rom_path, out.map_path) as game:
+        game.run(10)
+        attributes = game.read("gItemData", iron_sword * size + 8, width=32)
+        assert attributes & (1 << 0) and attributes & (1 << 3) and attributes & (1 << 5)     # weapon, unbreakable, brave
+        assert game.read("gItemData", vulnerary * size + 8, width=32) & 1                    # can be equipped
+        assert game.read("gItemData", iron_sword * size + 0x1F, width=8) == 1                # poison
+        assert game.read("gItemData", iron_sword * size + 0x20, width=8) == 3
+        assert game.read("ItemBonus_FEM_ITEM_SWORD_IRON", 3, width=8) == 5
+        assert game.read("ItemBonus_FEM_ITEM_SWORD_IRON", 6, width=8) == 0xFE
+        assert game.read("gItemData", excalibur * size + 0x0C, width=32) == 0
+
+        def spell(item):
+            row = 0
+            while (found := game.read("gSpellAssocData", row * row_size, width=16)) not in (item, 0xFFFF):
+                row += 1
+            return game.read("gSpellAssocData", row * row_size + 4, width=16)
+
+        assert spell(0x38) == 0x19      # Fire (0x38) casts Thunder's effect
+
+
 def test_portrait_colours_in_battle(tmp_path):
     """Colours drawn from a portrait build and show in battle, in the slots of the game's animation."""
     project = Project.create(tmp_path / "portrait", "Portrait")

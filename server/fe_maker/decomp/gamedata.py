@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from . import (
@@ -68,6 +69,7 @@ GENERIC_CHARACTER_START = 0x80   # the named characters end here
 NAMED_GENERICS = ("CHARACTER_SOLDIER_83", "CHARACTER_MONSTER_BA", "CHARACTER_CITIZEN")
 ITEM_CONSTANTS_FILE = "include/constants/items.h"
 SPELL_ASSOC_FILE = "src/spellassoc-data.c"
+ITEM_BONUS_FILE = "src/data_itembonus.c"
 # An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
 # battle animations, chosen by item number). Item numbers are one byte; 0xFF is left out.
 NEW_ITEM_PREFIX = "ITEM_NEW_"
@@ -107,6 +109,18 @@ WEAPON_TYPES = {
     "ITYPE_MONSTER": "monster", "ITYPE_DANCE": "dance",
 }
 WEAPON_TYPES_REV = {v: k for k, v in WEAPON_TYPES.items()}
+# Attributes the sheet shows as boxes. IA_WEAPON and IA_STAFF follow the item's type; the weapon locks are its "reserved for".
+ITEM_PROPERTIES = {
+    "IA_MAGIC": "magic", "IA_MAGICDAMAGE": "magicSword", "IA_UNBREAKABLE": "unbreakable", "IA_UNSELLABLE": "unsellable",
+    "IA_BRAVE": "brave", "IA_UNCOUNTERABLE": "uncounterable", "IA_REVERTTRIANGLE": "reverseTriangle",
+    "IA_NEGATE_DEFENSE": "negateDefense", "IA_NEGATE_FLYING": "negateFlying", "IA_NEGATE_CRIT": "negateCrit",
+    "IA_HAMMERNE": "noRepair",
+}
+WEAPON_EFFECTS = {"WPN_EFFECT_POISON": "poison", "WPN_EFFECT_HPDRAIN": "drain", "WPN_EFFECT_HPHALVE": "halve",
+                  "WPN_EFFECT_DEVIL": "devil", "WPN_EFFECT_PETRIFY": "petrify"}
+WEAPON_EFFECTS_REV = {v: k for k, v in WEAPON_EFFECTS.items()}
+ITEM_BONUS_STATS = ("hp", "pow", "skl", "spd", "def", "res", "lck", "mov", "con")
+NEW_BONUS_PREFIX = "ItemBonus_FEM_"
 RANKABLE_TYPES = ["sword", "lance", "axe", "bow", "staff", "anima", "light", "dark"]
 
 WEAPON_RANKS = {"WPN_EXP_E": "E", "WPN_EXP_D": "D", "WPN_EXP_C": "C", "WPN_EXP_B": "B", "WPN_EXP_A": "A", "WPN_EXP_S": "S"}
@@ -176,6 +190,27 @@ def _split_flags(value: str) -> list[str]:
     return [t.strip() for t in value.split("|") if t.strip() not in ("", "0", "CA_NONE")]
 
 
+def _set_flags(fields: dict[str, str], wanted: list[str], managed: tuple[str, ...]) -> None:
+    """Attributes: among the `managed` flags keep only the `wanted` ones, the others as they are."""
+    tokens = _split_flags(fields.get("attributes", "0"))
+    flags = [t for t in tokens if t not in managed or t in wanted] + [t for t in wanted if t not in tokens]
+    if flags != tokens:
+        fields["attributes"] = " | ".join(flags) or "0"
+
+
+def _type_flags(weapon_type: str) -> list[str]:
+    """What the engine asks of an item of this type: it can be equipped, or used as a staff."""
+    if weapon_type == "staff":
+        return ["IA_STAFF"]
+    return [] if weapon_type in ("item", "dance") else ["IA_WEAPON"]
+
+
+def _read_item_bonuses(source: str) -> dict[str, dict[str, int]]:
+    """Name of each ItemStatBonuses -> its stats ('hp': 7)."""
+    return {name: {stat.lower(): _to_s8(parse_int(value)) for stat, value in re.findall(r"\.(\w+)Bonus\s*=\s*(-?\w+)", body)}
+            for name, body in re.findall(r"\b(ItemBonus_\w+)\s*=\s*\{(.*?)\};", source, re.DOTALL)}
+
+
 def _abilities(value: str) -> list[str]:
     """'CA_BOSS | CA_FEMALE' -> ['female', 'boss'] (bit order). Unknown tokens are ignored."""
     tokens = set(_split_flags(value))
@@ -232,6 +267,9 @@ class DecompData:
         self.characters = parse_array(self._read(CHARACTERS_FILE), "gCharacterData")
         self.classes = parse_array(self._read(CLASSES_FILE), "gClassData")
         self.items = parse_array(self._read(ITEMS_FILE), "gItemData")
+        bonuses = self.decomp_dir / ITEM_BONUS_FILE
+        self.item_bonuses = _read_item_bonuses(bonuses.read_text(encoding="utf-8")) if bonuses.is_file() else {}
+        self.spell_choices: dict[str, str] = {}   # item -> the item whose spell it takes
         self.texts = TextFile(self._read(TEXTS_FILE))
         self.unit_defs: dict[str, str] = {}
         for pattern in UNIT_DEF_FILES:
@@ -1699,9 +1737,9 @@ class DecompData:
         if old_values != new_values:
             f["baseRanks"] = render_designated_list({k: _rank_to_c(v) for k, v in new.items()})
 
-    def _description(self, fields: dict) -> str | None:
+    def _description(self, fields: dict, key: str = "descTextId") -> str | None:
         """The help text of a character, class or item, as the editors show it (lines, no text codes)."""
-        index = _int_field(fields, "descTextId")
+        index = _int_field(fields, key)
         if not index or index not in self.texts.messages:
             return None
         return re.sub(r"\[[^\]]*\]", "", self.texts.raw(index).replace("[LF]\n", "\n").replace("[LF]", "\n")).strip()
@@ -1711,7 +1749,9 @@ class DecompData:
         tables = {"characters": self.characters, "classes": self.classes, "items": self.items}
         return {kind: {e.fields["number"]: text for e in table.entries
                        if (text := self._description(e.original_fields)) is not None}
-                for kind, table in tables.items()}
+                for kind, table in tables.items()} | {
+            "itemUses": {e.fields["number"]: text for e in self.items.entries
+                         if (text := self._description(e.original_fields, "useDescTextId")) is not None}}
 
     def _set_description(self, fields: dict, record: dict) -> None:
         text = record.get("description")
@@ -1842,8 +1882,21 @@ class DecompData:
                 "effectiveness": _effectiveness_name(f.get("pEffectiveness", "")),
                 "reservedFor": self._reserved_for(f),
                 "monsterWeapon": "IA_LOCK_3" in _split_flags(f.get("attributes", "0")),
+                "properties": [key for flag, key in ITEM_PROPERTIES.items() if flag in _split_flags(f.get("attributes", "0"))],
+                "weaponEffect": WEAPON_EFFECTS.get(f.get("weaponEffectId", "")),
+                "weaponExp": _int_field(f, "weaponExp"),
+                "statBonuses": self._item_bonus(f),
             })
         return result
+
+    def _item_bonus(self, fields: dict[str, str]) -> dict[str, int] | None:
+        return self.item_bonuses.get(fields.get("pStatBonuses", "").strip().lstrip("&"))
+
+    def spell_items(self) -> list[str]:
+        """Items with a spell or projectile of their own, in the game's table."""
+        path = self.decomp_dir / SPELL_ASSOC_FILE
+        source = path.read_text(encoding="utf-8") if path.is_file() else ""
+        return re.findall(r"^[ \t]*SPELL_ASSOC_DATA(?:_WPN|_WPN_MAGIC)?\(\s*(ITEM_\w+)", source, re.MULTILINE)
 
     # ---------- export (project JSON -> decomp files) ----------
 
@@ -2090,6 +2143,7 @@ class DecompData:
 
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}
+        use_texts = Counter(e.original_fields.get("useDescTextId") for e in self.items.entries if e.original_fields)
         for it in items:
             entry = entries.get(it["id"])
             if entry is None and it["id"].startswith(NEW_ITEM_PREFIX):
@@ -2099,9 +2153,11 @@ class DecompData:
             f = entry.fields
             self.texts.set_name(_int_field(f, "nameTextId"), it["name"])
             self._set_description(f, it)
+            self._set_use_text(f, it, use_texts)
             wtype = WEAPON_TYPES_REV.get(it["weaponType"], it["weaponType"])
             if f.get("weaponType") != wtype:
                 f["weaponType"] = wtype
+                _set_flags(f, _type_flags(it["weaponType"]), ("IA_WEAPON", "IA_STAFF"))
             for key, field in (("might", "might"), ("hit", "hit"), ("crit", "crit"), ("weight", "weight"),
                                ("uses", "maxUses"), ("pricePerUse", "costPerUse"), ("iconId", "iconId")):
                 _set_int(f, field, it[key])
@@ -2123,13 +2179,70 @@ class DecompData:
             ):
                 f["weaponRank"] = _rank_to_c(rank)
             if "monsterWeapon" in it:
-                tokens = _split_flags(f.get("attributes", "0"))
-                if it["monsterWeapon"] and "IA_LOCK_3" not in tokens:
-                    f["attributes"] = " | ".join(tokens + ["IA_LOCK_3"])
-                elif not it["monsterWeapon"] and "IA_LOCK_3" in tokens:
-                    tokens.remove("IA_LOCK_3")
-                    f["attributes"] = " | ".join(tokens) if tokens else "0"
+                _set_flags(f, ["IA_LOCK_3"] if it["monsterWeapon"] else [], ("IA_LOCK_3",))
+            if "properties" in it:
+                _set_flags(f, [flag for flag, key in ITEM_PROPERTIES.items() if key in it["properties"]], tuple(ITEM_PROPERTIES))
+            if "weaponEffect" in it and it["weaponEffect"] != WEAPON_EFFECTS.get(f.get("weaponEffectId", "")):
+                f["weaponEffectId"] = WEAPON_EFFECTS_REV.get(it["weaponEffect"], "WPN_EFFECT_NONE")
+            if "weaponExp" in it:
+                _set_int(f, "weaponExp", it["weaponExp"])
+            if "statBonuses" in it:
+                self._set_item_bonus(f, it["statBonuses"])
+            if it.get("spellFrom"):
+                self.spell_choices[it["id"]] = it["spellFrom"]
         self._apply_reservations(items)
+
+    def _set_use_text(self, fields: dict, record: dict, use_texts: Counter) -> None:
+        """The text of the Use screen; items sharing a message of the game get one of their own."""
+        text = record.get("useDescription")
+        if text is None or text == self._description(fields, "useDescTextId"):
+            return
+        message = name_message(text.strip().replace("\n", "[LF]\n"))
+        index = _int_field(fields, "useDescTextId")
+        if index and use_texts[fields["useDescTextId"]] == 1:
+            self.texts.set_raw(index, message)
+        elif index or text.strip():
+            fields["useDescTextId"] = hex(self.texts.add(message))
+
+    def _set_item_bonus(self, fields: dict[str, str], bonuses: dict[str, int] | None) -> None:
+        wanted = {stat: value for stat, value in (bonuses or {}).items() if value}
+        if wanted == (self._item_bonus(fields) or {}):
+            return
+        if not wanted:
+            fields["pStatBonuses"] = "NULL"
+            return
+        name = f"{NEW_BONUS_PREFIX}{fields['number']}"
+        self.item_bonuses[name] = wanted
+        fields["pStatBonuses"] = f"&{name}"
+
+    def _with_item_bonuses(self, out: dict[str, str | bytes]) -> None:
+        """The stat bonuses the project sets, written above the item table that points to them."""
+        table = "CONST_DATA struct ItemData gItemData[]"
+        rows = "".join(f"CONST_DATA struct ItemStatBonuses {name} = {{\n"
+                       + "".join(f"\t.{stat}Bonus = {bonus[stat]},\n" for stat in ITEM_BONUS_STATS if stat in bonus) + "};\n\n"
+                       for name, bonus in self.item_bonuses.items() if name.startswith(NEW_BONUS_PREFIX))
+        if rows:
+            out[ITEMS_FILE] = out[ITEMS_FILE].replace(table, rows + table, 1)
+
+    def _with_spell_choices(self, out: dict[str, str | bytes]) -> None:
+        """Items taking another item's spell: their row of the spell table becomes a copy of its row."""
+        if not self.spell_choices or not (self.decomp_dir / SPELL_ASSOC_FILE).is_file():
+            return
+        text = out.get(SPELL_ASSOC_FILE) or self._read(SPELL_ASSOC_FILE)
+
+        def row(item: str) -> re.Match | None:
+            return re.search(rf"^[ \t]*SPELL_ASSOC_DATA\w*\(\s*{re.escape(item)}\s*[,)].*\n", text, re.MULTILINE)
+
+        for item, source in self.spell_choices.items():
+            model = row(source)
+            if model is None or item == source:
+                continue
+            copy = re.sub(rf"\b{re.escape(source)}\b", item, model.group(0))
+            own = row(item)
+            at = (own.start(), own.end()) if own else (model.end(), model.end())
+            text = text[:at[0]] + copy + text[at[1]:]
+        if text != self._read(SPELL_ASSOC_FILE):
+            out[SPELL_ASSOC_FILE] = text
 
     def _follow_portraits(self) -> None:
         """A character given another portrait keeps it in the dialogues: the messages showing their
@@ -2243,6 +2356,8 @@ class DecompData:
                 out[objectives.DEFEAT_TALK_FILE] = self.defeat_talks
         if self.new_items:
             self._with_new_item_copies(out)
+        self._with_item_bonuses(out)
+        self._with_spell_choices(out)
         return out
 
     # ---------- assets ----------

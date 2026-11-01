@@ -1,5 +1,6 @@
 <script lang="ts">
   import DescriptionField from './DescriptionField.svelte'
+  import Help from './Help.svelte'
   import { api, itemIconUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
@@ -30,6 +31,18 @@
   const mine = $derived(problems.filter((p) => p.kind === 'items' && p.id === it?.id))
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'items' && p.severity === 'error').map((p) => p.id)))
   const magicRange = $derived(it?.range.max === 0)
+  const MAGIC_TYPES = ['anima', 'light', 'dark']
+  const PROPERTIES = ['magic', 'magicSword', 'brave', 'uncounterable', 'reverseTriangle', 'negateDefense', 'unbreakable', 'unsellable',
+                      'noRepair', 'negateFlying', 'negateCrit']
+  const BONUS_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'mov', 'con']
+  const EFFECTS = ['poison', 'drain', 'halve', 'devil', 'petrify']
+  const isWeapon = $derived(!!it && !['staff', 'item', 'dance'].includes(it.weaponType))
+  const usable = $derived(!!it && ['staff', 'item'].includes(it.weaponType))
+  const ranked = $derived(!!it && reference.rankableTypes.includes(it.weaponType))
+  const spells = $derived(reference.spellItems.filter((id) => {
+    const source = list.records.find((r) => r.id === id)
+    return source && id !== it?.id && reference.rankableTypes.includes(source.weaponType) && source.weaponType !== 'staff'
+  }))
 
   function problemFor(field: string): string {
     const p = mine.find((x) => x.field === field || x.field.startsWith(field + '.'))
@@ -38,6 +51,26 @@
 
   function edit(change: (i: Item) => void) {
     list.update(selected, change)
+  }
+
+  /** A type comes with what the engine expects of it: a tome is magic, a sword is not. */
+  function setType(type: string) {
+    edit((i) => {
+      i.weaponType = type
+      i.properties = i.properties.filter((p) => p !== 'magic').concat(MAGIC_TYPES.includes(type) ? ['magic'] : [])
+    })
+  }
+
+  function setProperty(key: string, on: boolean) {
+    edit((i) => (i.properties = i.properties.filter((p) => p !== key).concat(on ? [key] : [])))
+  }
+
+  function setBonus(stat: string, value: number) {
+    edit((i) => {
+      const { [stat]: _old, ...others } = i.statBonuses ?? {}
+      const bonuses = value ? { ...others, [stat]: value } : others
+      i.statBonuses = Object.keys(bonuses).length ? bonuses : null
+    })
   }
 
   /** Weapons can be copied into new ones (server: gamedata.new_item); consumables and staves act by item number. */
@@ -83,6 +116,10 @@
           </label>
           <DescriptionField value={it.description ?? reference.descriptions.items[it.id] ?? reference.descriptions.items[it.model ?? ''] ?? ''}
                             onchange={(text) => edit((i) => (i.description = text))} />
+          {#if usable}
+            <DescriptionField label={t('item.useText')} value={it.useDescription ?? reference.descriptions.itemUses[it.id] ?? ''}
+                              onchange={(text) => edit((i) => (i.useDescription = text))} />
+          {/if}
           {#if it.model}
             <p class="muted small">
               {t('item.copyOf')} <Mention kind="items" id={it.model}>{list.records.find((r) => r.id === it.model)?.name ?? it.model}</Mention>
@@ -97,7 +134,7 @@
           <div class="row">
             <label>
               {t('field.weaponType')}
-              <select value={it.weaponType} onchange={(e) => edit((i) => (i.weaponType = (e.target as HTMLSelectElement).value))}>
+              <select value={it.weaponType} onchange={(e) => setType((e.target as HTMLSelectElement).value)}>
                 {#each reference.weaponTypes as w (w)}<option value={w}>{t(`wtype.${w}`)}</option>{/each}
               </select>
             </label>
@@ -132,6 +169,15 @@
               {#each reference.effectivenessLists as name (name)}<option value={name}>{t(`effectiveness.${name}`)}</option>{/each}
             </select>
           </label>
+          {#if isWeapon}
+            <label class="eff">
+              <span>{t('item.effect')} <Help text={t('item.effectHint')} /></span>
+              <select value={it.weaponEffect ?? ''} onchange={(e) => edit((i) => (i.weaponEffect = (e.target as HTMLSelectElement).value || null))}>
+                <option value="">{t('field.none')}</option>
+                {#each EFFECTS as effect (effect)}<option value={effect}>{t(`item.effect.${effect}`)}</option>{/each}
+              </select>
+            </label>
+          {/if}
           <label class="check" title={t('field.monsterWeaponHint')}>
             <input type="checkbox" checked={it.monsterWeapon} onchange={(e) => edit((i) => (i.monsterWeapon = (e.target as HTMLInputElement).checked))} />
             {t('field.monsterWeapon')}
@@ -146,8 +192,43 @@
           <NumberField label={t('field.crit')} value={it.crit} min={0} max={255} problem={problemFor('crit')} onchange={(v) => edit((i) => (i.crit = v))} />
           <NumberField label={t('field.weight')} value={it.weight} min={0} max={255} problem={problemFor('weight')} onchange={(v) => edit((i) => (i.weight = v))} />
           <NumberField label={t('field.uses')} value={it.uses} min={0} max={255} problem={problemFor('uses')} onchange={(v) => edit((i) => (i.uses = v))} />
+          {#if ranked}
+            <NumberField label={t('item.weaponExp')} hint={t('item.weaponExpHint')} value={it.weaponExp} min={0} max={255} problem={problemFor('weaponExp')}
+                         onchange={(v) => edit((i) => (i.weaponExp = v))} />
+          {/if}
         </div>
       </section>
+
+      <details class="panel fold" open={!!it.statBonuses}>
+        <summary>{t('item.bonuses')} <Help text={t('item.bonusesHint')} /></summary>
+        <div class="grid">
+          {#each BONUS_STATS as stat (stat)}
+            <NumberField label={t(`stat.${stat}`)} value={it.statBonuses?.[stat] ?? 0} min={-128} max={127} problem={problemFor(`statBonuses.${stat}`)}
+                         onchange={(v) => setBonus(stat, v)} />
+          {/each}
+        </div>
+      </details>
+
+      <details class="panel fold">
+        <summary>{t('item.properties')}</summary>
+        <div class="properties">
+          {#each PROPERTIES as key (key)}
+            <label class="check">
+              <input type="checkbox" checked={it.properties.includes(key)} onchange={(e) => setProperty(key, (e.target as HTMLInputElement).checked)} />
+              <span>{t(`item.prop.${key}`)} <Help text={t(`item.prop.${key}Hint`)} /></span>
+            </label>
+          {/each}
+        </div>
+        {#if isWeapon}
+          <label class="eff spell">
+            <span>{t('item.spell')} <Help text={t('item.spellHint')} /></span>
+            <select value={it.spellFrom ?? ''} onchange={(e) => edit((i) => (i.spellFrom = (e.target as HTMLSelectElement).value || undefined))}>
+              <option value="">{t('item.spellOwn')}</option>
+              {#each spells as id (id)}<option value={id}>{list.records.find((r) => r.id === id)?.name ?? id}</option>{/each}
+            </select>
+          </label>
+        {/if}
+      </details>
 
       <ReservationEditor item={it} {classes} {characters} onchange={(r) => edit((i) => (i.reservedFor = r))} />
 
@@ -193,6 +274,8 @@
   .fields { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.75rem; }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; }
+  .properties { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem 1rem; }
+  .spell { display: block; margin-top: 0.75rem; max-width: 26rem; }
   .open { font-size: 1rem; }
   .price { align-items: flex-end; }
   .total { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }

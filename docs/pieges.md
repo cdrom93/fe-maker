@@ -74,6 +74,8 @@ piège dans sa section.
 
 ## Outils et interface
 
+- **Un champ ajouté (`FIELDS_ADDED_LATER`)** : ce qu'un projet a ajouté (arme `ITEM_NEW_`, classe) le prend chez son modèle, sinon la fiche plante. Chaque `Project.load` qui complète relit toute la décomp : les champs sont donc enregistrés dès la première lecture, et `validate` ne charge qu'une fois (90 s sur « La Fuite de Lorn » avant, page vide en attendant). Essayer un nouveau champ sur une copie d'un vrai projet, pas seulement sur un projet neuf.
+
 - Bash heredocs passed through the tool break on some quote/backslash mixes ("unexpected EOF") and can mangle `\b`, `\n` or `\x00` in Python sources (real newlines, NUL bytes): write patch scripts with the Write tool and edit regex code with the Edit tool.
 - PowerShell eats backticks in inline scripts: edit files with the Edit tool or Python, not PowerShell strings.
 - Editors loaded asynchronously (chapters, maps) must read `nav.focus` once their list is loaded: `followFocus` alone misses a link that mounted the tab.

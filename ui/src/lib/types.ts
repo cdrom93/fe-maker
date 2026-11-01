@@ -48,6 +48,17 @@ export interface Item {
   weaponRank: string | number
   iconId: number
   effectiveness: string | null
+  /** boxes of the sheet: "magic", "brave"... */
+  properties: string[]
+  weaponEffect: string | null
+  /** weapon rank points won with each hit */
+  weaponExp: number
+  /** stats given while equipped, or for good by a consumable */
+  statBonuses: Record<string, number> | null
+  /** the text of the Use screen, when the project changes it */
+  useDescription?: string
+  /** another item whose spell this one takes */
+  spellFrom?: string
   /** null = anyone; empty lists = nobody */
   reservedFor: { characters: string[]; classes: string[] } | null
   monsterWeapon: boolean
@@ -372,7 +383,9 @@ export interface AffinityBonus {
 
 export interface Reference {
   /** help texts of the game, by kind and id */
-  descriptions: Record<'characters' | 'classes' | 'items', Record<string, string>>
+  descriptions: Record<'characters' | 'classes' | 'items' | 'itemUses', Record<string, string>>
+  /** items with a spell or projectile of their own */
+  spellItems: string[]
   classFacts: Record<string, ClassFacts>
   movementTypes: string[]
   effectivenessLists: string[]

@@ -363,6 +363,7 @@ def reference():
         "abilities": list(ABILITIES.values()),
         "weaponTypes": list(WEAPON_TYPES.values()),
         "rankableTypes": RANKABLE_TYPES,
+        "spellItems": d.spell_items(),
         "ranks": list(RANK_VALUES),
         "iconCount": len(d.item_icon_files()),
         "portraits": _portrait_names(),

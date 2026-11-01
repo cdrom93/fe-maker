@@ -202,6 +202,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
             _range(problems, "items", rid, f, it.get(f), 0, 255)
         _range(problems, "items", rid, "pricePerUse", it.get("pricePerUse"), 0, 0xFFFF)
         _range(problems, "items", rid, "iconId", it.get("iconId"), 0, max(icon_count - 1, 0))
+        _range(problems, "items", rid, "weaponExp", it.get("weaponExp"), 0, 255)
+        for stat, value in (it.get("statBonuses") or {}).items():
+            _range(problems, "items", rid, f"statBonuses.{stat}", value, -128, 127)
         rmin, rmax = it["range"].get("min"), it["range"].get("max")
         _range(problems, "items", rid, "range.min", rmin, 0, 15)
         _range(problems, "items", rid, "range.max", rmax, 0, 15)
