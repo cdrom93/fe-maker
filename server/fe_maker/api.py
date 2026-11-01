@@ -238,6 +238,7 @@ def create_project(body: CreateProjectIn):
         project = Project.create(folder, body.name.strip(), body.author.strip())
         if body.blank is not None:
             newchapter.start_blank(project, body.blank.characters, body.blank.title, body.blank.hero)
+            project.set_show_original(False)
         return _open(project)
     except ProjectError as e:
         raise HTTPException(400, str(e))
@@ -1967,6 +1968,16 @@ def remove_portrait(portrait_id: int):
 
 
 # ---------- build and test ----------
+
+class ShowOriginalIn(BaseModel):
+    show: bool
+
+
+@app.put("/api/project/show-original")
+def put_show_original(body: ShowOriginalIn):
+    state.require_project().set_show_original(body.show)
+    return {"show": body.show}
+
 
 class TestOptionsIn(BaseModel):
     start: str | None = None

@@ -196,7 +196,7 @@
       {#if info?.added}
         <button class="link" onclick={remove} disabled={busy} title={t('portrait.deleteHint')}>{t('portrait.delete')}</button>
       {:else if imported}
-        <button class="link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>
+        <button class="to-original link" onclick={remove} disabled={busy}>{t('portrait.reset')}</button>
       {/if}
       <Help text={t('portrait.hint')} />
     </div>

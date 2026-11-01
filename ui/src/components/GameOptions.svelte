@@ -3,6 +3,7 @@
   // can change them in the game's Options menu) and comfort changes taken from FEBuilderGBA's patches.
   import Help from './Help.svelte'
   import { api } from '../lib/api'
+  import { projectView } from '../lib/appContext.svelte'
   import { t } from '../lib/i18n.svelte'
   import ProjectScope from './ProjectScope.svelte'
 
@@ -50,11 +51,26 @@
     }
   }
 
+  async function setShowOriginal(show: boolean) {
+    try {
+      await api.setShowOriginal(show)
+      projectView.showOriginal = show
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
   const value = (key: string) => (data?.options[key] ?? data?.defaults[key]?.game) as number
 </script>
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
+  <section class="panel">
+    <label class="switch">
+      <input type="checkbox" checked={projectView.showOriginal} onchange={(e) => setShowOriginal((e.target as HTMLInputElement).checked)} />
+      <span><strong>{t('options.showOriginal')}</strong> <Help text={t('options.showOriginalHint')} /></span>
+    </label>
+  </section>
   {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
   {#if test}
     <section class="panel">

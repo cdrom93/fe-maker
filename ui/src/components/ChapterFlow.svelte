@@ -427,7 +427,7 @@
         <h4>{t('flow.music.title')} <Help text={t('flow.music.hint')} /></h4>
         {#if music.bluePhase}
           <span class="small">{music.bluePhase.name}</span>
-          <button class="link" onclick={removeMusic}>{t('flow.music.reset')}</button>
+          <button class="to-original link" onclick={removeMusic}>{t('flow.music.reset')}</button>
         {:else}
           <span class="muted small">{t('flow.music.game')}</span>
         {/if}

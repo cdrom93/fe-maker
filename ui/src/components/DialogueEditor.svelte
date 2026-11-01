@@ -602,7 +602,7 @@
           {#each gone as scene (scene.script)}
             <div class="scene-title">
               <span class="kind {scene.trigger.kind}">{sceneLabel(scene)}</span>
-              <button class="link small" onclick={() => restoreScene(scene.script)}>{t('dlg.restoreScene')}</button>
+              <button class="to-original link small" onclick={() => restoreScene(scene.script)}>{t('dlg.restoreScene')}</button>
             </div>
           {/each}
         </details>
@@ -625,7 +625,7 @@
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
-            {#if edited[messageId]}<button class="link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
+            {#if edited[messageId]}<button class="to-original link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}
           {/if}
           <div class="views" role="radiogroup" aria-label={t('dlg.view')}>
             <button role="radio" aria-checked={view === 'talk'} class:active={view === 'talk'} onclick={() => setView('talk')} title={t('dlg.view.talkHint')}>{t('dlg.view.talk')}</button>

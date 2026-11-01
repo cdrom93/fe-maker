@@ -163,6 +163,15 @@ class Project:
         problems = [p for p in problems if p.severity == "error" or (p.kind, p.id) not in untouched]
         return newchapter.story_problems(self) + problems
 
+    @property
+    def show_original(self) -> bool:
+        """The actions going back to the original game are shown (a project remade from scratch hides them)."""
+        return bool(self.meta.get("showOriginal", True))
+
+    def set_show_original(self, show: bool) -> None:
+        self.meta["showOriginal"] = show
+        (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
     # ---------- build ----------
 
     @property

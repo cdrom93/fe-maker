@@ -40,6 +40,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - Class gender is shown after the class name: ♂ blue, ♀ pink (`GenderSign`).
 - No decorative emojis (ticket 54): an emoji only where it is an icon standing for something (map tools and objects, objective types, event commands, expression codes, markers like ⚠ ⭐ ✎); never put before the text of a button, link, title or sentence.
 - The UI stays neutral: no third-party hack or game named in its texts.
+- Any action going back to the original game has the class `to-original` (hidden on request, ticket 137).
 - No AI-generated art or music, no feature producing them from a prompt; FE Maker's AI use stays disclosed (spec, section 2, point 10).
 - To illustrate, use the game's own visuals first (weapon type and item icons, portraits, map sprites, terrain tiles, read from the decomp by `assets.py`), before an emoji or a drawn icon.
 - FEBuilderGBA (GPL-3.0) may be used freely as a reference or source; credit it in `CREDITS.md`.

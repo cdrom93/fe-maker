@@ -66,7 +66,6 @@
     { id: 'select', icon: '👆' },
   ]
   // Objects the engine recognizes by their terrain (server: mapobjects.py).
-  const OBJECT_ICONS: Record<MapObjectKind, string> = { village: '🏘️', house: '🏠', armory: '⚔️', vendor: '🧪', chest: '🎁', door: '🚪', wall: '🧱', snag: '🪵' }
   const EVENT_KINDS: MapObjectKind[] = ['village', 'house', 'armory', 'vendor', 'chest', 'door']
   const SHOP_KINDS: MapObjectKind[] = ['armory', 'vendor']
   const MAX_SHOP_ITEMS = 20
@@ -535,9 +534,7 @@
         const bx = o.x * cell + cell - size
         const by = o.y * cell
         ctx.fillStyle = o.noAfter ? 'rgb(231 76 60 / 0.9)' : o.new ? 'rgb(22 160 133 / 0.9)' : 'rgb(0 0 0 / 0.6)'
-        ctx.fillRect(bx, by, size, size)
-        ctx.fillStyle = '#fff'
-        ctx.fillText(OBJECT_ICONS[o.kind], bx + size / 2, by + size / 2 + 1)
+        ctx.fillRect(bx + size / 2, by, size / 2, size / 2)
       }
       ctx.textAlign = 'start'
     }
@@ -1345,7 +1342,7 @@
                 </div>
               {/each}
             </div>
-            {#if ownColors}<button class="link" onclick={resetColors}>{t('maps.colorsReset')}</button>{/if}
+            {#if ownColors}<button class="to-original link" onclick={resetColors}>{t('maps.colorsReset')}</button>{/if}
           </details>
         {/if}
         {#if layout}
@@ -1363,7 +1360,7 @@
         {/if}
         </details>
         {#if painted || changesEdited || objectsEdited || paletteEdited || chosenBase}
-          <p class="small">
+          <p class="small to-original">
             <span class="edited">✎</span>
             {#if painted}{t('maps.changed', { n: changedCells })}{/if}
             {#if changesEdited}{t('maps.changesEdited')}{/if}
@@ -1462,7 +1459,7 @@
                   · <span class="change-tag">{t('maps.change', { id: c.id })}</span>
                 {/each}
                 {#each objects.filter((o) => hover && o.cells.some(([x, y]) => x === hover!.x && y === hover!.y)) as o (keyOf(o))}
-                  · {OBJECT_ICONS[o.kind]} {t(`maps.kind.${o.kind}`)}
+                  · {t(`maps.kind.${o.kind}`)}
                 {/each}
               {:else}
                 <Help text={t('maps.mouseHint')} />
@@ -1623,9 +1620,14 @@
   {/if}
 </div>
 
+{#snippet objectIcon(o: MapObject, size: number)}
+  {#if sheet && layout}<canvas class="object-icon" width={size} height={size} use:drawBrush={{ m: shownTile(o.x, o.y), sheet, layout }}></canvas>{/if}
+{/snippet}
+
 {#snippet objectsPanel()}
   <div class="objects">
     <h3>{t('maps.objects', { n: objects.length })} <Help text={t('maps.objectsHint')} /></h3>
+    <div class="objects-body" class:open={!!selectedObj}>
     {#if objects.length}
       <div class="object-list">
         {#each objects as o (keyOf(o))}
@@ -1633,11 +1635,11 @@
           {@const scripted = !!o.event?.script && !objectSettings[keyOf(o)]}
           {@const gift = EVENT_KINDS.includes(o.kind) && isActive(o) && !scripted ? giftText(settingsOf(o)) : ''}
           <button class="object" class:active={keyOf(o) === selectedObject} onclick={() => (selectedObject = selectedObject === keyOf(o) ? null : keyOf(o))}>
-            <span aria-hidden="true">{OBJECT_ICONS[o.kind]}</span>
-            <span>{t(`maps.kind.${o.kind}`)}</span>
-            <span class="muted tiny">{o.x}, {o.y}</span>
-            {#if gift}<span class="tiny">· {gift}</span>{/if}
-            <span class="{st.cls} tiny status-text">{st.text}</span>
+            {@render objectIcon(o, 24)}
+            <span class="object-text">
+              <span>{t(`maps.kind.${o.kind}`)} <span class="muted tiny">{o.x}, {o.y}</span></span>
+              <span class="tiny">{#if gift}{gift} · {/if}<span class={st.cls}>{st.text}</span></span>
+            </span>
           </button>
         {/each}
       </div>
@@ -1647,8 +1649,14 @@
       {@const st = settingsOf(o)}
       {@const own = objectSettings[keyOf(o)]}
       <div class="object-panel">
-        <h4>{OBJECT_ICONS[o.kind]} {t(`maps.kind.${o.kind}`)} <span class="muted tiny">{o.x}, {o.y}</span></h4>
-        <p class="muted small">{t(`maps.kindHint.${o.kind}`)}</p>
+        <header class="object-head">
+          {@render objectIcon(o, 32)}
+          <div>
+            <h4>{t(`maps.kind.${o.kind}`)} <span class="muted tiny">{o.x}, {o.y}</span></h4>
+            <p class="muted small">{t(`maps.kindHint.${o.kind}`)}</p>
+          </div>
+          <button class="ghost close" aria-label={t('maps.obj.close')} title={t('maps.obj.close')} onclick={() => (selectedObject = null)}>✕</button>
+        </header>
         {#if EVENT_KINDS.includes(o.kind) || o.new}
           <label class="check">
             <input type="checkbox" checked={isActive(o)} onchange={(e) => setObject(o, { off: !(e.target as HTMLInputElement).checked })} />
@@ -1747,11 +1755,12 @@
             {/if}
           {/if}
         {/if}
-        {#if own}<button class="link reset" onclick={() => resetObject(o)}>{t(o.new ? 'maps.obj.resetNew' : 'maps.obj.resetOriginal')}</button>{/if}
+        {#if own}<button class="link reset" class:to-original={!o.new} onclick={() => resetObject(o)}>{t(o.new ? 'maps.obj.resetNew' : 'maps.obj.resetOriginal')}</button>{/if}
       </div>
     {:else if objects.length}
       <p class="muted tiny">{t('maps.obj.pick')}</p>
     {/if}
+    </div>
   </div>
 {/snippet}
 
@@ -1801,7 +1810,12 @@
   .chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; padding: 0.1rem 0.45rem; border-radius: 999px; }
   .chip.active { border-color: var(--accent); background: var(--accent-soft); }
   .swatch { width: 0.75rem; height: 0.75rem; border-radius: 3px; display: inline-block; }
-  .objects { border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .objects { border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; container-type: inline-size; }
+  .objects-body { display: flex; flex-direction: column; gap: 0.6rem; }
+  @container (min-width: 500px) {
+    .objects-body.open { display: grid; grid-template-columns: 210px minmax(0, 1fr); align-items: start; }
+    .objects-body.open .object-list { max-height: 460px; }
+  }
   .objects h3, .objects p, .object-panel h4 { margin: 0; }
   .object-list { display: flex; flex-direction: column; gap: 0.15rem; max-height: 220px; overflow: auto; }
   .object { display: flex; align-items: center; gap: 0.4rem; text-align: left; font-size: 0.85rem; padding: 0.2rem 0.5rem; border-color: transparent; background: none; }
@@ -1809,7 +1823,12 @@
   .object.active { border-color: var(--accent); background: var(--accent-soft); }
   .status-text { margin-left: auto; }
   .good { color: var(--good); }
-  .object-panel { border-left: 3px solid #1abc9c; padding-left: 0.6rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .object-text { display: flex; flex-direction: column; min-width: 0; }
+  .object-icon { flex: none; image-rendering: pixelated; border-radius: 3px; }
+  .object-panel { background: var(--panel-2); border: 1px solid var(--accent); border-radius: var(--radius); padding: 0 0.7rem 0.7rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 4px 12px rgb(0 0 0 / 0.18); }
+  .object-head { display: flex; align-items: center; gap: 0.5rem; margin: 0 -0.7rem; padding: 0.45rem 0.7rem; background: var(--accent-soft); border-radius: var(--radius) var(--radius) 0 0; }
+  .object-head div { flex: 1; min-width: 0; }
+  .object-head .close { flex: none; padding: 0.1rem 0.4rem; }
   .object-panel .row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
   .object-panel textarea { width: 100%; max-width: 32rem; font: inherit; }
   .object-panel .reset { align-self: flex-start; margin-left: 0; }

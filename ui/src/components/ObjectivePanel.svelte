@@ -80,7 +80,7 @@
 <section class="objective">
   <div class="head">
     <h3>{t('objective.title')} {#if edited}<span class="edited">✎</span>{/if}</h3>
-    {#if edited}<button class="ghost small" onclick={onreset}>{t('objective.reset')}</button>{/if}
+    {#if edited}<button class="to-original ghost small" onclick={onreset}>{t('objective.reset')}</button>{/if}
   </div>
 
   {#if objective.editable}

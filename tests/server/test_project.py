@@ -64,3 +64,10 @@ def test_old_blank_projects_lose_the_characters_left_in_their_list(tmp_path, dec
     ids = [c["id"] for c in project.load("characters")]
     assert hero not in ids and rival in ids
     assert project.load("chapters")["blankCharacters"] == "all"
+
+
+def test_show_original_stays_in_the_project(tmp_path, decomp_dir):
+    project = Project.create(tmp_path / "shown", "Shown", decomp_dir=decomp_dir)
+    assert project.show_original
+    project.set_show_original(False)
+    assert not Project(project.root, decomp_dir).show_original

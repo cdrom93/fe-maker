@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte'
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api, type DataKind } from '../lib/api'
+  import { projectView } from '../lib/appContext.svelte'
   import { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
@@ -21,6 +22,14 @@
   import Mention from './Mention.svelte'
 
   let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
+
+  $effect(() => {
+    projectView.showOriginal = project.meta.showOriginal !== false
+  })
+  $effect(() => {
+    document.documentElement.classList.toggle('hide-original', !projectView.showOriginal)
+    return () => document.documentElement.classList.remove('hide-original')
+  })
 
   type Tab = NavKind
   // The work follows the story: the campaign, then a chapter (its units, map and dialogues), then the game's lists.

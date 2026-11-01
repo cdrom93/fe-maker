@@ -105,3 +105,6 @@ label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.85rem; 
 .with-sign select { flex: 1; min-width: 0; }
 option.male { color: var(--male); }
 option.female { color: var(--female); }
+
+/* Projects remade from scratch: no way back to the original game (GameOptions). */
+.hide-original .to-original { display: none !important; }

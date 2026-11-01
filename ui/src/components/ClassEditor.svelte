@@ -213,7 +213,7 @@
           <div class="sprite-info">
             {#if mySprite}
               <span class="small">{t('mapsprite.imported', { name: mySprite.name })}{mySprite.walk ? '' : ` · ${t('mapsprite.noWalk')}`}</span>
-              <button class="link" disabled={spriteBusy} onclick={() => spriteChange(() => api.removeMapSprite(cl.id))}>{t('mapsprite.reset')}</button>
+              <button class="to-original link" disabled={spriteBusy} onclick={() => spriteChange(() => api.removeMapSprite(cl.id))}>{t('mapsprite.reset')}</button>
             {:else}
               <span class="muted small">{cl.model ? t('mapsprite.model', { name: classes.find((k) => k.id === cl.model)?.name ?? cl.model }) : t('mapsprite.game')}</span>
             {/if}

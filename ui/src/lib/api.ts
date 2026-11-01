@@ -60,6 +60,7 @@ export const api = {
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),
+  setShowOriginal: (show: boolean) => request<{ show: boolean }>('PUT', '/api/project/show-original', { show }),
   applyProjectScope: (kept: { chapters: number[]; characters: string[]; classes: string[]; items: string[]; supports: boolean; title: string; hero: string }) =>
     request<{ backup: string; forced: Record<string, string[]> }>('POST', '/api/project/scope', kept),
   chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[]; ai?: number[] }[]) =>

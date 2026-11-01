@@ -319,7 +319,7 @@
         {:else}
           {anim.imported ? t('banim.importedFrom', { name: anim.name }) : t('banim.changedTo', { name: anim.name })}
         {/if}
-        <button class="link" onclick={() => restore(anim)}>↺ {t('banim.restore')}</button>
+        <button class="to-original link" onclick={() => restore(anim)}>↺ {t('banim.restore')}</button>
         {#if anim.imported}<button class="link danger" onclick={() => removeImported(anim)}>✕ {t('banim.removeImported')}</button>{/if}
       </p>
     {/if}
