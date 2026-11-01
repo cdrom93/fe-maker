@@ -12,7 +12,7 @@
     /** the side shown first: 0 player, 1 enemy */
     side?: number
     /** lines of colours for a class; null: the class's colours; undefined: as in the game */
-    onchange: (classId: string, lines: string[][] | null | undefined) => void
+    onchange: (classId: string, lines: string[][] | null | undefined, kept?: string[][]) => void
   } = $props()
 
   /** The character's class and the ones it can reach, then any other class that has colours. */
@@ -38,6 +38,8 @@
   })
 
   const saved = $derived(character.battleColors?.[classId])
+  /** the user's own colours, kept while another choice is in use */
+  const mine = $derived(character.customColors?.[classId])
   const lines = $derived(saved === null ? info?.base : (saved ?? info?.game ?? info?.base))
   /** the colours being chosen, shown at once and saved when the colour window closes */
   let draft = $state<string[][] | null>(null)
@@ -174,9 +176,11 @@
   })
 
   function choose(value: string) {
-    if (value === 'class') onchange(classId, info?.game ? null : undefined)
-    else if (value === 'game') onchange(classId, undefined)
-    else if (value !== 'mine') onchange(classId, info?.others.find((o) => o.character === value)?.lines)
+    const kept = source === 'mine' ? saved ?? undefined : undefined
+    if (value === 'class') onchange(classId, info?.game ? null : undefined, kept)
+    else if (value === 'game') onchange(classId, undefined, kept)
+    else if (value === 'mine') { if (mine) onchange(classId, mine) }
+    else onchange(classId, info?.others.find((o) => o.character === value)?.lines, kept)
   }
   const nameOf = (id: string) => characters.find((c) => c.id === id)?.name || id
 </script>
@@ -195,7 +199,7 @@
         <option value="class">{t('character.colors.class')}</option>
         {#if info?.game}<option value="game">{t('character.colors.game')}</option>{/if}
         {#each info?.others ?? [] as o (o.character)}<option value={o.character}>{nameOf(o.character)}</option>{/each}
-        {#if source === 'mine'}<option value="mine">{t('character.colors.mine')}</option>{/if}
+        {#if source === 'mine' || mine}<option value="mine">{t('character.colors.mine')}</option>{/if}
       </select>
     </label>
     <Help text={t('character.colors.hint')} />

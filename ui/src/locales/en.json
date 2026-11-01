@@ -1192,6 +1192,7 @@
   "chapter.fogHint": "Units only see a few cells around them (thieves and torches see farther).",
   "banim.title": "Battle animations",
   "banim.weapon": "Weapon",
+  "banim.zoom": "Zoom",
   "banim.mode": "Move",
   "banim.palette": "Colors",
   "banim.play": "Play",

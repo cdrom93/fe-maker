@@ -109,3 +109,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : couleurs tirées du portrait dans la fiche personnage (`portraitcolors.py`), proposition à garder ou annuler ; règles pour les pégases, les wyvernes et les montures ; vérifié en combat par playtest.
 - 01/11/2026 : couleurs du portrait, cheveux d'abord (retour sur Mira : couronne de fleurs, cheveux collés à la peau dans la palette du Clerc) ; corps et ailes de wyverne séparés.
 - 01/11/2026 : couleurs en combat : échange de deux couleurs ou de deux groupes de nuances par glisser-déposer.
+- 01/11/2026 : tickets 125 et 126 : zoom de l'aperçu des couleurs en combat, « Mes couleurs » gardées de côté par classe (`customColors`).

@@ -21,7 +21,9 @@ def test_classes_export(decomp_dir):
 def test_full_round_trip_changes_nothing(decomp_dir):
     d = DecompData(decomp_dir)
     d.apply_classes(copy.deepcopy(d.export_classes()))
-    d.apply_characters(d.export_characters())
+    characters = d.export_characters()
+    characters[0]["customColors"] = {"CLASS_PALADIN": [["#000000"] * 16] * 5}   # kept aside, never built (ticket 126)
+    d.apply_characters(characters)
     d.apply_items(d.export_items())
     d.apply_combat(d.export_combat())
     assert d.changed_files() == {}

@@ -35,7 +35,10 @@
   let chosen = $state(0)
   let mode = $state<string>(untrack(() => (preview ? 'stand' : 'attack_close')))
   let playing = $state(untrack(() => !preview))
-  let strip = $state<{ img: CanvasImageSource; durations: number[]; width: number; height: number; indexes?: Uint8Array } | null>(null)
+  type Box = { x: number; y: number; w: number; h: number }
+  /** `box`: the part of a frame shown */
+  let strip = $state<{ img: CanvasImageSource; durations: number[]; width: number; height: number; box: Box; indexes?: Uint8Array } | null>(null)
+  let zoom = $state(untrack(() => (preview ? 3 : 2)))
   let canvas = $state<HTMLCanvasElement | null>(null)
   let error = $state(false)
 
@@ -87,7 +90,8 @@
     error = false
     Promise.all([api.animationMode(number, m, pal), loadImage(url)])
       .then(([info, img]) => {
-        if (anim?.ref === number && palette === pal) strip = preview ? numbered(img, info) : { img, ...info }
+        const box = { x: 0, y: 0, w: info.width, h: info.height }
+        if (anim?.ref === number && palette === pal) strip = preview ? numbered(img, info) : { img, box, ...info }
       })
       .catch(() => (error = true))
   })
@@ -103,7 +107,20 @@
     const data = ctx.getImageData(0, 0, img.width, img.height).data
     const indexes = new Uint8Array(img.width * img.height)
     for (let i = 0; i < indexes.length; i++) indexes[i] = data[i * 4 + 3] ? data[i * 4] / 16 : 255
-    return { img: sheet, indexes, ...info }
+    return { img: sheet, indexes, box: drawn(indexes, img.width, info), ...info }
+  }
+  /** What the frames really draw, a zoom has nothing to show around it. */
+  function drawn(indexes: Uint8Array, sheetWidth: number, { width, height }: { width: number; height: number }): Box {
+    let [left, top, right, bottom] = [width, height, 0, 0]
+    indexes.forEach((index, i) => {
+      if (index === 255) return
+      const [x, y] = [(i % sheetWidth) % width, Math.floor(i / sheetWidth)]
+      left = Math.min(left, x)
+      right = Math.max(right, x + 1)
+      top = Math.min(top, y)
+      bottom = Math.max(bottom, y + 1)
+    })
+    return right > left ? { x: left, y: top, w: right - left, h: bottom - top } : { x: 0, y: 0, w: width, h: height }
   }
 
   const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
@@ -133,8 +150,8 @@
     const s = strip
     if (!s?.indexes || !onpick) return
     const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const x = Math.floor(((e.clientX - box.left) / box.width) * s.width)
-    const y = Math.floor(((e.clientY - box.top) / box.height) * s.height)
+    const x = s.box.x + Math.floor(((e.clientX - box.left) / box.width) * s.box.w)
+    const y = s.box.y + Math.floor(((e.clientY - box.top) / box.height) * s.box.h)
     const index = s.indexes[y * s.width * s.durations.length + shownFrame * s.width + x]
     if (index !== undefined && index !== 255) onpick(index)
   }
@@ -148,18 +165,18 @@
     })
   }
 
-  const SCALE = 2
   let redraw: (() => void) | null = null
   let shownFrame = 0
   // Play the frames with the game's timings (1/60 s each), then wait a little and start again.
   $effect(() => {
     const s = strip
     const c = canvas
+    const scale = zoom
     if (!s || !c) return
     const ctx = c.getContext('2d')
     if (!ctx) return
-    let frame = 0
-    let left = s.durations[0] ?? 1
+    let frame = Math.min(shownFrame, s.durations.length - 1)    // a zoom leaves the picture where it is
+    let left = s.durations[frame] ?? 1
     let pause = 0
     let raf = 0
     let last = performance.now()
@@ -168,7 +185,8 @@
       shownFrame = frame
       ctx.imageSmoothingEnabled = false
       ctx.clearRect(0, 0, c.width, c.height)
-      ctx.drawImage(s.img, frame * s.width, 0, s.width, s.height, 0, 0, s.width * SCALE, s.height * SCALE)
+      const { x, y, w, h } = s.box
+      ctx.drawImage(s.img, frame * s.width + x, y, w, h, 0, 0, w * scale, h * scale)
     }
     draw()
     redraw = draw
@@ -218,7 +236,7 @@
     <div class="player">
       <div class="stage">
         {#if strip}
-          <canvas bind:this={canvas} class:pick={!!onpick} width={strip.width * SCALE} height={strip.height * SCALE} onclick={pick}></canvas>
+          <canvas bind:this={canvas} class:pick={!!onpick} width={strip.box.w * zoom} height={strip.box.h * zoom} onclick={pick}></canvas>
         {:else if error}
           <span class="muted small">{t('banim.none')}</span>
         {:else}
@@ -238,6 +256,12 @@
             {#each PALETTES as p, i (p)}<option value={i}>{t(`banim.palette.${p}`)}</option>{/each}
           </select>
         </label>
+        {#if preview}
+          <label>
+            <span>{t('banim.zoom')}</span>
+            <input type="range" min="2" max="8" bind:value={zoom} />
+          </label>
+        {/if}
         <button onclick={() => (playing = !playing)}>{playing ? t('banim.pause') : t('banim.play')}</button>
       </div>
     </div>
@@ -271,10 +295,10 @@
   .player { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
   canvas.pick { cursor: crosshair; }
   .stage {
-    min-width: 200px; min-height: 140px; display: flex; align-items: center; justify-content: center;
+    min-width: 200px; min-height: 140px; max-width: 100%; overflow: auto; display: flex; align-items: center; justify-content: center;
     background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius);
   }
-  .stage canvas { image-rendering: pixelated; display: block; }
+  .stage canvas { image-rendering: pixelated; display: block; margin: auto; flex: none; }
   .controls { display: flex; flex-direction: column; gap: 0.5rem; }
   .small { font-size: 0.8rem; margin: 0.5rem 0 0; }
   .sources { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }

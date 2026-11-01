@@ -137,8 +137,9 @@
   const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
   let colorsOpen = $state(false)
 
-  function setColors(classId: string, lines: string[][] | null | undefined) {
+  function setColors(classId: string, lines: string[][] | null | undefined, kept?: string[][]) {
     edit((c) => {
+      if (kept) c.customColors = { ...c.customColors, [classId]: kept }
       const colors = { ...c.battleColors }
       if (lines === undefined) delete colors[classId]
       else colors[classId] = lines

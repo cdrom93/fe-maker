@@ -1192,6 +1192,7 @@
   "chapter.fogHint": "Les unités ne voient qu'à quelques cases autour d'elles (les voleurs et les torches voient plus loin).",
   "banim.title": "Animations de combat",
   "banim.weapon": "Arme",
+  "banim.zoom": "Zoom",
   "banim.mode": "Mouvement",
   "banim.palette": "Couleurs",
   "banim.play": "Lecture",

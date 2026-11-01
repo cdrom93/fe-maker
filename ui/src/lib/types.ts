@@ -10,6 +10,8 @@ export interface BattleColors {
 export interface Character {
   /** by class; null: the class's colours; a class left out stays as in the game */
   battleColors?: Record<string, string[][] | null>
+  /** the user's colours by class while another choice is in use (never built) */
+  customColors?: Record<string, string[][]>
   /** the help text, when the project changes it */
   description?: string
   id: string
