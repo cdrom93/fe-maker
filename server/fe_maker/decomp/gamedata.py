@@ -1484,6 +1484,7 @@ class DecompData:
                 "growths": {s: _int_field(f, "growth" + STAT_SUFFIX[s], signed=True) for s in GROWTHS},
                 "promotionGains": {s: _int_field(f, "promotion" + PROMO_SUFFIX[s]) for s in PROMO_STATS},
                 "relativePower": _int_field(f, "classRelativePower", signed=True),
+                "genericPortrait": _int_field(f, "defaultPortraitId"),
                 "weaponRanks": {WEAPON_TYPES[k]: _rank_to_json(v) for k, v in ranks.items()},
                 "abilities": _abilities(f.get("attributes", "0")),
                 "promotions": list(self.promotions.get(f["number"], [])) if self.promotions is not None else [],
@@ -1670,6 +1671,8 @@ class DecompData:
                 _set_int(f, "base" + STAT_SUFFIX[s], cl["bases"][s], signed=True)
                 _set_int(f, "max" + STAT_SUFFIX[s], cl["maxes"][s], signed=True)
             _set_int(f, "baseMov", cl["mov"], signed=True)
+            if "genericPortrait" in cl:
+                _set_int(f, "defaultPortraitId", cl["genericPortrait"])
             for s in GROWTHS:
                 _set_int(f, "growth" + STAT_SUFFIX[s], cl["growths"][s], signed=True)
             for s in PROMO_STATS:

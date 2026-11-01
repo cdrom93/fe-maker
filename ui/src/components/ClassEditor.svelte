@@ -1,7 +1,7 @@
 <script lang="ts">
   import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
-  import { api, mapSpriteUrl } from '../lib/api'
+  import { api, mapSpriteUrl, portraitUrl } from '../lib/api'
   import { mapSpriteVersion } from '../lib/portraits.svelte'
   import FeRepoBrowser from './FeRepoBrowser.svelte'
   import type { EditableList } from '../lib/history.svelte'
@@ -9,6 +9,7 @@
   import type { ClassData, ClassStatKey, ClassView, Item, Problem, Reference } from '../lib/types'
   import AbilitiesPanel from './AbilitiesPanel.svelte'
   import DescriptionField from './DescriptionField.svelte'
+  import FacePicker from './FacePicker.svelte'
   import BattleAnimation from './BattleAnimation.svelte'
   import GenderSign from './GenderSign.svelte'
   import NumberField from './NumberField.svelte'
@@ -58,6 +59,12 @@
   }
 
   let addError = $state('')
+  let pickingPortrait = $state(false)
+  // The game's own choices first: the class cards
+  const portraitFaces = $derived([
+    ...Object.keys(reference.portraitCards).map((id) => ({ id, portrait: Number(id) })),
+    ...reference.portraits.flatMap((name, id) => (name ? [{ id: String(id), portrait: id }] : [])),
+  ])
 
   // Map sprites the project imports (server: decomp/mapsprites.py): class id -> key, key -> its name and source.
   let imported = $state<{ classes: Record<string, string>; sprites: Record<string, { name: string; walk?: boolean }> }>({ classes: {}, sprites: {} })
@@ -162,6 +169,25 @@
         <p class="muted small">
           {t('class.animated')} : {cl.animatedWeapons.map((w) => t(`wtype.${w}`)).join(', ') || '—'}{cl.usedInGame ? '' : ` · ${t('field.unusedClass')}`}{#if cl.gender} · {t('class.gender')} : <GenderSign gender={cl.gender} />{/if}
         </p>
+        <div class="generic">
+          <button class="portrait-button" title={t('class.genericPortrait')} onclick={() => (pickingPortrait = !pickingPortrait)}>
+            {#if cl.genericPortrait}
+              <img class="pixel" src={portraitUrl(cl.genericPortrait, true)} alt={t('class.genericPortrait')} use:hideBroken />
+            {:else}
+              <span class="muted">{t('class.noPortrait')}</span>
+            {/if}
+          </button>
+          <span>{t('class.genericPortrait')}</span>
+          <Help text={t('class.genericPortraitHint')} />
+          {#if cl.genericPortrait}
+            <button class="link" onclick={() => edit((c) => (c.genericPortrait = 0))}>{t('class.noPortrait')}</button>
+          {/if}
+        </div>
+        {#if pickingPortrait}
+          <FacePicker faces={portraitFaces} label={(id) => reference.portraitCards[id] ?? reference.portraits[Number(id)] ?? id} hint=""
+                      onpick={(id) => { pickingPortrait = false; edit((c) => (c.genericPortrait = Number(id))) }}
+                      onclose={() => (pickingPortrait = false)} />
+        {/if}
         <DescriptionField value={cl.description ?? reference.descriptions.classes[cl.id] ?? reference.descriptions.classes[cl.model ?? ''] ?? ''}
                           onchange={(text) => edit((c) => (c.description = text))} />
         <ReservedWeapons {items} classId={cl.id} className={cl.name} />
@@ -314,6 +340,10 @@
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .top { align-items: flex-end; }
+  .generic { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+  .portrait-button { width: 64px; height: 64px; padding: 0; display: flex; align-items: center; justify-content: center;
+                     background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); flex-shrink: 0; }
+  .portrait-button img { width: 62px; height: 62px; object-fit: contain; }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
   .table-wrap { overflow-x: auto; }

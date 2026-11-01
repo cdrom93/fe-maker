@@ -72,7 +72,7 @@ Spanish and Italian (`es.json`, `it.json`) are set aside, frozen and not loaded,
   - `pieces.py`: whole buildings of the original maps, found by terrain, offered as blocks, and one-tile pieces by terrain (group `building` or `decor`, also tiles of the sheet no map draws): `/api/maps/{id}/pieces`.
   - `autotile.py`: terrain brushes whose tiles join by themselves, learned per tile sheet from the game's maps and from the tiles' pixels (which materials each border shows), solved by wave function collapse so that every two tiles side by side can touch: `/api/maps/{id}/brushes`, `/autotile`; the "Terrains" panel of `MapEditor`, applied at the end of a stroke. `fill` (`/fill`, "Fill the empty space"): patches of walkable ground in the map's most common terrain, joined one by one, everything else kept.
   - `tiled.py`: .tmx export / import in the community's tmx2ea layout; files in the project's `tiled/` folder.
-  - `assets.py`: portraits, item icons, map sprites; `face_preview` = big dialogue portrait.
+  - `assets.py`: portraits, item icons, map sprites; `face_preview` = big dialogue portrait; `card_names`, `card_preview`: class cards, portrait rows without a face, what classes' `genericPortrait` (`defaultPortraitId`) points to.
   - `tweaks.py`: test start modes.
   - `gameoptions.py`: options of the built game ("Game options" tab, fe-maker.json `gameOptions`): defaults of a new save in `InitPlayConfig`, comfort switches rewritten from FEBuilder SYSTEM patches; only what the project changes is written. The Staff & Dance line is the second of the game's Configuration menu, whose rows move up one tile row to fit a 14th.
 - `changed_files()` values are text, or bytes for binary files (`.mar` map layouts); the overlay writer handles both.

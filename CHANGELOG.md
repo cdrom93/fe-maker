@@ -10,6 +10,7 @@ First public test version, Windows first.
 - Character sheet: starting level, average stats at a chosen level with a promotion, and a character's own colours in battle: click the sprite to recolour a part with its shades.
 - Battle colours drawn from the character's portrait, tried on the class shown and kept only if you want; horses, pegasus wings and weapons stay, wyverns take a tint. Colours and groups of shades swap by dragging, the preview zooms and outlines the part selected, and your own colours stay available when you pick others.
 - A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter, with an "Automatic levels" box for every unit.
+- Class sheet: generic portrait, chosen among the game's class cards and portraits.
 - Character sheet: portrait picked by its picture, affinities with the game's icons and their bonuses, limits of the promoted class in the calculator.
 - Enemy levels by difficulty, chapter by chapter; the calculator follows both promotions of trainee classes; a character's gender follows their class.
 - Help bubbles are larger, in the interface's font, and sit next to what they explain.

@@ -111,3 +111,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : couleurs en combat : échange de deux couleurs ou de deux groupes de nuances par glisser-déposer.
 - 01/11/2026 : tickets 125 et 126 : zoom de l'aperçu des couleurs en combat, « Mes couleurs » gardées de côté par classe (`customColors`).
 - 01/11/2026 : tickets 125 et 127 : cadre de l'aperçu de taille fixe pendant le zoom, zone sélectionnée entourée sur le sprite.
+- 01/11/2026 : fiche classe : portrait générique (cartes de classe lues du jeu), ligne « Croissance en montée auto ».

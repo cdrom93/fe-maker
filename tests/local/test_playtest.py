@@ -356,6 +356,18 @@ def test_character_colours_in_battle(tmp_path, imported):
         assert red > 200
 
 
+def test_class_generic_portrait_reaches_the_game(tmp_path):
+    project = Project.create(tmp_path / "generic", "Generic")
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == "CLASS_SOLDIER")["genericPortrait"] = 0x7F
+    project.save("classes", classes)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    with Game(out.rom_path, out.map_path) as game:
+        game.run(10)
+        assert game.read("gClassData", (0x4E - 1) * 0x54 + 8, width=16) == 0x7F
+
+
 def test_portrait_colours_in_battle(tmp_path):
     """Colours drawn from a portrait build and show in battle, in the slots of the game's animation."""
     project = Project.create(tmp_path / "portrait", "Portrait")

@@ -1,6 +1,7 @@
 import copy
 import json
 
+from fe_maker.decomp import assets
 from fe_maker.decomp.combat import parse_effectiveness, parse_promotions, parse_triangle
 from fe_maker.decomp.gamedata import DecompData
 from fe_maker.project import Project
@@ -16,6 +17,25 @@ def test_classes_export(decomp_dir):
     assert lord["movement"] == "CommonT1"
     assert lord["terrainBonus"] == "Common"
     assert lord["abilities"] == ["lord"]
+
+
+def test_a_class_generic_portrait_is_written_only_when_it_changes(decomp_dir):
+    d = DecompData(decomp_dir)
+    classes = d.export_classes()
+    assert classes[0]["genericPortrait"] == 0
+    del classes[1]["genericPortrait"]                     # a class added by an older project
+    classes[0]["genericPortrait"] = 0x7F
+    d.apply_classes(classes)
+    assert ".defaultPortraitId = 127," in "".join(d.changed_files().values())
+
+
+def test_class_cards_are_the_rows_without_a_face(tmp_path):
+    table = tmp_path / assets.PORTRAIT_TABLE
+    table.parent.mkdir(parents=True)
+    table.write_text("{\n{portrait_Eirika_tileset, 0},\n{0, 0, portrait_Soldier_palette, 0, portrait_Soldier_card, 0},\n")
+    assert assets.card_names(tmp_path) == {2: "Soldier"}
+    assert assets.card_preview(tmp_path, 2) is None        # its picture is not there
+    assert assets.card_preview(tmp_path, 1) is None
 
 
 def test_full_round_trip_changes_nothing(decomp_dir):

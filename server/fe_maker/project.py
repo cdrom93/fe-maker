@@ -36,7 +36,8 @@ PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's asset
 ANIMATIONS_DIR = "animations"   # imported battle animations (decomp files), in the assets folder
 DEFAULT_TEST_OPTIONS = {"start": "map", "simplePrologue": True, "chapter": 0}  # see decomp/tweaks.py
 # Record fields added after the first project format: filled from the original game on load.
-FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon")}
+FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"), "items": ("effectiveness", "reservedFor", "monsterWeapon"),
+                     "classes": ("genericPortrait",)}
 
 RESOURCES_HEADER = "Community resources (written by FE Maker)\n----------------------------------------\n"
 PROJECT_GITIGNORE = "build/\n*.gba\n"

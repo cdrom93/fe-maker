@@ -60,6 +60,22 @@ def portrait_names(decomp_dir: Path) -> list[str | None]:
     return names
 
 
+def card_names(decomp_dir: Path) -> dict[int, str]:
+    """Portrait id -> name of the class cards, the 80 x 72 pictures of nameless units ('Soldier'): rows without a face."""
+    rows = [line.strip() for line in (decomp_dir / PORTRAIT_TABLE).read_text(encoding="utf-8").splitlines()]
+    cards = (re.search(r"portrait_(\w+?)_card", row) for row in rows if row.startswith("{"))
+    return {i: m.group(1) for i, m in enumerate(cards) if m}
+
+
+def card_preview(decomp_dir: Path, portrait_id: int) -> bytes | None:
+    name = card_names(decomp_dir).get(portrait_id)
+    if name is None:
+        return None
+    base = decomp_dir / "graphics" / "portrait" / f"portrait_{name}"
+    card, palette = Path(f"{base}_card.png"), Path(f"{base}_palette.agbpal")
+    return render_indexed(card, read_agbpal(palette)) if card.is_file() and palette.is_file() else None
+
+
 # Big portrait (96x80) from its 256x32 tile sheet: (sheet x, y, width, height, face x, y), as the
 # face sprite gSprite_Face96x96 puts the tiles (src/face.c, 32 tiles per sheet row).
 FACE_PARTS = [(0, 0, 64, 32, 16, 0), (64, 0, 64, 32, 16, 32), (128, 0, 32, 16, 16, 64), (128, 16, 32, 16, 48, 64),

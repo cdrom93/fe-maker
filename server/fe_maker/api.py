@@ -56,6 +56,8 @@ from .decomp import (
 )
 from .decomp.assets import (
     MAP_SPRITE_PALETTES,
+    card_names,
+    card_preview,
     face_preview,
     item_icon_preview,
     map_sprite_sheet,
@@ -365,6 +367,7 @@ def reference():
         "iconCount": len(d.item_icon_files()),
         "portraits": _portrait_names(),
         "firstNewPortrait": portraits.first_new_id(DECOMP_DIR),
+        "portraitCards": card_names(DECOMP_DIR),
         "gameEnemies": _game_enemies(),
         "namedGenerics": list(NAMED_GENERICS),
         "gameLevels": {c["id"]: c["level"] for c in d.export_characters()},
@@ -1643,7 +1646,7 @@ def portrait(portrait_id: int, face: bool = False, smile: bool = False, eyes: st
     if sheet is not None:
         png = portraits.face_png(sheet) if face else portraits.chibi_png(sheet, scale=3)
         return Response(png, media_type="image/png", headers={"Cache-Control": "no-cache"})
-    png = face_preview(DECOMP_DIR, portrait_id) if face else portrait_preview(DECOMP_DIR, portrait_id)
+    png = card_preview(DECOMP_DIR, portrait_id) or (face_preview if face else portrait_preview)(DECOMP_DIR, portrait_id)
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")

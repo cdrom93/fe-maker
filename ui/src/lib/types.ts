@@ -68,6 +68,8 @@ export type ClassStatKey = 'hp' | 'pow' | 'skl' | 'spd' | 'def' | 'res' | 'con'
 
 /** Editable class data (project data/classes.json). */
 export interface ClassData {
+  /** the face of the class's units whose character has none; 0: none */
+  genericPortrait?: number
   /** the help text, when the project changes it */
   description?: string
   id: string
@@ -388,6 +390,8 @@ export interface Reference {
   portraits: (string | null)[]
   /** the first portrait id after the game's ones (portraits the project adds) */
   firstNewPortrait: number
+  /** class cards, the pictures of nameless units, by portrait id */
+  portraitCards: Record<string, string>
   /** the game's named characters only met as enemies */
   gameEnemies: string[]
   /** named in the decomp, generic in use */
