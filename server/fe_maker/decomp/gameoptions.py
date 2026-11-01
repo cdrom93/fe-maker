@@ -49,8 +49,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
-                 "rules": ("actAfterTalk", "casualMode"),
-                 "magicWeapons": ("magicFullForce", "magicCriticals", "magicRankPoints", "magicMeleeDefense")}
+                 "rules": ("actAfterTalk", "casualMode")}
 SWITCHES = tuple(key for keys in SWITCH_GROUPS.values() for key in keys)
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
@@ -323,35 +322,6 @@ _DEATH_SUPPORTS = "            unit->state |= US_DEAD | US_HIDDEN;\n            
 _DEATH_SUPPORTS_CASUAL = "            unit->state |= US_DEAD | US_HIDDEN; /* FE Maker: casual mode, supports stay */\n"
 
 
-# The rules of the game's magic swords (magicweapons.py lists which weapons they apply to).
-_MAGIC_FORCE = ("gBattleActor.battleAttack -= gBattleActor.unit.pow / 2;\n",
-                "attacker->battleAttack -= attacker->unit.pow / 2;\n")
-_MAGIC_CRIT = ("        gBattleActor.battleCritRate = 0;\n        gBattleActor.battleEffectiveCritRate = 0;\n",
-               "            attacker->battleCritRate = 0;\n            attacker->battleEffectiveCritRate = 0;\n")
-_MAGIC_RANKS = ("if (bu->weaponAttributes & (IA_MAGICDAMAGE | IA_LOCK_3))", "if (bu->weaponAttributes & IA_LOCK_3)")
-_MAGIC_MELEE = ("if (GetItemAttributes(defender->weapon) & IA_MAGICDAMAGE)\n",
-                "if (defender->weaponAttributes & IA_MAGICDAMAGE)\n")
-_RANK_LINES = ("result = bu->unit.ranks[bu->weaponType];", "if (i == bu->weaponType)",
-               "int oldWexp = bu->unit.ranks[bu->weaponType];", "unit->ranks[bu->weaponType] = tmp;",
-               "unit->ranks[bu->weaponType] = wexp;")
-
-
-def _magic_rules(source: str, options: dict) -> str:
-    if options.get("magicFullForce"):
-        for line in _MAGIC_FORCE:
-            source = _replace(source, line, "/* FE Maker: all of the Force */\n", BATTLE_FILE)
-    if options.get("magicCriticals"):
-        for lines in _MAGIC_CRIT:
-            source = _replace(source, lines, "", BATTLE_FILE)
-    if options.get("magicRankPoints"):
-        source = _replace(source, *_MAGIC_RANKS, BATTLE_FILE)
-        for line in _RANK_LINES:       # the weapon's own type, not the magic type it counts as at range
-            source = _replace(source, line, line.replace("bu->weaponType", "GetItemType(bu->weaponBefore)"), BATTLE_FILE)
-    if options.get("magicMeleeDefense"):
-        source = _replace(source, *_MAGIC_MELEE, BATTLE_FILE)
-    return source
-
-
 def validate(options: dict) -> str | None:
     """Problem code for the options, else None."""
     for key, value in options.items():
@@ -459,6 +429,4 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         start = "    gPlaySt.config.unk41_5 = 0;\n"
         files[CONFIG_FILE] = _replace(current(CONFIG_FILE), start,
                                       start + "    gPlaySt.config.unk41_6 = 1; /* FE Maker: staves on the map */\n", CONFIG_FILE)
-    if any(options.get(key) for key in SWITCH_GROUPS["magicWeapons"]):
-        files[BATTLE_FILE] = _magic_rules(current(BATTLE_FILE), options)
     return files

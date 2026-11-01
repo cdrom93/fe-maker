@@ -32,16 +32,11 @@
   const problemIds = $derived(new Set(problems.filter((p) => p.kind === 'items' && p.severity === 'error').map((p) => p.id)))
   const magicRange = $derived(it?.range.max === 0)
   const MAGIC_TYPES = ['anima', 'light', 'dark']
-  const PROPERTIES = ['magic', 'brave', 'uncounterable', 'reverseTriangle', 'negateDefense', 'unbreakable', 'unsellable',
+  const PROPERTIES = ['magic', 'magicSword', 'brave', 'uncounterable', 'reverseTriangle', 'negateDefense', 'unbreakable', 'unsellable',
                       'noRepair', 'negateFlying', 'negateCrit']
-  const MAGIC_ATTACKS = ['none', 'range', 'always']
-  const MELEE_TYPES = ['sword', 'lance', 'axe']
   const BONUS_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'mov', 'con']
   const EFFECTS = ['poison', 'drain', 'halve', 'devil', 'petrify']
   const isWeapon = $derived(!!it && !['staff', 'item', 'dance'].includes(it.weaponType))
-  const canBeMagic = $derived(!!it && MELEE_TYPES.includes(it.weaponType))
-  const isMagic = $derived(canBeMagic && it.magicAttack !== 'none')
-  const noSpell = $derived(isMagic && !it.spellFrom && !reference.spellItems.includes(it.id))
   const usable = $derived(!!it && ['staff', 'item'].includes(it.weaponType))
   const ranked = $derived(!!it && reference.rankableTypes.includes(it.weaponType))
   const spells = $derived(reference.spellItems.filter((id) => {
@@ -63,7 +58,6 @@
     edit((i) => {
       i.weaponType = type
       i.properties = i.properties.filter((p) => p !== 'magic').concat(MAGIC_TYPES.includes(type) ? ['magic'] : [])
-      if (!MELEE_TYPES.includes(type)) i.magicAttack = 'none'
     })
   }
 
@@ -103,16 +97,6 @@
     selected = Math.max(0, selected - 1)
   }
 </script>
-
-{#snippet spellChoice()}
-  <label class="eff spell">
-    <span>{t('item.spell')} <Help text={t('item.spellHint')} /></span>
-    <select value={it.spellFrom ?? ''} onchange={(e) => edit((i) => (i.spellFrom = (e.target as HTMLSelectElement).value || undefined))}>
-      <option value="">{t('item.spellOwn')}</option>
-      {#each spells as id (id)}<option value={id}>{list.records.find((r) => r.id === id)?.name ?? id}</option>{/each}
-    </select>
-  </label>
-{/snippet}
 
 <div class="editor">
   <RecordList records={list.records} {selected} onselect={(i) => (selected = i)} {problemIds}>
@@ -194,15 +178,6 @@
               </select>
             </label>
           {/if}
-          {#if canBeMagic}
-            <label class="eff">
-              <span>{t('item.magicAttack')} <Help text={t('item.magicAttackHint')} /></span>
-              <select value={it.magicAttack} onchange={(e) => edit((i) => (i.magicAttack = (e.target as HTMLSelectElement).value))}>
-                {#each MAGIC_ATTACKS as mode (mode)}<option value={mode}>{t(`item.magicAttack.${mode}`)}</option>{/each}
-              </select>
-            </label>
-          {/if}
-          {#if isMagic}{@render spellChoice()}{#if noSpell}<p class="bad">⚠ {t('item.noSpell')}</p>{/if}{/if}
           <label class="check" title={t('field.monsterWeaponHint')}>
             <input type="checkbox" checked={it.monsterWeapon} onchange={(e) => edit((i) => (i.monsterWeapon = (e.target as HTMLInputElement).checked))} />
             {t('field.monsterWeapon')}
@@ -244,7 +219,15 @@
             </label>
           {/each}
         </div>
-        {#if isWeapon && !isMagic}{@render spellChoice()}{/if}
+        {#if isWeapon}
+          <label class="eff spell">
+            <span>{t('item.spell')} <Help text={t('item.spellHint')} /></span>
+            <select value={it.spellFrom ?? ''} onchange={(e) => edit((i) => (i.spellFrom = (e.target as HTMLSelectElement).value || undefined))}>
+              <option value="">{t('item.spellOwn')}</option>
+              {#each spells as id (id)}<option value={id}>{list.records.find((r) => r.id === id)?.name ?? id}</option>{/each}
+            </select>
+          </label>
+        {/if}
       </details>
 
       <ReservationEditor item={it} {classes} {characters} onchange={(r) => edit((i) => (i.reservedFor = r))} />
@@ -292,7 +275,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.75rem; }
   .check { flex-direction: row; align-items: center; gap: 0.4rem; }
   .properties { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem 1rem; }
-  .spell { margin-top: 0.75rem; }
+  .spell { display: block; margin-top: 0.75rem; max-width: 26rem; }
   .open { font-size: 1rem; }
   .price { align-items: flex-end; }
   .total { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }

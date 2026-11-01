@@ -50,8 +50,6 @@ export interface Item {
   effectiveness: string | null
   /** boxes of the sheet: "magic", "brave"... */
   properties: string[]
-  /** "none", "range" (like Light Brand) or "always" (like Runesword) */
-  magicAttack: string
   weaponEffect: string | null
   /** weapon rank points won with each hit */
   weaponExp: number
