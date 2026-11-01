@@ -113,3 +113,21 @@ def test_terrain_effects(tmp_path):
     effects = maps.terrain_effects(tmp_path)
     assert (effects["avoid"][0x0C], effects["defense"][0x0C], effects["resistance"][0x0C]) == (20, 1, 0)
     assert (effects["foot"][0x0C], effects["horse"][0x0C], effects["foot"][0]) == (2, 3, -1)
+
+
+def test_a_map_without_changes_gets_a_set(tmp_path):
+    d = _decomp(tmp_path)
+    rel, source = maps.add_change_set("OtherMap", SOURCE)
+    assert rel == "src/data/map/change/OtherMapChanges.json"
+    assert '\t.global OtherMapChanges\nOtherMapChanges:\n\t.include "src/data/map/change/OtherMapChanges.inc"' in source
+    files, source = maps.write_changes(d, rel, [{"id": 0, "x": 0, "y": 0, "w": 1, "h": 1, "rows": [[3]]}], source)
+    assert json.loads(files[rel]) == {"name": "OtherMapChanges", "changes": [
+        {"id": 0, "x": 0, "y": 0, "w": 1, "h": 1, "tiles": "OtherMapChanges_change_0"}]}
+    assert files["graphics/map/OtherMapChanges_change_0.bin"] == struct.pack("<H", 3 << 2)
+    assert "OtherMapChanges_change_0:" in source
+
+
+def test_asset_table_grows_at_its_end():
+    table = "t:\n    .word 0\n\t.word A\n\t.global Next\nNext:\n.4byte B\n"
+    index, source = maps.add_asset(table, "New")
+    assert index == 2 and source == "t:\n    .word 0\n\t.word A\n\t.word New\n\t.global Next\nNext:\n.4byte B\n"

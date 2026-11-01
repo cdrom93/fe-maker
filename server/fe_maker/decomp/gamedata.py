@@ -640,11 +640,18 @@ class DecompData:
             # Ruined villages first: the engine takes the last change holding a cell, and a gate's
             # last one must stay its closed village (mapobjects.ruin_change).
             ruins = [o["ruin"] for o in objects if o.get("ruin")]
-            if json_rel and (change_list is not None or autos or ruins):
+            written = ruins + list(explicit) + autos
+            if written or (json_rel and change_list is not None):
                 if map_change_source is None:
                     map_change_source = original_source = self._read(maps.MAP_CHANGE_FILE)
-                files, map_change_source = maps.write_changes(
-                    self.decomp_dir, json_rel, ruins + list(explicit) + autos, map_change_source)
+                if not json_rel:
+                    json_rel, map_change_source = maps.add_change_set(layout_id, map_change_source)
+                    table = self.map_files.get(maps.ASSET_TABLE_FILE) or self._read(maps.ASSET_TABLE_FILE)
+                    index, self.map_files[maps.ASSET_TABLE_FILE] = maps.add_asset(table, Path(json_rel).stem)
+                    self._load_chapter_events()
+                    for chapter in known[layout_id]["chapters"]:
+                        self.chapter_settings["chapters"][chapter]["map"]["changeLayerId"] = index
+                files, map_change_source = maps.write_changes(self.decomp_dir, json_rel, written, map_change_source)
                 self.map_files.update(files)
             self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}), terrain)
         if map_change_source != original_source:

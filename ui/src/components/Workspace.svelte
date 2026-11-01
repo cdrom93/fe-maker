@@ -356,7 +356,7 @@
   {:else if tab === 'flow'}
     <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} onreload={loadAll} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
-    {#key added}<MapEditor list={lists.maps} items={lists.items.records} characters={lists.characters.records} {problems} />{/key}
+    {#key added}<MapEditor list={lists.maps} chapterList={lists.chapters} items={lists.items.records} characters={lists.characters.records} {problems} />{/key}
   {:else if tab === 'options'}
     <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} scopeFirst={startsBlank} />
   {:else}

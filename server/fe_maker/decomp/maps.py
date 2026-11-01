@@ -415,6 +415,7 @@ MAP_CHANGE_FILE = "data/data_map_change.s"
 MAP_CHANGE_DIR = "src/data/map/change"
 CHANGE_TILES_DIR = "graphics/map"
 MAX_CHANGE_ID = 127  # MapChange.id is an s8; 0xFF ends the list
+MAX_ASSET_INDEX = 255  # chapters hold asset indices in a u8
 
 
 def change_set_json(decomp_dir: Path, symbol: str) -> str | None:
@@ -422,6 +423,23 @@ def change_set_json(decomp_dir: Path, symbol: str) -> str | None:
     pattern = rf"^{re.escape(symbol)}:[^\n]*\n\s*\.include\s+\"([^\"]+)\.inc\""
     m = re.search(pattern, _read(decomp_dir, MAP_CHANGE_FILE), re.MULTILINE)
     return f"{m.group(1)}.json" if m else None
+
+
+def add_change_set(layout_id: str, map_change_source: str) -> tuple[str, str]:
+    """A change set for a layout that has none: its JSON file, and data/data_map_change.s including it."""
+    symbol = f"{layout_id}Changes"
+    rel = f"{MAP_CHANGE_DIR}/{symbol}"
+    return f"{rel}.json", map_change_source.rstrip("\n") + (
+        f"\n\n\t.align 2, 0\n\t.global {symbol}\n{symbol}:\n\t.include \"{rel}.inc\"\n")
+
+
+def add_asset(table_source: str, symbol: str) -> tuple[int, str]:
+    """A new entry at the end of gChapterDataAssetTable: its index, and the table's new source."""
+    words = list(re.finditer(r"^\s*\.word\s+\w+[^\n]*\n", table_source, re.MULTILINE))
+    if len(words) > MAX_ASSET_INDEX:
+        raise MapError("The chapter asset table is full")
+    end = words[-1].end()
+    return len(words), f"{table_source[:end]}\t.word {symbol}\n{table_source[end:]}"
 
 
 def chapter_change_set(decomp_dir: Path, chapter: dict) -> str | None:
@@ -451,7 +469,8 @@ def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict],
 
     Changes keep their tile block when they had one; new changes get a new block named after the set.
     """
-    original = json.loads(_read(decomp_dir, json_rel))
+    exists = (decomp_dir / json_rel).is_file()
+    original = json.loads(_read(decomp_dir, json_rel)) if exists else {"name": Path(json_rel).stem, "changes": []}
     name = original["name"]
     taken = set(re.findall(r"^(\w+):", map_change_source, re.MULTILINE))
     out: dict[str, str | bytes] = {}
@@ -473,7 +492,7 @@ def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict],
             out[rel] = data
         entries.append({"id": c["id"], "x": c["x"], "y": c["y"], "w": c["w"], "h": c["h"], "tiles": tiles})
     text = json.dumps({**original, "changes": entries}, indent=2)
-    if text != _read(decomp_dir, json_rel):
+    if not exists or text != _read(decomp_dir, json_rel):
         out[json_rel] = text
     return out, map_change_source
 
@@ -482,16 +501,17 @@ def write_changes(decomp_dir: Path, json_rel: str, changes: list[dict],
 
 @lru_cache(maxsize=4)
 def terrain_effects(decomp_dir: Path) -> dict[str, list[int]]:
-    """Avoid, defense and resistance bonuses per terrain (the tables most classes use), and the cost of
-    moving on foot and on horse (-1: impassable), for the map editor."""
+    """Avoid, defense and resistance bonuses per terrain (the tables most classes use), healing per turn
+    (percent) and the cost of moving on foot and on horse (-1: impassable), for the map editor."""
     constants = {name: int(value, 0) for name, value in
                  re.findall(r"^\s*(TERRAIN_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", _read(decomp_dir, TERRAINS_HEADER), re.MULTILINE)}
     count = constants.get("TERRAIN_COUNT", 0x41)
     source = _read(decomp_dir, TERRAIN_DATA_FILE)
     result = {}
-    for key, table in (("avoid", "Avo"), ("defense", "Def"), ("resistance", "Res")):
+    for key, table in (("avoid", "Avo_Common"), ("defense", "Def_Common"), ("resistance", "Res_Common"),
+                       ("heal", "HealAmount")):
         values = [0] * count
-        m = re.search(rf"TerrainTable_{table}_Common\[\]\s*=\s*\{{(.*?)\}};", source, re.DOTALL)
+        m = re.search(rf"TerrainTable_{table}\[\]\s*=\s*\{{(.*?)\}};", source, re.DOTALL)
         for terrain, value in re.findall(r"\[(TERRAIN_\w+)\]\s*=\s*(-?\d+)", m.group(1) if m else ""):
             if constants.get(terrain, count) < count:
                 values[constants[terrain]] = int(value)

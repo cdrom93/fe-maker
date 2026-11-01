@@ -708,8 +708,8 @@ def get_map(layout_id: str, base: str | None = None):
         "bases": [{"id": b["id"], "name": maps.SHEET_NAMES.get(b["id"], b["id"]), "chapters": b["chapters"],
                    "palette": maps.asset_table(DECOMP_DIR)[b["map"]["paletteId"]]}
                   for b in maps.base_choices(DECOMP_DIR)],
-        # Original map changes (doors, villages...); None when the map has no change layer
-        "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else None,
+        # Original map changes (doors, villages...); a map without any gets its change set when one is added
+        "changes": maps.read_changes(DECOMP_DIR, layout["changes"]) if layout["changes"] else [],
     }
 
 
@@ -747,7 +747,7 @@ def map_objects(layout_id: str, body: MapObjectsIn):
         found = next((events[tuple(c)] for c in obj["cells"]
                       if tuple(c) in events and mapobjects.event_matches(events[tuple(c)]["kind"], obj["kind"])), None)
         obj["event"] = {k: v for k, v in found.items() if k != "span"} if found else None
-    return {"objects": objects, "hasChangeLayer": bool(layout["changes"]), "defaults": mapobjects.DEFAULTS,
+    return {"objects": objects, "defaults": mapobjects.DEFAULTS,
             "faces": [{"id": fid, "portrait": portrait} for fid, portrait in mapobjects.FACES.items()]}
 
 

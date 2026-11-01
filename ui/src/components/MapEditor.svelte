@@ -39,7 +39,7 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { addedTileUsage, keepUsed, withoutMetatiles } from '../lib/tileEdits'
-  import type { ChapterInfo, Character, DialogueFace, Item, MapChange, MapPiece, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapsData, Problem, TilesetEdits } from '../lib/types'
+  import type { ChapterInfo, ChaptersData, Character, DialogueFace, Item, MapChange, MapPiece, TiledMap, MapInfo, MapObject, MapObjectKind, MapObjects, MapObjectSettings, MapUnit, MapsData, ObjectiveEdit, Problem, TilesetEdits } from '../lib/types'
   import { faceName } from '../lib/faces'
   import FacePicker from './FacePicker.svelte'
   import Mention from './Mention.svelte'
@@ -47,7 +47,7 @@
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
 
-  let { list, items, characters, problems }: { list: EditableList<MapsData>; items: Item[]; characters: Character[]; problems: Problem[] } = $props()
+  let { list, chapterList, items, characters, problems }: { list: EditableList<MapsData>; chapterList: EditableList<ChaptersData>; items: Item[]; characters: Character[]; problems: Problem[] } = $props()
 
   // Anyone can talk in a village or a house, not only the villagers (ticket 95).
   let allFaces = $state<DialogueFace[]>([])
@@ -446,7 +446,8 @@
     const e = layout?.terrainEffects
     if (!e) return ''
     const cost = (c: number) => (c < 0 ? '✖' : String(c))
-    return t('maps.terrainEffects', { avoid: e.avoid[id], defense: e.defense[id], resistance: e.resistance[id], foot: cost(e.foot[id]), horse: cost(e.horse[id]) })
+    const heal = e.heal?.[id] ? ` · ${t('maps.terrainHeal', { heal: e.heal[id] })}` : ''
+    return t('maps.terrainEffects', { avoid: e.avoid[id], defense: e.defense[id], resistance: e.resistance[id], foot: cost(e.foot[id]), horse: cost(e.horse[id]) }) + heal
   }
 
   function drawTile(ctx: CanvasRenderingContext2D, m: number, x: number, y: number, size: number) {
@@ -935,7 +936,7 @@
         d.changes[id] = fresh
       }
     })
-    tiledError = !changes && fresh.length ? t('maps.tiledNoChangeLayer') : ''
+    tiledError = ''
   }
 
   async function reloadFromTiled() {
@@ -1050,9 +1051,87 @@
   }
 
   /** New size: rows and columns are added or removed on the right and at the bottom; new cells get the selected tile. */
-  function resize(w: number, h: number) {
-    if (w === width && h === height) return
-    saveRows(Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => rows[y]?.[x] ?? brush)))
+  /** Rows and columns added (or removed, below 0) on each side of the map. */
+  let sides = $state({ top: 0, left: 0, right: 0, bottom: 0 })
+  const newWidth = $derived(width + sides.left + sides.right)
+  const newHeight = $derived(height + sides.top + sides.bottom)
+  const newSizeOk = $derived(newWidth >= MIN_WIDTH && newHeight >= MIN_HEIGHT && newWidth <= MAX_SIDE && newHeight <= MAX_SIDE)
+  let resizing = $state(false)
+
+  /** The map with its sides moved. What stands on it follows when the left or top side moves: map changes,
+   *  object settings, then the units and objectives of its chapters (their own undo step, in the Chapters tab). */
+  async function resize() {
+    if (!info || !newSizeOk || resizing) return
+    const { top: dy, left: dx } = sides
+    if ((dx || dy) && info.chapters.length && !confirm(t('maps.moveConfirm'))) return
+    const id = info.id
+    const [w, h] = [newWidth, newHeight]
+    resizing = true
+    try {
+      if (dx || dy) await moveChapters(info.chapters, dx, dy, w, h)
+      if (maps[selected]?.id !== id) return
+      const next = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => rows[y - dy]?.[x - dx] ?? brush))
+      if (dx || dy) {
+        layer = null
+        const kept = (changes ?? []).flatMap((c) => {
+          const [x, y] = [Math.max(0, c.x + dx), Math.max(0, c.y + dy)]
+          const [cw, ch] = [Math.min(w, c.x + dx + c.w) - x, Math.min(h, c.y + dy + c.h) - y]
+          if (cw <= 0 || ch <= 0) return []
+          const part = Array.from({ length: ch }, (_, j) => Array.from({ length: cw }, (_, i) => c.rows[y + j - c.y - dy][x + i - c.x - dx]))
+          return [{ ...c, x, y, w: cw, h: ch, rows: part }]
+        })
+        saveChanges(kept)
+        list.update(0, (d) => {
+          const settings = d.objects?.[id]
+          if (!settings) return
+          d.objects![id] = Object.fromEntries(Object.entries(settings).map(([key, value]) => {
+            const [x, y] = key.split(',').map(Number)
+            return [`${x + dx},${y + dy}`, value]
+          }))
+        })
+      }
+      saveRows(next)
+      sides = { top: 0, left: 0, right: 0, bottom: 0 }
+    } finally {
+      resizing = false
+    }
+  }
+
+  /** Units and objective tiles of the chapters on a map whose left or top side moved. */
+  async function moveChapters(indexes: number[], dx: number, dy: number, w: number, h: number) {
+    const found = await Promise.all(indexes.map(async (index) =>
+      ({ index, groups: (await api.chapterUnits(index)).groups, objective: await api.chapterObjective(index) })))
+    const inside = (v: number, side: number) => Math.max(0, Math.min(side - 1, v))
+    // Units may start outside the map (they walk in): only what a unit's position can hold limits them.
+    const onGrid = (v: number) => inside(v, 64)
+    const movedUnit = (u: MapUnit): MapUnit => ({
+      ...u, x: onGrid(u.x + dx), y: onGrid(u.y + dy), endX: onGrid(u.endX + dx), endY: onGrid(u.endY + dy),
+    })
+    chapterList.update(0, (c) => {
+      const seen = new Set<string>()
+      for (const { index, groups, objective } of found) {
+        for (const g of groups) {
+          if (seen.has(g.name) || !g.units.length) continue
+          seen.add(g.name)
+          c.unitGroups[g.name] = (c.unitGroups[g.name] ?? (structuredClone($state.snapshot(g.units)) as MapUnit[])).map(movedUnit)
+        }
+        for (const [name, group] of Object.entries(c.newGroups ?? {})) {
+          if (group.chapter === index && !seen.has(name) && c.unitGroups[name]) {
+            seen.add(name)
+            c.unitGroups[name] = c.unitGroups[name].map(movedUnit)
+          }
+        }
+        const key = String(index)
+        const goal = c.objectives?.[key] ?? objective
+        if (!goal.seize?.length && !goal.area) continue
+        c.objectives ??= {}
+        c.objectives[key] = {
+          ...(structuredClone($state.snapshot(goal)) as ObjectiveEdit),
+          seize: (goal.seize ?? []).map((s) => ({ x: inside(s.x + dx, w), y: inside(s.y + dy, h) })),
+          area: goal.area ? { x1: goal.area.x1 + dx, y1: goal.area.y1 + dy, x2: goal.area.x2 + dx, y2: goal.area.y2 + dy } : goal.area,
+        }
+      }
+    })
   }
 
   /** Map tiles under a rectangle (what a new or enlarged change starts from). */
@@ -1178,8 +1257,14 @@
           <summary class="small">{t('maps.settings')}</summary>
         {#if layout}
           <div class="size">
-            <NumberField label={t('maps.width')} value={width} min={MIN_WIDTH} max={MAX_SIDE} compact onchange={(v) => resize(v, height)} />
-            <NumberField label={t('maps.height')} value={height} min={MIN_HEIGHT} max={MAX_SIDE} compact onchange={(v) => resize(width, v)} />
+            <span class="small current-size">{t('maps.sizeNow', { w: width, h: height })}</span>
+            <NumberField label={t('maps.addTop')} value={sides.top} min={-height} max={MAX_SIDE} compact onchange={(v) => (sides.top = v)} />
+            <NumberField label={t('maps.addLeft')} value={sides.left} min={-width} max={MAX_SIDE} compact onchange={(v) => (sides.left = v)} />
+            <NumberField label={t('maps.addRight')} value={sides.right} min={-width} max={MAX_SIDE} compact onchange={(v) => (sides.right = v)} />
+            <NumberField label={t('maps.addBottom')} value={sides.bottom} min={-height} max={MAX_SIDE} compact onchange={(v) => (sides.bottom = v)} />
+            <button disabled={!newSizeOk || resizing || (newWidth === width && newHeight === height && !sides.top && !sides.left)} onclick={resize}>
+              {t('maps.applySize', { w: newWidth, h: newHeight })}
+            </button>
             <Help text={t('maps.sizeHint')} />
           </div>
           {#if sizeProblem}<p class="bad small">{problemText(sizeProblem)}</p>{/if}
@@ -1291,8 +1376,6 @@
               {#if changes}
                 <button onclick={addChange} class:active={areaMode === 'new'} title={t('maps.addChangeHint')}>＋ {t('maps.addChange')}</button>
                 {#if areaMode}<span class="warn small">{t(areaMode === 'new' ? 'maps.drawNewChange' : 'maps.drawChangeArea')}</span>{/if}
-              {:else}
-                <span class="muted small">{t('maps.noChangeLayer')}</span>
               {/if}
             </div>
             {#if change}
@@ -1497,9 +1580,6 @@
 {#snippet objectsPanel()}
   <div class="objects">
     <h3>{t('maps.objects', { n: objects.length })} <Help text={t('maps.objectsHint')} /></h3>
-    {#if objectsInfo && !objectsInfo.hasChangeLayer && objects.some((o) => o.new && CHANGE_KINDS.includes(o.kind))}
-      <p class="warn small">{t('maps.obj.noChangeLayer')}</p>
-    {/if}
     {#if objects.length}
       <div class="object-list">
         {#each objects as o (keyOf(o))}
@@ -1645,6 +1725,7 @@
   .link { border: none; background: none; padding: 0; color: var(--accent); font: inherit; margin-left: 0.4rem; }
   .size { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
   .size .small { padding-bottom: 0.35rem; }
+  .current-size { min-width: 4.5rem; }
   .chapter-problems { margin-top: 0.4rem; }
   .chapter-problems p { margin: 0.15rem 0; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 1rem; align-items: start; }

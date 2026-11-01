@@ -599,8 +599,7 @@ def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp
             off = settings.get(layout_id, {}).get(f"{obj['x']},{obj['y']}", {}).get("off")
             if not obj["noAfter"] and obj["new"] and obj["change"] is None and obj["kind"] in mapobjects.CHANGE_KINDS \
                     and not off:
-                code = "noChangeLayer" if not known_layouts[layout_id]["changes"] else "tooManyChanges"
-                problems.append(Problem("warning", "maps", layout_id, "objects", code, params,
+                problems.append(Problem("warning", "maps", layout_id, "objects", "tooManyChanges", params,
                                         f"{layout_id}: {obj['kind']} at {obj['x']}, {obj['y']} will not change"))
 
 

@@ -359,11 +359,11 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
             change = after_change(obj, rows, rule)
             if change is None:
                 obj["noAfter"] = True
-            elif layout["changes"] and next_id <= maps.MAX_CHANGE_ID:
+            elif next_id <= maps.MAX_CHANGE_ID:
                 obj["auto"] = {"id": next_id, **change}
                 obj["change"] = next_id
                 next_id += 1
-        if obj["kind"] == "village" and obj["new"] and not off and layout["changes"] and next_id <= maps.MAX_CHANGE_ID \
+        if obj["kind"] == "village" and obj["new"] and not off and next_id <= maps.MAX_CHANGE_ID \
                 and not any(_holds(c, obj["x"], obj["y"] - 1) for c in changes):
             ruin = ruin_change(obj, rows, rule)
             if ruin is not None:
