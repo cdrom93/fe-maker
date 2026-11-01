@@ -33,6 +33,7 @@ piège dans sa section.
 
 - Danser sur la carte demande une 6e animation au sprite de marche, que seuls les sprites de danseuse ont : donner « Danse » à une autre classe brouille l'écran dans le jeu d'origine aussi, animations coupées ou non (`danceanim.py`).
 - Planches FE-Repo indexées : le fond n'est pas toujours la couleur 0 (carré gris autour du sprite sélectionné) : prendre la transparence du PNG, sinon le pixel en haut à gauche.
+- Une attaque magique se règle par numéro d'objet : la case `IA_MAGICDAMAGE` seule ne donne ni le calcul du jeu, ni le type magique, ni l'animation (`magicweapons.py`). Et une hache de portée 2 sans `attack_range` utilisable casse le combat : ce mode est reconstruit à la compilation.
 
 ## Cartes
 

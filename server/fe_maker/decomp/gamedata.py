@@ -24,6 +24,7 @@ from . import (
     dialogues,
     events,
     fonts,
+    magicweapons,
     mapobjects,
     maps,
     mapsprites,
@@ -111,7 +112,7 @@ WEAPON_TYPES = {
 WEAPON_TYPES_REV = {v: k for k, v in WEAPON_TYPES.items()}
 # Attributes the sheet shows as boxes. IA_WEAPON and IA_STAFF follow the item's type; the weapon locks are its "reserved for".
 ITEM_PROPERTIES = {
-    "IA_MAGIC": "magic", "IA_MAGICDAMAGE": "magicSword", "IA_UNBREAKABLE": "unbreakable", "IA_UNSELLABLE": "unsellable",
+    "IA_MAGIC": "magic", "IA_UNBREAKABLE": "unbreakable", "IA_UNSELLABLE": "unsellable",
     "IA_BRAVE": "brave", "IA_UNCOUNTERABLE": "uncounterable", "IA_REVERTTRIANGLE": "reverseTriangle",
     "IA_NEGATE_DEFENSE": "negateDefense", "IA_NEGATE_FLYING": "negateFlying", "IA_NEGATE_CRIT": "negateCrit",
     "IA_HAMMERNE": "noRepair",
@@ -270,6 +271,7 @@ class DecompData:
         bonuses = self.decomp_dir / ITEM_BONUS_FILE
         self.item_bonuses = _read_item_bonuses(bonuses.read_text(encoding="utf-8")) if bonuses.is_file() else {}
         self.spell_choices: dict[str, str] = {}   # item -> the item whose spell it takes
+        self.magic_attacks: dict[str, str] = {}   # item -> "none", "range" or "always"
         self.texts = TextFile(self._read(TEXTS_FILE))
         self.unit_defs: dict[str, str] = {}
         for pattern in UNIT_DEF_FILES:
@@ -1883,11 +1885,18 @@ class DecompData:
                 "reservedFor": self._reserved_for(f),
                 "monsterWeapon": "IA_LOCK_3" in _split_flags(f.get("attributes", "0")),
                 "properties": [key for flag, key in ITEM_PROPERTIES.items() if flag in _split_flags(f.get("attributes", "0"))],
+                "magicAttack": self._magic_attack(f),
                 "weaponEffect": WEAPON_EFFECTS.get(f.get("weaponEffectId", "")),
                 "weaponExp": _int_field(f, "weaponExp"),
                 "statBonuses": self._item_bonus(f),
             })
         return result
+
+    @staticmethod
+    def _magic_attack(fields: dict[str, str]) -> str:
+        if "IA_MAGICDAMAGE" not in _split_flags(fields.get("attributes", "0")):
+            return "none"
+        return magicweapons.GAME_WEAPONS.get(fields["number"], ("always",))[0]
 
     def _item_bonus(self, fields: dict[str, str]) -> dict[str, int] | None:
         return self.item_bonuses.get(fields.get("pStatBonuses", "").strip().lstrip("&"))
@@ -2182,6 +2191,9 @@ class DecompData:
                 _set_flags(f, ["IA_LOCK_3"] if it["monsterWeapon"] else [], ("IA_LOCK_3",))
             if "properties" in it:
                 _set_flags(f, [flag for flag, key in ITEM_PROPERTIES.items() if key in it["properties"]], tuple(ITEM_PROPERTIES))
+            if "magicAttack" in it:
+                self.magic_attacks[it["id"]] = it["magicAttack"]
+                _set_flags(f, [] if it["magicAttack"] == "none" else ["IA_MAGICDAMAGE"], ("IA_MAGICDAMAGE",))
             if "weaponEffect" in it and it["weaponEffect"] != WEAPON_EFFECTS.get(f.get("weaponEffectId", "")):
                 f["weaponEffectId"] = WEAPON_EFFECTS_REV.get(it["weaponEffect"], "WPN_EFFECT_NONE")
             if "weaponExp" in it:
@@ -2243,6 +2255,36 @@ class DecompData:
             text = text[:at[0]] + copy + text[at[1]:]
         if text != self._read(SPELL_ASSOC_FILE):
             out[SPELL_ASSOC_FILE] = text
+
+    def _with_magic_weapons(self, out: dict[str, str | bytes]) -> None:
+        """The game's lists of magic weapons, when they are not the game's any more, and what their animations need."""
+        if not (self.decomp_dir / magicweapons.BATTLE_FILE).is_file():
+            return
+        entries = {e.fields["number"]: e for e in self.items.entries}
+
+        def counts_as(item: str, mode: str) -> tuple[str, str | None]:
+            source = entries.get(self.spell_choices.get(item, ""))
+            kind = source.fields.get("weaponType") if source else None
+            own = magicweapons.GAME_WEAPONS.get(item, (None, None))[1]
+            return mode, kind if kind in ("ITYPE_ANIMA", "ITYPE_LIGHT", "ITYPE_DARK") else own
+
+        weapons = {item: counts_as(item, mode) for item, mode in self.magic_attacks.items() if mode != "none"}
+        game = {item: counts for item, counts in magicweapons.GAME_WEAPONS.items() if item in entries}
+        if self.magic_attacks and weapons != game:
+            battle = out.get(magicweapons.BATTLE_FILE) or self._read(magicweapons.BATTLE_FILE)
+            out[magicweapons.BATTLE_FILE] = magicweapons.battle_with(battle, weapons)
+            out[magicweapons.PARSE_FILE] = magicweapons.parse_with(self._read(magicweapons.PARSE_FILE), weapons)
+
+        def strikes_from_afar(entry: Entry) -> bool:
+            f, game = entry.fields, entry.original_fields
+            if _int_field(f, "encodedRange") & 0xF < 2 and "IA_MAGICDAMAGE" not in f.get("attributes", ""):
+                return False
+            return not game or any(f.get(key) != game.get(key) for key in ("attributes", "encodedRange", "weaponType"))
+
+        kinds = {e.fields.get("weaponType") for e in self.items.entries if strikes_from_afar(e)}
+        kinds &= set(magicweapons.TYPES_WITHOUT_SPELL)
+        if kinds:
+            out.update(magicweapons.animations_with_spell(self.decomp_dir, kinds))
 
     def _follow_portraits(self) -> None:
         """A character given another portrait keeps it in the dialogues: the messages showing their
@@ -2358,6 +2400,7 @@ class DecompData:
             self._with_new_item_copies(out)
         self._with_item_bonuses(out)
         self._with_spell_choices(out)
+        self._with_magic_weapons(out)
         return out
 
     # ---------- assets ----------

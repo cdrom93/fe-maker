@@ -10,7 +10,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 
-from .decomp import banim_import, chaptitle, fonts, mapobjects, tileedit, units
+from .decomp import banim_import, chaptitle, fonts, magicweapons, mapobjects, tileedit, units
 from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
 from .decomp import maps as decomp_maps
@@ -203,6 +203,9 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         _range(problems, "items", rid, "pricePerUse", it.get("pricePerUse"), 0, 0xFFFF)
         _range(problems, "items", rid, "iconId", it.get("iconId"), 0, max(icon_count - 1, 0))
         _range(problems, "items", rid, "weaponExp", it.get("weaponExp"), 0, 255)
+        if it.get("magicAttack", "none") not in magicweapons.MODES:
+            problems.append(Problem("error", "items", rid, "magicAttack", "unknownMagicAttack", {},
+                                    f"{rid}: unknown magic attack"))
         for stat, value in (it.get("statBonuses") or {}).items():
             _range(problems, "items", rid, f"statBonuses.{stat}", value, -128, 127)
         rmin, rmax = it["range"].get("min"), it["range"].get("max")
