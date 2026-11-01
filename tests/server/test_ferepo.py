@@ -68,7 +68,7 @@ def test_fetch_only_repository_pictures(tmp_path, monkeypatch):
 
 
 def test_credits(tmp_path, decomp_dir):
-    from fe_maker.project import RESOURCES_HEADER, Project
+    from fe_maker.project import AI_NOTE, RESOURCES_HEADER, Project
 
     project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
     (project.root / "CREDITS.txt").write_text("Credits\n\nMy own thanks.\n", encoding="utf-8")
@@ -80,7 +80,7 @@ def test_credits(tmp_path, decomp_dir):
     assert "- Amelia (Knight) by Alice, Bob (F2E), FE-Repo: " in text
     project.save("portraits", {})
     project.update_credits()
-    assert (project.root / "CREDITS.txt").read_text(encoding="utf-8") == "Credits\n\nMy own thanks.\n"
+    assert (project.root / "CREDITS.txt").read_text(encoding="utf-8") == "Credits\n\nMy own thanks.\n" + AI_NOTE
 
 
 def test_browse_by_folder_and_license():
