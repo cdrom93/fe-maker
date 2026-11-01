@@ -113,3 +113,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : tickets 125 et 127 : cadre de l'aperçu de taille fixe pendant le zoom, zone sélectionnée entourée sur le sprite.
 - 01/11/2026 : fiche classe : portrait générique (cartes de classe lues du jeu), ligne « Croissance en montée auto ».
 - 01/11/2026 : doc simplifiée : README et CHANGELOG raccourcis, détail des modules déplacé de `CLAUDE.md` vers `docs/architecture.md`.
+- 01/11/2026 : cahier des charges simplifié : ce qui est fait résumé par phase, restes regroupés et remis à jour, chaque question ouverte en section 8.
