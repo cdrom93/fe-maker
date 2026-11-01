@@ -187,10 +187,10 @@ def test_ranged_animations_list():
     assert "axe" in next(w for path, w in ranged.items() if "War Monk by DerTheVaporeon" in path)
 
 
-def test_credits_say_ai_was_used_once(tmp_path):
+def test_credits_say_ai_was_used_once(tmp_path, decomp_dir):
     from fe_maker.project import AI_NOTE, Project
 
-    project = Project.create(tmp_path / "credits", "Credits")
+    project = Project.create(tmp_path / "credits", "Credits", decomp_dir=decomp_dir)
     credits = project.root / "CREDITS.txt"
     assert credits.read_text(encoding="utf-8").count(AI_NOTE) == 1
     credits.write_text("Credits\n\nMy own thanks.\n", encoding="utf-8")      # an older project, or a note removed
