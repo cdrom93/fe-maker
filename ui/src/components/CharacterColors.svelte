@@ -93,8 +93,9 @@
   })
   const family = $derived(families.find((f) => f.includes(picked ?? -1)) ?? [])
 
+  /** The player's two lines go together. */
   function withLine(colours: string[]): string[][] {
-    return (shown ?? []).map((l, i) => (i === line ? colours : l))
+    return (shown ?? []).map((l, i) => (i === line || (line === 0 && i === 4) ? colours : l))
   }
   function setCase(index: number, colour: string) {
     if (shown) draft = withLine(shown[line].map((c, k) => (k === index ? colour : c)))
@@ -121,17 +122,47 @@
     proposal = null
   }
 
-  /** The class shown takes the portrait's colours on the side shown; the player's two lines go together. */
+  /** The class shown takes the portrait's colours on the side shown. */
   let painting = $state(false)
   async function fromPortrait() {
     const wanted = key
     painting = true
     try {
       const { colours } = await api.portraitColors(classId, character.portraitId, line)
-      if (wanted === key) proposal = (lines ?? []).map((l, i) => (i === line || (line === 0 && i === 4) ? colours : l))
+      if (wanted === key) proposal = withLine(colours)
     } finally {
       painting = false
     }
+  }
+
+  /** Two colours, or two families whatever their sizes: dark goes to dark. A colour trial stays a trial. */
+  function swap(a: number[], b: number[]) {
+    if (!shown || a.some((i) => b.includes(i))) return
+    const current = shown[line]
+    const dark = (slots: number[]) => [...slots].sort((x, y) => hsl(current[x])[2] - hsl(current[y])[2])
+    const next = [...current]
+    const fill = (to: number[], from: number[]) => to.forEach((slot, rank) => {
+      next[slot] = current[from[Math.round((rank * (from.length - 1)) / (to.length - 1 || 1))]]
+    })
+    fill(dark(a), dark(b))
+    fill(dark(b), dark(a))
+    const result = withLine(next)
+    if (proposal) proposal = result
+    else onchange(classId, result)
+  }
+  /** what is being dragged, and where it would go: a family dragged swaps with a family */
+  let dragged = $state<number[] | null>(null)
+  let target = $state<number[] | null>(null)
+  const destination = (members: number[], i: number) => ((dragged?.length ?? 0) > 1 ? members : [i])
+  function over(e: DragEvent, slots: number[]) {
+    if (!dragged) return
+    e.preventDefault()
+    target = hovered = slots
+  }
+  function drop(e: DragEvent, slots: number[]) {
+    e.preventDefault()
+    if (dragged) swap(dragged, slots)
+    dragged = target = hovered = null
   }
 
   const same = (a?: string[][] | null, b?: string[][] | null) => JSON.stringify(a) === JSON.stringify(b)
@@ -170,11 +201,13 @@
     <Help text={t('character.colors.hint')} />
     <button disabled={!info || painting || !character.portraitId} onclick={fromPortrait}>{t('character.colors.portrait')}</button>
     <Help text={t('character.colors.portraitHint')} />
-    {#if proposal}
+  </div>
+  {#if proposal}
+    <div class="trial">
       <button class="primary" onclick={keep}>{t('character.colors.keep')}</button>
       <button onclick={() => (proposal = null)}>{t('character.colors.drop')}</button>
-    {/if}
-  </div>
+    </div>
+  {/if}
   {#if shown}
     {#if picked !== null}
       <label class="recolor" onmouseenter={() => (hovered = family)} onmouseleave={() => (hovered = null)}>
@@ -186,14 +219,27 @@
     {/if}
     <div class="swatches">
       {#each families as members, f (f)}
-        <div class="family" class:picked={members.includes(picked ?? -1)}>
+        <div class="family" class:picked={members.includes(picked ?? -1)} role="group"
+             ondragover={(e) => over(e, (dragged?.length ?? 0) > 1 ? members : [])}
+             ondrop={(e) => drop(e, (dragged?.length ?? 0) > 1 ? members : [])}>
+          {#if members.length > 1}
+            <span class="grip" role="button" tabindex="-1" draggable="true" title={t('character.colors.swapFamily')}
+                  aria-label={t('character.colors.swapFamily')}
+                  ondragstart={() => (dragged = members)} ondragend={() => (dragged = target = hovered = null)}></span>
+          {/if}
           {#each members as i (i)}
-            <input type="color" value={shown[line][i]} aria-label={t('character.colors.swatch', { n: i })}
-                   onmouseenter={() => (hovered = [i])} onmouseleave={() => (hovered = null)}
-                   oninput={(e) => setCase(i, (e.target as HTMLInputElement).value)} onchange={commit} />
+            <span class="swatch" class:target={target?.includes(i)} role="button" tabindex="-1" draggable="true"
+                  ondragstart={() => (dragged = [i])} ondragend={() => (dragged = target = hovered = null)}
+                  ondragover={(e) => { e.stopPropagation(); over(e, destination(members, i)) }}
+                  ondrop={(e) => { e.stopPropagation(); drop(e, destination(members, i)) }}>
+              <input type="color" value={shown[line][i]} aria-label={t('character.colors.swatch', { n: i })}
+                     onmouseenter={() => (hovered = [i])} onmouseleave={() => (hovered = null)}
+                     oninput={(e) => setCase(i, (e.target as HTMLInputElement).value)} onchange={commit} />
+            </span>
           {/each}
         </div>
       {/each}
+      <Help text={t('character.colors.swapHint')} />
     </div>
   {/if}
   {#if cls}
@@ -206,7 +252,12 @@
   .colors { display: flex; flex-direction: column; gap: 0.6rem; }
   .choice { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
   .choice label { display: flex; flex-direction: column; gap: 0.2rem; }
-  .swatches { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .trial { display: flex; gap: 0.5rem; }
+  .swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+  .swatch { display: inline-flex; border-radius: 4px; cursor: grab; }
+  .swatch.target { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .grip { width: 7px; align-self: stretch; margin-right: 2px; cursor: grab; opacity: 0.6;
+          background: radial-gradient(currentColor 1px, transparent 1.5px) 0 0 / 4px 4px; }
   .family { display: flex; gap: 0.15rem; padding: 0.15rem; border: 2px solid transparent; border-radius: 6px; }
   .family.picked { border-color: var(--accent); }
   .swatches input { width: 1.8rem; height: 1.8rem; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }

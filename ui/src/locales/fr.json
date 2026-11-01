@@ -51,6 +51,8 @@
   "character.colors.portraitHint": "Essaie les couleurs du portrait sur cette classe, dans le camp affiché : cheveux, vêtements et corps de la wyverne. Le cheval, les ailes du pégase et l'arme ne changent pas. Rien n'est remplacé tant que vous ne gardez pas le résultat ; vous pouvez le retoucher en cliquant sur le sprite.",
   "character.colors.keep": "Garder",
   "character.colors.drop": "Annuler",
+  "character.colors.swapHint": "Glissez une couleur sur une autre pour les échanger, par exemple si les cheveux et le vêtement sont inversés. Glissez la poignée à gauche d'un groupe sur un autre groupe pour échanger toutes leurs nuances.",
+  "character.colors.swapFamily": "Échanger ce groupe de nuances",
   "character.colors.swatch": "Couleur {n}",
   "character.colors.clickSprite": "Cliquez sur une partie du personnage pour la recolorer.",
   "character.colors.family": "Nouvelle couleur de cette partie ({n} nuances)",

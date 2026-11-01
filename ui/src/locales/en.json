@@ -51,6 +51,8 @@
   "character.colors.portraitHint": "Tries the portrait's colours on this class, on the side shown: hair, clothes and a wyvern's body. The horse, the pegasus's wings and the weapon stay. Nothing is replaced until you keep the result; you can touch it up by clicking on the sprite.",
   "character.colors.keep": "Keep",
   "character.colors.drop": "Cancel",
+  "character.colors.swapHint": "Drag a colour onto another to swap them, for instance if the hair and the clothes came out the wrong way round. Drag the handle on the left of a group onto another group to swap all their shades.",
+  "character.colors.swapFamily": "Swap this group of shades",
   "character.colors.swatch": "Colour {n}",
   "character.colors.clickSprite": "Click a part of the character to recolour it.",
   "character.colors.family": "New colour for this part ({n} shades)",
