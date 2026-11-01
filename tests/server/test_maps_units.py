@@ -393,3 +393,29 @@ def test_average_stats():
 def test_map_with_a_change():
     change = {"x": 1, "y": 1, "rows": [[7, 8], [9, 9]]}
     assert maps.with_change((3, 2, [0] * 6), change) == (3, 2, [0, 0, 0, 0, 7, 8])
+
+
+def test_imported_icon_takes_a_free_place_in_the_palette():
+    import io
+
+    import pytest
+    from PIL import Image
+
+    from fe_maker import ferepo
+    from fe_maker.decomp import itemicons
+    from fe_maker.decomp.mapsprites import MapSpriteError
+
+    assert itemicons.free_slots(["a/item_icon_sword.png", "a/item_icon_unused_0.png"]) == [1]
+    palette = [(0, 0, 0), (255, 0, 0), (0, 255, 0)] + [(9, 9, 9)] * 13
+    picture = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    picture.putpixel((3, 4), (250, 10, 10, 255))
+    data = io.BytesIO()
+    picture.save(data, format="PNG")
+    converted = Image.open(io.BytesIO(itemicons.convert(data.getvalue(), palette)))
+    assert converted.mode == "P" and converted.getpixel((3, 4)) == 1 and converted.getpixel((0, 0)) == 0
+    data = io.BytesIO()
+    Image.new("RGBA", (32, 16)).save(data, format="PNG")
+    with pytest.raises(MapSpriteError):
+        itemicons.convert(data.getvalue(), palette)
+    entry = ferepo.describe(ferepo.URL_PREFIX + "main/Item%20Icons/Axes/%7B2WB,%20Hanakko%7D%20Dark%20Axe.png")
+    assert (entry["name"], entry["authors"]) == ("Dark Axe", ["2WB", "Hanakko"])

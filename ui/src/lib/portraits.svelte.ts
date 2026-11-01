@@ -8,3 +8,6 @@ export function portraitsChanged() {
 
 // Same for the map sprites a project imports for its classes (server: decomp/mapsprites.py).
 export const mapSpriteVersion = $state({ n: 0 })
+
+/** Bumped when the project imports or removes an item icon. */
+export const iconVersion = $state({ n: 0 })

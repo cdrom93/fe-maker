@@ -39,6 +39,7 @@ from .decomp import (
     events,
     fonts,
     gameoptions,
+    itemicons,
     mapobjects,
     maps,
     mapsprites,
@@ -56,6 +57,7 @@ from .decomp import (
     units,
 )
 from .decomp.assets import (
+    ITEM_ICON_PALETTE,
     MAP_SPRITE_PALETTES,
     card_names,
     card_preview,
@@ -65,6 +67,7 @@ from .decomp.assets import (
     portrait_names,
     portrait_preview,
     read_agbpal,
+    render_indexed,
 )
 from .decomp.assets import map_sprite as map_sprite_png
 from .decomp.cparse import parse_int
@@ -1728,8 +1731,88 @@ def portrait(portrait_id: int, face: bool = False, smile: bool = False, eyes: st
     return Response(png, media_type="image/png")
 
 
+def _icon_answer(project) -> dict:
+    icons = project.load("icons")["icons"]
+    free = [i for i in itemicons.free_slots(state.get_decomp().item_icon_files()) if str(i) not in icons]
+    return {"imported": sorted(int(i) for i in icons), "free": len(free), "next": free[0] if free else None}
+
+
+def _import_item_icon(data: bytes, name: str, source: dict | None = None) -> dict:
+    """An icon takes a place left free by the game (decomp/itemicons.py)."""
+    project = state.require_project()
+    stored = project.load("icons")
+    same = next((k for k, e in stored["icons"].items() if source and e.get("source", {}).get("url") == source["url"]), None)
+    if same is not None:
+        return {**_icon_answer(project), "icon": int(same)}
+    icon = _icon_answer(project)["next"]
+    if icon is None:
+        raise HTTPException(400, "noFreeIcon")
+    try:
+        png = itemicons.convert(data, read_agbpal(DECOMP_DIR / ITEM_ICON_PALETTE)[:16])
+    except mapsprites.MapSpriteError as e:
+        raise HTTPException(400, str(e)) from e
+    folder = project.root / "assets" / itemicons.FOLDER
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{icon}.png").write_bytes(png)
+    stored["icons"][str(icon)] = {"name": name[:60], **({"source": source} if source else {})}
+    project.save("icons", stored)
+    project.update_credits()
+    return {**_icon_answer(project), "icon": icon}
+
+
+class IconFeRepoIn(BaseModel):
+    url: str
+
+
+@app.get("/api/items/icons")
+def imported_icons():
+    return _icon_answer(state.require_project())
+
+
+@app.post("/api/items/icons/ferepo")
+def import_ferepo_icon(body: IconFeRepoIn):
+    """An item icon of FE-Repo; its authors and license go to the project's credits."""
+    try:
+        data = ferepo.fetch(body.url)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(400, str(e)) from e
+    source = ferepo.describe(body.url)
+    return _import_item_icon(data, source["name"], source)
+
+
+@app.post("/api/items/icons")
+async def import_local_icon(file: UploadFile = File(...)):
+    """An item icon from the user's PC."""
+    return _import_item_icon(await file.read(), Path(file.filename or "").stem or "icon")
+
+
+@app.delete("/api/items/icons/{icon_id}")
+def remove_icon(icon_id: int):
+    project = state.require_project()
+    stored = project.load("icons")
+    if stored["icons"].pop(str(icon_id), None) is not None:
+        (project.root / "assets" / itemicons.FOLDER / f"{icon_id}.png").unlink(missing_ok=True)
+        project.save("icons", stored)
+        project.update_credits()
+    return _icon_answer(project)
+
+
+@app.get("/api/ferepo/icons")
+def ferepo_icons(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+    """Item icons of FE-Repo matching a search."""
+    try:
+        index, when = ferepo.load_index(refresh)
+    except ferepo.FeRepoError as e:
+        raise HTTPException(503, str(e)) from e
+    entries, total = ferepo.search(index, ferepo.ITEM_ICONS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ITEM_ICONS)}
+
+
 @app.get("/api/assets/item-icon/{icon_id}")
 def item_icon(icon_id: int, line: int = 0):
+    imported = state.project.root / "assets" / itemicons.FOLDER / f"{icon_id}.png" if state.project else None
+    if imported is not None and imported.is_file() and not line:
+        return Response(render_indexed(imported, read_agbpal(DECOMP_DIR / ITEM_ICON_PALETTE)[:16], 3), media_type="image/png")
     png = item_icon_preview(DECOMP_DIR, state.get_decomp().item_icon_files(), icon_id, line=1 if line else 0)
     if png is None:
         raise HTTPException(404)

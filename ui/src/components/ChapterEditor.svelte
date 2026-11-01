@@ -3,6 +3,7 @@
   import Help from './Help.svelte'
   import { onMount, untrack } from 'svelte'
   import { aiPreset } from '../lib/ai'
+  import { OBJECTIVE_ICONS } from '../lib/objectiveIcons'
   import { appContext } from '../lib/appContext.svelte'
   import { api, chapterMapUrl, itemIconUrl, mapSpriteUrl } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
@@ -649,10 +650,15 @@
             <div class="map-tools">
               <label class="danger"><input type="checkbox" bind:checked={danger} /> {t('chapter.dangerZone')}</label>
               {#if data.changes.length}
-                <select aria-label={t('chapter.mapShown')} title={t('chapter.mapShown')} bind:value={shownChange}>
-                  <option value={null}>{t('chapter.mapMain')}</option>
-                  {#each data.changes as c (c.id)}<option value={c.id}>{t('chapter.mapChange', { id: c.id, x: c.x, y: c.y })}</option>{/each}
-                </select>
+                <label class="shown-map">
+                  <span>{t('chapter.mapShown')}</span>
+                  <select bind:value={shownChange}>
+                    <option value={null}>{t('chapter.mapMain')}</option>
+                    {#each data.changes as c (c.id)}<option value={c.id}>{t('chapter.mapChange', { id: c.id, x: c.x, y: c.y })}</option>{/each}
+                  </select>
+                </label>
+              {:else if chapter.map}
+                <span class="muted tiny">{t('chapter.noMapChange')} <Mention kind="maps" id={chapter.map}>{t('flow.openMap')}</Mention></span>
               {/if}
             </div>
             <div
@@ -672,7 +678,7 @@
             >
               {#if objective?.type === 'area' && (objective.area || areaCorner)}
                 {@const a = objective.area && !areaCorner ? objective.area : { x1: areaCorner!.x, y1: areaCorner!.y, x2: areaCorner!.x, y2: areaCorner!.y }}
-                <span class="area-marker" style="left: {a.x1 * CELL}px; top: {a.y1 * CELL}px; width: {(a.x2 - a.x1 + 1) * CELL}px; height: {(a.y2 - a.y1 + 1) * CELL}px" title={t('objective.type.area')}>🚩</span>
+                <span class="area-marker" style="left: {a.x1 * CELL}px; top: {a.y1 * CELL}px; width: {(a.x2 - a.x1 + 1) * CELL}px; height: {(a.y2 - a.y1 + 1) * CELL}px" title={t('objective.type.area')}><img class="pixel" src={itemIconUrl(OBJECTIVE_ICONS.area)} alt="" /></span>
               {/if}
               {#each reach.move as [x, y] (`${x},${y}`)}
                 {#if !danger}<span class="reach move" style="left: {x * CELL}px; top: {y * CELL}px"></span>{/if}
@@ -682,7 +688,7 @@
               {/each}
               {#if objective?.type === 'seize'}
                 {#each objective.seize as tile, k (k)}
-                  <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}>🏰</span>
+                  <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}><img class="pixel" src={itemIconUrl(OBJECTIVE_ICONS.seize)} alt="" /></span>
                 {/each}
               {/if}
               {#each groups as g (g.name)}
@@ -827,6 +833,7 @@
   .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.35rem 0.6rem; }
   .map-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
   .map-tools select { width: auto; }
+  .shown-map { flex-direction: row; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
   .unit-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1rem 0.5rem; font-size: 0.85rem; }
   .dropped { color: var(--good, #2e9e5b); font-weight: 600; }
   .quotes { margin: 0; }
@@ -859,6 +866,7 @@
   .map.picking .unit { pointer-events: none; }
   .area-marker { position: absolute; box-sizing: border-box; border: 3px dashed #e74c3c; background: rgb(231 76 60 / 0.15); pointer-events: none; font-size: 16px; padding: 2px; }
   .danger { margin-bottom: 0.4rem; font-size: 0.8rem; color: var(--text); }
+  .area-marker img, .seize-marker img { width: 22px; height: 22px; }
   .reach { position: absolute; width: 32px; height: 32px; pointer-events: none; }
   .reach.move { background: rgb(64 128 255 / 35%); }
   .reach.strike { background: rgb(255 64 64 / 35%); }

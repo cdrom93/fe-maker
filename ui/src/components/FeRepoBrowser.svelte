@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Portraits or map sprites of FE-Repo (server: ferepo.py): browse by folder, search, thumbnails, authors and
+  // Portraits, map sprites or item icons of FE-Repo (server: ferepo.py): browse by folder, search, thumbnails, authors and
   // license; "Use" imports one.
   import { untrack } from 'svelte'
   import { api, ApiError } from '../lib/api'
@@ -10,7 +10,7 @@
     /** a suggested search (the character's name) */
     initial?: string; busy?: boolean
     /** what to browse: portraits (128 x 112 sheets) or map sprites (standing sheets, with their moving one) */
-    kind?: 'portraits' | 'mapsprites'
+    kind?: 'portraits' | 'mapsprites' | 'icons'
     onpick: (e: FeRepoEntry) => void
   } = $props()
 
@@ -36,7 +36,7 @@
     loading = true
     error = ''
     try {
-      const search = kind === 'mapsprites' ? api.feRepoMapSprites : api.feRepoPortraits
+      const search = kind === 'mapsprites' ? api.feRepoMapSprites : kind === 'icons' ? api.feRepoIcons : api.feRepoPortraits
       const r = await search(query, { refresh, folder, f2e: f2eOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
@@ -87,10 +87,11 @@
   <div class="grid">
     {#each entries as e (e.url)}
       <div class="card">
-        <img src={imageUrl(e.url)} alt={e.name} loading="lazy" class:sprite={kind === 'mapsprites'}
+        <img src={imageUrl(e.url)} alt={e.name} loading="lazy" class:sprite={kind === 'mapsprites'} class:item-icon={kind === 'icons'}
              onload={(ev) => {
                const img = ev.target as HTMLImageElement
                if (kind === 'portraits' && (img.naturalWidth !== 128 || img.naturalHeight !== 112)) notSheets[e.url] = true
+               if (kind === 'icons' && (img.naturalWidth !== 16 || img.naturalHeight !== 16)) notSheets[e.url] = true
              }} />
         {#if kind === 'mapsprites' && !e.walk}<span class="tiny muted">{t('mapsprite.noWalk')}</span>{/if}
         <div class="info">
@@ -99,7 +100,7 @@
           <button class="link tiny folder" title={e.folder} onclick={() => { folder = e.folder.split('/')[0]; run() }}>{e.folder}</button>
           <span class="badge" class:f2e={e.license === 'F2E'} title={t(`ferepo.license.${e.license}`)}>{e.license}</span>
         </div>
-        <button onclick={() => onpick(e)} disabled={busy || notSheets[e.url]} title={notSheets[e.url] ? t('ferepo.notSheet') : ''}>{t('ferepo.use')}</button>
+        <button onclick={() => onpick(e)} disabled={busy || notSheets[e.url]} title={notSheets[e.url] ? t(kind === 'icons' ? 'ferepo.notIcon' : 'ferepo.notSheet') : ''}>{t('ferepo.use')}</button>
       </div>
     {/each}
     {#if entries.length < total}
@@ -118,6 +119,7 @@
   .card { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; }
   .card img { width: 128px; height: 112px; object-fit: contain; image-rendering: pixelated; align-self: center; }
   .card img.sprite { width: 48px; height: 96px; }
+  .card img.item-icon { width: 48px; height: 48px; }
   .info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; align-items: flex-start; }
   .folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: left; }
   .badge { align-self: flex-start; font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }

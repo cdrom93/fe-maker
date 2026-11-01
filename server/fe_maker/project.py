@@ -30,6 +30,7 @@ DATA_FILES = {
     "portraits": "export_portraits",
     "animations": "export_animations",
     "mapsprites": "export_map_sprites",
+    "icons": "export_item_icons",
     "music": "export_music",
 }
 PORTRAITS_DIR = "portraits"   # imported portrait sheets, in the project's assets folder
@@ -227,6 +228,7 @@ class Project:
                     if isinstance(e, dict) and e.get("source")]
         sources += [e["source"] for e in self.load("mapsprites").get("sprites", {}).values()
                     if isinstance(e, dict) and e.get("source")]
+        sources += [e["source"] for e in self.load("icons").get("icons", {}).values() if e.get("source")]
         lines = sorted({ferepo.credit_line(s) for s in sources})
         if lines:
             mine += "\n" + RESOURCES_HEADER + "".join(f"{line}\n" for line in lines)
@@ -248,6 +250,7 @@ class Project:
         data.apply_character_palettes(self.load("characters"))
         data.apply_animations(self.load("animations"), self.root / "assets")
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
+        data.apply_item_icons(self.load("icons"), self.root / "assets")
         data.apply_music(self.load("music"), self.root / "assets")
         menu_texts = (0, 0)
         if self.game_options.get("noSupportAnimations"):

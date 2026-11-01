@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { itemIconUrl } from '../lib/api'
+  import { OBJECTIVE_ICONS } from '../lib/objectiveIcons'
   import Help from './Help.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, Objective, ObjectiveEdit, Problem } from '../lib/types'
@@ -31,13 +33,7 @@
     onreset: () => void
   } = $props()
 
-  const TYPES = [
-    ['seize', '🏰'],
-    ['defeat_all', '⚔️'],
-    ['defeat_boss', '👑'],
-    ['defense', '🛡️'],
-    ['area', '🚩'],
-  ] as const
+  const TYPES = ['seize', 'defeat_all', 'defeat_boss', 'defense', 'area'] as const
 
   const tile = $derived(objective.seize[0])
   const boss = $derived(characters.find((c) => c.id === objective.boss))
@@ -85,9 +81,9 @@
 
   {#if objective.editable}
     <div class="types" role="radiogroup" aria-label={t('objective.title')}>
-      {#each TYPES as [type, icon] (type)}
+      {#each TYPES as type (type)}
         <button role="radio" aria-checked={objective.type === type} class:active={objective.type === type} onclick={() => setType(type)}>
-          <span class="icon" aria-hidden="true">{icon}</span>{t(`objective.type.${type}`)}
+          <img class="pixel icon" src={itemIconUrl(OBJECTIVE_ICONS[type])} alt="" />{t(`objective.type.${type}`)}
         </button>
       {/each}
       <Help text={t(`objective.hint.${objective.type}`)} />
@@ -167,7 +163,7 @@
   .types { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
   .types button { display: inline-flex; align-items: center; gap: 0.35rem; }
   .types button.active, .row button.active { background: var(--accent-soft); border-color: var(--accent); }
-  .icon { font-size: 1rem; line-height: 1; }
+  .icon { width: 20px; height: 20px; }
   .row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.9rem; }
   .inline { flex-direction: row; align-items: center; gap: 0.4rem; }
   textarea { width: 100%; max-width: 26em; resize: vertical; font-family: inherit; box-sizing: border-box; }

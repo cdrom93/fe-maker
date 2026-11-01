@@ -148,7 +148,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - **Cartes** : peinture, blocs et bâtiments, terrains qui se raccordent tout seuls, « Remplir le vide », taille sur les quatre côtés (changements, villages, coffres, portes, unités et cases à prendre suivent ; pas les coordonnées écrites dans les scènes, un avertissement le dit), changements de carte, y compris sur les cartes qui n'en avaient pas, objets automatiques (villages, maisons, coffres, portes, murs fissurés, bois morts, magasins : leur changement et leur événement sont créés tout seuls), tuiles tournées, palettes et retouche de leurs couleurs (le brouillard suit), jeux de tuiles, aller-retour avec Tiled.
 - **Règles** : convoi, préparation avant le combat et prise de case réglables.
 - **Reste** : décaler aussi les scènes quand une carte bouge à gauche ou en haut (`MOVE`, `CAMERA`, `CUMO_AT`, `AREA`, `SPAWN_*`, positions dans `SVAL`), import de cartes du FE-Repo et de jeux de tuiles (éditeur de style de FEBuilder), animations de tuiles, autres formats de carte (`.mar`, PNG), unités rangées par camp et par tour d'arrivée (ticket 6).
-- **Reste, écarts avec FEBuilder (comparés le 01/11)** : trajets d'arrivée point par point (seuls le départ et l'arrivée sont gardés, déplacer l'unité efface le trajet), chef de groupe, météo, fond de combat, position de départ de la caméra, musiques autres que la phase du joueur, musique de victoire, rangs de fin de chapitre, écran noir avant la première scène, pièges et balistes posés sur la carte, placement du joueur et groupe propres au mode difficile.
+- **Reste, écarts avec FEBuilder (comparés le 01/11)** : trajets d'arrivée point par point, reportés à sa demande (seuls le départ et l'arrivée sont gardés, déplacer l'unité efface le trajet), chef de groupe, météo, fond de combat, position de départ de la caméra, musiques autres que la phase du joueur, musique de victoire, rangs de fin de chapitre, écran noir avant la première scène, pièges et balistes posés sur la carte, placement du joueur et groupe propres au mode difficile.
 - **Pas vérifié en jeu** : murs fissurés, achats en magasin, recrutement, objectifs zone / protéger / survivre, niveaux selon la difficulté, une carte remplie, Tiled lui-même (pas installé).
 
 ### Phase 4 — Dialogues et événements
@@ -160,9 +160,9 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 
 ### Phase 5 — Bibliothèque de ressources communautaires
 **État** :
-- **Fait** : navigateur FE-Repo (dossiers, filtres, licences, crédits) et import depuis le PC pour les portraits, les animations de combat et les sprites de carte. Démo de musique : un MIDI pour la phase du joueur d'un chapitre, avec les instruments du jeu.
+- **Fait** : navigateur FE-Repo (dossiers, filtres, licences, crédits) et import depuis le PC pour les portraits, les animations de combat, les sprites de carte et les icônes d'objets (11 places, celles que le jeu n'utilise pas). Démo de musique : un MIDI pour la phase du joueur d'un chapitre, avec les instruments du jeu.
 - **Limites** : 54 animations en plus de celles du jeu, environ 620 Ko.
-- **Reste** : icônes, cartes, tilesets et décors dans le navigateur. Musique (ticket 56, en pause) : les autres phases, le réglage des instruments, FE-Repo-Music (il faut le jeu d'instruments NIMAP2).
+- **Reste** : cartes, sorts, tilesets et décors dans le navigateur (ils ne sont pas dans l'index de FE-Repo : il faudrait parcourir ses dossiers par l'API GitHub, et les tilesets demandent d'abord l'import de jeux de tuiles). Les icônes de compétences attendront un système de compétences : le moteur n'en a pas. Musique (ticket 56, en pause) : les autres phases, le réglage des instruments, FE-Repo-Music (il faut le jeu d'instruments NIMAP2).
 - **Pas vérifié** : l'import d'animation depuis le PC en jeu ; la musique vérifiée en jeu, jamais écoutée.
 
 ### Après l'alpha

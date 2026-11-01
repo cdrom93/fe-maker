@@ -2,10 +2,12 @@
   import DescriptionField from './DescriptionField.svelte'
   import Help from './Help.svelte'
   import IconPicker from './IconPicker.svelte'
-  import { api, itemIconUrl } from '../lib/api'
+  import { api, ApiError, itemIconUrl } from '../lib/api'
+  import { iconVersion } from '../lib/portraits.svelte'
+  import FeRepoBrowser from './FeRepoBrowser.svelte'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
-  import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
+  import type { Character, ClassView, Item, ItemIcons, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -26,6 +28,39 @@
     reference: Reference
     problems: Problem[]
   } = $props()
+
+  let icons = $state<ItemIcons | null>(null)
+  let browsingIcons = $state(false)
+  let iconBusy = $state(false)
+  let iconError = $state('')
+  const usedElsewhere = $derived(list.records.some((i) => i !== it && i.iconId === it?.iconId))
+
+  $effect(() => {
+    if (pickingIcon && !icons) api.itemIcons().then((r) => (icons = r))
+  })
+
+  async function importIcon(asked: Promise<ItemIcons & { icon: number }>) {
+    iconBusy = true
+    iconError = ''
+    try {
+      const r = await asked
+      icons = r
+      iconVersion.n++
+      edit((i) => (i.iconId = r.icon))
+      browsingIcons = false
+    } catch (e) {
+      iconError = e instanceof ApiError ? t(`ferepo.error.${e.detail}`) : String(e)
+    } finally {
+      iconBusy = false
+    }
+  }
+
+  async function removeIcon() {
+    const icon = it.iconId
+    edit((i) => (i.iconId = 0))
+    icons = await api.removeIcon(icon)
+    iconVersion.n++
+  }
 
   let selected = $state(0)
   followFocus('items', useNavigator(), () => list.records.map((i) => i.id), (i) => (selected = i))
@@ -124,6 +159,26 @@
         <div class="fields">
           {#if pickingIcon}
             <IconPicker count={reference.iconCount} current={it.iconId} onpick={(icon) => { edit((i) => (i.iconId = icon)); pickingIcon = false }} />
+            <div class="icon-import">
+              <button onclick={() => (browsingIcons = !browsingIcons)} disabled={!icons?.free}>{t('item.iconLibrary')}</button>
+              <label class="file-button" class:disabled={!icons?.free}>
+                {t('item.iconFromPc')}
+                <input type="file" accept="image/png" hidden disabled={!icons?.free} onchange={(e) => {
+                  const input = e.target as HTMLInputElement
+                  if (input.files?.[0]) importIcon(api.importLocalIcon(input.files[0]))
+                  input.value = ''
+                }} />
+              </label>
+              {#if icons?.imported.includes(it.iconId)}
+                <button class="danger" disabled={usedElsewhere} title={usedElsewhere ? t('item.iconUsed') : ''} onclick={removeIcon}>{t('item.iconRemove')}</button>
+              {/if}
+              {#if icons}<span class="muted tiny">{t('item.iconsFree', { n: icons.free })}</span>{/if}
+              <Help text={t('item.iconHint')} />
+            </div>
+            {#if iconError}<p class="bad small">{iconError}</p>{/if}
+            {#if browsingIcons}
+              <FeRepoBrowser kind="icons" initial={it.name} busy={iconBusy} onpick={(e) => importIcon(api.importFeRepoIcon(e.url))} />
+            {/if}
           {/if}
           <label title={problemFor('name')}>
             {t('field.name')}
@@ -321,4 +376,7 @@
     .editor { grid-template-columns: 1fr; }
     .identity { flex-direction: column; }
   }
+  .icon-import { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+  .file-button { flex-direction: row; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem 0.7rem; color: var(--text); font-size: 0.85rem; cursor: pointer; }
+  .file-button.disabled { opacity: 0.5; cursor: default; }
 </style>

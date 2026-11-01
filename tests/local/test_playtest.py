@@ -1191,3 +1191,26 @@ def test_enemies_keep_their_dropped_item_and_average_stats(tmp_path):
             assert abs(average["hp"] - unit["maxHP"]) <= 4
             compared += 1
         assert compared >= 2
+
+
+def test_an_imported_icon_is_in_the_game(tmp_path):
+    from PIL import Image
+
+    from fe_maker.decomp import itemicons
+    from fe_maker.decomp.assets import ITEM_ICON_PALETTE, read_agbpal
+
+    project = Project.create(tmp_path / "icon", "Icon")
+    icon = itemicons.free_slots(DecompData(project.decomp_dir).item_icon_files())[0]
+    palette = read_agbpal(project.decomp_dir / ITEM_ICON_PALETTE)[:16]
+    picture = Image.new("RGB", (16, 16), (0, 0, 0))
+    picture.putpixel((1, 0), palette[5])
+    path = tmp_path / "picture.png"
+    picture.save(path)
+    (project.root / "assets" / "icons").mkdir(parents=True)
+    (project.root / "assets" / "icons" / f"{icon}.png").write_bytes(itemicons.convert(path.read_bytes(), palette))
+    project.save("icons", {"icons": {str(icon): {"name": "test"}}})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        tiles = game.address("item_icon_tiles") + icon * 0x80
+        assert game.read(tiles) == 0x50     # pixel 1 of the first row, high nibble
+        assert not any(game.read(tiles + n) for n in range(1, 0x80))

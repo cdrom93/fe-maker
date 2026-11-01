@@ -364,6 +364,12 @@ export interface NewGroup {
   phase: 'player' | 'enemy' | 'ally'
 }
 
+/** Item icons imported into the project, on the places the game leaves free. */
+export interface ItemIcons {
+  imported: number[]
+  free: number
+}
+
 export interface ChapterUnits {
   width: number
   height: number

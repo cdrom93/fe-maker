@@ -1,5 +1,5 @@
-import { mapSpriteVersion, portraitVersion } from './portraits.svelte'
-import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import { iconVersion, mapSpriteVersion, portraitVersion } from './portraits.svelte'
+import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 /** What a project keeps of the game (server: scope.py) */
 export type ScopeRow = { id: string | number; name: string; kept: boolean }
@@ -124,6 +124,18 @@ export const api = {
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/mapsprites?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoIcons: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+    request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+      'GET', `/api/ferepo/icons?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  itemIcons: () => request<ItemIcons>('GET', '/api/items/icons'),
+  importFeRepoIcon: (url: string) => request<ItemIcons & { icon: number }>('POST', '/api/items/icons/ferepo', { url }),
+  importLocalIcon: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<ItemIcons & { icon: number }>('POST', '/api/items/icons', form)
+  },
+  removeIcon: (icon: number) => request<ItemIcons>('DELETE', `/api/items/icons/${icon}`),
   importFeRepoMapSprite: (classId: string, stand: string, walk: string | null) =>
     request<{ problems: Problem[] }>('POST', `/api/classes/${classId}/mapsprite/ferepo`, { stand, walk }),
   importLocalMapSprite: (classId: string, stand: File, walk: File | null) => {
@@ -220,5 +232,5 @@ export const portraitUrl = (id: number, face = false, expression?: { smile?: boo
   `/api/assets/portrait/${id}?v=${portraitVersion.n}${face ? '&face=true' : ''}` +
   `${expression?.smile ? '&smile=true' : ''}${expression?.eyes && expression.eyes !== 'open' ? `&eyes=${expression.eyes}` : ''}`
 export const portraitSheetUrl = (id: number) => `/api/portraits/${id}/sheet.png?v=${portraitVersion.n}`
-export const itemIconUrl = (id: number, line = 0) => `/api/assets/item-icon/${id}${line ? `?line=${line}` : ''}`
+export const itemIconUrl = (id: number, line = 0) => `/api/assets/item-icon/${id}?v=${iconVersion.n}${line ? `&line=${line}` : ''}`
 export const patchUrl = '/api/project/patch'

@@ -24,6 +24,7 @@ from . import (
     dialogues,
     events,
     fonts,
+    itemicons,
     mapobjects,
     maps,
     mapsprites,
@@ -1659,6 +1660,19 @@ class DecompData:
                     for field in (phase, phase + "InHectorStory"):
                         if field in settings[int(index)]["bgm"]:
                             settings[int(index)]["bgm"][field] = numbers[key]
+
+    @staticmethod
+    def export_item_icons() -> dict:
+        """Item icons imported into the project: none in the original game."""
+        return {"icons": {}}
+
+    def apply_item_icons(self, data: dict, assets_dir: Path) -> None:
+        """Imported icons replace the game's unused ones (itemicons.py)."""
+        files = self.item_icon_files()
+        for key in data.get("icons", {}):
+            picture = assets_dir / itemicons.FOLDER / f"{key}.png"
+            if picture.is_file():
+                self.asset_files[files[int(key)]] = picture.read_bytes()
 
     @staticmethod
     def export_map_sprites() -> dict:

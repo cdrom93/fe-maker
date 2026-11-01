@@ -33,12 +33,14 @@ PORTRAITS = "Portrait Repository"
 ANIMATIONS = "Battle Animations"   # listed as folders (GitHub "tree" URLs), one per animation
 MELEE_WEAPONS = ("sword", "lance", "axe")
 RANGED_FILE = "ferepo_ranged.json"   # made by tools/scan_ranged_animations.py
+ITEM_ICONS = "Item Icons"
 MAP_SPRITES = "Map Sprites"   # pairs "<name> {authors}-stand.png" (standing) and "-walk.png" (moving)
 _SPRITE_KIND_RE = re.compile(r"[\s-]*(?:walk|stand)(?:\s*16x16)?$", re.IGNORECASE)
 TREE_PREFIX = "https://github.com/Klokinator/FE-Repo/tree/main/"
 API_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/contents/"
 TREES_PREFIX = "https://api.github.com/repos/Klokinator/FE-Repo/git/trees/"
 
+_LEADING_AUTHORS_RE = re.compile(r"^\{([^}]*)\}\s*(.*)$")
 _NAME_RE = re.compile(r"^(?P<name>.*?)\s*(?:\{(?P<authors>[^}]*)\})?\s*(?P<tags>(?:\[[^\]]*\]\s*)*)$")
 
 
@@ -102,6 +104,9 @@ def describe(url: str) -> dict:
     stem = re.sub(r"\.[A-Za-z0-9]+$", "", parts[-1])
     if parts[0] == MAP_SPRITES:   # "Myrmidon {Author}-stand": the sheet's kind after the authors
         stem = _SPRITE_KIND_RE.sub("", stem)
+    leading = _LEADING_AUTHORS_RE.match(stem)    # "{Author} Name" in the icons
+    if leading:
+        stem = f"{leading.group(2)} {{{leading.group(1)}}}"
     m = _NAME_RE.match(stem)
     tags = re.findall(r"\[([^\]]*)\]", m.group("tags") or "") if m else []
     authors = [a.strip() for a in (m.group("authors") or "").split(",") if a.strip()] if m else []
