@@ -163,6 +163,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 
 ### Après l'alpha
 - Agrandir les tables (objets, personnages, classes, cartes, chapitres).
+- **À faire, décidé par l'utilisateur le 01/11/2026** : créer de nouveaux objets à usage et de nouveaux bâtons. Le moteur les reconnaît à leur numéro : il faudra rendre leur effet réglable.
 - Ce que garde un projet (ticket 129) : retirer armes factices ou inutilisées, avec plusieurs filtres, et de même pour les classes, les personnages et les chapitres.
 - Animations : modifier une animation (une épée ou une lance à un pirate), proposer les mouvements manquants depuis le FE-Repo ou les adapter d'une autre arme (ticket 134). L'animation de hache levée générée reste dans git (67140b2).
 - Animation pour une seule arme, sans toucher aux autres armes du même type : presque finie, mise de côté en local (`git stash`), à reprendre avec l'accord de l'utilisateur.

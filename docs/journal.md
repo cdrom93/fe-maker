@@ -121,3 +121,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : filtre « Frappe à distance » de la bibliothèque d'animations, depuis une liste tirée des scripts de FE-Repo (`tools/scan_ranged_animations.py`).
 - 01/11/2026 : avertissement reformulé autour du mouvement « Attaque à distance » (#134), mouvements vides marqués en orange ou en rouge dans la fiche de classe (#135), doc simplifiée, animation pour une seule arme mise de côté.
 - 01/11/2026 : avertissement de la fiche objet : toutes les classes sans mouvement à distance, cliquables (#134).
+- 01/11/2026 : nouveaux objets à usage et bâtons notés au cahier comme à faire après l'alpha.
