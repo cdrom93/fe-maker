@@ -585,8 +585,14 @@ class DecompData:
         tilesets = maps_data.get("tilesets", {})
         palettes = maps_data.get("palettes", {})
         bases = maps_data.get("bases", {})
-        if not painted and not changes and not settings and not tilesets and not palettes and not bases:
+        colors = maps_data.get("paletteColors", {})
+        if not painted and not changes and not settings and not tilesets and not palettes and not bases and not colors:
             return
+        # Retouched colors of the game's map palettes, for every chapter using them.
+        for symbol, edited in colors.items():
+            path = maps.asset_files(self.decomp_dir).get(symbol)
+            if path and edited:
+                self.map_files[path.relative_to(self.decomp_dir).as_posix()] = maps.edited_palette(path, edited)
         known = maps.layouts(self.decomp_dir)
         # The game's entry paths may not exist on another map: its units appear at their places (ticket 108).
         for layout_id in (set(painted) | set(bases)) & set(known):

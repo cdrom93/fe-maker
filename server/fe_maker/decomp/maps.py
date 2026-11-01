@@ -97,6 +97,9 @@ def chapter_map_assets(decomp_dir: Path, chapter: dict) -> MapAssets:
 
 # ---------- formats ----------
 
+FOG_OFFSET = 80   # 5 palettes of 16 colors, then their faded twins
+
+
 def read_jasc_palette(path: Path) -> list[tuple[int, int, int]]:
     lines = path.read_text(encoding="utf-8").split()
     if not lines or lines[0] != "JASC-PAL":
@@ -104,6 +107,31 @@ def read_jasc_palette(path: Path) -> list[tuple[int, int, int]]:
     count = int(lines[2])
     values = [int(v) for v in lines[3: 3 + count * 3]]
     return [tuple(values[i: i + 3]) for i in range(0, len(values), 3)]
+
+
+def edited_palette(path: Path, colors: dict[str, str]) -> str:
+    """JASC text of a map palette with colors changed (index in the normal lines -> "#rrggbb"). The
+    faded fog-of-war twin of a color stays as much lighter than it as in the game."""
+    palette = read_jasc_palette(path)
+    for key, value in colors.items():
+        index = int(key)
+        rgb = tuple(int(value[k: k + 2], 16) for k in (1, 3, 5))
+        fade = [max(0, f - c) / (255 - c) if c < 255 else 0 for c, f in zip(palette[index], palette[index + FOG_OFFSET])]
+        palette[index] = rgb
+        palette[index + FOG_OFFSET] = tuple(round(c + (255 - c) * k) for c, k in zip(rgb, fade))
+    newline = "\r\n" if b"\r\n" in path.read_bytes() else "\n"
+    return newline.join(["JASC-PAL", "0100", str(len(palette)), *(f"{r} {g} {b}" for r, g, b in palette), ""])
+
+
+def with_colors(decomp_dir: Path, assets: MapAssets, colors: dict, folder: Path) -> MapAssets:
+    """The assets with the project's retouched colors of their palette (`colors`: by palette symbol),
+    written in `folder`."""
+    edited = colors.get(palette_symbol(decomp_dir, assets.palette) or "")
+    if not edited:
+        return assets
+    path = folder / assets.palette.name
+    path.write_bytes(edited_palette(assets.palette, edited).encode("utf-8"))
+    return dataclasses.replace(assets, palette=path)
 
 
 def read_layout(mar: Path) -> tuple[int, int, list[int]]:

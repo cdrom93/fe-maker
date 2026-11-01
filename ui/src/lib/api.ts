@@ -179,8 +179,8 @@ export const api = {
     request<{ path: string; launched: boolean; modified: number }>('POST', `/api/maps/${id}/tiled`, body),
   importTiled: (id: string) => request<TiledMap & { modified: number }>('GET', `/api/maps/${id}/tiled`),
   readTmx: (id: string, text: string) => request<TiledMap>('POST', `/api/maps/${id}/tiled/read`, { text }),
-  mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null, base: string | null) =>
-    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base }),
+  mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null, base: string | null, colors: MapsData['paletteColors'] = {}) =>
+    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base, colors }),
   transformTiles: (id: string, body: {
     rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts']; bases: Record<string, string>
   }) =>

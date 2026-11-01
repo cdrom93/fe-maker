@@ -642,6 +642,7 @@ def chapter_map(index: int, fog: bool = False):
                                     project_maps.get("palettes", {}).get(layout_id))
         edits = project_maps.get("tilesets", {}).get(assets.config.stem)
         with tempfile.TemporaryDirectory() as folder:
+            assets = maps.with_colors(DECOMP_DIR, assets, project_maps.get("paletteColors", {}), Path(folder))
             if edits:
                 edited = tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), edits).edited_assets(Path(folder))
                 assets = dataclasses.replace(edited, palette=assets.palette)   # the chapter's palette
@@ -702,7 +703,8 @@ def get_map(layout_id: str, base: str | None = None):
         "terrainEffects": maps.terrain_effects(DECOMP_DIR),
         # Palettes of the tileset in the game, and the map's own (ticket 16)
         "palette": maps.palette_symbol(DECOMP_DIR, assets.palette),
-        "palettes": [{**p, "colors": _palette_colors(p["id"])} for p in maps.palette_choices(DECOMP_DIR, assets)],
+        "palettes": [{**p, "colors": _palette_colors(p["id"])[:16], "lines": _palette_lines(p["id"])}
+                     for p in maps.palette_choices(DECOMP_DIR, assets)],
         # Tile sheets of the game the map can be drawn with, and the map's own (ticket 21)
         "originalBase": layout["assets"].config.stem,
         "bases": [{"id": b["id"], "name": maps.SHEET_NAMES.get(b["id"], b["id"]), "chapters": b["chapters"],
@@ -714,9 +716,14 @@ def get_map(layout_id: str, base: str | None = None):
 
 
 def _palette_colors(symbol: str) -> list[str]:
-    """The 16 colors of a map palette's first line (#rrggbb), as swatches."""
-    colors = maps.read_jasc_palette(maps.asset_files(DECOMP_DIR)[symbol])[:16]
+    """The colors of a map palette's normal lines (#rrggbb)."""
+    colors = maps.read_jasc_palette(maps.asset_files(DECOMP_DIR)[symbol])[:maps.FOG_OFFSET]
     return [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors]
+
+
+def _palette_lines(symbol: str) -> list[list[str]]:
+    colors = _palette_colors(symbol)
+    return [colors[i: i + 16] for i in range(0, len(colors), 16)]
 
 
 class MapObjectsIn(BaseModel):
@@ -755,6 +762,7 @@ class TilesetIn(BaseModel):
     edits: dict | None = None
     palette: str | None = None   # another palette of the tileset
     base: str | None = None      # another tile sheet of the game
+    colors: dict = {}            # retouched palette colors, by palette
 
 
 @app.post("/api/maps/{layout_id}/tileset")
@@ -762,10 +770,10 @@ def edited_tileset(layout_id: str, body: TilesetIn):
     """The tileset sheet with the project's added metatiles (not saved yet: the editor sends them)."""
     _layout(layout_id)
     assets = maps.layout_assets(DECOMP_DIR, layout_id, body.base, body.palette)
-    palette = assets.palette
     try:
         tileset = tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.edits)
         with tempfile.TemporaryDirectory() as folder:
+            palette = maps.with_colors(DECOMP_DIR, assets, body.colors, Path(folder)).palette
             assets = dataclasses.replace(tileset.edited_assets(Path(folder)), palette=palette)
             png = maps.render_tileset(assets)
             duplicates = maps.duplicate_metatiles(assets)

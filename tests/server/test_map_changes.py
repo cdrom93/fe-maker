@@ -131,3 +131,17 @@ def test_asset_table_grows_at_its_end():
     table = "t:\n    .word 0\n\t.word A\n\t.global Next\nNext:\n.4byte B\n"
     index, source = maps.add_asset(table, "New")
     assert index == 2 and source == "t:\n    .word 0\n\t.word A\n\t.word New\n\t.global Next\nNext:\n.4byte B\n"
+
+
+def test_retouched_color_and_its_fog_twin(tmp_path):
+    path = tmp_path / "Pal.pal"
+    rows = [f"{10 * (i % 16)} 0 255" for i in range(80)] + [f"{10 * (i % 16) + 50} 0 255" for i in range(80)]
+    path.write_bytes("\r\n".join(["JASC-PAL", "0100", "160", *rows, ""]).encode())
+    text = maps.edited_palette(path, {"3": "#646464"})
+    assert text.startswith("JASC-PAL\r\n0100\r\n160\r\n") and text.endswith("\r\n")
+    edited = tmp_path / "Edited.pal"
+    edited.write_bytes(text.encode())
+    colors = maps.read_jasc_palette(edited)
+    assert colors[3] == (100, 100, 100) and colors[2] == (20, 0, 255)
+    assert colors[83] == (100 + round(155 * 50 / 225), 100, 100)    # as much lighter as it was
+    assert colors[82] == (70, 0, 255)

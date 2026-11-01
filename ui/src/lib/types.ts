@@ -255,7 +255,7 @@ export interface MapLayout {
   changes: MapChange[] | null
   /** the map's palette in the game, and the tileset's palettes in the game (ticket 16) */
   palette: string | null
-  palettes: { id: string; chapters: number[]; colors: string[] }[]
+  palettes: { id: string; chapters: number[]; colors: string[]; lines?: string[][] }[]
   /** the map's tile sheet in the game, and the game's tile sheets it can be drawn with (ticket 21) */
   originalBase: string
   bases: { id: string; name: string; chapters: number[]; palette: string }[]
@@ -288,6 +288,8 @@ export interface MapsData {
   tilesets?: Record<string, TilesetEdits>
   /** another palette of the tileset, by layout id (an asset name of the game, server: maps.palette_choices) */
   palettes?: Record<string, string>
+  /** retouched colors of the game's palettes: palette -> color index -> #rrggbb */
+  paletteColors?: Record<string, Record<string, string>>
   /** another tile sheet of the game, by layout id (its tile config name, server: maps.base_choices) */
   bases?: Record<string, string>
 }

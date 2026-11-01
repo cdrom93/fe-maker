@@ -124,3 +124,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : nouveaux objets à usage et bâtons notés au cahier comme à faire après l'alpha.
 - 01/11/2026 : usage de l'IA déclaré (README, guide, CREDITS, `CREDITS.txt` de chaque projet), règle de FE Universe du 21/10 notée au cahier, section 2.
 - 01/11/2026 : éditeur de carte comparé à FEBuilder : changements possibles sur les 15 cartes qui n'en avaient pas, taille sur les quatre côtés, soin dans le survol.
+- 01/11/2026 : retouche des couleurs des palettes de carte dans l'éditeur, vérifiée dans une ROM compilée.

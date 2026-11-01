@@ -239,15 +239,16 @@
     const edits = shown ? JSON.parse(JSON.stringify(shown)) : null
     const palette = chosenPalette
     const tileSheet = chosenBase
+    const colors = JSON.parse(JSON.stringify(list.records[0]?.paletteColors ?? {})) as NonNullable<MapsData['paletteColors']>
     if (!info || !base) return
     const id = info.id
     const n = ++tilesetRequest
-    if (!edits && !palette) {
+    if (!edits && !palette && !colors[base.palette ?? '']) {
       layout = base
       sheet = baseSheet
       return
     }
-    api.mapTileset(id, edits, palette, tileSheet).then(async (r) => {
+    api.mapTileset(id, edits, palette, tileSheet, colors).then(async (r) => {
       const img = await loadImage(r.sheet)
       if (n !== tilesetRequest || maps[selected]?.id !== id) return
       layout = { ...base, terrains: r.terrains, duplicates: r.duplicates }
@@ -976,6 +977,27 @@
     })
   }
 
+  const shownPalette = $derived(layout?.palettes.find((p) => p.id === (chosenPalette ?? layout?.palette)))
+  const ownColors = $derived(shownPalette ? list.records[0]?.paletteColors?.[shownPalette.id] : undefined)
+
+  /** A color of the shown palette, for every chapter using it; back to the game's, it is no longer stored. */
+  function setColor(index: number, color: string) {
+    const pal = shownPalette
+    if (!pal?.lines) return
+    list.update(0, (d) => {
+      const all = (d.paletteColors ??= {})
+      const own = (all[pal.id] ??= {})
+      if (color === pal.lines![Math.floor(index / 16)][index % 16]) delete own[index]
+      else own[index] = color
+      if (!Object.keys(own).length) delete all[pal.id]
+    })
+  }
+
+  function resetColors() {
+    const id = shownPalette?.id
+    if (id) list.update(0, (d) => { delete d.paletteColors?.[id] })
+  }
+
   /** Does the build give the object its event and change? */
   function isActive(o: MapObject): boolean {
     const own = objectSettings[keyOf(o)]
@@ -1301,6 +1323,24 @@
               {/each}
             </div>
           {/if}
+        {/if}
+        {#if shownPalette?.lines}
+          <details class="colors-panel">
+            <summary class="small">{t('maps.colors')} {#if ownColors}<span class="edited">✎</span>{/if} <Help text={t('maps.colorsHint', { n: shownPalette.chapters.length })} /></summary>
+            <div class="color-lines">
+              {#each shownPalette.lines as line, l (l)}
+                <div class="color-line">
+                  {#each line as color, k (k)}
+                    {#if k}
+                      <input type="color" aria-label={t('maps.colorLabel', { line: l + 1, n: k })} value={ownColors?.[l * 16 + k] ?? color}
+                             onchange={(e) => setColor(l * 16 + k, (e.target as HTMLInputElement).value)} />
+                    {/if}
+                  {/each}
+                </div>
+              {/each}
+            </div>
+            {#if ownColors}<button class="link" onclick={resetColors}>{t('maps.colorsReset')}</button>{/if}
+          </details>
         {/if}
         {#if layout}
           <div class="tiled">
@@ -1816,6 +1856,9 @@
   .base-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem; }
   .base-choice.active { border-color: var(--accent); background: var(--accent-soft); }
   .base-choice .thumb { width: 96px; height: 48px; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; border-radius: 3px; }
+  .color-lines { display: flex; flex-direction: column; gap: 2px; margin: 0.4rem 0; }
+  .color-line { display: flex; flex-wrap: wrap; gap: 2px; }
+  .color-line input { width: 22px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: none; cursor: pointer; }
   .swatches { display: flex; }
   .swatches span { width: 8px; height: 12px; }
 </style>
