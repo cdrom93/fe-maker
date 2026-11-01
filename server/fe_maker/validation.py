@@ -272,11 +272,12 @@ def _validate_ranged_animations(problems, items, classes, characters, decomp: De
             continue
         wtype = it["weaponType"]
         users = weapon_users(it, classes, characters)
-        lacking = list(dict.fromkeys(names[c] for c in names if c in users and wtype in _animated.get(c, ())
-                                     and not decomp.casts_at_range(c, models[c], it, animations, assets_dir)))
+        lacking = [c for c in names if c in users and wtype in _animated.get(c, ())
+                   and not decomp.casts_at_range(c, models[c], it, animations, assets_dir)]
         if lacking:
-            shown = ", ".join(lacking[:4]) + (f" (+{len(lacking) - 4})" if len(lacking) > 4 else "")
-            problems.append(Problem("warning", "items", it["id"], "range", "noRangedAnimation", {"classes": shown},
+            shown = ", ".join(dict.fromkeys(names[c] for c in lacking))
+            problems.append(Problem("warning", "items", it["id"], "range", "noRangedAnimation",
+                                    {"classes": shown, "classIds": ",".join(lacking)},
                                     f"{it['id']}: no ranged battle animation for {shown}"))
 
 

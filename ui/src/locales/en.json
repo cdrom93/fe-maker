@@ -1317,6 +1317,8 @@
   "item.spellHint": "The effect the weapon casts, taken from another weapon: it shows if the unit's animation casts a spell or a projectile.",
   "item.spellOwn": "Its own",
   "item.noSpell": "Pick a spell in Properties: without one, nothing fires at range.",
+  "item.noRangedAnimation": "No \"Ranged attack\" movement in the animation of these classes:",
+  "item.noRangedHow": "Import an animation for each (\"Strikes at range\" filter of the library), or keep the weapon up close.",
   "field.changeIcon": "Change icon",
   "problem.noRangedAnimation": "No \"Ranged attack\" movement in the animation of {classes}: import one (\"Strikes at range\" filter of the library), or keep the weapon up close.",
   "item.removeConfirm": "Remove {name}? The units, chests and shops having it will be flagged.",

@@ -7,6 +7,7 @@
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassView, Item, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
+  import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
   import ReservationEditor from './ReservationEditor.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
@@ -52,6 +53,7 @@
 
   const rangeWarning = $derived(mine.find((p) => p.code === 'noRangedAnimation'))
   const listed = $derived(mine.filter((p) => p !== rangeWarning))
+  const lackingClasses = $derived(classes.filter((c) => String(rangeWarning?.params.classIds ?? '').split(',').includes(c.id)))
   function problemFor(field: string): string {
     const p = listed.find((x) => x.field === field || x.field.startsWith(field + '.'))
     return p ? problemText(p) : ''
@@ -263,7 +265,15 @@
           </label>
         </div>
         {#if noSpell}<p class="warn">⚠ {t('item.noSpell')}</p>{/if}
-        {#if rangeWarning}<p class="warn">⚠ {problemText(rangeWarning)}</p>{/if}
+        {#if rangeWarning}
+          <p class="warn">⚠ {t('item.noRangedAnimation')}</p>
+          <p class="lacking">
+            {#each lackingClasses as cl (cl.id)}
+              <span><Mention kind="classes" id={cl.id}>{cl.name || cl.id}</Mention><GenderSign gender={cl.gender} /></span>
+            {/each}
+          </p>
+          <p class="warn">{t('item.noRangedHow')}</p>
+        {/if}
       </section>
 
       <section class="panel">
@@ -297,6 +307,7 @@
   .properties { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem 1rem; }
   .spell { margin-top: 0.75rem; }
   .warn { color: var(--warn); margin: 0.5rem 0 0; }
+  .lacking { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin: 0.4rem 0 0; }
   .icon-button { padding: 0; border: none; background: none; flex-shrink: 0; cursor: pointer; }
   .open { font-size: 1rem; }
   .price { align-items: flex-end; }

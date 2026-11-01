@@ -136,7 +136,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - **Armes magiques** : une case dans Propriétés et un sort, sur n'importe quelle arme. Une attaque à distance demande une animation qui lance le sort : la fiche objet prévient, la fiche de classe marque les mouvements vides (orange, rouge si une arme en a besoin), le filtre « Frappe à distance » de la bibliothèque donne 1 081 animations (275 haches, 407 lances ; liste à refaire avec `tools/scan_ranged_animations.py`). Essayé par l'utilisateur avec la hache du War Monk.
 - **À faire** : stats moyennes d'une unité en montée automatique, dans son panneau de chapitre. Le calculateur de classe de FEBuilder est écarté : il double celui de la fiche personnage.
 - **Limites** : couleurs du portrait approchées ; une animation importée ne protège pas sa monture ; camps ennemis et portraits importés non comparés à une référence.
-- **Pas vérifié en jeu** : le portrait générique à l'écran (seule la valeur compilée l'est) ; effet, bonus et sort d'une arme vérifiés dans la ROM compilée, pas joués en combat.
+- **Pas vérifié en jeu** : le portrait générique à l'écran (seule la valeur compilée l'est) ; le sort repris d'une autre arme (compilé). Double attaque, poison et bonus de stats sont joués en combat (playtest).
 
 ### Phase 3 — Chapitres
 **État** :

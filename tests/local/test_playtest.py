@@ -382,6 +382,34 @@ def test_class_generic_portrait_reaches_the_game(tmp_path):
         assert game.read("gClassData", (0x4E - 1) * 0x54 + 8, width=16) == 0x7F
 
 
+def test_weapon_sheet_in_a_battle(tmp_path):
+    """Double attack, poison and a Strength malus, played: the enemy takes two hits of the lowered damage and is poisoned."""
+    project = Project.create(tmp_path / "battle", "Battle")
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_STEEL").update(
+        properties=["brave"], weaponEffect="poison", hit=255, crit=0, might=1, statBonuses={"pow": -9, "spd": -15})
+    project.save("items", items)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        enemy = _seth_attacks(game)
+        place = (enemy["x"], enemy["y"])
+        def now():
+            return next((u for u in game.units("Red") if (u["x"], u["y"]) == place), None)
+
+        assert game.wait_until(lambda: game.phase() == "player" and (now() is None or now()["hp"] < enemy["hp"]),
+                               seconds=60, step=20)
+        game.run(120)
+        attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
+        defense = game.read("gBattleTarget", 0x5C, width=16, signed=True)
+        force = game.read("gBattleActor", 0x14)
+        print("force", force, "attack", attack, "defense", defense, "hp", enemy["hp"], "->", now())
+        assert now() is not None and enemy["hp"] - now()["hp"] == 2 * (attack - defense) > 0
+        base = game.address("gUnitArrayRed")
+        unit = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
+                    and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
+        assert game.read(unit, 0x30) & 0xF == 1
+
+
 def test_item_sheet_reaches_the_game(tmp_path):
     """Type, properties, effect, rank points, bonuses and spell, as the engine reads them."""
     project = Project.create(tmp_path / "items", "Items")
