@@ -35,7 +35,7 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 |---|---|
 | Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
 | Chapters | One chapter in three views: units and objective, map, dialogues |
-| Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes |
+| Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes; a character's battle colours, drawn from their portrait or painted on the sprite |
 | Game options | Starting settings, comfort, test options, what the project keeps |
 
 In a chapter, a **scene** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown.
@@ -52,6 +52,7 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
+- Portrait colours: the result is approximate, touch it up if needed; an imported animation does not protect its mount.
 - Terrain brushes: the joins are worked out from the game's tiles; roads are the weak point, and the ground around a stroke may change a little.
 - "End the game here" goes back to the title screen; the menu then offers to resume the last chapter.
 - The copies in a project's `backups/` folder are restored by hand.

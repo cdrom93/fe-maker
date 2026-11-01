@@ -2,25 +2,17 @@
 
 ## 0.1.0-alpha (not released yet)
 
-First public test version, Windows first.
+First public test version, Windows first. See [the guide](docs/guide.en.md) for what you need and the known limits.
 
-- A workflow that follows the work: the Campaign graph first, then one chapter's map, units and dialogues in the Chapters tab; explanations in tooltips.
-- Edit characters, classes, items, combat rules, chapters, maps, dialogues, supports and events without code.
-- Scenes with a visual sequence: drag lines and condition blocks, change stats, go to another chapter, and memories: Yes / No questions and the player's past choices, by name.
-- Character sheet: starting level, average stats at a chosen level with a promotion, and a character's own colours in battle: click the sprite to recolour a part with its shades.
-- Battle colours drawn from the character's portrait, tried on the class shown and kept only if you want; horses, pegasus wings and weapons stay, wyverns take a tint. Colours and groups of shades swap by dragging, the preview zooms and outlines the part selected, and your own colours stay available when you pick others.
-- A named ally's level is set on their sheet and only shown in the chapter; enemies and generics keep theirs in the chapter, with an "Automatic levels" box for every unit.
-- Class sheet: generic portrait, chosen among the game's class cards and portraits.
-- Character sheet: portrait picked by its picture, affinities with the game's icons and their bonuses, limits of the promoted class in the calculator.
-- Enemy levels by difficulty, chapter by chapter; the calculator follows both promotions of trainee classes; a character's gender follows their class.
-- Help bubbles are larger, in the interface's font, and sit next to what they explain.
-- Add characters, weapons, classes and chapters on the free slots of the game's tables.
-- Blank project: start from one empty chapter.
-- Maps: painting, terrain brushes that join by themselves, filling empty space, buildings as blocks, tile sheets, villages, chests and doors, Tiled import and export.
-- Portraits, battle animations and map sprites from FE-Repo or your PC, with their authors in the project's credits.
-- Game options and comfort patches, by category: HP bars, beginner mode, quick experience and level up, acting after Talk, no story intro, a Staff & Dance line in the game's Configuration menu.
-- Choose what a project keeps of the game: chapters, characters, classes, items.
-- Test in mGBA, export as a `.ups` patch.
-- Projects carry over between versions: converted when opened, after a copy in `backups/`; a project from a newer version is refused.
-
-See [the guide](docs/guide.en.md) for what you need and the known limits.
+- **Workflow:** the Campaign graph first, then one chapter's units, map and dialogues in the Chapters tab; explanations in help bubbles next to what they explain.
+- **Characters:** starting level, average stats at a chosen level with promotions, affinities with the game's icons, portrait picked by its picture, gender following the class. A named ally's level is set on their sheet.
+- **Battle colours:** a character's own colours by class, drawn from their portrait or painted on the sprite, with zoom, swapped by dragging, and your own colours kept when you try others.
+- **Classes:** stats, animations, map sprites, generic portrait among the game's class cards and portraits.
+- **Adding to the game:** characters, weapons, classes and chapters on the free slots of the game's tables; blank project starting from one empty chapter; choice of what a project keeps of the game.
+- **Maps:** painting, terrain brushes that join by themselves, filling empty space, buildings as blocks, tile sheets, villages, chests and doors, Tiled import and export.
+- **Chapters:** units, automatic levels, enemy levels by difficulty, objectives, reach and danger zone.
+- **Scenes:** visual sequences, condition blocks, stat changes, jumps to another chapter, Yes / No questions and memories of the player's choices; dialogues, quotes and supports.
+- **Resources:** portraits, battle animations and map sprites from FE-Repo or your PC, with their authors in the project's credits.
+- **Game options:** by category: HP bars, beginner mode, quick experience and level up, acting after Talk, no story intro, a Staff & Dance line in the Configuration menu.
+- **Testing and sharing:** test in mGBA, export as a `.ups` patch.
+- **Projects** carry over between versions: converted when opened, after a copy in `backups/`; a project from a newer version is refused.

@@ -35,7 +35,7 @@ Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un ch
 |---|---|
 | Campagne | L'enchaînement des chapitres, ajouter un chapitre, terminer le jeu, la liste « À faire » |
 | Chapitres | Le même chapitre en trois vues : unités et objectif, carte, dialogues |
-| Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes |
+| Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes ; les couleurs en combat d'un personnage, tirées de son portrait ou peintes sur le sprite |
 | Options du jeu | Réglages de départ, confort, options de test, ce que garde le projet |
 
 Dans un chapitre, une **scène** est un moment du jeu : son déclencheur dit quand elle arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché.
@@ -52,6 +52,7 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
+- Couleurs du portrait : le résultat est approché, à retoucher au besoin ; une animation importée ne protège pas sa monture.
 - Pinceaux de terrain : les raccords sont calculés d'après les tuiles du jeu ; les routes sont le point faible, et le terrain autour du trait peut changer un peu.
 - « Terminer le jeu ici » ramène à l'écran titre ; le menu propose ensuite de reprendre le dernier chapitre.
 - Les copies du dossier `backups/` d'un projet se restaurent à la main.
