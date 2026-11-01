@@ -127,3 +127,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : retouche des couleurs des palettes de carte dans l'éditeur, vérifiée dans une ROM compilée.
 - 01/11/2026 : villages, coffres, portes et magasins d'origine suivent une carte décalée ; scènes reportées, avertissement à la place.
 - 01/11/2026 : objets de carte : liste avec leurs vraies tuiles, réglages dans une carte à part (#136) ; option pour masquer les retours au jeu d'origine, décochée pour un projet vierge (#137).
+- 01/11/2026 : fiche d'unité : objet lâché, liens vers ses répliques, stats calculées ; carte avec un changement ; groupes avec sprites, dans l'ordre du jeu. Comparaison des fiches chapitre et événements de FEBuilder.

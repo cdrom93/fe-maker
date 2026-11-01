@@ -40,6 +40,8 @@
 
   const CELL = 32 // 16 px tiles shown at x2
   const ITEM_SLOTS = 4
+  const GROUP_SPRITES = 10
+  const SHOWN_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']
   const GENERIC = '0x80' // first generic character id: no name, portrait or personal data
 
   // Several chapters share an internal id in the original game: list them by index.
@@ -53,6 +55,9 @@
   let mapEl = $state<HTMLDivElement>()
   let openGroup = $state<string | null>(null)
   let showCutscenes = $state(false)
+  /** the map's change shown under the units */
+  let shownChange = $state<number | null>(null)
+  let unitStats = $state<Record<string, number> | null>(null)
 
   const chapter = $derived(chapters[selected])
 
@@ -219,7 +224,9 @@
   const nav = useNavigator()
   followFocus('chapters', nav, () => chapters.map((c) => c.id), (i) => load(i))
   // Groups whose units only appear in a cutscene before the battle (other map).
-  const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene') ?? [])
+  // In the order of play: the first units, then the turns.
+  const turnOf = (g: ChapterUnits['groups'][number]) => (g.origin === 'turn' ? (g.turn ?? 99) : 0)
+  const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene').sort((a, b) => turnOf(a) - turnOf(b)))
   const cutsceneGroups = $derived(groups.filter((g) => g.origin === 'cutscene') ?? [])
   const pickedOrigin = $derived(picked ? groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
@@ -284,6 +291,20 @@
     return edits[name] ?? groups.find((g) => g.name === name)?.units ?? []
   }
   const unit = $derived(picked ? unitsOf(picked.group)[picked.index] : undefined)
+  $effect(() => {
+    if (!unit) return
+    let stale = false
+    api.unitStats({ character: unit.character, classId: effectiveClass(unit), level: shownLevel(unit), autolevel: unit.autolevel, side: unit.side })
+      .then((stats) => {
+        if (!stale) unitStats = stats
+      })
+      .catch(() => {
+        if (!stale) unitStats = null
+      })
+    return () => {
+      stale = true
+    }
+  })
 
   // On the map: where the picked unit can go (blue) and strike (red), or all the enemies' danger zone.
   let danger = $state(false)
@@ -353,6 +374,7 @@
     selected = index
     picked = null
     openGroup = null
+    shownChange = null
     pickingSeize = false
     loading = true
     data = null
@@ -532,15 +554,18 @@
       <section class="panel">
         {#if data}
           {#snippet groupChip(g: ChapterUnits['groups'][number])}
-              <span class="group" class:open={openGroup === g.name}>
+              {@const shown = unitsOf(g.name)}
+              <div class="group" class:open={openGroup === g.name}>
                 <input type="checkbox" title={t('chapter.showGroup')} aria-label={t('chapter.showGroup')} checked={!hidden[g.name]} onchange={(e) => (hidden[g.name] = !(e.target as HTMLInputElement).checked)} />
-                <button class="group-name" title={t('chapter.openGroup')} onclick={() => toggleGroup(g.name)}>
-                  {originLabel(g.origin, g.turn)} · {unitsOf(g.name).length}
-                  {#if edits[g.name]}<span class="edited">✎</span>{/if}
-                  <span class="muted tiny">{g.name.replace('UnitDef_Event_', '')}</span>
+                <button class="group-name" title="{t('chapter.openGroup')} ({g.name.replace('UnitDef_Event_', '')})" onclick={() => toggleGroup(g.name)}>
+                  <span>{originLabel(g.origin, g.turn)} <span class="muted tiny">{shown.length}</span>{#if edits[g.name]} <span class="edited">✎</span>{/if}</span>
+                  <span class="group-sprites">
+                    {#each shown.slice(0, GROUP_SPRITES) as u, i (i)}<img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" use:hideBroken />{/each}
+                    {#if shown.length > GROUP_SPRITES}<span class="muted tiny">+{shown.length - GROUP_SPRITES}</span>{/if}
+                  </span>
                 </button>
                 <button class="add" title={t('chapter.addUnit')} aria-label={t('chapter.addUnit')} onclick={() => addUnit(g.name)}>＋</button>
-              </span>
+              </div>
           {/snippet}
           <h3 class="groups-title">{t('chapter.battleGroups')}</h3>
           <div class="groups">
@@ -621,7 +646,15 @@
         <section class="panel map-panel">
           {#if loading}<p class="muted">…</p>{/if}
           {#if data && data.width}
-            <label class="danger"><input type="checkbox" bind:checked={danger} /> {t('chapter.dangerZone')}</label>
+            <div class="map-tools">
+              <label class="danger"><input type="checkbox" bind:checked={danger} /> {t('chapter.dangerZone')}</label>
+              {#if data.changes.length}
+                <select aria-label={t('chapter.mapShown')} title={t('chapter.mapShown')} bind:value={shownChange}>
+                  <option value={null}>{t('chapter.mapMain')}</option>
+                  {#each data.changes as c (c.id)}<option value={c.id}>{t('chapter.mapChange', { id: c.id, x: c.x, y: c.y })}</option>{/each}
+                </select>
+              {/if}
+            </div>
             <div
               class="map"
               class:picking={pickingSeize}
@@ -633,7 +666,7 @@
                   pickTile(e)
                 }
               }}
-              style="width: {data.width * CELL}px; height: {data.height * CELL}px; background-image: url({chapterMapUrl(chapter.index, mapVersion)})"
+              style="width: {data.width * CELL}px; height: {data.height * CELL}px; background-image: url({chapterMapUrl(chapter.index, mapVersion, shownChange)})"
               ondragover={(e) => e.preventDefault()}
               ondrop={drop}
             >
@@ -747,6 +780,12 @@
               {#if unit.slot !== null && (unit.x !== unit.endX || unit.y !== unit.endY)} · {t('chapter.entersFrom', { x: unit.x, y: unit.y })}{/if}
             </p>
             {#if unit.fixedPath}<p class="warn small">{t('chapter.fixedPath')}</p>{/if}
+            {#if unitStats}
+              <h3>{t(unit.autolevel ? 'chapter.statsAverage' : 'chapter.stats')} <Help text={t('chapter.statsHint')} /></h3>
+              <div class="unit-stats">
+                {#each SHOWN_STATS as s (s)}<span><span class="muted tiny">{t(`stat.${s}`)}</span> {unitStats[s]}</span>{/each}
+              </div>
+            {/if}
             <h3>{t('chapter.items')}</h3>
             {#each Array(ITEM_SLOTS) as _, slot (slot)}
               {@const id = unit.items[slot] ?? ''}
@@ -757,6 +796,18 @@
                             label={t('chapter.items')} onchange={(v) => setItem(slot, v)} />
               </div>
             {/each}
+            {@const dropped = unit.items.length ? itemById.get(unit.items[unit.items.length - 1]) : undefined}
+            <label class="check">
+              <input type="checkbox" checked={!!unit.itemDrop} disabled={!unit.items.length && !unit.itemDrop}
+                     onchange={(e) => editUnit(p.group, p.index, (u) => (u.itemDrop = (e.target as HTMLInputElement).checked))} />
+              {t('chapter.itemDrop')}{#if unit.itemDrop && dropped}{' : '}<span class="dropped">{dropped.name}</span>{/if} <Help text={t('chapter.itemDropHint')} />
+            </label>
+            {#if isNamed(unit)}
+              <p class="small quotes">
+                <Mention kind="dialogues" id={`quote:battle:${chapter.index}:${unit.character}`}>{t('chapter.battleQuote')}</Mention>
+                · <Mention kind="dialogues" id={`quote:death:${chapter.index}:${unit.character}`}>{t('field.lastWordsLink')}</Mention>
+              </p>
+            {/if}
             <AiPanel ai={unit.ai} side={unit.side} onchange={(ai) => editUnit(p.group, p.index, (u) => (u.ai = ai))} />
             {#each unitProblems as pr, i (i)}<p class="{pr.severity === 'error' ? 'bad' : 'warn'} small">{problemText(pr)}</p>{/each}
           {:else}
@@ -773,7 +824,12 @@
   .editor { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
   .detail { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
   .id { font-size: 0.75rem; margin-left: 0.3rem; }
-  .groups { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.35rem 0.6rem; }
+  .map-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
+  .map-tools select { width: auto; }
+  .unit-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1rem 0.5rem; font-size: 0.85rem; }
+  .dropped { color: var(--good, #2e9e5b); font-weight: 600; }
+  .quotes { margin: 0; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; color: var(--text); font-size: 0.85rem; }
   .groups-title { margin: 0.25rem 0 0.4rem; font-size: 0.8rem; }
   .cutscenes { margin-top: 0.6rem; }
@@ -781,9 +837,11 @@
   .cutscenes[open] summary { margin-bottom: 0.3rem; }
   .cutscene-warning { background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.82rem; line-height: 1.4; }
   .cutscene-warning .link { color: inherit; text-decoration: underline; font-weight: 600; margin-left: 0.25rem; }
-  .group { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 6px; padding: 0 0.2rem; }
+  .group { display: flex; align-items: center; gap: 0.3rem; border: 1px solid var(--border); border-radius: 6px; padding: 0.15rem 0.3rem; min-width: 0; }
   .group.open { background: var(--accent-soft); }
-  .group-name { border: none; background: none; padding: 0.1rem 0.2rem; font-size: 0.85rem; color: var(--text); text-align: left; }
+  .group-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; border: none; background: none; padding: 0.1rem 0.2rem; font-size: 0.85rem; color: var(--text); text-align: left; }
+  .group-sprites { display: flex; flex-wrap: wrap; align-items: center; min-height: 16px; }
+  .group-sprites img { image-rendering: pixelated; max-height: 24px; }
   .group-name:hover { text-decoration: underline; }
   .group-units { margin-top: 0.75rem; border-top: 1px solid var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
   .group-units table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }

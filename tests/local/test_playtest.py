@@ -1153,3 +1153,41 @@ def test_original_village_follows_a_moved_map(tmp_path):
     text = (project.generate_overlay() / "src/events/ch2-eventinfo.h").read_text(encoding="utf-8")
     assert "EventScr_Ch2_Village1, 7, 4)" in text and "EventScr_Ch2_Village3, 4, 14)" in text
     assert "EventScr_FEM_" not in text    # nothing recreated
+
+
+def test_enemies_keep_their_dropped_item_and_average_stats(tmp_path):
+    from fe_maker.decomp import averagestats, units
+
+    project = Project.create(tmp_path / "drop", "Drop")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    decomp = DecompData(project.decomp_dir)
+    game_units = units.read_unit_groups(project.decomp_dir)
+    name = next(g["name"] for g in units.all_chapter_unit_groups(project.decomp_dir)[0]
+                if g["origin"] != "cutscene" and any(u["side"] == "enemy" for u in game_units[g["name"]].units))
+    group = [dict(u) for u in game_units[name].units]
+    dropper = next(u for u in group if u["side"] == "enemy" and u["items"])
+    dropper["itemDrop"] = True
+    leveled = next(u for u in group if u["side"] == "enemy" and not units.is_named_character(u["character"]))
+    leveled.update(level=12, autolevel=True)
+    project.save("chapters", {"unitGroups": {name: group}})
+    classes = {c["id"]: c for c in project.load("classes")}
+    characters = {c["id"]: c for c in project.load("characters")}
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
+        red = game.address("gUnitArrayRed")
+        compared = 0
+        for index, unit in enumerate(game.units("Red")):
+            mine = next((u for u in group if (u["endX"], u["endY"]) == (unit["x"], unit["y"])), None)
+            if mine is None:
+                continue
+            state = game.read(red + index * UNIT_SIZE, 0x0C, width=32)
+            assert bool(state & (1 << 12)) == (mine is dropper)
+            character = characters.get(mine["character"])
+            cls = classes[mine["class"] if mine["class"] in classes else character["class"]]
+            average = averagestats.average_stats(character, cls, mine["level"], mine["autolevel"], "enemy",
+                                                 decomp.character_number(mine["character"]))
+            print(mine["character"], mine["level"], mine["autolevel"], average["hp"], unit["maxHP"])
+            assert abs(average["hp"] - unit["maxHP"]) <= 4
+            compared += 1
+        assert compared >= 2

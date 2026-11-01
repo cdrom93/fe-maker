@@ -358,3 +358,38 @@ def test_palette_problem(tmp_path, decomp_dir):
     assert not problems
     _validate_maps(problems, {"palettes": {"Map": "Map2"}}, decomp)
     assert [p.code for p in problems] == ["paletteNotForTileset"]
+
+
+def test_item_drop_is_written_only_when_it_changes(tmp_path, decomp_dir):
+    from fe_maker.project import Project
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    game = units.read_unit_groups(decomp_dir)["UnitDef_TestChapter"].units
+    assert not game[0]["itemDrop"]
+    legacy = {k: v for k, v in game[1].items() if k != "itemDrop"}    # saved before this option
+    project.save("chapters", {"unitGroups": {"UnitDef_TestChapter": [{**game[0], "itemDrop": True}, legacy, game[2]]}})
+    overlay = project.generate_overlay(decomp_dir)
+    assert (overlay / "src" / "events_udefs.c").read_text(encoding="utf-8").count(".itemDrop = 1,") == 1
+    assert units.read_unit_groups(overlay)["UnitDef_TestChapter"].units[0]["itemDrop"] is True
+
+
+def test_average_stats():
+    from fe_maker.decomp.averagestats import average_stats
+
+    cls = {"abilities": [], "bases": {"hp": 18, "pow": 5}, "maxes": {"hp": 60, "pow": 7},
+           "growths": {"hp": 100, "pow": 50}}
+    hero = {"level": 2, "bases": {"hp": 2, "lck": 3}, "growths": {"hp": 50, "pow": 100, "lck": 40}}
+    fixed = average_stats(hero, cls, 9, False, "enemy", 1)
+    assert fixed == {"hp": 20, "pow": 5, "skl": 0, "spd": 0, "def": 0, "res": 0, "lck": 3}
+    average = average_stats(hero, cls, 6, True, "player", 1)    # 4 levels with the sheet's growths, capped by the class
+    assert (average["hp"], average["pow"], average["lck"]) == (22, 7, 5)
+    generic = average_stats(None, cls, 5, True, "enemy", 0x80)    # 4 levels with the class's growths
+    assert (generic["hp"], generic["pow"]) == (22, 7)
+    promoted = average_stats(None, {**cls, "abilities": ["promoted"]}, 1, True, "enemy", 0x80)
+    assert promoted["hp"] == 27
+    assert average_stats(None, {**cls, "abilities": ["boss"]}, 5, True, "enemy", 0x80)["hp"] == 18
+
+
+def test_map_with_a_change():
+    change = {"x": 1, "y": 1, "rows": [[7, 8], [9, 9]]}
+    assert maps.with_change((3, 2, [0] * 6), change) == (3, 2, [0, 0, 0, 0, 7, 8])

@@ -152,6 +152,8 @@ export interface MapUnit {
   class: string
   level: number
   autolevel: boolean
+  /** drops their last item on death */
+  itemDrop?: boolean
   side: 'player' | 'ally' | 'enemy'
   x: number
   y: number
@@ -365,6 +367,8 @@ export interface NewGroup {
 export interface ChapterUnits {
   width: number
   height: number
+  /** the map's changes (doors, villages...), to see the map with one of them */
+  changes: { id: number; x: number; y: number; w: number; h: number }[]
   groups: UnitGroup[]
 }
 

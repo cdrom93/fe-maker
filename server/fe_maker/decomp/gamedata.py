@@ -1462,6 +1462,10 @@ class DecompData:
         objective["protect"] = names.get(protect, f"0x{protect:02X}") if protect else None
         return objective
 
+    def character_number(self, character: str) -> int:
+        """Number of a character in the game, from its constant or raw number (0: unknown)."""
+        return int(character, 0) if character[:1].isdigit() else self._character_constants().get(character, 0)
+
     def _character_constants(self) -> dict[str, int]:
         header = self.decomp_dir / "include/constants/characters.h"
         if not header.is_file():

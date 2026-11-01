@@ -494,6 +494,18 @@ def read_changes(decomp_dir: Path, json_rel: str) -> list[dict]:
     return result
 
 
+def with_change(layout: tuple[int, int, list[int]], change: dict) -> tuple[int, int, list[int]]:
+    """A layout (width, height, cells) with a change applied, as the game does it."""
+    width, height, cells = layout
+    cells = list(cells)
+    for dy, row in enumerate(change["rows"]):
+        for dx, cell in enumerate(row):
+            x, y = change["x"] + dx, change["y"] + dy
+            if 0 <= x < width and 0 <= y < height:
+                cells[y * width + x] = cell
+    return width, height, cells
+
+
 def encode_change_tiles(rows: list[list[int]]) -> bytes:
     return b"".join(struct.pack("<H", c << 2) for row in rows for c in row)
 

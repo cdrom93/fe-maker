@@ -93,6 +93,8 @@ export const api = {
     request<Record<string, { objective: Objective | null; groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[] }>>('GET', '/api/chapters/overview'),
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   maps: () => request<MapInfo[]>('GET', '/api/maps'),
+  unitStats: (unit: { character: string; classId: string; level: number; autolevel: boolean; side: string }) =>
+    request<Record<string, number>>('POST', '/api/units/stats', unit),
   chapterDialogues: (index: number) =>
     request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
   dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),
@@ -205,7 +207,8 @@ export const api = {
 
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
 /** `version` changes when the project's painted layout changes (the image is not cached then). */
-export const chapterMapUrl = (index: number, version = '') => `/api/chapters/${index}/map.png${version ? `?v=${version}` : ''}`
+export const chapterMapUrl = (index: number, version = '', change: number | null = null) =>
+  `/api/chapters/${index}/map.png?v=${version}${change === null ? '' : `&change=${change}`}`
 export const animationUrl = (number: number | string, mode: string, palette = 0, colors?: string[]) =>
   `/api/animations/${number}/${mode}.png?palette=${palette}${colors ? `&colors=${colors.map((c) => c.slice(1)).join(',')}` : ''}`
 export const mapTilesetUrl = (id: string, base: string | null = null) =>

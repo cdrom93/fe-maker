@@ -93,6 +93,10 @@ def parse_ai(raw: str, macros: dict[str, list[int]]) -> list[int]:
 MAX_LEVEL = 31   # 5-bit field of a unit definition
 
 
+def _flag(fields: dict[str, str], key: str) -> bool:
+    return fields.get(key, "0") not in ("0", "FALSE", "false")
+
+
 def is_named_character(char_index: str) -> bool:
     """Characters with a CHARACTER_ constant have a sheet; generic units use raw numbers (0x80...)."""
     return char_index.startswith("CHARACTER_")
@@ -138,7 +142,8 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
                     "character": f.get("charIndex", "0"),
                     "class": f.get("classIndex", "0"),
                     "level": _int(f.get("level")),
-                    "autolevel": f.get("autolevel", "0") not in ("0", "FALSE", "false"),
+                    "autolevel": _flag(f, "autolevel"),
+                    "itemDrop": _flag(f, "itemDrop"),
                     "side": ALLEGIANCE.get(f.get("allegiance", "0"), "player"),
                     "x": x,
                     "y": y,
@@ -276,8 +281,9 @@ def _new_unit_fields(clean: str, spans: list[tuple[int, int]], unit: dict, name:
 def _apply_unit_fields(fields: dict[str, str], unit: dict, name: str, path_ends: dict[str, tuple[int, int]], is_new: bool,
                        macros: dict[str, list[int]]) -> None:
     """Update the parsed fields of a unit. Only fields whose meaning changes are touched."""
-    if "autolevel" in unit and bool(unit["autolevel"]) != (fields.get("autolevel", "0") not in ("0", "FALSE", "false")):
-        fields["autolevel"] = "1" if unit["autolevel"] else "0"
+    for flag in ("autolevel", "itemDrop"):
+        if flag in unit and bool(unit[flag]) != _flag(fields, flag):
+            fields[flag] = "1" if unit[flag] else "0"
     character_changed = fields.get("charIndex", "0") != unit["character"]
     if character_changed:
         fields["charIndex"] = unit["character"]

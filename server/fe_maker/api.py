@@ -29,6 +29,7 @@ from .checks import run_checks
 from .config import Settings, default_projects_dir, find_tiled
 from .decomp import (
     autotile,
+    averagestats,
     banim,
     banim_import,
     charpalettes,
@@ -630,15 +631,27 @@ def chapter_reach(index: int, body: ReachIn):
     return {"move": sorted(moves), "strike": sorted(strikes - moves)}
 
 
+def _layout_changes(layout_id: str, project_maps: dict) -> list[dict]:
+    """The changes of a map: the project's, else the original ones."""
+    stored = project_maps.get("changes", {}).get(layout_id)
+    if stored is not None:
+        return stored
+    original = maps.layouts(DECOMP_DIR).get(layout_id, {}).get("changes")
+    return maps.read_changes(DECOMP_DIR, original) if original else []
+
+
 @app.get("/api/chapters/{index}/map.png")
-def chapter_map(index: int, fog: bool = False):
-    """The chapter's map as painted in the project (the original one if never painted)."""
+def chapter_map(index: int, fog: bool = False, change: int | None = None):
+    """The chapter's map as painted in the project (the original one if never painted), with a change if asked."""
     try:
         assets = maps.chapter_map_assets(DECOMP_DIR, _chapter(index))
         project_maps = state.project.load("maps") if state.project else {}
         painted = project_maps.get("layouts", {}).get(assets.layout.stem)
         layout = (len(painted["rows"][0]), len(painted["rows"]), [c for row in painted["rows"] for c in row]) if painted else None
         layout_id = assets.layout.stem
+        for shown in _layout_changes(layout_id, project_maps) if change is not None else []:
+            if shown["id"] == change:
+                layout = maps.with_change(layout or maps.read_layout(assets.layout), shown)
         assets = maps.layout_assets(DECOMP_DIR, layout_id, project_maps.get("bases", {}).get(layout_id),
                                     project_maps.get("palettes", {}).get(layout_id))
         edits = project_maps.get("tilesets", {}).get(assets.config.stem)
@@ -1090,6 +1103,26 @@ def dialogue_faces():
                     for pid, e in sorted(_added_portraits().items())]
 
 
+class UnitStatsIn(BaseModel):
+    character: str
+    classId: str
+    level: int
+    autolevel: bool
+    side: str
+
+
+@app.post("/api/units/stats")
+def unit_stats(body: UnitStatsIn):
+    """Stats of a unit entering a chapter, as the game computes them (decomp/averagestats.py)."""
+    project = state.require_project()
+    cls = next((c for c in project.load("classes") if c["id"] == body.classId), None)
+    if cls is None:
+        raise HTTPException(404, f"Unknown class {body.classId}")
+    character = next((c for c in project.load("characters") if c["id"] == body.character), None)
+    return averagestats.average_stats(character, cls, body.level, body.autolevel, body.side,
+                                      state.get_decomp().character_number(body.character))
+
+
 @app.get("/api/chapters/{index}/units")
 def chapter_units(index: int):
     ch = _chapter(index)
@@ -1097,12 +1130,14 @@ def chapter_units(index: int):
     groups = units.read_unit_groups(DECOMP_DIR)
     # Groups edited in the project replace the original ones.
     edited = state.project.load("chapters").get("unitGroups", {}) if state.project else {}
+    changes: list[dict] = []
     try:
         layout_path = maps.chapter_map_assets(DECOMP_DIR, ch).layout
         width, height, _cells = maps.read_layout(layout_path)
     except maps.MapError:
         width = height = 0
     else:
+        changes = _layout_changes(layout_path.stem, state.project.load("maps") if state.project else {})
         # A painted map may have another size (ticket 40: the picture was squeezed into the old grid).
         painted = (state.project.load("maps").get("layouts", {}).get(layout_path.stem) if state.project else None)
         if painted and painted.get("rows"):
@@ -1112,7 +1147,8 @@ def chapter_units(index: int):
         if name in edited:
             # Groups edited before units could be added or removed have no "slot": units were in order.
             macros = units.ai_macros(DECOMP_DIR)
-            return [{**({"slot": i} if "slot" not in u else {}), **u,
+            drops = {u["slot"]: u["itemDrop"] for u in groups[name].units} if name in groups else {}
+            return [{**({"slot": i} if "slot" not in u else {}), "itemDrop": drops.get(u.get("slot", i), False), **u,
                      # Projects saved before the AI was editable store it as the original C text.
                      "ai": units.parse_ai(u["ai"], macros) if isinstance(u.get("ai"), str) else u.get("ai", [0, 0, 0, 0])}
                     for i, u in enumerate(edited[name])]
@@ -1121,6 +1157,7 @@ def chapter_units(index: int):
     return {
         "width": width,
         "height": height,
+        "changes": [{key: c[key] for key in ("id", "x", "y", "w", "h")} for c in changes],
         "groups": [
             {**g, "units": group_units(g["name"]), "edited": g["name"] in edited}
             for g in (units.chapter_unit_groups(DECOMP_DIR, symbol) if symbol else [])

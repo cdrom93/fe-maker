@@ -40,6 +40,7 @@
   const SUPPORTS = -2 // index of the "Supports" entry of the list
   const NEW = 'new:' // id prefix of a new quote in the editor
   const DEATH = 'death:' // navigator id: a character's last words
+  const QUOTE = 'quote:' // navigator id: quote:<battle or death>:<chapter>:<character>, from a unit of a chapter
   const SCALE = 2
 
   let chapters = $state<(ChapterInfo & { name: string })[]>([])
@@ -105,13 +106,26 @@
   const nav = useNavigator()
   followFocus('dialogues', nav, () => chapters.map((c) => c.id), (i) => load(i))
   // From a character's sheet (ticket 101): their last words, written here if they have none yet.
-  const asksLastWords = () => nav.focus?.kind === 'dialogues' && !!nav.focus.id?.startsWith(DEATH) && nav.focus !== shownFocus
+  const asksLastWords = () => nav.focus?.kind === 'dialogues' && !!(nav.focus.id?.startsWith(DEATH) || nav.focus.id?.startsWith(QUOTE))
+    && nav.focus !== shownFocus
   $effect(() => {
     if (!chapters.length || !asksLastWords()) return
     shownFocus = nav.focus
     const id = nav.focus!.id!
-    untrack(() => openLastWords(id.slice(DEATH.length)))
+    const [, kind, chapterIndex, character] = id.split(':')
+    untrack(() => (id.startsWith(QUOTE) ? openQuote(kind as 'battle' | 'death', Number(chapterIndex), character) : openLastWords(id.slice(DEATH.length))))
   })
+
+  /** A character's quote in a chapter, written here if they have none yet. */
+  async function openQuote(kind: 'battle' | 'death', chapterIndex: number, character: string) {
+    await load(Math.max(0, chapters.findIndex((c) => c.index === chapterIndex)))
+    const mine = newQuotes.find((q) => q.kind === kind && q.a === character && q.chapter === chapterIndex)
+    if (mine) return pick(`${NEW}${newQuotes.indexOf(mine)}`)
+    const game = scenes.find((s) => s.trigger.kind === kind && s.trigger.a === character && s.messages.length)
+    if (game) pick(String(game.messages[0]))
+    else if (kind === 'death') await openLastWords(character)
+    else addQuote(kind, character)
+  }
 
   async function openLastWords(character: string) {
     const mine = newQuotes.find((q) => q.kind === 'death' && q.a === character && q.chapter === ANY_CHAPTER)
