@@ -25,6 +25,12 @@ FE Maker n'est **pas affilié** à Nintendo ni à Intelligent Systems, et n'est 
 
 *FE Maker is **not affiliated** with or endorsed by Nintendo or Intelligent Systems. Fire Emblem is a trademark of Nintendo. This repository contains **no ROM and no game data**: everyone provides their own legally obtained ROM (FE8 US).*
 
+## IA / AI
+
+FE Maker est **développé en très grande partie avec une IA générative** (Claude) : le code, la documentation et les traductions. Son auteur décide de ce qu'il fait et le teste en jeu. Aucune image ni musique générée par IA n'est fournie avec FE Maker. Le `CREDITS.txt` de chaque projet le rappelle, car les jeux compilés contiennent du code écrit par FE Maker.
+
+*FE Maker is **largely developed with generative AI** (Claude): code, documentation and translations. Its author decides what it does and tests it in game. No AI-generated art or music ships with FE Maker. Each project's `CREDITS.txt` says so too, as the games it builds contain code written by FE Maker.*
+
 ## Utiliser / Use
 
 - [Guide de démarrage](docs/guide.md) / [Getting started](docs/guide.en.md) : installation, premiers pas, limites connues / *install, first steps, known limits*

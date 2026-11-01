@@ -40,6 +40,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - Class gender is shown after the class name: ♂ blue, ♀ pink (`GenderSign`).
 - No decorative emojis (ticket 54): an emoji only where it is an icon standing for something (map tools and objects, objective types, event commands, expression codes, markers like ⚠ ⭐ ✎); never put before the text of a button, link, title or sentence.
 - The UI stays neutral: no third-party hack or game named in its texts.
+- No AI-generated art or music, no feature producing them from a prompt; FE Maker's AI use stays disclosed (spec, section 2, point 10).
 - To illustrate, use the game's own visuals first (weapon type and item icons, portraits, map sprites, terrain tiles, read from the decomp by `assets.py`), before an emoji or a drawn icon.
 - FEBuilderGBA (GPL-3.0) may be used freely as a reference or source; credit it in `CREDITS.md`.
 - Don't write things from scratch when an existing resource saves time and tokens: before coding a feature (engine behavior, ASM hack, event command, map/tile tool, data format reader, editor logic...), look at what already exists and reuse or adapt it when it fits. First FEBuilderGBA as a whole (its patches in `config/patch2/FE8U/`, its source code, its data/config files), then any other resource: FE-Repo / FEU (Fire Emblem Universe) hacks and tools, Event Assembler and its libraries, the decomp itself, Python/JS libraries. Check the license allows reuse and credit it in `CREDITS.md`.

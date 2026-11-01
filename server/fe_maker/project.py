@@ -41,6 +41,8 @@ FIELDS_ADDED_LATER = {"characters": ("affinity", "abilities"),
                                "statBonuses"),
                      "classes": ("genericPortrait",)}
 
+AI_NOTE = ("\nFE Maker was developed with generative AI (code and texts); the games it builds contain code it writes, "
+           "which may be AI-generated.\n")   # disclosure asked by FE Universe's AI policy
 RESOURCES_HEADER = "Community resources (written by FE Maker)\n----------------------------------------\n"
 PROJECT_GITIGNORE = "build/\n*.gba\n"
 CREDITS_HEADER = "Credits\n=======\n\nMade with FE Maker, on the Fire Emblem: The Sacred Stones decompilation\n(https://github.com/FireEmblemUniverse/fireemblem8u).\n"
@@ -97,7 +99,7 @@ class Project:
         (root / PROJECT_FILE).write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
         for kind, exporter in DATA_FILES.items():
             _write_json(root / "data" / f"{kind}.json", getattr(data, exporter)())
-        (root / "CREDITS.txt").write_text(CREDITS_HEADER, encoding="utf-8")
+        (root / "CREDITS.txt").write_text(CREDITS_HEADER + AI_NOTE, encoding="utf-8")
         (root / ".gitignore").write_text(PROJECT_GITIGNORE, encoding="utf-8")
         return cls(root, decomp_dir)
 
@@ -206,11 +208,11 @@ class Project:
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def update_credits(self) -> None:
-        """CREDITS.txt lists the community resources the project uses (imported from FE-Repo), after
-        what the user wrote."""
+        """CREDITS.txt lists the community resources the project uses (imported from FE-Repo) and says how
+        FE Maker was made, after what the user wrote."""
         path = self.root / "CREDITS.txt"
         text = path.read_text(encoding="utf-8") if path.is_file() else CREDITS_HEADER
-        mine = text.split(RESOURCES_HEADER)[0].rstrip("\n") + "\n"
+        mine = text.split(RESOURCES_HEADER)[0].split(AI_NOTE)[0].rstrip("\n") + "\n" + AI_NOTE
         sources = [e["source"] for e in self.load("portraits").values() if isinstance(e, dict) and e.get("source")]
         sources += [e["source"] for e in self.load("animations").get("animations", {}).values()
                     if isinstance(e, dict) and e.get("source")]
@@ -268,6 +270,7 @@ class Project:
         errors = [p for p in self.validate() if p.severity == "error"]
         if errors:
             raise ProjectError("Fix these problems before building: " + "; ".join(p.message for p in errors))
+        self.update_credits()
         try:
             overlay = self.generate_overlay(for_test=for_test)
         except TweakError as e:

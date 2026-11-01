@@ -68,6 +68,8 @@ Le projet doit pouvoir vivre publiquement sur GitHub sans risque.
 
 9. **Citation** : toute source utilisée (code, données, documentation, ressource, recherche de la communauté, y compris les tables et formats de la ROM documentés par d'autres) est listée dans `CREDITS.md`, avec auteur, lien et licence, même pour un emprunt minime. En cas de doute sur une licence : demander à l'auteur et ne rien intégrer en attendant.
 
+10. **IA générative** ([règle de FE Universe, 21/10/2026](https://feuniverse.us/t/ai-policy-updated-2026-10/38008)) : FE Maker est développé en très grande partie par IA et le dit partout (README, guide, annonce avec `[AI]` dans le titre, `CREDITS.txt` de chaque projet, car les jeux compilés contiennent son code). Aucun art ni aucune musique générés par IA, et aucune fonction qui en produirait à partir d'une phrase.
+
 ---
 
 ## 3. Architecture technique
@@ -119,7 +121,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord.
 6. **Premier lancement guidé** : prêt (`checks.py`).
 7. **Retours des testeurs** : prêt (« Envoyer sur GitHub »). Un relais sans compte (ticket 75) a été écarté pour l'instant ; l'utilisateur imagine autre chose.
 8. **Docs** : prêtes (guide FR/EN, limites connues, CHANGELOG). Passage d'une version à l'autre fait (`migrations.py`).
-9. **À faire, décisions de l'utilisateur** : dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU.
+9. **À faire, décisions de l'utilisateur** : dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (avec `[AI]` dans le titre).
 
 ### Phase 0 — Audit et fondations (terminée)
 Décomp compilée et auditée (`docs/audit-decomp.md`), image Docker, modification vérifiée en jeu, tests en jeu sans fenêtre (`playtest.py`).

@@ -2,6 +2,8 @@
 
 Every source used by FE Maker (code, data, documentation, resources, community research) is listed here, with author, link and license. See section 2 of `CAHIER_DES_CHARGES.md`.
 
+FE Maker is largely developed with generative AI (Claude): code, documentation and translations.
+
 | Source | Authors | Link | License | Used for |
 |---|---|---|---|---|
 | Nunito (font, via the @fontsource-variable/nunito package) | Vernon Adams, Cyreal, Jacques Le Bailly; packaged by Fontsource | https://github.com/googlefonts/nunito | OFL-1.1 | Interface font (theme of 25/10/2026) |

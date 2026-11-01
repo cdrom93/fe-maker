@@ -59,4 +59,8 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 - The copies in a project's `backups/` folder are restored by hand.
 - The game must be recompiled to show a change; there is no live preview.
 
+## AI and publishing
+
+FE Maker is largely developed with generative AI (code, texts, translations). Your project's `CREDITS.txt` says so: keep this note if you publish your hack. On FE Universe, AI-generated art and music are banned and any AI use in code or writing must be disclosed ([policy](https://feuniverse.us/t/ai-policy-updated-2026-10/38008)). FE-Repo resources are published by the community: checking that they follow this policy is up to you.
+
 This project is not affiliated with Nintendo or Intelligent Systems. Never share a ROM: share the patch.

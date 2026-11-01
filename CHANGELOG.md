@@ -15,5 +15,5 @@ First public test version, Windows first. See [the guide](docs/guide.en.md) for 
 - **Scenes:** visual sequences, condition blocks, stat changes, jumps to another chapter, Yes / No questions and memories of the player's choices; dialogues, quotes and supports.
 - **Resources:** portraits, battle animations and map sprites from FE-Repo or your PC, with their authors in the project's credits.
 - **Game options:** by category: HP bars, beginner mode, quick experience and level up, acting after Talk, no story intro, a Staff & Dance line in the Configuration menu.
-- **Testing and sharing:** test in mGBA, export as a `.ups` patch.
+- **Testing and sharing:** test in mGBA, export as a `.ups` patch; each project's `CREDITS.txt` says that FE Maker is largely developed with generative AI.
 - **Projects** carry over between versions: converted when opened, after a copy in `backups/`; a project from a newer version is refused.

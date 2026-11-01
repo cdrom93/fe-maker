@@ -185,3 +185,16 @@ def test_ranged_animations_list():
     assert all(path.startswith(ferepo.ANIMATIONS + "/") for path in ranged)
     assert {w for weapons in ranged.values() for w in weapons} == set(ferepo.MELEE_WEAPONS)
     assert "axe" in next(w for path, w in ranged.items() if "War Monk by DerTheVaporeon" in path)
+
+
+def test_credits_say_ai_was_used_once(tmp_path):
+    from fe_maker.project import AI_NOTE, Project
+
+    project = Project.create(tmp_path / "credits", "Credits")
+    credits = project.root / "CREDITS.txt"
+    assert credits.read_text(encoding="utf-8").count(AI_NOTE) == 1
+    credits.write_text("Credits\n\nMy own thanks.\n", encoding="utf-8")      # an older project, or a note removed
+    project.update_credits()
+    project.update_credits()
+    text = credits.read_text(encoding="utf-8")
+    assert text.startswith("Credits\n\nMy own thanks.\n") and text.count(AI_NOTE) == 1
