@@ -395,7 +395,7 @@ def test_item_sheet_reaches_the_game(tmp_path):
 
         def spell(item):
             row = 0
-            while (found := game.read("gSpellAssocData", row * row_size, width=16)) not in (item, 0xFFFF):
+            while game.read("gSpellAssocData", row * row_size, width=16) not in (item, 0xFFFF):
                 row += 1
             return game.read("gSpellAssocData", row * row_size + 4, width=16)
 
