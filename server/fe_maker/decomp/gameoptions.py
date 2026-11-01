@@ -324,7 +324,8 @@ _DEATH_SUPPORTS_CASUAL = "            unit->state |= US_DEAD | US_HIDDEN; /* FE 
 
 
 # The rules of the game's magic swords (magicweapons.py lists which weapons they apply to).
-_MAGIC_FORCE = ("gBattleActor.battleAttack -= gBattleActor.unit.pow / 2;\n", "attacker->battleAttack -= attacker->unit.pow / 2;\n")
+_MAGIC_FORCE = ("gBattleActor.battleAttack -= gBattleActor.unit.pow / 2;\n",
+                "attacker->battleAttack -= attacker->unit.pow / 2;\n")
 _MAGIC_CRIT = ("        gBattleActor.battleCritRate = 0;\n        gBattleActor.battleEffectiveCritRate = 0;\n",
                "            attacker->battleCritRate = 0;\n            attacker->battleEffectiveCritRate = 0;\n")
 _MAGIC_RANKS = ("if (bu->weaponAttributes & (IA_MAGICDAMAGE | IA_LOCK_3))", "if (bu->weaponAttributes & IA_LOCK_3)")
