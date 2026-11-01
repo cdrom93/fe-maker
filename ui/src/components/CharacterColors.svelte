@@ -247,7 +247,7 @@
     </div>
   {/if}
   {#if cls}
-    <BattleAnimation classId={classId} className={cls.name} {items} wtypes={[]} preview colors={shown ?? undefined} focus={hovered}
+    <BattleAnimation classId={classId} className={cls.name} {items} wtypes={[]} preview colors={shown ?? undefined} focus={hovered} selected={family}
                      onpick={(i) => (picked = i)} bind:palette={line} />
   {/if}
 </div>
@@ -266,5 +266,6 @@
   .family.picked { border-color: var(--accent); }
   .swatches input { width: 1.8rem; height: 1.8rem; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
   .recolor { display: flex; flex-direction: row; align-items: center; gap: 0.5rem; text-align: left; }
+  .recolor, .colors > p { min-height: 2.4rem; margin: 0; display: flex; align-items: center; }   /* a click moves nothing */
   .recolor input { width: 2.6rem; height: 2.2rem; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
 </style>

@@ -8,7 +8,7 @@
   import type { ClassAnimation, FeRepoEntry, Item } from '../lib/types'
 
   /** The class's battle animations played as in the game (ticket 44), by weapon and mode. */
-  let { classId, className, items, wtypes, onchanged, preview = false, colors, focus = null, onpick, palette = $bindable(0) }: {
+  let { classId, className, items, wtypes, onchanged, preview = false, colors, focus = null, selected = null, onpick, palette = $bindable(0) }: {
     classId: string; className: string; items: Item[]; wtypes: string[]
     /** the class's animations changed (imported, restored, removed): weapons animated and problems to refresh */
     onchanged?: () => void
@@ -18,8 +18,10 @@
     colors?: string[][]
     /** with `colors`: the only colour numbers in colour, the others in grey */
     focus?: number[] | null
-    /** with `colors`: a click on the sprite, with the colour number of the pixel */
-    onpick?: (index: number) => void
+    /** with `colors`: the colour numbers outlined on the sprite */
+    selected?: number[] | null
+    /** with `colors`: a click on the sprite, with the colour number of the pixel, null outside it */
+    onpick?: (index: number | null) => void
     /** the side shown */
     palette?: number
   } = $props()
@@ -153,7 +155,7 @@
     const x = s.box.x + Math.floor(((e.clientX - box.left) / box.width) * s.box.w)
     const y = s.box.y + Math.floor(((e.clientY - box.top) / box.height) * s.box.h)
     const index = s.indexes[y * s.width * s.durations.length + shownFrame * s.width + x]
-    if (index !== undefined && index !== 255) onpick(index)
+    onpick(index === undefined || index === 255 ? null : index)
   }
 
   function loadImage(src: string): Promise<HTMLImageElement> {
@@ -167,6 +169,33 @@
 
   let redraw: (() => void) | null = null
   let shownFrame = 0
+  /** The edges of the selected colours' zones, in two colours that show on any sprite. */
+  const OUTLINE = ['#ffffff', '#ff2fd0']
+  const BLINK = 24
+  let blink = 0
+  function outline(ctx: CanvasRenderingContext2D, s: NonNullable<typeof strip>, frame: number, scale: number) {
+    if (!s.indexes || !selected?.length) return
+    const { indexes, box, width, durations } = s
+    const chosen = new Set<number>(selected)
+    const inside = (x: number, y: number) => x >= box.x && y >= box.y && x < box.x + box.w && y < box.y + box.h
+      && chosen.has(indexes[y * width * durations.length + frame * width + x])
+    const thick = Math.max(1, Math.floor(scale / 3))
+    ctx.fillStyle = OUTLINE[blink % 2]
+    for (let y = box.y; y < box.y + box.h; y++) {
+      for (let x = box.x; x < box.x + box.w; x++) {
+        if (!inside(x, y)) continue
+        const [left, top] = [(x - box.x) * scale, (y - box.y) * scale]
+        if (!inside(x - 1, y)) ctx.fillRect(left, top, thick, scale)
+        if (!inside(x + 1, y)) ctx.fillRect(left + scale - thick, top, thick, scale)
+        if (!inside(x, y - 1)) ctx.fillRect(left, top, scale, thick)
+        if (!inside(x, y + 1)) ctx.fillRect(left, top + scale - thick, scale, thick)
+      }
+    }
+  }
+  $effect(() => {
+    void selected
+    redraw?.()
+  })
   // Play the frames with the game's timings (1/60 s each), then wait a little and start again.
   $effect(() => {
     const s = strip
@@ -181,12 +210,14 @@
     let raf = 0
     let last = performance.now()
     let acc = 0
+    let beat = 0
     const draw = () => {
       shownFrame = frame
       ctx.imageSmoothingEnabled = false
       ctx.clearRect(0, 0, c.width, c.height)
       const { x, y, w, h } = s.box
       ctx.drawImage(s.img, frame * s.width + x, y, w, h, 0, 0, w * scale, h * scale)
+      outline(ctx, s, frame, scale)
     }
     draw()
     redraw = draw
@@ -195,6 +226,11 @@
       last = now
       while (acc >= 1000 / 60) {
         acc -= 1000 / 60
+        if (selected?.length && ++beat >= BLINK) {
+          beat = 0
+          blink++
+          draw()
+        }
         if (!playing) continue
         if (pause > 0) {
           pause--
@@ -234,7 +270,7 @@
       {/each}
     </div>
     <div class="player">
-      <div class="stage">
+      <div class="stage" class:fixed={preview}>
         {#if strip}
           <canvas bind:this={canvas} class:pick={!!onpick} width={strip.box.w * zoom} height={strip.box.h * zoom} onclick={pick}></canvas>
         {:else if error}
@@ -292,12 +328,13 @@
 <style>
   .weapons { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.6rem; }
   .weapons button.active { background: var(--header); color: var(--header-text); }
-  .player { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  .player { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
   canvas.pick { cursor: crosshair; }
   .stage {
     min-width: 200px; min-height: 140px; max-width: 100%; overflow: auto; display: flex; align-items: center; justify-content: center;
     background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius);
   }
+  .stage.fixed { width: 340px; height: 340px; }   /* a zoom leaves everything around it in place */
   .stage canvas { image-rendering: pixelated; display: block; margin: auto; flex: none; }
   .controls { display: flex; flex-direction: column; gap: 0.5rem; }
   .small { font-size: 0.8rem; margin: 0.5rem 0 0; }
