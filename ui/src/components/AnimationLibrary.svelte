@@ -22,6 +22,7 @@
 
   const targets = $derived(animationTargets(wtypes))
   const guessWtype = (folderName: string) => guessTarget(folderName, wtypes)
+  let rangedOnly = $state(false)
   let chosenWtype = $state<Record<string, string>>({})
   let importing = $state('')
   let importError = $state('')
@@ -91,7 +92,7 @@
     if (!more && weaponFilter.length) entries = []
     error = ''
     try {
-      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter.join(','), offset: more ? entries.length : 0 })
+      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter.join(','), ranged: rangedOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -162,6 +163,11 @@
     {/each}
     {#if weaponFilter.length}<button class="link small" onclick={() => { weaponFilter = []; run() }}>{t('banim.allWeapons')}</button>{/if}
     {#if loading && weaponFilter.length}<Help text={t('banim.weaponFilterHint')} />{/if}
+    <label class="wchip small" class:on={rangedOnly}>
+      <input type="checkbox" checked={rangedOnly} onchange={(e) => { rangedOnly = (e.target as HTMLInputElement).checked; run() }} />
+      {t('banim.ranged')}
+    </label>
+    <Help text={t('banim.rangedHint')} />
   </div>
   {#if error}<p class="bad small">{error}</p>{/if}
   {#if missingFolders && weaponFilter.length}<p class="warn small">{t('banim.missingFolders', { n: missingFolders })}</p>{/if}

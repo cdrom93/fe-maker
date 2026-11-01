@@ -130,11 +130,11 @@ export const api = {
     return request<{ problems: Problem[] }>('POST', `/api/classes/${classId}/mapsprite`, form)
   },
   removeMapSprite: (classId: string) => request<{ problems: Problem[] }>('DELETE', `/api/classes/${classId}/mapsprite`),
-  feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; wtype?: string } = {}) =>
+  feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; wtype?: string; ranged?: boolean } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[]; missingFolders?: number }>(
       'GET', `/api/ferepo/animations?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
         + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`
-        + `&wtype=${encodeURIComponent(options.wtype ?? '')}`),
+        + `&wtype=${encodeURIComponent(options.wtype ?? '')}${options.ranged ? '&ranged=true' : ''}`),
   importAnimation: (body: { url: string; animation: string; classId: string; wtype: string }) =>
     request<{ key: string; problems: Problem[] }>('POST', '/api/animations/import', body),
   importLocalAnimation: (classId: string, wtype: string, name: string, files: File[]) => {

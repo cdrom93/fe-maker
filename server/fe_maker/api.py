@@ -1849,11 +1849,14 @@ def ferepo_image(url: str):
 
 @app.get("/api/ferepo/animations")
 def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
-                      wtype: str = ""):
+                      wtype: str = "", ranged: bool = False):
     """Battle animations of the FE-Repo (one folder each), searched like the portraits (ticket 44); `wtype`: weapon
     types, comma-separated, the animation must have them all (tickets 47, 48; the weapons of each top folder are asked
-    to GitHub once a week, the folders in parallel)."""
+    to GitHub once a week, the folders in parallel); `ranged`: its sword, lance or axe casts a spell from afar (a list
+    FE Maker comes with, so these three weapons need no question to GitHub)."""
     wanted = {w for w in wtype.split(",") if w}
+    melee = wanted & set(ferepo.MELEE_WEAPONS) if ranged else set()
+    wanted -= melee
     try:
         index, when = ferepo.load_index(refresh)
     except ferepo.FeRepoError as e:
@@ -1879,8 +1882,15 @@ def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offs
     def types(url: str) -> list[str]:
         return sorted({t for w in weapons.get(ferepo.animation_path(url), []) if (t := ferepo.weapon_type(w))})
 
+    def casts(url: str) -> bool:
+        found = ferepo.ranged_animations().get(ferepo.animation_path(url), [])
+        return bool(found) and melee <= set(found)
+
+    def keep(url: str) -> bool:
+        return wanted <= set(types(url)) and (not ranged or casts(url))
+
     entries, total = ferepo.search(index, ferepo.ANIMATIONS, q, limit=60, folder=folder, offset=max(0, offset), f2e_only=f2e,
-                                   keep=(lambda url: wanted <= set(types(url))) if wanted else None)
+                                   keep=keep if wanted or ranged else None)
     if wanted:
         entries = [{**e, "weapons": types(e["url"])} for e in entries]
         if len(missing) == len(tops):

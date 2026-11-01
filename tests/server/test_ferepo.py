@@ -176,3 +176,12 @@ def test_animation_weapons_kept_when_github_refuses(tmp_path, monkeypatch):
     assert ferepo.animation_weapons("Magi") == {"Battle Animations/Magi/Old Mage": ["Magic"]}
     with pytest.raises(ferepo.FeRepoError, match="rateLimited"):
         ferepo.animation_weapons("Other")
+
+
+def test_ranged_animations_list():
+    """The list FE Maker comes with: repository paths and melee weapons, the War Monk's axe among them."""
+    ranged = ferepo.ranged_animations()
+    assert len(ranged) > 500
+    assert all(path.startswith(ferepo.ANIMATIONS + "/") for path in ranged)
+    assert {w for weapons in ranged.values() for w in weapons} == set(ferepo.MELEE_WEAPONS)
+    assert "axe" in next(w for path, w in ranged.items() if "War Monk by DerTheVaporeon" in path)

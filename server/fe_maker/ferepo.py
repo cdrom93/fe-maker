@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from functools import lru_cache
 from pathlib import Path
 
 from .config import config_dir
@@ -30,6 +31,8 @@ INDEX_MAX_AGE = 7 * 24 * 3600   # seconds before the index is downloaded again
 MAX_FILE_BYTES = 2 * 1024 * 1024
 PORTRAITS = "Portrait Repository"
 ANIMATIONS = "Battle Animations"   # listed as folders (GitHub "tree" URLs), one per animation
+MELEE_WEAPONS = ("sword", "lance", "axe")
+RANGED_FILE = "ferepo_ranged.json"   # made by tools/scan_ranged_animations.py
 MAP_SPRITES = "Map Sprites"   # pairs "<name> {authors}-stand.png" (standing) and "-walk.png" (moving)
 _SPRITE_KIND_RE = re.compile(r"[\s-]*(?:walk|stand)(?:\s*16x16)?$", re.IGNORECASE)
 TREE_PREFIX = "https://github.com/Klokinator/FE-Repo/tree/main/"
@@ -273,6 +276,12 @@ def _ask_weapons(folder: str, path: Path, tops_path: Path, tops: dict | None) ->
     result = {key: folders.get(key) or scripts.get(key, []) for key in {*folders, *scripts}}
     path.write_text(json.dumps(result), encoding="utf-8")
     return result
+
+
+@lru_cache(maxsize=1)
+def ranged_animations() -> dict[str, list[str]]:
+    """Animation's repository path -> melee weapons whose ranged attack casts a spell: what a magic axe needs."""
+    return json.loads((Path(__file__).parent / RANGED_FILE).read_text(encoding="utf-8"))
 
 
 def animation_path(url: str) -> str:
