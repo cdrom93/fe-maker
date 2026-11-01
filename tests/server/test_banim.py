@@ -185,3 +185,39 @@ def test_local_animation_files():
         api._script_of({"A.png": b""}, lambda n: "")
     with pytest.raises(bi.ImportError_, match="badZip"):
         api._local_files([("broken.zip", b"not a zip")])
+
+
+def test_feditor_sound_command_is_kept_whole():
+    """Ticket 132: FEditor's "S" holds a song number in a command, which the game's driver does not read."""
+    from fe_maker.decomp import banim_import as bi
+
+    modes = [n for n in range(1, 13) if n not in (2, 4)]
+    parsed = bi.parse_script("".join(f"/// - Mode {n}\nSF5\nC05\n1 p- A.png\n~~~\n" for n in modes))
+    assert parsed.modes[1][:2] == [("code", 0xF548), ("code", 5)]
+    assert bi.has_sounds("    banim_code_85 0xF548\n")
+    assert not bi.has_sounds("    banim_code_85 0x48\n    banim_code_85 0xF5\n")
+
+
+def test_sound_command_goes_through_the_driver(tmp_path):
+    from fe_maker.decomp import banim_import as bi
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / bi.DRIVER_FILE).write_text(
+        '#include "anime.h"\n\n            case ANIM_INS_TYPE_COMMAND:\n                x;\n', encoding="utf-8")
+    (tmp_path / bi.SOUND_FILE).write_text("int a;\n", encoding="utf-8")
+    files = bi.sound_files(tmp_path)
+    assert "FemPlayAnimSound(anim, (instruction >> 8) & 0xFFFF);" in files[bi.DRIVER_FILE]
+    assert files[bi.DRIVER_FILE].index("FemPlayAnimSound(struct") < files[bi.DRIVER_FILE].index("case ANIM_INS_TYPE_COMMAND")
+    assert "void FemPlayAnimSound(struct Anim * anim, int songid)\n{" in files[bi.SOUND_FILE]
+
+
+def test_casts_at_range_reads_the_ranged_mode_only(tmp_path):
+    (tmp_path / "data/banim").mkdir(parents=True)
+    for symbol, code in (("banim_x", 1), ("banim_y", 5)):
+        (tmp_path / f"data/banim/{symbol}_motion.s").write_text(
+            f"{symbol}_mode_attack_close:\n    banim_code_call_spell_anim\n"
+            f"{symbol}_mode_attack_range:\n    banim_code_85 0x{code}\n"
+            f"{symbol}_mode_attack_range_critical:\n    banim_code_call_spell_anim\n", encoding="utf-8")
+    assert not banim.casts_at_range(tmp_path, "banim_x")
+    assert banim.casts_at_range(tmp_path, "banim_y")
+    assert banim.casts_at_range(tmp_path, "banim_gone")     # nothing to say about what cannot be read

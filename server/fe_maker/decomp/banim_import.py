@@ -21,6 +21,7 @@ import io
 import re
 import struct
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from PIL import Image
 
@@ -40,6 +41,7 @@ MAX_OAM_BYTES = 0x57F0                  # gBanimOaml / gBanimOamr2 buffers (src/
 
 _FRAME_RE = re.compile(r"^(\d+)\s+p-\s+(.+?\.png)\s*$", re.IGNORECASE)
 _COMMAND_RE = re.compile(r"^C([0-9A-Fa-f]{1,6})$")
+_SOUND_RE = re.compile(r"^S([0-9A-Fa-f]{1,4})$")
 _MODE_RE = re.compile(r"^///\s*-\s*Mode\s+(\d+)", re.IGNORECASE)
 
 
@@ -91,6 +93,10 @@ def parse_script(text: str) -> Script:
                 code |= words << 8
                 loop_start = None
             script.modes[mode].append(("code", code))
+            continue
+        m = _SOUND_RE.match(line)
+        if m:
+            script.modes[mode].append(("code", SOUND_COMMAND | int(m.group(1), 16) << 8))
             continue
         raise ImportError_("badScriptLine", raw.strip())
     for copy, source in COPIED_MODES.items():
@@ -339,6 +345,44 @@ CONF_FILE = "src/data_banimconf.c"
 # Linked weapons (tickets 49, 51): the caster moves the same way with every tome (only the spell differs, it comes with
 # the tome), and the game gives the three throwing axes their own entries (a throw). A group can be given an animation
 # at once; one of its members can still get its own; a member without one takes the group's.
+SOUND_COMMAND = 0x48           # with a song number above it, FEditor's "S" command: the game itself has no such thing
+_SOUND_CODE_RE = re.compile(rf"^\s*banim_code_85 0x[0-9A-F]+{SOUND_COMMAND:02X}$", re.MULTILINE)
+SOUND_FILE = "src/banim-efxsound.c"
+DRIVER_FILE = "src/animedrv.c"
+_DRIVER_COMMAND = "            case ANIM_INS_TYPE_COMMAND:\n"
+_DRIVER_INCLUDE = '#include "anime.h"\n'
+
+
+def has_sounds(motion_text: str) -> bool:
+    return _SOUND_CODE_RE.search(motion_text) is not None
+
+
+def sound_files(decomp_dir: Path) -> dict[str, str]:
+    """The game's animation driver keeps one byte of a command: an "S" is played on the spot, before that."""
+    driver = (decomp_dir / DRIVER_FILE).read_text(encoding="utf-8")
+    sound = (decomp_dir / SOUND_FILE).read_text(encoding="utf-8")
+    if driver.count(_DRIVER_COMMAND) != 1 or driver.count(_DRIVER_INCLUDE) != 1:
+        raise ImportError_("tableNotFound")
+    played = (f"{_DRIVER_COMMAND}                if (ANINS_COMMAND_GET_ID(instruction) == 0x{SOUND_COMMAND:X} "
+              "&& (instruction & 0xFFFF00)) {\n"
+              "                    FemPlayAnimSound(anim, (instruction >> 8) & 0xFFFF);\n"
+              "                    anim->timer = 1;\n                    break;\n                }\n\n")
+    declaration = f"{_DRIVER_INCLUDE}\nvoid FemPlayAnimSound(struct Anim * anim, int songid); /* FE Maker */\n"
+    player = """
+/* FE Maker: the "S" command of imported animations */
+void FemPlayAnimSound(struct Anim * anim, int songid)
+{
+    if (GetAISLayerId(anim) == 1)
+        return;
+
+    EfxPlaySE(songid, 0x100);
+    M4aPlayWithPostionCtrl(songid, anim->xPosition, 1);
+}
+"""
+    return {DRIVER_FILE: driver.replace(_DRIVER_COMMAND, played).replace(_DRIVER_INCLUDE, declaration),
+            SOUND_FILE: sound.rstrip("\n") + "\n" + player}
+
+
 GROUPS = {
     "tomes": ("anima", "light", "dark"),
     "throwing_axes": ("ITEM_AXE_HANDAXE", "ITEM_AXE_TOMAHAWK", "ITEM_AXE_HATCHET"),

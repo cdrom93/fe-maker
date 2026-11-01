@@ -316,6 +316,20 @@ def test_imported_battle_animation(tmp_path):
                                and game.phase() == "player", seconds=60, step=20)
 
 
+def test_sound_command_of_an_imported_animation(tmp_path):
+    """Ticket 132: FEditor's "S" command, which the game's scripts cannot hold, plays its song during the attack."""
+    project = Project.create(tmp_path / "sound", "Sound")
+    _import_paladin_animation(project, sound="SF5")
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        header = game.read(game.address("gSongTable") + 8 * 0xF5, width=32)
+        player = game.read(game.address("gSongTable") + 8 * 0xF5 + 4, width=16)
+        info = game.read(game.address("gMPlayTable") + 12 * player, width=32)
+        assert game.read(info, width=32) != header
+        _seth_attacks(game)
+        assert game.wait_until(lambda: game.read(info, width=32) == header, seconds=30, step=2)
+
+
 def test_ally_level_comes_from_the_sheet(tmp_path):
     """A sheet's new level reaches the unit the game places."""
     project = Project.create(tmp_path / "level", "Level")
@@ -444,7 +458,7 @@ def _seth_attacks(game):
     return enemy
 
 
-def _import_paladin_animation(project):
+def _import_paladin_animation(project, sound=""):
     import shutil
 
     from fe_maker.decomp import banim, banim_import
@@ -455,6 +469,8 @@ def _import_paladin_animation(project):
     number = next(d["number"] for d in banim.configs(decomp)[conf] if d["weapon"] == "ITYPE_SWORD")
     symbol = next(a.symbol for a in banim.table(decomp) if a.number == number)
     script, frames = banim_import.export_feditor(decomp, symbol)
+    for mode in (1, 3):
+        script = script.replace(f"/// - Mode {mode}\n", f"/// - Mode {mode}\n{sound}\n" if sound else f"/// - Mode {mode}\n", 1)
     converted = banim_import.convert(banim_import.symbol_of("1"), script, frames)
     folder = project.root / "assets" / "animations" / "1"
     shutil.rmtree(folder, ignore_errors=True)

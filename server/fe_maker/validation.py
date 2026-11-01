@@ -72,6 +72,7 @@ def _range(problems, kind, rid, fname, value, lo, hi):
 # Characters the game's font can draw (set by validate from the decomp's font).
 _font: dict[int, int] = dict(fonts._FALLBACK)
 _animated: dict[str, list[str]] = {}
+MELEE_TYPES = ("sword", "lance", "axe")
 
 
 def _chars(problems, kind, rid, fname, text, params=None):
@@ -217,6 +218,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
                                     f"{rid}: unknown effectiveness list"))
 
     _validate_reservations(problems, items, class_ids, {c["id"] for c in characters})
+    if classes is not None:
+        _validate_ranged_animations(problems, items, classes, characters, decomp, animations, assets_dir)
 
     if classes is not None:
         _validate_classes(problems, classes, decomp, class_ids, weapon_types)
@@ -247,6 +250,30 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
             original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
             _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
     return problems
+
+
+def _validate_ranged_animations(problems, items, classes, characters, decomp: DecompData, animations, assets_dir):
+    """A sword, lance or axe that reaches 2 tiles: the classes wielding it need an animation that strikes from afar."""
+    names = {cl["id"]: cl.get("name") or cl["id"] for cl in classes}
+    models = {cl["id"]: cl.get("model") for cl in classes}
+    for it in items:
+        rng = it.get("range") or {}
+        if it.get("weaponType") not in MELEE_TYPES or not isinstance(rng.get("max"), int) or rng["max"] < 2:
+            continue
+        wtype = it["weaponType"]
+        reserved = it.get("reservedFor")
+        if reserved:
+            users = set(reserved.get("classes", ()))
+            users |= {c.get("class") for c in characters if c["id"] in reserved.get("characters", ())}
+        else:
+            users = {cl["id"] for cl in classes if cl.get("weaponRanks", {}).get(wtype)}
+            users |= {c.get("class") for c in characters if c.get("weaponRanks", {}).get(wtype)}
+        lacking = list(dict.fromkeys(names[c] for c in names if c in users and wtype in _animated.get(c, ())
+                                     and not decomp.casts_at_range(c, models[c], it, animations, assets_dir)))
+        if lacking:
+            shown = ", ".join(lacking[:4]) + (f" (+{len(lacking) - 4})" if len(lacking) > 4 else "")
+            problems.append(Problem("warning", "items", it["id"], "range", "noRangedAnimation", {"classes": shown},
+                                    f"{it['id']}: no ranged battle animation for {shown}"))
 
 
 def _validate_dialogues(problems, data: dict, faces: dict[str, int]):

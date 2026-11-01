@@ -41,6 +41,7 @@ _ENTRY_RE = re.compile(r'\{\s*"(\w+)",\s*&(\w+?)_modes_bin')
 _CONF_RE = re.compile(r"struct\s+BattleAnimDef\s+(\w+)\s*\[\s*\]\s*=\s*\{(.*?)\{\s*0\s*\}", re.DOTALL)
 _DEF_RE = re.compile(r"\.wtype\s*=\s*([^,]+?)\s*,\s*\.index\s*=\s*(\w+)")
 _OAM_RE = re.compile(r"banim_frame_oam\s+([^\n]+)")
+_CAST_RE = re.compile(r"banim_code_call_spell_anim|banim_code_85 0x5$", re.MULTILINE)
 _FRAME_RE = re.compile(r"banim_code_frame\s+(\d+),\s*(\w+),\s*(\d+),\s*(\w+)\s*-")
 
 
@@ -51,6 +52,7 @@ class Animation:
     symbol: str        # file stem: "banim_lorm_sp1_2"
 
 
+@lru_cache(maxsize=2)
 @lru_cache(maxsize=2)
 def table(decomp_dir: Path) -> list[Animation]:
     source = (decomp_dir / TABLE_FILE).read_text(encoding="utf-8")
@@ -164,6 +166,19 @@ def mode_strip(decomp_dir: Path, symbol: str, mode: str, which: int = 0,
     out = io.BytesIO()
     strip.save(out, "PNG")
     return out.getvalue(), {"durations": [d for d, _s, _l in steps], "width": width, "height": height}
+
+
+@lru_cache(maxsize=512)
+def _casts(path: str, _modified: int, symbol: str) -> bool:
+    text = Path(path).read_text(encoding="utf-8", errors="ignore")
+    ranged = text.partition(f"{symbol}_mode_attack_range:")[2].partition(f"{symbol}_mode_attack_range_critical:")[0]
+    return _CAST_RE.search(ranged) is not None
+
+
+def casts_at_range(base: Path, symbol: str) -> bool:
+    """An animation's ranged attack calls the spell: what makes it hit from afar. True if its script cannot be read."""
+    path = base / MOTION_DIR / f"{symbol}_motion.s"
+    return not path.is_file() or _casts(str(path), path.stat().st_mtime_ns, symbol)
 
 
 def modes_of(decomp_dir: Path, symbol: str) -> list[str]:

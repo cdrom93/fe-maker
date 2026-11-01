@@ -34,6 +34,8 @@ piège dans sa section.
 - Danser sur la carte demande une 6e animation au sprite de marche, que seuls les sprites de danseuse ont : donner « Danse » à une autre classe brouille l'écran dans le jeu d'origine aussi, animations coupées ou non (`danceanim.py`).
 - Planches FE-Repo indexées : le fond n'est pas toujours la couleur 0 (carré gris autour du sprite sélectionné) : prendre la transparence du PNG, sinon le pixel en haut à gauche.
 
+- Une arme de contact à portée 2 frappe de loin seulement si l'animation de la classe appelle le sort dans son mode à distance (`banim.casts_at_range`) : les haches ordinaires ne le font pas, d'où l'avertissement `noRangedAnimation`.
+
 ## Cartes
 
 - Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.

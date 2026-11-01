@@ -2224,6 +2224,28 @@ class DecompData:
         if rows:
             out[ITEMS_FILE] = out[ITEMS_FILE].replace(table, rows + table, 1)
 
+    def casts_at_range(self, class_id: str, model: str | None, item: dict, animations: dict | None,
+                       assets_dir: Path | None) -> bool:
+        """The class's battle animation for this weapon strikes from afar, as `GetBattleAnimationId` picks it:
+        the item's own line first, then its type's. A class the project adds has its model's animations."""
+        changed = banim_import.with_groups(((animations or {}).get("classes") or {}).get(class_id, {}))
+        anim = changed.get(item["id"], changed.get(item["weaponType"]))
+        if isinstance(anim, str):
+            key = anim.removeprefix("new:")
+            return assets_dir is None or banim.casts_at_range(assets_dir / "animations" / key, banim_import.symbol_of(key))
+        entry = next((e for e in self.classes.entries if e.fields["number"] == (model or class_id)), None)
+        conf = banim.configs(self.decomp_dir).get(entry.fields.get("pBattleAnimDef", "").lstrip("&").strip()) if entry else None
+        if anim is None:
+            wtype = WEAPON_TYPES_REV.get(item["weaponType"])
+            lines = {d["weapon"]: d["number"] for d in conf or []}
+            anim = lines.get(item["id"], lines.get(wtype))
+        table = banim.table(self.decomp_dir)
+        return not anim or anim > len(table) or banim.casts_at_range(self.decomp_dir, table[anim - 1].symbol)
+
+    def _with_animation_sounds(self, out: dict[str, str | bytes]) -> None:
+        if any(rel.endswith(".s") and banim_import.has_sounds(text) for rel, text in self.asset_files.items()):
+            out.update(banim_import.sound_files(self.decomp_dir))
+
     def _with_spell_choices(self, out: dict[str, str | bytes]) -> None:
         """Items taking another item's spell: their row of the spell table becomes a copy of its row."""
         if not self.spell_choices or not (self.decomp_dir / SPELL_ASSOC_FILE).is_file():
@@ -2358,6 +2380,7 @@ class DecompData:
             self._with_new_item_copies(out)
         self._with_item_bonuses(out)
         self._with_spell_choices(out)
+        self._with_animation_sounds(out)
         return out
 
     # ---------- assets ----------

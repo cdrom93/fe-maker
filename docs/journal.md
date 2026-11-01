@@ -116,3 +116,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : cahier des charges simplifié : ce qui est fait résumé par phase, restes regroupés et remis à jour, chaque question ouverte en section 8.
 - 01/11/2026 : fiche objet comparée à FEBuilder : écarts dans le cahier (section 4, phase 2), le type d'un objet ne met pas à jour ses attributs.
 - 01/11/2026 : fiche objet : effet, points de rang, bonus de stats, propriétés, sort, texte d'utilisation ; le type met à jour les attributs ; champs ajoutés enregistrés une fois dans le projet, validation de 90 s à 1,6 s sur un projet ancien.
+- 01/11/2026 : arme magique façon Andaron Saga (case et sort sur la fiche, avertissement sans animation à distance), commande `S` des animations importées (#132), grille d'icônes (#128), libellés d'effets (#130), #129 noté pour plus tard.
