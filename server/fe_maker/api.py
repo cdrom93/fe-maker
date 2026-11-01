@@ -732,6 +732,7 @@ class MapObjectsIn(BaseModel):
     objects: dict = {}
     tileset: dict | None = None         # metatiles added to the tileset (tileedit.py)
     base: str | None = None             # another tile sheet of the game (ticket 21)
+    offset: tuple[int, int] = (0, 0)    # where the map moved when its left or top side did
 
 
 @app.post("/api/maps/{layout_id}/objects")
@@ -746,10 +747,11 @@ def map_objects(layout_id: str, body: MapObjectsIn):
         assets = maps.with_base(DECOMP_DIR, layout["assets"], body.base)
         terrain = bytes(tileedit.Tileset(DECOMP_DIR, _tile_layout(layout_id, assets), body.tileset).terrain) \
             if body.tileset else None
-        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects, terrain, assets)
+        objects = mapobjects.map_objects(DECOMP_DIR, layout_id, body.rows, changes, body.objects, terrain, assets, body.offset)
     except (IndexError, ValueError) as e:
         raise HTTPException(400, str(e)) from e
-    events = state.get_decomp().map_object_events(layout_id)
+    dx, dy = body.offset
+    events = {(x + dx, y + dy): e for (x, y), e in state.get_decomp().map_object_events(layout_id).items()}
     for obj in objects:
         found = next((events[tuple(c)] for c in obj["cells"]
                       if tuple(c) in events and mapobjects.event_matches(events[tuple(c)]["kind"], obj["kind"])), None)

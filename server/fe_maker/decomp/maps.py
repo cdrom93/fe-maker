@@ -453,6 +453,13 @@ def change_set_json(decomp_dir: Path, symbol: str) -> str | None:
     return f"{m.group(1)}.json" if m else None
 
 
+def moved_rows(rows: list[list[int]], offset: tuple[int, int], width: int, height: int) -> list[list[int]]:
+    """A grid as it stands once its map moved by `offset`, in a map of that size; -1: no cell there."""
+    dx, dy = offset
+    return [[rows[y - dy][x - dx] if 0 <= y - dy < len(rows) and 0 <= x - dx < len(rows[0]) else -1
+             for x in range(width)] for y in range(height)]
+
+
 def add_change_set(layout_id: str, map_change_source: str) -> tuple[str, str]:
     """A change set for a layout that has none: its JSON file, and data/data_map_change.s including it."""
     symbol = f"{layout_id}Changes"

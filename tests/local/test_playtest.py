@@ -1133,3 +1133,23 @@ def test_a_condition_gives_an_item_to_a_living_character(tmp_path):
         elixir, antitoxin = 0x6D, 0x6F
         assert game.wait_until(lambda: game.chapter() == 0 and elixir in _items(game), seconds=240, step=20, tap="START")
         assert antitoxin not in _items(game)   # the second condition's block is skipped
+
+
+def test_original_village_follows_a_moved_map(tmp_path):
+    """The events of the game follow; its scenes do not (chapter 2's opening freezes), so this reads the source."""
+    from fe_maker.decomp import maps
+
+    project = Project.create(tmp_path / "moved", "Moved")
+    decomp = project.decomp_dir
+    layout = maps.layouts(decomp)["Ch2Map"]
+    width, height, cells = maps.read_layout(layout["assets"].layout)
+    dx, dy = 3, 2
+    plain = max(set(cells), key=cells.count)
+    rows = [[plain] * (width + dx) for _ in range(dy)] + \
+        [[plain] * dx + cells[y * width:(y + 1) * width] for y in range(height)]
+    changes = [{**c, "x": c["x"] + dx, "y": c["y"] + dy} for c in maps.read_changes(decomp, layout["changes"])]
+    project.save("maps", {"layouts": {"Ch2Map": {"rows": rows}}, "changes": {"Ch2Map": changes},
+                          "offsets": {"Ch2Map": [dx, dy]}})
+    text = (project.generate_overlay() / "src/events/ch2-eventinfo.h").read_text(encoding="utf-8")
+    assert "EventScr_Ch2_Village1, 7, 4)" in text and "EventScr_Ch2_Village3, 4, 14)" in text
+    assert "EventScr_FEM_" not in text    # nothing recreated

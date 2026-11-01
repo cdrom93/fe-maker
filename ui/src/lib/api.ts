@@ -172,7 +172,7 @@ export const api = {
     request<{ rows: number[][] }>('POST', `/api/maps/${id}/fill`, body),
   mapPieces: (id: string, base: string | null = null) =>
     request<{ pieces: MapPiece[] }>('GET', `/api/maps/${id}/pieces${base ? `?base=${encodeURIComponent(base)}` : ''}`),
-  mapObjects: (id: string, body: { rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>
+  mapObjects: (id: string, body: { offset?: [number, number]; rows: number[][]; changes: MapChange[] | null; objects: Record<string, MapObjectSettings>; tileset: TilesetEdits | null; base: string | null }) =>
     request<MapObjects>('POST', `/api/maps/${id}/objects`, body),
   /** Tiled (ticket 25): write the map in the project's tiled/ folder and open Tiled; read it back; read any .tmx */
   exportTiled: (id: string, body: { rows: number[][]; changes: MapChange[] | null; edits: TilesetEdits | null; palette: string | null; base: string | null }) =>

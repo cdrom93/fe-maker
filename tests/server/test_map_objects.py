@@ -144,3 +144,26 @@ def test_shops():
     source = "// 0x1\nCONST_DATA u16 ShopList_A[] = {\n    ITEM_SWORD_IRON,\n    ITEM_LANCE_IRON,\n\n    ITEM_NONE,\n};\n"
     assert mo.read_shop_lists(source) == {"ShopList_A": ["ITEM_SWORD_IRON", "ITEM_LANCE_IRON"]}
     assert mo.read_shop_lists(mo.shop_list("ShopList_A", ["ITEM_SWORD_IRON"])) == {"ShopList_A": ["ITEM_SWORD_IRON"]}
+
+
+def test_location_events_follow_a_moved_map():
+    from fe_maker.decomp.mapobjects import move_location_events, read_location_events
+
+    body = (
+        "    Chest(ITEM_ELIXIR, 1, 2)\n    ChestMoney(500, 2, 3)\n    Door(4, 5, EVFLAG_TMP(7))\n"
+        "    Village(EVFLAG_TMP(8), EventScr_Mine, 6, 1)\n    House(0, EventScr_Other, 7, 1)\n"
+        "    Armory(ShopList_Mine, 8, 2)\n    Seize(9, 9)\n    Door(0, 0, EVFLAG_TMP(9))\n"
+    )
+    moved = move_location_events(body, 2, -1, 12, 12)
+    assert moved == (
+        "    Chest(ITEM_ELIXIR, 3, 1)\n    ChestMoney(500, 4, 2)\n    Door(6, 4, EVFLAG_TMP(7))\n"
+        "    Village(EVFLAG_TMP(8), EventScr_Mine, 8, 0)\n    House(0, EventScr_Other, 9, 0)\n"
+        "    Armory(ShopList_Mine, 10, 1)\n    Seize(9, 9)\n"     # the objective moves by itself; (2, -1): outside
+    )
+    assert [(e["kind"], e["x"], e["y"]) for e in read_location_events(moved)][0] == ("chest", 3, 1)
+
+
+def test_moved_rows():
+    from fe_maker.decomp.maps import moved_rows
+
+    assert moved_rows([[1, 2], [3, 4]], (1, -1), 3, 2) == [[-1, 3, 4], [-1, -1, -1]]

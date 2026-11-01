@@ -288,6 +288,8 @@ export interface MapsData {
   tilesets?: Record<string, TilesetEdits>
   /** another palette of the tileset, by layout id (an asset name of the game, server: maps.palette_choices) */
   palettes?: Record<string, string>
+  /** where a map moved when its left or top side did: its original events follow it */
+  offsets?: Record<string, [number, number]>
   /** retouched colors of the game's palettes: palette -> color index -> #rrggbb */
   paletteColors?: Record<string, Record<string, string>>
   /** another tile sheet of the game, by layout id (its tile config name, server: maps.base_choices) */

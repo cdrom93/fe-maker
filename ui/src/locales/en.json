@@ -1254,7 +1254,7 @@
   "maps.addBottom": "Bottom",
   "maps.applySize": "Change to {w} × {h}",
   "maps.sizeHint": "Cells to add on each side (a negative number removes some); new cells get the selected tile.",
-  "maps.moveConfirm": "Changes, units and seize tiles follow the map. Coordinates written in scenes do not move: check them. Continue?",
+  "maps.moveConfirm": "Warning: coordinates written in scenes do not follow. A scene may aim at the wrong cells, or freeze the game. Changes, villages, chests, doors, units and seize tiles follow the map. Continue?",
   "banim.ranged": "Strikes at range",
   "banim.rangedHint": "The ranged attack of the sword, lance or axe casts a spell: what a magic weapon needs. The gesture varies between animations: check the \"Ranged attack\" movement once imported.",
   "banim.allWeapons": "All weapons",

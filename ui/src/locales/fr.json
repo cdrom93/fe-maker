@@ -1254,7 +1254,7 @@
   "maps.addBottom": "En bas",
   "maps.applySize": "Passer à {w} × {h}",
   "maps.sizeHint": "Cases à ajouter de chaque côté (un nombre négatif en retire) ; les nouvelles cases prennent la tuile choisie.",
-  "maps.moveConfirm": "Les changements, les unités et les cases à prendre suivent la carte. Les coordonnées écrites dans les scènes ne bougent pas : à revoir. Continuer ?",
+  "maps.moveConfirm": "Attention : les coordonnées écrites dans les scènes ne suivent pas. Une scène peut viser les mauvaises cases, ou bloquer le jeu. Les changements, villages, coffres, portes, unités et cases à prendre suivent la carte. Continuer ?",
   "banim.ranged": "Frappe à distance",
   "banim.rangedHint": "L'attaque à distance de l'épée, de la lance ou de la hache lance un sort : c'est ce qu'il faut à une arme magique. Le geste change d'une animation à l'autre : vérifiez le mouvement « Attaque à distance » une fois importée.",
   "banim.allWeapons": "Toutes les armes",

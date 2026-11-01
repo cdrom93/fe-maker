@@ -585,6 +585,7 @@ class DecompData:
         tilesets = maps_data.get("tilesets", {})
         palettes = maps_data.get("palettes", {})
         bases = maps_data.get("bases", {})
+        offsets = maps_data.get("offsets", {})
         colors = maps_data.get("paletteColors", {})
         if not painted and not changes and not settings and not tilesets and not palettes and not bases and not colors:
             return
@@ -640,8 +641,9 @@ class DecompData:
             terrain = terrains.get(assets.config.stem)
             if terrain is None and assets.config != known[layout_id]["assets"].config:
                 terrain = maps.read_config(assets.config)[1]
+            offset = tuple(offsets.get(layout_id, (0, 0)))
             objects = mapobjects.map_objects(self.decomp_dir, layout_id, rows, explicit, settings.get(layout_id),
-                                             terrain, assets)
+                                             terrain, assets, offset)
             autos = [o["auto"] for o in objects if o["auto"]]
             # Ruined villages first: the engine takes the last change holding a cell, and a gate's
             # last one must stay its closed village (mapobjects.ruin_change).
@@ -659,7 +661,7 @@ class DecompData:
                         self.chapter_settings["chapters"][chapter]["map"]["changeLayerId"] = index
                 files, map_change_source = maps.write_changes(self.decomp_dir, json_rel, written, map_change_source)
                 self.map_files.update(files)
-            self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}), terrain)
+            self._apply_map_events(layout_id, rows, objects, settings.get(layout_id, {}), terrain, offset)
         if map_change_source != original_source:
             self.map_files[maps.MAP_CHANGE_FILE] = map_change_source
         for layout_id, layout in painted.items():
@@ -710,35 +712,40 @@ class DecompData:
         return objectives._list(self.event_sources, name) if re.fullmatch(r"\w+", name) else None
 
     def _apply_map_events(self, layout_id: str, rows: list[list[int]], objects: list[dict], settings: dict,
-                          edited_terrain: bytes | None = None) -> None:
+                          edited_terrain: bytes | None = None, offset: tuple[int, int] = (0, 0)) -> None:
         """Location events of the chapters using a layout: events added for new villages, houses,
-        chests and doors (or set in the project), removed where the painting erased the object."""
+        chests and doors (or set in the project), removed where the painting erased the object; the
+        original ones follow a map moved by `offset`."""
         layout = maps.layouts(self.decomp_dir)[layout_id]
         _metatiles, original_terrain = maps.read_config(layout["assets"].config)
-        original = self._original_rows(layout_id)
+        original = maps.moved_rows(self._original_rows(layout_id), offset, len(rows[0]), len(rows))
 
         def kind_at(grid, x, y):
             terrain = original_terrain if grid is original else (edited_terrain or original_terrain)
-            if 0 <= y < len(grid) and 0 <= x < len(grid[0]) and grid[y][x] < len(terrain):
+            if 0 <= y < len(grid) and 0 <= x < len(grid[0]) and 0 <= grid[y][x] < len(terrain):
                 return mapobjects.KINDS.get(terrain[grid[y][x]])
             return None
 
         erased = any(kind_at(original, x, y) in mapobjects.EVENT_KINDS and kind_at(rows, x, y) != kind_at(original, x, y)
                      for y in range(len(original)) for x in range(len(original[0])))
         added = any(o["new"] and o["kind"] in mapobjects.EVENT_KINDS for o in objects)
-        if not (erased or added or settings):
+        if not (erased or added or settings or any(offset)):
             return
         self._load_chapter_events()
 
         done = set()
         for index in layout["chapters"]:
             found = self._location_list(index)
-            if not found or found in done:
+            if not found or found[:2] in done:
                 continue
-            done.add(found)
+            done.add(found[:2])
             rel, start, end = found
             source = self.event_sources[rel]
             body = source[start:end]
+            if any(offset):
+                body = mapobjects.move_location_events(body, *offset, len(rows[0]), len(rows))
+                self.event_sources[rel] = source = source[:start] + body + source[end:]
+                end = start + len(body)
             events = mapobjects.read_location_events(body)
             prefix = rel.rsplit("-", 1)[0]
             flags = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])

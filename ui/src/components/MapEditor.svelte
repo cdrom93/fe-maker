@@ -355,6 +355,7 @@
     const id = info.id
     const body = JSON.parse(JSON.stringify({
       rows: savedRows, changes: list.records[0]?.changes?.[id] ?? null, objects: objectSettings, tileset: tilesetEdits ?? null, base: chosenBase,
+      offset: list.records[0]?.offsets?.[id] ?? [0, 0],
     }))
     const timer = setTimeout(async () => {
       const n = ++objectsRequest
@@ -848,6 +849,7 @@
       if (d.layouts) delete d.layouts[id]
       if (d.changes) delete d.changes[id]
       if (d.objects) delete d.objects[id]
+      if (d.offsets) delete d.offsets[id]
       if (d.palettes) delete d.palettes[id]
       if (d.bases) delete d.bases[id]
     })
@@ -1104,6 +1106,10 @@
         })
         saveChanges(kept)
         list.update(0, (d) => {
+          const [ox, oy] = d.offsets?.[id] ?? [0, 0]
+          d.offsets ??= {}
+          if (ox + dx || oy + dy) d.offsets[id] = [ox + dx, oy + dy]
+          else delete d.offsets[id]
           const settings = d.objects?.[id]
           if (!settings) return
           d.objects![id] = Object.fromEntries(Object.entries(settings).map(([key, value]) => {

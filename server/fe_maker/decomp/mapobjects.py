@@ -316,7 +316,7 @@ def _covered(obj: dict, changes: list[dict], terrain: bytes) -> int | None:
 
 def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes: list[dict] | None,
                 settings: dict | None = None, terrain: bytes | None = None,
-                assets: maps.MapAssets | None = None) -> list[dict]:
+                assets: maps.MapAssets | None = None, offset: tuple[int, int] = (0, 0)) -> list[dict]:
     """Objects of a layout with what the build will do for them.
 
     Each object: kind, x, y, cells, "new" (not on the original map), "change" (id of the change
@@ -325,7 +325,8 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
     before the others so that the gate's last change stays the closed village),
     "noAfter" (new object whose used state is unknown for this tileset). `terrain` replaces the
     tileset's terrains when the project added metatiles (tileedit.py); `assets`: the layout drawn
-    with another tile sheet (ticket 21), whose objects are new where the terrain changed."""
+    with another tile sheet (ticket 21), whose objects are new where the terrain changed; `offset`:
+    where the map moved when its left or top side did, an object that moved with it is not new."""
     layout = maps.layouts(decomp_dir)[layout_id]
     original = layout["assets"]
     assets = assets or original
@@ -336,11 +337,13 @@ def map_objects(decomp_dir: Path, layout_id: str, rows: list[list[int]], changes
     original_terrain = maps.read_config(original.config)[1] if assets.config != original.config else None
 
     def changed(x: int, y: int) -> bool:
-        if x >= width or y >= height:
+        now = rows[y][x]
+        x, y = x - offset[0], y - offset[1]
+        if not (0 <= x < width and 0 <= y < height):
             return True
         if original_terrain is None:
-            return cells[y * width + x] != rows[y][x]
-        before, now = cells[y * width + x], rows[y][x]
+            return cells[y * width + x] != now
+        before = cells[y * width + x]
         return (original_terrain[before] if before < len(original_terrain) else None) != \
             (terrain[now] if now < len(terrain) else None)
 
@@ -425,6 +428,27 @@ def read_location_events(body: str) -> list[dict]:
         if event["x"] is not None and event["y"] is not None:
             out.append(event)
     return out
+
+
+_FIRST_COORDINATE = {"Chest": 1, "ChestMoney": 1, "Door": 0, "Door_": 0, "Village": 2, "House": 2, "Armory": 1, "Vendor": 1,
+                     "SecretShop": 1}
+
+
+def move_location_events(body: str, dx: int, dy: int, width: int, height: int) -> str:
+    """A location list with its villages, houses, chests, doors and shops following a moved map; those
+    now outside it are dropped."""
+    for event in sorted(read_location_events(body), key=lambda e: e["span"], reverse=True):
+        start, end = event["span"]
+        x, y = event["x"] + dx, event["y"] + dy
+        if not (0 <= x < width and 0 <= y < height):
+            body = body[:start] + body[end:]
+            continue
+        m = _EVENT_RE.match(body, start)
+        args = _args(m.group(2))
+        at = _FIRST_COORDINATE[event["macro"]]
+        args[at: at + 2] = [str(x), str(y)]
+        body = body[:m.start(2)] + ", ".join(args) + body[m.end(2):]
+    return body
 
 
 def event_matches(event_kind: str, object_kind: str | None) -> bool:

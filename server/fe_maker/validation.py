@@ -581,7 +581,8 @@ def _validate_map_objects(problems, maps_data: dict, known_layouts: dict, decomp
         try:
             found = mapobjects.map_objects(decomp_dir, layout_id, layout["rows"], maps_data.get("changes", {}).get(
                 layout_id, decomp_maps.read_changes(decomp_dir, known_layouts[layout_id]["changes"])
-                if known_layouts[layout_id]["changes"] else []), settings.get(layout_id))
+                if known_layouts[layout_id]["changes"] else []), settings.get(layout_id),
+                offset=tuple(maps_data.get("offsets", {}).get(layout_id, (0, 0))))
         except (IndexError, TypeError, ValueError):
             continue  # malformed rows: reported above
         # A change drawn by hand for an object is applied only through the object's own cell: moved
