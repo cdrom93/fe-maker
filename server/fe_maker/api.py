@@ -1265,6 +1265,22 @@ def _animation_source(ref: str) -> tuple[Path, str]:
     return DECOMP_DIR, anim.symbol
 
 
+ATTACK_WEAPONS = ("sword", "lance", "axe", "bow", "anima", "light", "dark")
+
+
+def _usable_weapons(class_id: str) -> list[dict]:
+    if state.project is None:
+        return []
+    classes, characters = state.project.load("classes"), state.project.load("characters")
+    return [i for i in state.project.load("items") if class_id in validation.weapon_users(i, classes, characters)]
+
+
+def _reaches(item: dict, mode: str) -> bool:
+    """A weapon uses this attack: `max` 0 is a reach that follows Magic."""
+    reach = item.get("range") or {}
+    return reach.get("max", 1) != 1 if mode in banim.RANGED_MODES else reach.get("min", 1) <= 1
+
+
 @app.get("/api/classes/{class_id}/animations")
 def class_animations(class_id: str):
     """The class's battle animations, by weapon type or item (ticket 44), with the project's changes: an
@@ -1278,6 +1294,16 @@ def class_animations(class_id: str):
     imported = project.get("animations", {})
     changed = banim_import.with_groups(project.get("classes", {}).get(class_id, {}))
     left = dict(changed)
+    usable = _usable_weapons(class_id)
+    own_line = {d["weapon"] for d in banim.configs(DECOMP_DIR).get(conf, [])} | set(changed)   # weapons with their own animation
+
+    def empty(wtype, item_id, base, symbol) -> dict[str, list[str]]:
+        """Empty movements of an attacking weapon -> the weapons of the class that need them."""
+        if wtype not in ATTACK_WEAPONS and not item_id:
+            return {}
+        same_type = [i for i in usable if i["weaponType"] == wtype and i["id"] not in own_line]
+        weapons = [i for i in usable if i["id"] == item_id] if item_id else same_type
+        return {m: [i["name"] for i in weapons if _reaches(i, m)] for m in banim.empty_modes(base, symbol)}
 
     def describe(wtype, item_id, anim) -> dict | None:
         if isinstance(anim, str) and anim.startswith("new:") and anim[4:] in imported:
@@ -1285,12 +1311,13 @@ def class_animations(class_id: str):
             base, symbol = state.project.root / "assets" / ANIMATIONS_DIR / key, banim_import.symbol_of(key)
             return {"wtype": wtype, "item": item_id, "ref": f"new-{key}", "number": None,
                     "name": imported[key].get("name", key), "imported": True, "modes": banim.modes_of(base, symbol),
-                    "source": imported[key].get("source")}
+                    "empty": empty(wtype, item_id, base, symbol), "source": imported[key].get("source")}
         game = animations.get(anim) if isinstance(anim, int) else None
         if game is None:
             return None
         return {"wtype": wtype, "item": item_id, "ref": str(game.number), "number": game.number, "name": game.name,
-                "imported": False, "modes": banim.modes_of(DECOMP_DIR, game.symbol)}
+                "imported": False, "modes": banim.modes_of(DECOMP_DIR, game.symbol),
+                "empty": empty(wtype, item_id, DECOMP_DIR, game.symbol)}
 
     result = []
     for d in banim.configs(DECOMP_DIR).get(conf, []):

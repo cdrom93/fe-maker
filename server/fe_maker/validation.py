@@ -252,6 +252,16 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
     return problems
 
 
+def weapon_users(item: dict, classes: list[dict], characters: list[dict]) -> set[str]:
+    """The classes that can wield a weapon: those it is reserved for, else those with a rank in its type."""
+    wtype, reserved = item.get("weaponType"), item.get("reservedFor")
+    if reserved:
+        chosen = reserved.get("characters", ())
+        return set(reserved.get("classes", ())) | {c.get("class") for c in characters if c["id"] in chosen}
+    return ({cl["id"] for cl in classes if cl.get("weaponRanks", {}).get(wtype)}
+            | {c.get("class") for c in characters if c.get("weaponRanks", {}).get(wtype)})
+
+
 def _validate_ranged_animations(problems, items, classes, characters, decomp: DecompData, animations, assets_dir):
     """A sword, lance or axe that reaches 2 tiles: the classes wielding it need an animation that strikes from afar."""
     names = {cl["id"]: cl.get("name") or cl["id"] for cl in classes}
@@ -261,13 +271,7 @@ def _validate_ranged_animations(problems, items, classes, characters, decomp: De
         if it.get("weaponType") not in MELEE_TYPES or not isinstance(rng.get("max"), int) or rng["max"] < 2:
             continue
         wtype = it["weaponType"]
-        reserved = it.get("reservedFor")
-        if reserved:
-            users = set(reserved.get("classes", ()))
-            users |= {c.get("class") for c in characters if c["id"] in reserved.get("characters", ())}
-        else:
-            users = {cl["id"] for cl in classes if cl.get("weaponRanks", {}).get(wtype)}
-            users |= {c.get("class") for c in characters if c.get("weaponRanks", {}).get(wtype)}
+        users = weapon_users(it, classes, characters)
         lacking = list(dict.fromkeys(names[c] for c in names if c in users and wtype in _animated.get(c, ())
                                      and not decomp.casts_at_range(c, models[c], it, animations, assets_dir)))
         if lacking:

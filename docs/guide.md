@@ -50,6 +50,7 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 
 - Les chapitres ajoutés prennent des places libres du jeu : 21 dans un projet ordinaire, 41 dans un projet vierge.
 - Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
+- Une épée, une lance ou une hache qui frappe à distance demande une animation qui a le mouvement « Attaque à distance » : la plupart des haches du jeu ne l'ont pas. Le filtre « Frappe à distance » de la bibliothèque en trouve dans le FE-Repo.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
 - Couleurs du portrait : le résultat est approché, à retoucher au besoin ; une animation importée ne protège pas sa monture.

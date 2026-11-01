@@ -32,6 +32,8 @@ GRAPHICS_DIR = "graphics/banim"
 MODES = ("stand", "attack_close", "attack_close_critical", "attack_range", "attack_range_critical",
          "dodge_close", "dodge_range", "attack_miss", "stand_close", "stand_range",
          "attack_close_back", "attack_close_critical_back")
+ATTACK_MODES = ("attack_close", "attack_close_critical", "attack_range", "attack_range_critical")
+RANGED_MODES = ("attack_range", "attack_range_critical")
 PALETTES = ("player", "enemy", "ally", "other")
 # GBA sprite sizes by shape (attr0 bits 14-15) and size (attr1 bits 14-15).
 SIZES = {0: [(8, 8), (16, 16), (32, 32), (64, 64)], 1: [(16, 8), (32, 8), (32, 16), (64, 32)],
@@ -179,6 +181,13 @@ def casts_at_range(base: Path, symbol: str) -> bool:
     """An animation's ranged attack calls the spell: what makes it hit from afar. True if its script cannot be read."""
     path = base / MOTION_DIR / f"{symbol}_motion.s"
     return not path.is_file() or _casts(str(path), path.stat().st_mtime_ns, symbol)
+
+
+def empty_modes(base: Path, symbol: str) -> list[str]:
+    """Attacks with at most one picture, and ranged attacks that call no spell: nothing reaches the target."""
+    found = motion(base, symbol).modes
+    silent = not casts_at_range(base, symbol)
+    return [m for m in ATTACK_MODES if len(found.get(m, ())) <= 1 or (silent and m in RANGED_MODES)]
 
 
 def modes_of(decomp_dir: Path, symbol: str) -> list[str]:

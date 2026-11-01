@@ -699,6 +699,8 @@ export interface ClassAnimation {
   number: number | null
   name: string
   modes: string[]
+  /** empty movements of an attacking weapon -> the weapons that need them */
+  empty: Record<string, string[]>
   /** imported in the project (FE-Repo) */
   imported: boolean
   /** changed by the project for this weapon type */

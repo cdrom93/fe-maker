@@ -221,3 +221,13 @@ def test_casts_at_range_reads_the_ranged_mode_only(tmp_path):
     assert not banim.casts_at_range(tmp_path, "banim_x")
     assert banim.casts_at_range(tmp_path, "banim_y")
     assert banim.casts_at_range(tmp_path, "banim_gone")     # nothing to say about what cannot be read
+
+
+def test_empty_movements(tmp_path):
+    """Ticket 135: an attack of one picture, or a ranged attack that calls no spell."""
+    (tmp_path / "data/banim").mkdir(parents=True)
+    frame = "    banim_code_frame 3, sheet, 0, banim_e_oam_r - banim_e_oam_r\n"
+    (tmp_path / "data/banim/banim_e_motion.s").write_text(
+        f"banim_e_mode_attack_close:\n{frame}{frame}banim_e_mode_attack_close_critical:\n{frame}"
+        f"banim_e_mode_attack_range:\n{frame}{frame}banim_e_mode_attack_range_critical:\n{frame}{frame}", encoding="utf-8")
+    assert banim.empty_modes(tmp_path, "banim_e") == ["attack_close_critical", "attack_range", "attack_range_critical"]

@@ -113,7 +113,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord.
 **État (01/11/2026)** :
 1. **Préalables** : faits. Historique git sans ROM ni asset, position des mainteneurs connue (section 2).
 2. **Fonctions avant le gel** : faites. Personnages, armes, classes et chapitres ajoutés sur les places libres, conditions et sauts, sprites de carte, démo de musique, patchs de confort.
-3. **Gel** : hack témoin joué (« La Fuite de Lorn », fonctionnel dans l'ensemble) et test automatique au vert, aucun ticket ouvert. **Reste** : décider le gel de la version `0.1.0-alpha`.
+3. **Gel** : hack témoin joué (« La Fuite de Lorn », fonctionnel dans l'ensemble) et test automatique au vert ; #129 reporté après l'alpha. **Reste** : décider le gel de la version `0.1.0-alpha`.
 4. **Paquet sans Node** : prêt (`tools/make_release.py`, `release.yml` sur tag, pas encore lancé). La décomp se télécharge au premier lancement, au commit fixé.
 5. **Image Docker sur ghcr.io** : prête. Elle est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
 6. **Premier lancement guidé** : prêt (`checks.py`).
@@ -132,10 +132,11 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - **Fait** : éditeur de classes (stats, déplacement, armes, promotions, capacités, animations, sprites, portrait générique), triangle des armes, efficacités, affinités, armes inutilisables signalées. Fiche personnage et fiche classe comparées à FEBuilder ; couleurs en combat par classe, tirées du portrait ou peintes sur le sprite (tickets 125 à 127).
 - **Reste, fiche personnage** : ordre de tri, mini-portrait, animation propre au personnage, groupe de conversation, valeurs intermédiaires des rangs d'armes.
 - **Reste, fiche classe** : vitesse de déplacement sur la carte, ordre de tri, tables de pluie, de neige et de terrain réglables une à une.
-- **Fiche objet** (comparée le 01/11/2026) : effet de l'arme, points de rang, bonus de stats, propriétés, sort repris d'une autre arme, texte d'utilisation ; le type met à jour les attributs. Vérifié dans la ROM compilée, pas joué en combat. **Arme magique** sur épée, lance ou hache : une case dans Propriétés, avec le choix du sort, un avertissement si une classe n'a pas d'animation à distance (pas d'animation générée : l'idée reste dans git, commit 67140b2). Icône choisie dans une grille (#128), libellés d'effets à la FEBuilder (#130). Commande `S` des animations importées (#132), son vérifié par playtest ; hache du War Monk de FE-Repo convertie (sons F4 et F5, sort à distance), jouée par l'utilisateur sur son personnage. Filtre « Frappe à distance » de la bibliothèque : 1 081 animations (275 haches, 407 lances), liste fournie avec FE Maker, à refaire avec `tools/scan_ranged_animations.py`. Pour plus tard : modifier des animations (ajouter une épée ou une lance à un pirate) ; #129 retirer les armes factices ou inutilisées de ce qu'un projet garde, avec plusieurs filtres pour choisir les objets conservés, et de même pour les classes, les personnages et les chapitres. Absents : effet d'usage (le moteur reconnaît consommables et bâtons à leur numéro, on n'ajoute donc que des armes), agrandissement de la table.
+- **Fiche objet** : comparée à FEBuilder le 01/11/2026. Effet de l'arme, points de rang, bonus de stats, propriétés, sort, texte d'utilisation, icône choisie dans une grille ; le type met à jour les attributs. Absents : effet d'usage (le moteur reconnaît consommables et bâtons à leur numéro, on n'ajoute donc que des armes), agrandissement de la table.
+- **Armes magiques** : une case dans Propriétés et un sort, sur n'importe quelle arme. Une attaque à distance demande une animation qui lance le sort : la fiche objet prévient, la fiche de classe marque les mouvements vides (orange, rouge si une arme en a besoin), le filtre « Frappe à distance » de la bibliothèque donne 1 081 animations (275 haches, 407 lances ; liste à refaire avec `tools/scan_ranged_animations.py`). Essayé par l'utilisateur avec la hache du War Monk.
 - **À faire** : stats moyennes d'une unité en montée automatique, dans son panneau de chapitre. Le calculateur de classe de FEBuilder est écarté : il double celui de la fiche personnage.
 - **Limites** : couleurs du portrait approchées ; une animation importée ne protège pas sa monture ; camps ennemis et portraits importés non comparés à une référence.
-- **Pas vérifié en jeu** : le portrait générique à l'écran (seule la valeur compilée l'est).
+- **Pas vérifié en jeu** : le portrait générique à l'écran (seule la valeur compilée l'est) ; effet, bonus et sort d'une arme vérifiés dans la ROM compilée, pas joués en combat.
 
 ### Phase 3 — Chapitres
 **État** :
@@ -162,6 +163,9 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 
 ### Après l'alpha
 - Agrandir les tables (objets, personnages, classes, cartes, chapitres).
+- Ce que garde un projet (ticket 129) : retirer armes factices ou inutilisées, avec plusieurs filtres, et de même pour les classes, les personnages et les chapitres.
+- Animations : modifier une animation (une épée ou une lance à un pirate), proposer les mouvements manquants depuis le FE-Repo ou les adapter d'une autre arme (ticket 134). L'animation de hache levée générée reste dans git (67140b2).
+- Animation pour une seule arme, sans toucher aux autres armes du même type : presque finie, mise de côté en local (`git stash`), à reprendre avec l'accord de l'utilisateur.
 - Projet vierge : retirer aussi les classes et les armes (gardées pour l'instant, le moteur en dépend).
 - Créer un chapitre d'après une fiche du wiki Fire Emblem (ticket 67), pour recréer un chapitre d'un autre jeu.
 

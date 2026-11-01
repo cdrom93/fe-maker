@@ -79,7 +79,8 @@
   }
 
   const anim = $derived(animations[chosen])
-  const modes = $derived(anim ? MODES.filter((m) => anim.modes.includes(m)) : [])
+  const modes = $derived(anim ? MODES.filter((m) => anim.modes.includes(m) || m in anim.empty) : [])
+  const neededFor = $derived(anim?.empty[mode] ?? [])
 
   // Load the strip of the chosen mode (frames side by side) and its timings.
   $effect(() => {
@@ -283,7 +284,9 @@
         <label>
           <span>{t('banim.mode')}</span>
           <select bind:value={mode}>
-            {#each modes as m (m)}<option value={m}>{t(`banim.mode.${m}`)}</option>{/each}
+            {#each modes as m (m)}
+              <option value={m} class:needed={anim.empty[m]?.length} class:empty={anim.empty[m]?.length === 0}>{m in anim.empty ? '● ' : ''}{t(`banim.mode.${m}`)}</option>
+            {/each}
           </select>
         </label>
         <label>
@@ -301,6 +304,13 @@
         <button onclick={() => (playing = !playing)}>{playing ? t('banim.pause') : t('banim.play')}</button>
       </div>
     </div>
+    {#if anim && mode in anim.empty && !preview}
+      {#if neededFor.length}
+        <p class="small needed">● {t('banim.emptyNeeded', { items: neededFor.join(', ') })}</p>
+      {:else}
+        <p class="small empty">● {t('banim.emptyMode')}</p>
+      {/if}
+    {/if}
     {#if anim?.changed && !preview}
       <p class="small">
         {#if anim.source}
@@ -340,4 +350,6 @@
   .small { font-size: 0.8rem; margin: 0.5rem 0 0; }
   .sources { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
   .sources button.active { background: var(--accent-soft); border-color: var(--accent); }
+  .needed { color: var(--bad); }
+  .empty { color: var(--warn); }
 </style>

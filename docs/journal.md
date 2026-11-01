@@ -119,3 +119,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : arme magique façon Andaron Saga (case et sort sur la fiche, avertissement sans animation à distance), commande `S` des animations importées (#132), grille d'icônes (#128), libellés d'effets (#130), #129 noté pour plus tard.
 - 01/11/2026 : arme magique et arme de monstre rangées dans Propriétés, avec le sort ; plus aucun hack cité dans l'interface.
 - 01/11/2026 : filtre « Frappe à distance » de la bibliothèque d'animations, depuis une liste tirée des scripts de FE-Repo (`tools/scan_ranged_animations.py`).
+- 01/11/2026 : avertissement reformulé autour du mouvement « Attaque à distance » (#134), mouvements vides marqués en orange ou en rouge dans la fiche de classe (#135), doc simplifiée, animation pour une seule arme mise de côté.

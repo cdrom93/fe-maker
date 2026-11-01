@@ -50,6 +50,7 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 
 - Added chapters take free slots of the game: 21 in an ordinary project, 41 in a blank one.
 - Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
+- A sword, lance or axe that strikes at range needs an animation with the "Ranged attack" movement: most of the game's axes have none. The library's "Strikes at range" filter finds some in FE-Repo.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
 - Portrait colours: the result is approximate, touch it up if needed; an imported animation does not protect its mount.
