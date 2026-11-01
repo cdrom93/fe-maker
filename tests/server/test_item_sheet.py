@@ -4,9 +4,8 @@ import shutil
 
 import pytest
 
-from fe_maker.project import Project
-
 from fe_maker.decomp.gamedata import ITEMS_FILE, SPELL_ASSOC_FILE, DecompData, _read_item_bonuses
+from fe_maker.project import Project
 
 SPELLS = """#define SPELL_ASSOC_DATA_WPN_DEFAULT(_item) SPELL_ASSOC_DATA_WPN(_item, -1)
 CONST_DATA struct SpellAssoc gSpellAssocData[] = {
