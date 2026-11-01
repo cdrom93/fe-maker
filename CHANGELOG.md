@@ -8,7 +8,7 @@ First public test version, Windows first. See [the guide](docs/guide.en.md) for 
 - **Characters:** starting level, average stats at a chosen level with promotions, affinities with the game's icons, portrait picked by its picture, gender following the class. A named ally's level is set on their sheet.
 - **Battle colours:** a character's own colours by class, drawn from their portrait or painted on the sprite, with zoom, swapped by dragging, and your own colours kept when you try others.
 - **Classes:** stats, animations, map sprites, generic portrait among the game's class cards and portraits.
-- **Items:** magic weapons of any type (Andaron Saga style, with a warning when a class has no ranged animation), icon picker, weapon effect, stat bonuses, rank points, properties (brave, unbreakable, no counter...), spell taken from another weapon, Use text; a new type brings what the engine expects of it.
+- **Items:** magic weapons of any type (with a warning when a class has no ranged animation), icon picker, weapon effect, stat bonuses, rank points, properties (brave, unbreakable, no counter...), spell taken from another weapon, Use text; a new type brings what the engine expects of it.
 - **Adding to the game:** characters, weapons, classes and chapters on the free slots of the game's tables; blank project starting from one empty chapter; choice of what a project keeps of the game.
 - **Maps:** painting, terrain brushes that join by themselves, filling empty space, buildings as blocks, tile sheets, villages, chests and doors, Tiled import and export.
 - **Chapters:** units, automatic levels, enemy levels by difficulty, objectives, reach and danger zone.

@@ -36,6 +36,8 @@ piège dans sa section.
 
 - Une arme de contact à portée 2 frappe de loin seulement si l'animation de la classe appelle le sort dans son mode à distance (`banim.casts_at_range`) : les haches ordinaires ne le font pas, d'où l'avertissement `noRangedAnimation`.
 
+- L'interface reste neutre : ne pas citer de hack ni de jeu tiers dans les textes de FE Maker.
+
 ## Cartes
 
 - Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.

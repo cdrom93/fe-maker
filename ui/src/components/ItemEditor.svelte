@@ -50,9 +50,10 @@
     return source && id !== it?.id && reference.rankableTypes.includes(source.weaponType) && source.weaponType !== 'staff'
   }))
 
-  const rangeWarning = $derived(problemFor('range'))
+  const rangeWarning = $derived(mine.find((p) => p.code === 'noRangedAnimation'))
+  const listed = $derived(mine.filter((p) => p !== rangeWarning))
   function problemFor(field: string): string {
-    const p = mine.find((x) => x.field === field || x.field.startsWith(field + '.'))
+    const p = listed.find((x) => x.field === field || x.field.startsWith(field + '.'))
     return p ? problemText(p) : ''
   }
 
@@ -104,16 +105,6 @@
     selected = Math.max(0, selected - 1)
   }
 </script>
-
-{#snippet spellChoice()}
-  <label class="eff spell">
-    <span>{t('item.spell')} <Help text={t('item.spellHint')} /></span>
-    <select value={it.spellFrom ?? ''} onchange={(e) => edit((i) => (i.spellFrom = (e.target as HTMLSelectElement).value || undefined))}>
-      <option value="">{t('item.spellOwn')}</option>
-      {#each spells as id (id)}<option value={id}>{list.records.find((r) => r.id === id)?.name ?? id}</option>{/each}
-    </select>
-  </label>
-{/snippet}
 
 <div class="editor">
   <RecordList records={list.records} {selected} onselect={(i) => (selected = i)} {problemIds}>
@@ -199,17 +190,6 @@
               </select>
             </label>
           {/if}
-          {#if magicChoice}
-            <label class="check">
-              <input type="checkbox" checked={it.properties.includes('magic')} onchange={(e) => setProperty('magic', (e.target as HTMLInputElement).checked)} />
-              <span>{t('item.prop.magic')} <Help text={t('item.prop.magicHint')} /></span>
-            </label>
-          {/if}
-          {#if casts}{@render spellChoice()}{#if noSpell}<p class="warn">⚠ {t('item.noSpell')}</p>{/if}{/if}
-          <label class="check" title={t('field.monsterWeaponHint')}>
-            <input type="checkbox" checked={it.monsterWeapon} onchange={(e) => edit((i) => (i.monsterWeapon = (e.target as HTMLInputElement).checked))} />
-            {t('field.monsterWeapon')}
-          </label>
         </div>
       </section>
 
@@ -240,6 +220,16 @@
       <details class="panel fold">
         <summary>{t('item.properties')}</summary>
         <div class="properties">
+          {#if magicChoice}
+            <label class="check">
+              <input type="checkbox" checked={it.properties.includes('magic')} onchange={(e) => setProperty('magic', (e.target as HTMLInputElement).checked)} />
+              <span>{t('item.prop.magic')} <Help text={t('item.prop.magicHint')} /></span>
+            </label>
+          {/if}
+          <label class="check">
+            <input type="checkbox" checked={it.monsterWeapon} onchange={(e) => edit((i) => (i.monsterWeapon = (e.target as HTMLInputElement).checked))} />
+            <span>{t('field.monsterWeapon')} <Help text={t('field.monsterWeaponHint')} /></span>
+          </label>
           {#each PROPERTIES as key (key)}
             <label class="check">
               <input type="checkbox" checked={it.properties.includes(key)} onchange={(e) => setProperty(key, (e.target as HTMLInputElement).checked)} />
@@ -247,7 +237,15 @@
             </label>
           {/each}
         </div>
-        {#if isWeapon && !casts}{@render spellChoice()}{/if}
+        {#if isWeapon}
+          <label class="eff spell">
+            <span>{t('item.spell')} <Help text={t('item.spellHint')} /></span>
+            <select value={it.spellFrom ?? ''} onchange={(e) => edit((i) => (i.spellFrom = (e.target as HTMLSelectElement).value || undefined))}>
+              <option value="">{t('item.spellOwn')}</option>
+              {#each spells as id (id)}<option value={id}>{list.records.find((r) => r.id === id)?.name ?? id}</option>{/each}
+            </select>
+          </label>
+        {/if}
       </details>
 
       <ReservationEditor item={it} {classes} {characters} onchange={(r) => edit((i) => (i.reservedFor = r))} />
@@ -264,7 +262,8 @@
             {t('field.rangeMagic')}
           </label>
         </div>
-        {#if rangeWarning}<p class="warn">⚠ {rangeWarning}</p>{/if}
+        {#if noSpell}<p class="warn">⚠ {t('item.noSpell')}</p>{/if}
+        {#if rangeWarning}<p class="warn">⚠ {problemText(rangeWarning)}</p>{/if}
       </section>
 
       <section class="panel">
@@ -277,9 +276,9 @@
         </div>
       </section>
 
-      {#if mine.length}
+      {#if listed.length}
         <section class="panel issues">
-          {#each mine as p, i (i)}<p class={p.severity}>{p.field}: {problemText(p)}</p>{/each}
+          {#each listed as p, i (i)}<p class={p.severity}>{p.field}: {problemText(p)}</p>{/each}
         </section>
       {/if}
     </div>
