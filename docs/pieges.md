@@ -38,6 +38,7 @@ piège dans sa section.
 
 ## Cartes
 
+- Tempête de neige, tempête de sable et flammes se mélangent avec les barres de PV et les bulles de dialogue (même VRAM de sprites) : avertissement dans la fiche du chapitre (#142).
 - Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.
 
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.

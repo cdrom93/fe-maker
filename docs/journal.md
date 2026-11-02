@@ -131,3 +131,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : #138 icônes du jeu pour les objectifs ; #139 icônes d'objets depuis FE-Repo ou le PC, vérifiées en ROM ; carte sans changement signalée dans la vue des unités ; trajets point par point reportés.
 - 02/11/2026 : fiche chapitre : météo, fond de combat et caméra au départ, vérifiés en jeu.
 - 02/11/2026 : dialogues et événements comparés à FEBuilder (conditions, commandes) ; écarts au cahier, phase 4.
+- 02/11/2026 : #142 avertissement quand la météo du chapitre se mélange avec les barres de PV ou les bulles (vérifié par playtest : tempête de neige, de sable, flammes).
