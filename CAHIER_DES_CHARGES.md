@@ -174,6 +174,8 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - Animation pour une seule arme, sans toucher aux autres armes du même type : presque finie, mise de côté en local (`git stash`), à reprendre avec l'accord de l'utilisateur.
 - Projet vierge : retirer aussi les classes et les armes (gardées pour l'instant, le moteur en dépend).
 - Créer un chapitre d'après une fiche du wiki Fire Emblem (ticket 67), pour recréer un chapitre d'un autre jeu.
+- Coûts de déplacement selon la météo (demande du 02/11/2026) : le moteur a trois tables par type de déplacement (normal, pluie, neige et blizzard ; les autres météos prennent la normale), FE Maker ne fait que choisir le type. À faire : éditer ces tables terrain par terrain, puis éventuellement une table propre au sable (code de `GetUnitMovementCost`).
+- Idées de l'utilisateur (02/11/2026), pour plus tard : un système de forge d'armes ; travailler à plusieurs sur un même projet.
 
 ### Phase 6 — Édition avancée et moteur
 - Patchs de confort restants : `docs/patchs-qol.md`.

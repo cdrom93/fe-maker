@@ -140,3 +140,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : #140 revu : marque du boss du jeu (lue dans la ROM) sur le brigand, porte de château (tuile la plus utilisée des cartes du jeu) pour « S'emparer d'une case ».
 - 02/11/2026 : #143 réglages du chapitre (convoi, préparation, brouillard, murs, météo, caméra, niveaux, fond de combat) dans une tuile repliée en bas de la fiche ; fonds de combat choisis dans une galerie d'images.
 - 02/11/2026 : #140 un fort d'une case (tuile de fort des cartes du jeu) pour « S'emparer d'une case ».
+- 02/11/2026 : cahier : coûts de déplacement par météo, forge d'armes et projets en groupe notés pour après l'alpha.
