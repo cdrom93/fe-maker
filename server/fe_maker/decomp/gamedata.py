@@ -81,6 +81,23 @@ MOVING_SPRITES_FILE = "src/unit_icon_move_data.c"
 LEVEL_BONUS_FIELDS = {"easy": "easyModeLevelMalus", "normal": "normalModeLevelMalus", "hard": "difficultModeLevelBonus"}
 
 
+# Weathers by their name in chapter_settings.json (WEATHER_<NAME>, include/types.h)
+WEATHERS = ("fine", "snow", "snowstorm", "night", "rain", "flames", "sandstorm", "clouds")
+LAST_BATTLE_BG_SET = 0x14   # GetBanimBackgroundIndex (src/banim-battleparse.c): 0 is the default set
+
+
+def _set_chapter_look(settings: list[dict], chapters: dict) -> None:
+    """Weather, battle background set and the camera's first cell, by chapter index, once changed."""
+    for index, weather in chapters.get("weather", {}).items():
+        if weather in WEATHERS:
+            settings[int(index)]["initialWeather"] = weather
+    for index, bg in chapters.get("battleBg", {}).items():
+        settings[int(index)]["battleTileSet"] = max(0, min(int(bg), LAST_BATTLE_BG_SET))
+    for index, (x, y) in chapters.get("camera", {}).items():
+        chapter = settings[int(index)]
+        chapter["initialPosX"], chapter["initialPosY"] = max(0, min(int(x), 63)), max(0, min(int(y), 63))
+
+
 def _set_level_bonus(settings: list[dict], edits: dict) -> None:
     for index, bonus in edits.items():
         for mode, field in LEVEL_BONUS_FIELDS.items():
@@ -458,7 +475,8 @@ class DecompData:
         "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups".
         "convoy" {chapter index: bool}: convoy available, once changed (convoy.py).
         "fog" {chapter index: vision range}: fog of war (0: none), once changed.
-        "wallHp" {chapter index: HP}: cracked walls' HP, once changed."""
+        "wallHp" {chapter index: HP}: cracked walls' HP, once changed.
+        "weather", "battleBg", "camera" ([x, y]) {chapter index: value}: once changed."""
         return {"unitGroups": {}, "objectives": {}}
 
     def _with_sheet_levels(self, chapters: dict) -> dict:
@@ -513,6 +531,9 @@ class DecompData:
             self._load_chapter_events()
             for index, hp in wall_hp.items():
                 self.chapter_settings["chapters"][index]["mapCrackedWallHeath"] = max(1, min(hp, 127))
+        if any(chapters.get(key) for key in ("weather", "battleBg", "camera")):
+            self._load_chapter_events()
+            _set_chapter_look(self.chapter_settings["chapters"], chapters)
         if chapters.get("levelBonus"):
             self._load_chapter_events()
             _set_level_bonus(self.chapter_settings["chapters"], chapters["levelBonus"])

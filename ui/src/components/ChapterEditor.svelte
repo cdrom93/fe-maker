@@ -41,6 +41,8 @@
 
   const CELL = 32 // 16 px tiles shown at x2
   const ITEM_SLOTS = 4
+  const WEATHERS = ['fine', 'clouds', 'rain', 'snow', 'snowstorm', 'sandstorm', 'flames', 'night']
+  const LAST_BATTLE_BG_SET = 0x14
   const GROUP_SPRITES = 10
   const SHOWN_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']
   const GENERIC = '0x80' // first generic character id: no name, portrait or personal data
@@ -102,6 +104,28 @@
       else c.fog[key] = level
     })
   }
+  // Weather, battle background and the camera's first cell: the game's values are not stored.
+  const lookEdit = <K extends 'weather' | 'battleBg' | 'camera'>(field: K) =>
+    chapter ? (list.records[0]?.[field] as Record<string, ChapterInfo[K]> | undefined)?.[String(chapter.index)] : undefined
+  function setLook<K extends 'weather' | 'battleBg' | 'camera'>(field: K, value: ChapterInfo[K]) {
+    if (!chapter) return
+    const key = String(chapter.index)
+    const same = JSON.stringify(value) === JSON.stringify(chapter[field])
+    list.update(0, (c) => {
+      const stored = ((c as unknown as Record<string, unknown>)[field] ??= {}) as Record<string, unknown>
+      if (same) delete stored[key]
+      else stored[key] = value
+    })
+  }
+  const weather = $derived(lookEdit('weather') ?? chapter?.weather ?? 'fine')
+  const battleBg = $derived(lookEdit('battleBg') ?? chapter?.battleBg ?? 0)
+  const camera = $derived(lookEdit('camera') ?? chapter?.camera ?? [0, 0])
+  let pickingCamera = $state(false)
+  /** Battle background sets with the game's chapters that use them. */
+  const battleBgSets = $derived(Array.from({ length: LAST_BATTLE_BG_SET + 1 }, (_, n) => {
+    const users = [...new Set(chapters.filter((c) => c.battleBg === n && c.title).map((c) => c.title))]
+    return { n, users: users.slice(0, 3).join(', ') + (users.length > 3 ? '…' : '') }
+  }))
   const wallHpEdit = $derived(chapter ? list.records[0]?.wallHp?.[String(chapter.index)] : undefined)
 
   /** HP of the map's cracked walls; the game's value is not stored. */
@@ -264,10 +288,15 @@
 
   /** Map click while choosing the tile to seize, or the two corners of the area to reach. */
   function pickTile(e: MouseEvent) {
-    if (!pickingSeize || !mapEl || !data) return
+    if ((!pickingSeize && !pickingCamera) || !mapEl || !data) return
     const rect = mapEl.getBoundingClientRect()
     const x = Math.max(0, Math.min(data.width - 1, Math.floor((e.clientX - rect.left) / CELL)))
     const y = Math.max(0, Math.min(data.height - 1, Math.floor((e.clientY - rect.top) / CELL)))
+    if (pickingCamera) {
+      setLook('camera', [x, y])
+      pickingCamera = false
+      return
+    }
     if (objective?.type === 'area') {
       if (!areaCorner) {
         areaCorner = { x, y }
@@ -377,6 +406,7 @@
     openGroup = null
     shownChange = null
     pickingSeize = false
+    pickingCamera = false
     loading = true
     data = null
     originalObjective = null
@@ -540,6 +570,36 @@
           <Help text={t('chapter.wallHpHint')} />
           {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
         </div>
+        <div class="row wall-hp">
+          <label class="small setting">
+            {t('chapter.weather')}
+            <select value={weather} onchange={(e) => setLook('weather', (e.target as HTMLSelectElement).value)}>
+              {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w}`)}</option>{/each}
+            </select>
+          </label>
+          <Help text={t('chapter.weatherHint')} />
+          {#if lookEdit('weather') !== undefined}<span class="edited">✎</span>{/if}
+        </div>
+        <div class="row wall-hp">
+          <label class="small setting">
+            {t('chapter.battleBg')}
+            <select value={battleBg} onchange={(e) => setLook('battleBg', Number((e.target as HTMLSelectElement).value))}>
+              {#each battleBgSets as s (s.n)}
+                <option value={s.n}>{s.n === 0 ? t('chapter.battleBgDefault') : t('chapter.battleBgSet', { n: s.n })}{s.users ? ` (${s.users})` : ''}</option>
+              {/each}
+            </select>
+          </label>
+          <Help text={t('chapter.battleBgHint')} />
+          {#if lookEdit('battleBg') !== undefined}<span class="edited">✎</span>{/if}
+        </div>
+        <div class="row wall-hp">
+          <span class="small">{t('chapter.camera')} : {camera[0]}, {camera[1]}</span>
+          <button class:active={pickingCamera} onclick={() => { pickingCamera = !pickingCamera; pickingSeize = false }}>
+            {pickingCamera ? t('chapter.cameraPicking') : t('chapter.cameraPick')}
+          </button>
+          <Help text={t('chapter.cameraHint')} />
+          {#if lookEdit('camera') !== undefined}<span class="edited">✎</span>{/if}
+        </div>
         {#if levelBonus}
           <div class="row wall-hp">
             <span class="small">{t('chapter.levelBonus')}</span>
@@ -663,11 +723,11 @@
             </div>
             <div
               class="map"
-              class:picking={pickingSeize}
+              class:picking={pickingSeize || pickingCamera}
               role="application"
               bind:this={mapEl}
               onclickcapture={(e) => {
-                if (pickingSeize) {
+                if (pickingSeize || pickingCamera) {
                   e.stopPropagation()
                   pickTile(e)
                 }
@@ -686,6 +746,9 @@
               {#each danger ? [...reach.move, ...reach.strike] : reach.strike as [x, y] (`${x},${y}`)}
                 <span class="reach strike" style="left: {x * CELL}px; top: {y * CELL}px"></span>
               {/each}
+              {#if pickingCamera}
+                <span class="camera-marker" style="left: {camera[0] * CELL}px; top: {camera[1] * CELL}px" title={t('chapter.camera')}>🎥</span>
+              {/if}
               {#if objective?.type === 'seize'}
                 {#each objective.seize as tile, k (k)}
                   <span class="seize-marker" style="left: {tile.x * CELL}px; top: {tile.y * CELL}px" title={t('objective.type.seize')}><img class="pixel" src={itemIconUrl(OBJECTIVE_ICONS.seize)} alt="" /></span>
@@ -833,6 +896,12 @@
   .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.35rem 0.6rem; }
   .map-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
   .map-tools select { width: auto; }
+  .setting { flex-direction: row; align-items: center; gap: 0.4rem; color: var(--text); }
+  .setting select { width: auto; max-width: 26rem; }
+  .camera-marker {
+    position: absolute; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center;
+    border: 3px solid var(--accent); border-radius: 4px; background: var(--accent-soft); pointer-events: none; font-size: 15px;
+  }
   .shown-map { flex-direction: row; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
   .unit-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1rem 0.5rem; font-size: 0.85rem; }
   .dropped { color: var(--good, #2e9e5b); font-weight: 600; }

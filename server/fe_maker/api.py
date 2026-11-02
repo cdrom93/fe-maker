@@ -456,6 +456,9 @@ def list_chapters():
             "prep": _has_prep(i, ch, stored, scripts),   # unless changed (ticket 107)
             "fog": ch.get("initialFogLevel", 0),   # vision range in fog of war, 0: no fog
             "wallHp": ch.get("mapCrackedWallHeath", 50),
+            "weather": ch.get("initialWeather", "fine"),
+            "battleBg": ch.get("battleTileSet", 0),
+            "camera": [ch.get("initialPosX", 0), ch.get("initialPosY", 0)],
             "levelBonus": {mode: ch.get(field, 0) for mode, field in LEVEL_BONUS_FIELDS.items()},
         })
     return result

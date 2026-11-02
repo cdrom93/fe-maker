@@ -1214,3 +1214,16 @@ def test_an_imported_icon_is_in_the_game(tmp_path):
         tiles = game.address("item_icon_tiles") + icon * 0x80
         assert game.read(tiles) == 0x50     # pixel 1 of the first row, high nibble
         assert not any(game.read(tiles + n) for n in range(1, 0x80))
+
+
+def test_weather_battle_background_and_camera_in_game(tmp_path):
+    project = Project.create(tmp_path / "look", "Look")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    project.save("chapters", {"unitGroups": {}, "objectives": {}, "weather": {"0": "rain"}, "battleBg": {"0": 11},
+                              "camera": {"0": [7, 5]}})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
+        assert game.read("gPlaySt", 0x15) == 4     # chapterWeatherId: WEATHER_RAIN
+        prologue = game.address("gChapterDataTable")
+        assert [game.read(prologue + offset) for offset in (0x10, 0x11, 0x13)] == [7, 5, 11]

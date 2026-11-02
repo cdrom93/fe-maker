@@ -419,3 +419,11 @@ def test_imported_icon_takes_a_free_place_in_the_palette():
         itemicons.convert(data.getvalue(), palette)
     entry = ferepo.describe(ferepo.URL_PREFIX + "main/Item%20Icons/Axes/%7B2WB,%20Hanakko%7D%20Dark%20Axe.png")
     assert (entry["name"], entry["authors"]) == ("Dark Axe", ["2WB", "Hanakko"])
+
+
+def test_weather_battle_background_and_camera_of_a_chapter():
+    from fe_maker.decomp.gamedata import _set_chapter_look
+
+    settings = [{"initialWeather": "fine", "battleTileSet": 0, "initialPosX": 1, "initialPosY": 0}, {}]
+    _set_chapter_look(settings, {"weather": {"0": "rain", "1": "acid"}, "battleBg": {"0": 99}, "camera": {"0": [5, 70]}})
+    assert settings == [{"initialWeather": "rain", "battleTileSet": 0x14, "initialPosX": 5, "initialPosY": 63}, {}]

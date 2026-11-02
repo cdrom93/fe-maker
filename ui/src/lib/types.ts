@@ -140,6 +140,10 @@ export interface ChapterInfo {
   fog: number
   /** HP of the map's cracked walls in the game */
   wallHp: number
+  /** in the game: weather at the start, battle background set (0: default), cell the camera shows first */
+  weather: string
+  battleBg: number
+  camera: [number, number]
   levelBonus: LevelBonus
 }
 
@@ -187,6 +191,9 @@ export interface ChaptersData {
   fog?: Record<string, number>
   /** HP of the cracked walls, by chapter index, once changed from the game */
   wallHp?: Record<string, number>
+  weather?: Record<string, string>
+  battleBg?: Record<string, number>
+  camera?: Record<string, [number, number]>
   levelBonus?: Record<string, LevelBonus>
 }
 

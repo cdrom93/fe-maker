@@ -129,3 +129,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 01/11/2026 : objets de carte : liste avec leurs vraies tuiles, réglages dans une carte à part (#136) ; option pour masquer les retours au jeu d'origine, décochée pour un projet vierge (#137).
 - 01/11/2026 : fiche d'unité : objet lâché, liens vers ses répliques, stats calculées ; carte avec un changement ; groupes avec sprites, dans l'ordre du jeu. Comparaison des fiches chapitre et événements de FEBuilder.
 - 01/11/2026 : #138 icônes du jeu pour les objectifs ; #139 icônes d'objets depuis FE-Repo ou le PC, vérifiées en ROM ; carte sans changement signalée dans la vue des unités ; trajets point par point reportés.
+- 02/11/2026 : fiche chapitre : météo, fond de combat et caméra au départ, vérifiés en jeu.
