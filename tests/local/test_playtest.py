@@ -1227,3 +1227,23 @@ def test_weather_battle_background_and_camera_in_game(tmp_path):
         assert game.read("gPlaySt", 0x15) == 4     # chapterWeatherId: WEATHER_RAIN
         prologue = game.address("gChapterDataTable")
         assert [game.read(prologue + offset) for offset in (0x10, 0x11, 0x13)] == [7, 5, 11]
+
+
+def test_event_commands_change_weather_hp_side_and_ai(tmp_path):
+    project = Project.create(tmp_path / "evcmds", "Commands")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    script = "EventScr_Prologue_BeginningScene"
+    original = DecompData(project.decomp_dir).script_commands(script)
+    added = [{"op": "WEA1", "args": ["WEATHER_RAIN"]}, {"op": "SetHP", "args": ["CHARACTER_EIRIKA", "7"]},
+             {"op": "CUSE", "args": ["CHARACTER_SETH"]}, {"op": "SetAI", "args": ["CHARACTER_SETH", "0x303"]},
+             {"op": "SOUN", "args": ["0x5A"]}, {"op": "VCWF", "args": ["2"]}]
+    end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
+    project.save("dialogues", {"scripts": {script: original[:end] + added + original[end:]}})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
+        assert game.read("gPlaySt", offset=0x15) == 4   # WEATHER_RAIN
+        eirika = next(u for u in game.units() if u["character"] == 1)
+        assert eirika["hp"] == 7
+        assert any(u["character"] == 2 for u in game.units("Red"))   # Seth
+        game.screenshot().save(tmp_path / "rain.png")

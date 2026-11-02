@@ -112,3 +112,15 @@ def test_giving_an_item_is_written_as_the_game_does():
     command = {"op": "GiveItem", "args": ["CHARACTER_SETH", "ITEM_ELIXIR"]}
     assert ev.validate_command(command) is None
     assert ev.render_script([command]) == "\n    SVAL(EVT_SLOT_3, ITEM_ELIXIR)\n    GIVEITEMTO(CHARACTER_SETH)\n"
+
+
+def test_hp_and_ai_go_through_slot_1_and_the_weather_has_its_own_macro():
+    hp = {"op": "SetHP", "args": ["CHARACTER_SETH", "12"]}
+    ai = {"op": "SetAI", "args": ["CHARACTER_SETH", "0x300"]}
+    weather = {"op": "WEA1", "args": ["WEATHER_RAIN"]}
+    assert [ev.validate_command(c) for c in (hp, ai, weather)] == [None] * 3
+    assert ev.render_script([hp, ai]) == ("\n    SVAL(EVT_SLOT_1, 12)\n    SET_HP(CHARACTER_SETH)\n"
+                                          "    SVAL(EVT_SLOT_1, 0x300)\n    CHAI(CHARACTER_SETH)\n")
+    assert ev.validate_command({"op": "WEA1", "args": ["rain"]}) == "badArguments"
+    assert ev.validate_command({"op": "TILECHANGE", "args": ["x"]}) == "badArguments"
+    assert "EV_CMD_CHANGEWEATHER" in ev.WEATHER_MACRO and set(ev.ADDABLE) <= set(ev.COMMANDS)

@@ -134,3 +134,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : #142 avertissement quand la météo du chapitre se mélange avec les barres de PV ou les bulles (vérifié par playtest : tempête de neige, de sable, flammes).
 - 02/11/2026 : #141 aperçu du fond de combat (sur une plaine) sous le choix du jeu de fonds dans la fiche du chapitre.
 - 02/11/2026 : #140 icônes d'objectifs « Vaincre le chef » (brigand ennemi avec l'emblème) et « Vaincre tous les ennemis » (deux soldats ennemis), sprites de carte du jeu.
+- 02/11/2026 : palette des scènes : changement de tuiles et retour, météo (macro WEA1 ajoutée au build quand une scène s'en sert), vue dans le brouillard, passer à l'ennemi, cacher/montrer, bruitage, téléportation, PV et IA (par la mémoire 1) ; vérifié en jeu.

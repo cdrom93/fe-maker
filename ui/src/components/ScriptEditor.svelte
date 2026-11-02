@@ -8,6 +8,7 @@
   import { problemText, t } from '../lib/i18n.svelte'
   import type { Character, DialoguesData, EventCommand, EventsReference, Memory, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
+  import { AI_PRESETS } from '../lib/ai'
 
   let {
     name,
@@ -48,6 +49,15 @@
     CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
     GiveItem: '🎁', ChangeStat: '💪', MNC2: '🚪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
+    TILECHANGE: '🧱', TILEREVERT: '🧱', WEA1: '🌦️', VCWF: '🌫️', SOUN: '🔔', WARP_IN: '✨', WARP_OUT: '✨', CUSE: '⚔️',
+    REMU: '👋', REVEAL: '👥', SetHP: '❤️', SetAI: '🧠',
+  }
+  const WEATHERS = ['FINE', 'CLOUDS', 'RAIN', 'SNOW', 'SNOWSTORM', 'SANDSTORM', 'FLAMES', 'NIGHT'].map((w) => `WEATHER_${w}`)
+  /** AI of the event command CHAI: action + movement, in the event slot 1. */
+  const aiValue = (action: number, move: number) => `0x${(move << 8 | action).toString(16)}`
+  const aiLabel = (v: string) => {
+    const preset = AI_PRESETS.find(([, a, m]) => aiValue(a, m) === v.toLowerCase())
+    return preset ? t(`ai.preset.${preset[0]}`) : v
   }
   // Memory slots of the event engine (server: events.COMMANDS, kind "slot"): checks write their result in C.
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
@@ -195,6 +205,7 @@
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
       slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1',
       chapter: `0x${(chapter + 1).toString(16)}`,
+      weather: 'WEATHER_RAIN', ai: aiValue(0, 0), mapChange: '1',
     }
     return {
       op,
@@ -338,6 +349,9 @@
       if (a.kind === 'song') return [pretty(v, 'SONG_')]
       if (a.kind === 'background') return [pretty(v, 'BG_')]
       if (a.kind === 'x' || a.kind === 'y') return [v]
+      if (a.kind === 'weather') return [t(`weather.${v.replace('WEATHER_', '').toLowerCase()}`)]
+      if (a.kind === 'ai') return [aiLabel(v)]
+      if (a.kind === 'mapChange') return [`#${v}`]
       if (a.kind === 'flag' && memoryName(v) !== undefined) return [memoryName(v)!]
       return []
     }).join(', ')
@@ -578,6 +592,16 @@
                     <select value={String(Number(v))} onchange={(e) => setArg(i, k, `0x${Number((e.target as HTMLSelectElement).value).toString(16)}`)}>
                       {#each reference.chapters as n (n.index)}<option value={String(n.index)}>{n.title || n.index}</option>{/each}
                     </select>
+                  {:else if a.kind === 'weather'}
+                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#if !WEATHERS.includes(v)}<option value={v}>{v}</option>{/if}
+                      {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w.replace('WEATHER_', '').toLowerCase()}`)}</option>{/each}
+                    </select>
+                  {:else if a.kind === 'ai'}
+                    <select value={v.toLowerCase()} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#if !AI_PRESETS.some(([, ac, m]) => aiValue(ac, m) === v.toLowerCase())}<option value={v.toLowerCase()}>{v}</option>{/if}
+                      {#each AI_PRESETS as [key, ac, m] (key)}<option value={aiValue(ac, m)}>{t(`ai.preset.${key}`)}</option>{/each}
+                    </select>
                   {:else if a.kind === 'stat'}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
                       {#each STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
@@ -621,7 +645,7 @@
                   {:else if a.kind === 'group'}
                     <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else}
-                    <input class:short={['x', 'y', 'frames', 'number', 'amount'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                    <input class:short={['x', 'y', 'frames', 'number', 'amount', 'mapChange'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                     {#if a.kind === 'frames' && /^\d+$/.test(v)}<span class="tiny muted">{(Number(v) / 60).toFixed(1)} s</span>{/if}
                     {#if a.kind === 'character' && v}<span class="tiny muted">{charName(v)}</span>{/if}
                   {/if}

@@ -57,6 +57,18 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "STAL3": [("frames", "frames")],
     "DISA": [("character", "character")],
     "KILL": [("character", "character")],
+    "CUSE": [("character", "character")],
+    "REMU": [("character", "character")],
+    "REVEAL": [("character", "character")],
+    "TILECHANGE": [("change", "mapChange")],
+    "TILEREVERT": [("change", "mapChange")],
+    "WEA1": [("weather", "weather")],   # FE Maker's macro, added to the build when a script uses it
+    "VCWF": [("vision", "number")],
+    "SOUN": [("sound", "song")],
+    "WARP_IN": [("x", "x"), ("y", "y")],
+    "WARP_OUT": [("x", "x"), ("y", "y")],
+    "SetHP": [("character", "character"), ("hp", "number")],   # the editor's: SVAL + SET_HP
+    "SetAI": [("character", "character"), ("ai", "ai")],   # the editor's: SVAL + CHAI
     "CUSA": [("character", "character")],
     "CUSN": [("character", "character")],
     "ENUT": [("flag", "flag")],
@@ -98,7 +110,12 @@ ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "C
            "STAL", "DISA", "CUSA", "FADI", "FADU", "SetBackground", "ENUT", "ENUF",
            "CHECK_ALIVE", "CHECK_EXISTS", "CHECK_DEPLOYED", "CHECK_EVENTID", "CHECK_TURNS", "CHECK_HARD", "CHECK_ENEMIES",
            "GiveItem", "ChangeStat", "MNC2", "CHECK_MONEY", "CHECK_ACTIVE",
-           "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL")
+           "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL",
+           "TILECHANGE", "TILEREVERT", "WEA1", "VCWF", "SOUN", "WARP_IN", "WARP_OUT", "CUSN", "CUSE", "KILL", "REMU", "REVEAL",
+           "SetHP", "SetAI")
+# Weather change during a chapter (EV_CMD_CHANGEWEATHER has no macro in the decomp).
+MACROS_FILE = "include/EAstdlib.h"
+WEATHER_MACRO = "#define WEA1(weather) _EvtArg0(EV_CMD_CHANGEWEATHER, 2, 0, (weather)),\n"
 # Memories, the player's past choices: permanent event flags the game does not use (saved with the game, flags up to
 # 300), named in data/dialogues.json "memories" [{flag, name}]; scripts hold their number (ENUT, ENUF, CHECK_EVENTID).
 MEMORY_FLAGS = (240, 300)
@@ -189,6 +206,12 @@ def render_command(c: dict) -> str:
     if c.get("op") == "GiveItem":
         character, item = c["args"]
         return f"SVAL(EVT_SLOT_3, {item})\n    GIVEITEMTO({character})"
+    if c.get("op") == "SetHP":
+        character, hp = c["args"]
+        return f"SVAL(EVT_SLOT_1, {hp})\n    SET_HP({character})"
+    if c.get("op") == "SetAI":
+        character, ai = c["args"]
+        return f"SVAL(EVT_SLOT_1, {ai})\n    CHAI({character})"
     if c.get("op") == "ChangeStat":
         character, stat, amount = c["args"]
         return (f"SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, {unitstats.STATS.index(stat)})\n"
@@ -241,7 +264,8 @@ def validate_command(c: dict) -> str | None:
     if any(not str(a).strip() or any(ch in str(a) for ch in ";{}") for a in (args or [])):
         return "badArguments"
     patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}"),
-                "stat": re.compile("|".join(unitstats.STATS)), "amount": re.compile(r"[+-]?\d{1,2}")}
+                "stat": re.compile("|".join(unitstats.STATS)), "amount": re.compile(r"[+-]?\d{1,2}"),
+                "weather": re.compile(r"WEATHER_[A-Z]+"), "ai": _LABEL_RE, "mapChange": re.compile(r"\d{1,3}")}
     if any(kind in patterns and not patterns[kind].fullmatch(str(a).strip()) for (_n, kind), a in zip(spec, args or [])):
         return "badArguments"
     return None

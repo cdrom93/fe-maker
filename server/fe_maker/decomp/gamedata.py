@@ -2429,6 +2429,9 @@ class DecompData:
         for rel, source in self.event_sources.items():
             if source != self._original_event_sources[rel]:
                 out[rel] = source
+        if any("WEA1(" in s for s in out.values() if isinstance(s, str)):
+            macros = out.get(events.MACROS_FILE) or (self.decomp_dir / events.MACROS_FILE).read_text(encoding="utf-8")
+            out[events.MACROS_FILE] = macros.rstrip("\n") + "\n" + events.WEATHER_MACRO
         if self.chapter_settings is not None:
             settings = json.dumps(self.chapter_settings, indent=2)  # same layout as the decomp's file
             if settings != self._settings_raw:
