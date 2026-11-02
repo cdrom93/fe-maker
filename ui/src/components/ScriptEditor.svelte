@@ -50,7 +50,13 @@
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
     GiveItem: '🎁', ChangeStat: '💪', MNC2: '🚪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
     TILECHANGE: '🧱', TILEREVERT: '🧱', WEA1: '🌦️', VCWF: '🌫️', SOUN: '🔔', WARP_IN: '✨', WARP_OUT: '✨', CUSE: '⚔️',
-    REMU: '👋', REVEAL: '👥', SetHP: '❤️', SetAI: '🧠',
+    REMU: '👋', REVEAL: '👥', SetHP: '❤️', SetAI: '🧠', ScreenTint: '🎨', ScreenNormal: '🎨',
+    COUNTER_SET: '🔢', COUNTER_INC: '🔢', COUNTER_DEC: '🔢', COUNTER_CHECK: '❓',
+  }
+  /** Commands explained in a tooltip next to their fields. */
+  const OP_HINTS: Record<string, string> = {
+    ScreenTint: 'ev.tintHint', ScreenNormal: 'ev.tintHint', COUNTER_SET: 'ev.counterHint', COUNTER_INC: 'ev.counterHint',
+    COUNTER_DEC: 'ev.counterHint', COUNTER_CHECK: 'ev.counterHint',
   }
   const WEATHERS = ['FINE', 'CLOUDS', 'RAIN', 'SNOW', 'SNOWSTORM', 'SANDSTORM', 'FLAMES', 'NIGHT'].map((w) => `WEATHER_${w}`)
   /** AI of the event command CHAI: action + movement, in the event slot 1. */
@@ -63,7 +69,7 @@
   const SLOTS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D'].map((s) => `EVT_SLOT_${s}`)
   const BRANCHES = ['GOTO', 'BEQ', 'BNE', 'BGE', 'BGT', 'BLE', 'BLT']
   // Ready-made conditions: a check, a branch past the block when it fails, and the block's end label.
-  const CONDITIONS = ['if:alive', 'if:memory', 'if:notMemory', 'if:flag', 'if:turn']
+  const CONDITIONS = ['if:alive', 'if:memory', 'if:notMemory', 'if:flag', 'if:turn', 'if:counter']
   // Memories: the player's past choices, named here; their flag numbers stay out of sight (server: events.MEMORY_FLAGS).
   const MEMORY_ACTIONS = ['ask', 'memory:set', 'memory:forget']
   const STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con', 'mov']
@@ -205,7 +211,7 @@
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
       slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1',
       chapter: `0x${(chapter + 1).toString(16)}`,
-      weather: 'WEATHER_RAIN', ai: aiValue(0, 0), mapChange: '1',
+      weather: 'WEATHER_RAIN', ai: aiValue(0, 0), mapChange: '1', percent: op === 'ScreenTint' ? '60' : '100', counter: '0',
     }
     return {
       op,
@@ -219,6 +225,10 @@
     if (kind === 'if:turn') {
       return [{ op: 'CHECK_TURNS' }, { op: 'SVAL', args: ['EVT_SLOT_1', '5'] }, { op: 'BLT', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_1'] },
         { op: 'LABEL', args: [label] }]
+    }
+    if (kind === 'if:counter') {
+      return [{ op: 'COUNTER_CHECK', args: ['0'] }, { op: 'SVAL', args: ['EVT_SLOT_1', '1'] },
+        { op: 'BNE', args: [label, 'EVT_SLOT_C', 'EVT_SLOT_1'] }, { op: 'LABEL', args: [label] }]
     }
     const check = kind === 'if:alive' ? fresh('CHECK_ALIVE') : fresh('CHECK_EVENTID')
     // CHECK_EVENTID leaves 1 when the flag is set: "not" skips the block then
@@ -351,7 +361,8 @@
       if (a.kind === 'x' || a.kind === 'y') return [v]
       if (a.kind === 'weather') return [t(`weather.${v.replace('WEATHER_', '').toLowerCase()}`)]
       if (a.kind === 'ai') return [aiLabel(v)]
-      if (a.kind === 'mapChange') return [`#${v}`]
+      if (a.kind === 'mapChange' || a.kind === 'counter') return [`#${v}`]
+      if (a.kind === 'percent') return [`${v} %`]
       if (a.kind === 'flag' && memoryName(v) !== undefined) return [memoryName(v)!]
       return []
     }).join(', ')
@@ -368,6 +379,9 @@
     }
     if (check.op === 'CHECK_TURNS' && branch.op === 'BLT' && commands[start + 1]?.op === 'SVAL') {
       return t('ev.simple.ifTurn', { n: commands[start + 1].args?.[1] ?? '' })
+    }
+    if (check.op === 'COUNTER_CHECK' && branch.op === 'BNE' && commands[start + 1]?.op === 'SVAL') {
+      return t('ev.simple.ifCounter', { n: check.args?.[0] ?? '', v: commands[start + 1].args?.[1] ?? '' })
     }
     return null
   }
@@ -645,12 +659,16 @@
                   {:else if a.kind === 'group'}
                     <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else}
-                    <input class:short={['x', 'y', 'frames', 'number', 'amount', 'mapChange'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                    <input class:short={['x', 'y', 'frames', 'number', 'amount', 'mapChange', 'percent', 'counter'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                     {#if a.kind === 'frames' && /^\d+$/.test(v)}<span class="tiny muted">{(Number(v) / 60).toFixed(1)} s</span>{/if}
                     {#if a.kind === 'character' && v}<span class="tiny muted">{charName(v)}</span>{/if}
                   {/if}
                 </label>
               {/each}
+              {#if c.op === 'ScreenTint'}
+                <span class="tint" style:background={`rgb(${(c.args ?? []).slice(1).map((p) => Math.min(255, Math.round(1.6 * Number(p)))).join(',')})`}></span>
+              {/if}
+              {#if OP_HINTS[c.op]}<Help text={t(OP_HINTS[c.op])} />{/if}
             {:else}
               <span class="tag" title={t('ev.rawHint')}>{t('ev.raw')}</span>
               <code>{c.op}{c.args ? `(${c.args.join(', ')})` : ''}</code>
@@ -779,4 +797,5 @@
   .open { font-size: 0.8rem; }
   .simple { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
   .quote { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tint { display: inline-block; width: 1.4rem; height: 1.4rem; border-radius: var(--radius); border: 1px solid var(--border); align-self: center; }
 </style>

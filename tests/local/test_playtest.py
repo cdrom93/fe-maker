@@ -1247,3 +1247,31 @@ def test_event_commands_change_weather_hp_side_and_ai(tmp_path):
         assert eirika["hp"] == 7
         assert any(u["character"] == 2 for u in game.units("Red"))   # Seth
         game.screenshot().save(tmp_path / "rain.png")
+
+
+def test_screen_tint_counters_and_leaving_the_party(tmp_path):
+    project = Project.create(tmp_path / "evtint", "Tint")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    script = "EventScr_Prologue_BeginningScene"
+    original = DecompData(project.decomp_dir).script_commands(script)
+    added = [{"op": "ScreenTint", "args": ["0", "150", "40", "40"]},
+             {"op": "COUNTER_SET", "args": ["0", "3"]}, {"op": "COUNTER_INC", "args": ["0"]}, {"op": "STAL", "args": ["600"]},
+             {"op": "COUNTER_CHECK", "args": ["0"]}, {"op": "SVAL", "args": ["EVT_SLOT_1", "4"]},
+             {"op": "BNE", "args": ["0x7f", "EVT_SLOT_C", "EVT_SLOT_1"]},
+             {"op": "REMU", "args": ["CHARACTER_SETH"]}, {"op": "LABEL", "args": ["0x7f"]}]
+    end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
+    project.save("dialogues", {"scripts": {script: original[:end] + added + original[end:]}})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        # gEventSlotCounter (sym_iwram.txt, not in the map file); the tint lasts while the scene runs
+        assert game.wait_until(lambda: game.read(0x03000568, width=32) & 0xF == 4, seconds=240, step=20, tap="A")
+        game.run(30)
+        shot = game.screenshot().convert("RGB")
+        shot.save(tmp_path / "tint.png")
+        r, g, b = (sum(c) / len(c) for c in zip(*shot.getdata()))
+        assert r > 2 * g and r > 2 * b   # tinted red
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
+        base = game.address("gUnitArrayBlue")
+        seth = next(base + i * 0x48 for i in range(62) if game.read(base + i * 0x48, width=32)
+                    and game.read(game.read(base + i * 0x48, width=32), 4) == 2)
+        assert game.read(seth, 0x0C, width=32) & (1 << 16)   # Seth left the party (kept from chapter to chapter)

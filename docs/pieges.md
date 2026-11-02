@@ -53,6 +53,7 @@ piège dans sa section.
 - A village is destroyed through the change holding its roof (one cell above the gate), and the engine keeps the last change holding a cell: new villages get a ruined-village change written before all the other changes (`mapobjects.ruin_change`, `obj["ruin"]`), so the gate's last change stays the closed village. Playtests that end the turn must open the map menu on an empty cell (`game.units()` positions), and an enemy boss dying on a counter ends the prologue before other enemies act.
 
 ## Événements et enchaînement des chapitres
+- Une teinte d'écran (`EvtColorFadeSetup`) ne dure que le temps de la scène, et un playtest qui passe la scène avec Start ne la voit jamais : avancer avec A pour la vérifier.
 
 - Drapeaux temporaires : le jeu n'efface à chaque chapitre, et une sauvegarde rapide ne garde, que les 40 premiers (5 octets). Au-delà, un numéro repris d'un chapitre à l'autre reste levé et l'événement ne se déclenche plus (ticket 112 : porte au même numéro qu'un village). `chapterflags.py` efface les 16 octets et en sauvegarde 7 dès qu'un drapeau dépasse 40.
 

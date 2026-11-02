@@ -124,3 +124,18 @@ def test_hp_and_ai_go_through_slot_1_and_the_weather_has_its_own_macro():
     assert ev.validate_command({"op": "WEA1", "args": ["rain"]}) == "badArguments"
     assert ev.validate_command({"op": "TILECHANGE", "args": ["x"]}) == "badArguments"
     assert "EV_CMD_CHANGEWEATHER" in ev.WEATHER_MACRO and set(ev.ADDABLE) <= set(ev.COMMANDS)
+
+
+def test_screen_tint_archives_the_palettes_once_and_counters_are_checked():
+    tint = {"op": "ScreenTint", "args": ["4", "50", "50", "100"]}
+    red = {"op": "ScreenTint", "args": ["4", "150", "60", "60"]}
+    back = {"op": "ScreenNormal", "args": ["8"]}
+    assert [ev.validate_command(c) for c in (tint, red, back)] == [None] * 3
+    assert ev.render_script([tint, red, back, tint]) == (
+        "\n    STARTFADE\n    EvtColorFadeSetup(0x0, 0x20, 4, 128, 128, 256)\n"
+        "    EvtColorFadeSetup(0x0, 0x20, 4, 384, 153, 153)\n"
+        "    EvtColorFadeSetup(0x0, 0x20, 8, 256, 256, 256)\n    ENDFADE\n"
+        "    STARTFADE\n    EvtColorFadeSetup(0x0, 0x20, 4, 128, 128, 256)\n")
+    assert ev.validate_command({"op": "ScreenTint", "args": ["4", "red", "0", "0"]}) == "badArguments"
+    assert ev.validate_command({"op": "COUNTER_SET", "args": ["8", "1"]}) == "badArguments"
+    assert ev.validate_command({"op": "COUNTER_INC", "args": ["2"]}) is None

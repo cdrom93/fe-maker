@@ -69,6 +69,15 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "WARP_OUT": [("x", "x"), ("y", "y")],
     "SetHP": [("character", "character"), ("hp", "number")],   # the editor's: SVAL + SET_HP
     "SetAI": [("character", "character"), ("ai", "ai")],   # the editor's: SVAL + CHAI
+    # Screen tint (the editor's): red, green, blue in % of the normal colors, written as EvtColorFadeSetup on every
+    # palette; the first tint of a script archives the palettes (STARTFADE), going back to normal ends it (ENDFADE).
+    "ScreenTint": [("speed", "number"), ("red", "percent"), ("green", "percent"), ("blue", "percent")],
+    "ScreenNormal": [("speed", "number")],
+    # Counters: 8 per chapter (0-7), each 0 to 15; COUNTER_CHECK puts the value in slot C.
+    "COUNTER_SET": [("counter", "counter"), ("value", "number")],
+    "COUNTER_INC": [("counter", "counter")],
+    "COUNTER_DEC": [("counter", "counter")],
+    "COUNTER_CHECK": [("counter", "counter")],
     "CUSA": [("character", "character")],
     "CUSN": [("character", "character")],
     "ENUT": [("flag", "flag")],
@@ -112,7 +121,7 @@ ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "C
            "GiveItem", "ChangeStat", "MNC2", "CHECK_MONEY", "CHECK_ACTIVE",
            "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL",
            "TILECHANGE", "TILEREVERT", "WEA1", "VCWF", "SOUN", "WARP_IN", "WARP_OUT", "CUSN", "CUSE", "KILL", "REMU", "REVEAL",
-           "SetHP", "SetAI")
+           "SetHP", "SetAI", "ScreenTint", "ScreenNormal", "COUNTER_SET", "COUNTER_INC", "COUNTER_DEC")
 # Weather change during a chapter (EV_CMD_CHANGEWEATHER has no macro in the decomp).
 MACROS_FILE = "include/EAstdlib.h"
 WEATHER_MACRO = "#define WEA1(weather) _EvtArg0(EV_CMD_CHANGEWEATHER, 2, 0, (weather)),\n"
@@ -212,6 +221,11 @@ def render_command(c: dict) -> str:
     if c.get("op") == "SetAI":
         character, ai = c["args"]
         return f"SVAL(EVT_SLOT_1, {ai})\n    CHAI({character})"
+    if c.get("op") == "ScreenTint":
+        speed, *rgb = c["args"]
+        return f"EvtColorFadeSetup(0x0, 0x20, {speed}, {', '.join(str(min(int(v), 200) * 256 // 100) for v in rgb)})"
+    if c.get("op") == "ScreenNormal":
+        return f"EvtColorFadeSetup(0x0, 0x20, {c['args'][0]}, 256, 256, 256)\n    ENDFADE"
     if c.get("op") == "ChangeStat":
         character, stat, amount = c["args"]
         return (f"SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, {unitstats.STATS.index(stat)})\n"
@@ -223,7 +237,12 @@ def render_command(c: dict) -> str:
 
 def render_script(commands: list[dict], indent: str = "    ") -> str:
     """Script body: one command per line, blank lines kept."""
-    lines = ["" if c.get("op") == "" else indent + render_command(c) for c in commands]
+    lines, tinted = [], False
+    for c in commands:
+        if c.get("op") == "ScreenTint" and not tinted:
+            lines.append(indent + "STARTFADE")
+        tinted = (tinted or c.get("op") == "ScreenTint") and c.get("op") != "ScreenNormal"
+        lines.append("" if c.get("op") == "" else indent + render_command(c))
     return "\n" + "\n".join(lines) + "\n"
 
 
@@ -265,7 +284,8 @@ def validate_command(c: dict) -> str | None:
         return "badArguments"
     patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}"),
                 "stat": re.compile("|".join(unitstats.STATS)), "amount": re.compile(r"[+-]?\d{1,2}"),
-                "weather": re.compile(r"WEATHER_[A-Z]+"), "ai": _LABEL_RE, "mapChange": re.compile(r"\d{1,3}")}
+                "weather": re.compile(r"WEATHER_[A-Z]+"), "ai": _LABEL_RE, "mapChange": re.compile(r"\d{1,3}"),
+                "percent": re.compile(r"\d{1,3}"), "counter": re.compile(r"[0-7]")}
     if any(kind in patterns and not patterns[kind].fullmatch(str(a).strip()) for (_n, kind), a in zip(spec, args or [])):
         return "badArguments"
     return None
