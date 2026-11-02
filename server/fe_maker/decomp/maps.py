@@ -24,6 +24,7 @@ import io
 import json
 import re
 import struct
+from collections import Counter
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -586,3 +587,21 @@ def movement_costs(decomp_dir: Path) -> dict[str, list[int]]:
                 costs[constants[terrain]] = int(value)
         result[name] = costs
     return result
+
+
+@lru_cache(maxsize=8)
+def terrain_icon(decomp_dir: Path, terrain: int, scale: int = 1) -> bytes | None:
+    """PNG of the 16 x 16 tile the game's maps use most for a terrain (a fort, a castle gate...): an icon."""
+    uses: Counter = Counter()
+    for layout_id, entry in layouts(decomp_dir).items():
+        _metatiles, terrains = read_config(entry["assets"].config)
+        _w, _h, cells = read_layout(entry["assets"].layout)
+        uses.update((layout_id, m) for m in cells if m < len(terrains) and terrains[m] == terrain)
+    if not uses:
+        return None
+    (layout_id, metatile), _count = uses.most_common(1)[0]
+    palette, draw = _metatile_painter(layouts(decomp_dir)[layout_id]["assets"])
+    canvas = Image.new("P", (16, 16))
+    canvas.putpalette(palette)
+    draw(canvas, metatile, 0, 0)
+    return _png(canvas, scale)

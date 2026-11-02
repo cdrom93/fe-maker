@@ -461,3 +461,11 @@ def test_battle_background_preview_reads_whole_pictures_and_tile_sheets(tmp_path
     assert first.size == (240, battlebg.SHOWN) and first.getpixel((5, 5)) == (200, 10, 10)
     assert Image.open(io.BytesIO(battlebg.preview(tmp_path, 1))).getpixel((5, 5)) == (10, 200, 30)
     assert battlebg.preview(tmp_path, 7) is None
+
+
+def test_lz77_reads_literals_and_back_references():
+    from fe_maker.decomp.assets import lz77
+
+    # 6 bytes: "ab" as literals, then 4 bytes copied from 2 back ("abab")
+    data = bytes([0x10, 6, 0, 0, 0b00100000, ord("a"), ord("b"), 0x10, 0x01])
+    assert lz77(data) == b"ababab"

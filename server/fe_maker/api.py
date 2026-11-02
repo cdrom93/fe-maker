@@ -60,6 +60,7 @@ from .decomp import (
 from .decomp.assets import (
     ITEM_ICON_PALETTE,
     MAP_SPRITE_PALETTES,
+    boss_icon,
     card_names,
     card_preview,
     face_preview,
@@ -1810,6 +1811,24 @@ def ferepo_icons(q: str = "", refresh: bool = False, folder: str = "", offset: i
         raise HTTPException(503, str(e)) from e
     entries, total = ferepo.search(index, ferepo.ITEM_ICONS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
     return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ITEM_ICONS)}
+
+
+@app.get("/api/assets/boss-icon")
+def boss_mark():
+    """The mark the map puts on bosses (ticket 140)."""
+    png = boss_icon(DECOMP_DIR, state.settings.rom_path)
+    if png is None:
+        raise HTTPException(404)
+    return Response(png, media_type="image/png")
+
+
+@app.get("/api/assets/terrain-icon/{terrain}")
+def terrain_icon(terrain: int):
+    """The tile the game's maps use most for a terrain (ticket 140: a castle gate for seizing)."""
+    png = maps.terrain_icon(DECOMP_DIR, terrain, 2)
+    if png is None:
+        raise HTTPException(404)
+    return Response(png, media_type="image/png")
 
 
 @app.get("/api/assets/battle-bg/{bg_set}")

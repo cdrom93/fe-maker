@@ -187,3 +187,55 @@ def item_icon_preview(decomp_dir: Path, icon_files: list[str], icon_id: int, sca
     if not png.is_file():
         return None
     return render_indexed(png, read_agbpal(decomp_dir / ITEM_ICON_PALETTE)[16 * line:], scale)
+
+
+MISC_UI_DATA = "data/data_59E8E0.s"
+BOSS_ICON_TILE = 0x10   # PutUnitSpriteIconsOam (src/bmudisp.c): the boss mark, tile 0x10 of the map's UI sheet
+MISC_UI_COLUMNS = 0x12   # LoadObjUIGfx copies the sheet 18 tiles wide
+
+
+def lz77(data: bytes, offset: int = 0) -> bytes:
+    """GBA BIOS LZ77 (type 0x10) data at `offset`, decompressed."""
+    size = int.from_bytes(data[offset + 1: offset + 4], "little")
+    out = bytearray()
+    i = offset + 4
+    while len(out) < size:
+        flags = data[i]
+        i += 1
+        for bit in range(8):
+            if len(out) >= size:
+                break
+            if flags & (0x80 >> bit):
+                length, back = (data[i] >> 4) + 3, ((data[i] & 0xF) << 8 | data[i + 1]) + 1
+                i += 2
+                for _ in range(length):
+                    out.append(out[-back])
+            else:
+                out.append(data[i])
+                i += 1
+    return bytes(out)
+
+
+def _rom_symbol(decomp_dir: Path, symbol: str) -> tuple[int, int] | None:
+    """(offset, size) in the ROM of data the decomp still takes from it (.incbin "baserom.gba")."""
+    m = re.search(rf"^{symbol}:.*\n\s*\.incbin \"baserom\.gba\", (0x[0-9A-Fa-f]+), (0x[0-9A-Fa-f]+)",
+                  (decomp_dir / MISC_UI_DATA).read_text(encoding="utf-8"), re.M)
+    return (int(m.group(1), 16), int(m.group(2), 16)) if m else None
+
+
+@lru_cache(maxsize=2)
+def boss_icon(decomp_dir: Path, rom: Path, scale: int = 3) -> bytes | None:
+    """The 8 x 8 mark the map puts on bosses, read from the ROM (the decomp has no picture of it)."""
+    gfx, pal = _rom_symbol(decomp_dir, "gGfx_MiscUiGraphics"), _rom_symbol(decomp_dir, "gPal_MiscUiGraphics")
+    if gfx is None or pal is None or not rom.is_file():
+        return None
+    data = rom.read_bytes()
+    sheet = lz77(data, gfx[0])
+    colors = []
+    for (value,) in struct.iter_unpack("<H", data[pal[0]: pal[0] + 32]):
+        r, g, b = value & 0x1F, (value >> 5) & 0x1F, (value >> 10) & 0x1F
+        colors.append((r << 3 | r >> 2, g << 3 | g >> 2, b << 3 | b >> 2))
+    tile = sheet[BOSS_ICON_TILE * 32: BOSS_ICON_TILE * 32 + 32]   # row 0 of the sheet
+    pixels = bytes(v for byte in tile for v in (byte & 0xF, byte >> 4))
+    img = Image.frombytes("P", (8, 8), pixels)
+    return _render_image(img, colors, scale)
