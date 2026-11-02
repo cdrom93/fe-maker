@@ -142,3 +142,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : #140 un fort d'une case (tuile de fort des cartes du jeu) pour « S'emparer d'une case ».
 - 02/11/2026 : cahier : coûts de déplacement par météo, forge d'armes et projets en groupe notés pour après l'alpha.
 - 02/11/2026 : événements : teinte de l'écran et couleurs normales, compteurs (régler, +1, -1, condition « si un compteur vaut »), « Cacher / Montrer une unité » renommées « Retirer de l'équipe / Revenir dans l'équipe » ; vérifiés en jeu. Combat scripté, pièges et placement en difficile reportés.
+- 02/11/2026 : `docs/a-tester.md` : suite du hack d'essai, « Le Retour de Lorn », pour les nouveautés du 31/10 au 02/11.
