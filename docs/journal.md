@@ -146,3 +146,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : cahier, section 8 : réflexion sur le passage entre FEBuilder et FE Maker (`.ups`, import, aller simple).
 - 02/11/2026 : cahier, phase 5 : musique, on reste sur le MIDI ; patchs de pistes, d'instruments et de batterie à reprendre, écoute dans le navigateur FE-Repo.
 - 02/11/2026 : cahier, phase 5 : relevé de tous les endroits où le jeu choisit une musique.
+- 02/11/2026 : ménage de la doc : cahier (règles des chapitres, événements, musique regroupés, reports à sa demande), CHANGELOG et guides à jour.

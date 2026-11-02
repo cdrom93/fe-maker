@@ -34,11 +34,11 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 | Tab | What for |
 |---|---|
 | Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
-| Chapters | One chapter in three views: units and objective, map, dialogues |
+| Chapters | One chapter in three views: units and objective, map, dialogues; its settings (weather, battle background, camera, fog...) are folded at the bottom |
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes; a character's battle colours, drawn from their portrait or painted on the sprite |
 | Game options | Starting settings, comfort, test options, what the project keeps |
 
-In a chapter, a **scene** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown.
+In a chapter, a **scene** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown. A scene can come on a turn or over several turns, on Talk, when a unit stops in an area, or from a memory.
 
 A small **i** next to a title or an option holds its explanation: hover over it.
 
