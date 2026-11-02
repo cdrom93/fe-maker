@@ -4,6 +4,7 @@ Run with:  FE_MAKER_ROM=path/to/fe8.gba python -m pytest tests/local -s
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -246,5 +247,27 @@ def test_features_of_24_october_build(tmp_path):
     project.save("chapters", {"unitGroups": {}, "objectives": {}, "convoy": {"0": True, "2": False}})
 
     assert [p for p in project.validate() if p.severity == "error"] == []
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
+    assert not out.matches_original
+
+
+def test_area_flag_and_turn_range_scenes_build(tmp_path):
+    """New scenes started by an area, by a memory flag and on a range of turns; the decomp still builds."""
+    from fe_maker.decomp.gamedata import DecompData
+
+    project = Project.create(tmp_path / "scenes", "Scenes")
+    say = [{"kind": "face", "pos": "MidLeft", "face": "FID_Eirika"},
+           {"kind": "say", "pos": "MidLeft", "text": "Here!", "wait": True}]
+    quotes = [{"kind": "area", "chapter": 2, "a": "CHARACTER_EIRIKA", "area": [4, 3, 1, 1], "steps": say},
+              {"kind": "flag", "chapter": 2, "a": "CHARACTER_EIRIKA", "flag": 240, "steps": say},
+              {"kind": "turn", "chapter": 2, "a": "CHARACTER_EIRIKA", "turn": 2, "endTurn": 4, "phase": "player", "steps": say}]
+    project.save("dialogues", {"messages": {}, "quotes": quotes})
+    assert [p for p in project.validate() if p.severity == "error"] == []
+    decomp = DecompData(project.decomp_dir)
+    decomp.apply_dialogues(project.load("dialogues"))
+    source = "\n".join(decomp.event_sources.values())
+    assert re.search(r"AREA\(EVFLAG_TMP\(\d+\), EventScr_FEM_Area_2_0, 1, 1, 4, 3\)", source)
+    assert re.search(r"AFEV\(EVFLAG_TMP\(\d+\), EventScr_FEM_Flag_2_0, 240\)", source)
+    assert "TURN(0, EventScr_FEM_Turn_2_0, 2, 4, FACTION_BLUE)" in source
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""))
     assert not out.matches_original

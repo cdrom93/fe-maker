@@ -451,7 +451,7 @@ export interface DialogueScene {
   script: string
   file: string
   messages: number[]
-  trigger: { kind: string; turn?: string; faction?: string; a?: string; b?: string; x?: string; y?: string; via?: string }
+  trigger: { kind: string; turn?: string; end?: string; flag?: string; faction?: string; a?: string; b?: string; x?: string; y?: string; via?: string }
 }
 
 /** The game's talk font: character -> [byte, width in pixels], and the box sizes. */
@@ -526,7 +526,7 @@ export interface SupportPair {
 
 export interface NewQuote {
   /** battle quote, last words, or a conversation started with "Talk" (a talks to b) */
-  kind: 'battle' | 'death' | 'talk' | 'turn' | 'support' | 'scene'
+  kind: 'battle' | 'death' | 'talk' | 'turn' | 'support' | 'scene' | 'area' | 'flag'
   /** a scene's message ending on a Yes / No choice */
   question?: boolean
   /** message of an event script ("scene"): scripts refer to it as "new:<key>" */
@@ -536,6 +536,12 @@ export interface NewQuote {
   /** turn scene: the turn and the side whose phase starts it */
   turn?: number
   phase?: 'player' | 'enemy' | 'ally'
+  /** turn scene: last turn of a range (shown at the start of each of these turns); 0 or none: once */
+  endTurn?: number
+  /** area scene: x1, y1, x2, y2 (a player unit stops there) */
+  area?: number[]
+  /** flag scene: shown once this flag is set (a memory, or a flag another scene sets) */
+  flag?: number
   /** chapter index; 255 = every chapter */
   chapter: number
   a: string

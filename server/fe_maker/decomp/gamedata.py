@@ -981,6 +981,9 @@ class DecompData:
         turns = [q for q in data.get("quotes", []) if q.get("kind") == "turn"]
         for n, scene in enumerate(turns):
             self._add_turn_scene(n, scene)
+        for kind in ("area", "flag"):
+            for n, scene in enumerate(q for q in data.get("quotes", []) if q.get("kind") == kind):
+                self._add_misc_scene(kind, n, scene)
         if data.get("scripts"):
             self._apply_scripts(data["scripts"], scene_ids)
         if data.get("triggers"):
@@ -995,7 +998,7 @@ class DecompData:
         conversations = [q for q in data.get("quotes", []) if q.get("kind") == "support"]
         if data.get("supports") is not None:
             self._apply_supports(data["supports"], conversations)
-        new_quotes = [q for q in new_quotes if q.get("kind") not in ("turn", "support")]
+        new_quotes = [q for q in new_quotes if q.get("kind") not in ("turn", "support", "area", "flag")]
         if not new_quotes:
             return
         self._load_chapter_events()
@@ -1058,16 +1061,33 @@ class DecompData:
         return next(f for f in range(first, 100) if f not in used)
 
     def _add_turn_scene(self, n: int, scene: dict) -> None:
-        """A message at the start of turn N of a side (once)."""
+        """A message at the start of turn N of a side (once); with an end turn, at the start of each turn
+        from N to the end (no flag: the game runs a flagless event every time)."""
         index = int(scene.get("chapter", 0))
         found = self._event_list(index, "turnBasedEvents")
         turn = max(1, int(scene.get("turn", 1)))
+        end = int(scene.get("endTurn") or 0)
         faction = dialogues.FACTIONS.get(scene.get("phase", "player"), "FACTION_BLUE")
-        flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
+        flag = f"EVFLAG_TMP({self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)})" if end <= turn else "0"
         message = self.texts.add(self._message(scene.get("steps") or []))
         name = f"EventScr_FEM_Turn_{index}_{n}"
         self._add_to_list(found, dialogues.scene_script(name, message),
-                          [f"TURN(EVFLAG_TMP({flag}), {name}, {turn}, 0, {faction})"])
+                          [f"TURN({flag}, {name}, {turn}, {end if end > turn else 0}, {faction})"])
+
+    def _add_misc_scene(self, kind: str, n: int, scene: dict) -> None:
+        """A message (once) when a player unit stops in an area (AREA), or once a flag is set (AFEV:
+        a memory, or a flag set by another scene)."""
+        index = int(scene.get("chapter", 0))
+        found = self._event_list(index, "miscBasedEvents")
+        flag = self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)
+        message = self.texts.add(self._message(scene.get("steps") or []))
+        name = f"EventScr_FEM_{kind.capitalize()}_{index}_{n}"
+        if kind == "area":
+            x1, y1, x2, y2 = (max(0, int(v)) for v in scene.get("area") or (0, 0, 0, 0))
+            entry = f"AREA(EVFLAG_TMP({flag}), {name}, {min(x1, x2)}, {min(y1, y2)}, {max(x1, x2)}, {max(y1, y2)})"
+        else:
+            entry = f"AFEV(EVFLAG_TMP({flag}), {name}, {int(scene.get('flag') or 0)})"
+        self._add_to_list(found, dialogues.scene_script(name, message), [entry])
 
     def _add_reinforcements(self, name: str, meta: dict, group_units: list[dict]) -> None:
         """A group made in the project: its units arrive at the start of turn N of a side, with the

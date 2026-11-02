@@ -373,13 +373,16 @@ def scene_triggers(group: dict[str, str], lists: dict[str, str], scripts: set[st
             k = parts.index(script)
             rest = parts[k + 1:]
             if macro == "TURN" and rest:
-                out[script] = {"kind": "turn", "turn": rest[0], "faction": rest[2] if len(rest) > 2 else ""}
+                out[script] = {"kind": "turn", "turn": rest[0], "faction": rest[2] if len(rest) > 2 else "",
+                               "end": rest[1] if len(rest) > 1 else "0"}
             elif macro in ("CHAR", "CHAR_", "CharacterEventBothWays") and len(rest) >= 2:
                 out[script] = {"kind": "talk", "a": rest[0], "b": rest[1]}
             elif macro in ("Village", "House") and len(rest) >= 2:
                 out[script] = {"kind": macro.lower(), "x": rest[0], "y": rest[1]}
             elif macro == "AREA":
                 out[script] = {"kind": "area", "area": ", ".join(rest)}
+            elif macro == "AFEV" and rest and rest[0].isdigit():
+                out[script] = {"kind": "flag", "flag": rest[0]}
             elif macro in ("DefeatAll", "DefeatBoss"):
                 out[script] = {"kind": "ending"}
             else:
@@ -398,6 +401,9 @@ def with_trigger(source: str, script: str, change: dict) -> str:
                 args[k + 1] = str(turn)
                 # one turn stays one turn; a range ("from turn 1 on") keeps its end, 0 meaning no end
                 args[k + 2] = str(turn if end == start else 0 if end == 0 else max(end, turn))
+            if "endTurn" in change:   # a range: from the turn to this one (0: no end)
+                end = int(change["endTurn"] or 0)
+                args[k + 2] = str(max(end, int(args[k + 1], 0)) if end else 0)
             if change.get("faction"):
                 args[k + 3] = change["faction"]
         else:
@@ -425,7 +431,7 @@ def without_lost_messages(scripts: dict, quotes: list[dict]) -> dict:
             for name, commands in scripts.items()}
 
 
-SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "other", "battle", "death", "ending", "tutorial")
+SCENE_ORDER = ("beginning", "turn", "talk", "village", "house", "area", "flag", "other", "battle", "death", "ending", "tutorial")
 
 
 # ---------- new conversations ("Talk" on the map) ----------

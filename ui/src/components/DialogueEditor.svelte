@@ -223,7 +223,8 @@
   function sceneLabel(s: DialogueScene): string {
     const tr = triggerOf(s)
     switch (tr.kind) {
-      case 'turn': return t(tr.faction === 'FACTION_RED' ? 'dlg.trigger.enemyTurn' : 'dlg.trigger.turn', { n: tr.turn ?? '?' })
+      case 'turn': return t(tr.faction === 'FACTION_RED' ? 'dlg.trigger.enemyTurn' : 'dlg.trigger.turn', { n: turnRange(tr.turn ?? '?', tr.end) })
+      case 'flag': return t('dlg.trigger.flag', { flag: flagName(Number(tr.flag)) })
       case 'talk': return t('dlg.trigger.talk', { a: charName(tr.a ?? ''), b: charName(tr.b ?? '') })
       case 'village': case 'house': return t(`dlg.trigger.${tr.kind}`, { x: tr.x ?? '?', y: tr.y ?? '?' })
       case 'battle': return t('dlg.trigger.battle', { a: charName(tr.a ?? ''), b: tr.b ? charName(tr.b) : t('dlg.anyone') })
@@ -302,15 +303,21 @@
   /** Portrait code of a character (its portrait id in the texts' list). */
   const faceOf = (pid: string) => faces.find((f) => f.portrait === characters.find((c) => c.id === pid)?.portraitId)?.id ?? faces[0]?.id ?? 'FID_Eirika'
 
+  /** "3", or "3-5" for a range of turns. */
+  const turnRange = (turn: string | number, end?: string | number) => (Number(end) > Number(turn) ? `${turn}-${end}` : String(turn))
+  const memories = $derived(list.records[0]?.memories ?? [])
+  const flagName = (flag: number) => memories.find((m) => m.flag === flag)?.name ?? String(flag)
+
   function addQuote(kind: NewQuote['kind'], character = '') {
     // The chapter's boss (who already has a battle quote), else the first character.
     const boss = scenes.find((s) => s.trigger.kind === 'battle')?.trigger.a
     const named = characters.filter((c) => c.id.startsWith('CHARACTER_'))
     let quote: NewQuote
-    if (kind === 'turn') {
+    if (kind === 'turn' || kind === 'area' || kind === 'flag') {
       const a = named[0]?.id ?? ''
       quote = {
-        kind, chapter: chapterNumber, a, turn: 1, phase: 'player',
+        kind, chapter: chapterNumber, a,
+        ...(kind === 'turn' ? { turn: 1, phase: 'player' as const } : kind === 'area' ? { area: [0, 0, 0, 0] } : { flag: memories[0]?.flag ?? 0 }),
         steps: [{ kind: 'face', pos: 'MidLeft', face: faceOf(a) }, { kind: 'say', pos: 'MidLeft', text: '', wait: true }],
       }
     } else if (kind === 'talk') {
@@ -342,7 +349,9 @@
     if (q.kind === 'death') return t('dlg.trigger.death', { a: charName(q.a) })
     if (q.kind === 'support') return t('dlg.supportTalk', { rank: 'CBA'[(q.rank ?? 1) - 1], a: charName(q.a), b: charName(q.b ?? '') })
     if (q.kind === 'scene') return `${t('dlg.sceneMessage')} · ${firstLineOf(`${NEW}${newQuotes.indexOf(q)}`) || '…'}`
-    if (q.kind === 'turn') return t(q.phase === 'enemy' ? 'dlg.trigger.enemyTurn' : q.phase === 'ally' ? 'dlg.trigger.allyTurn' : 'dlg.trigger.turn', { n: q.turn ?? 1 })
+    if (q.kind === 'turn') return t(q.phase === 'enemy' ? 'dlg.trigger.enemyTurn' : q.phase === 'ally' ? 'dlg.trigger.allyTurn' : 'dlg.trigger.turn', { n: turnRange(q.turn ?? 1, q.endTurn) })
+    if (q.kind === 'area') return t('dlg.trigger.areaAt', { x1: q.area?.[0] ?? 0, y1: q.area?.[1] ?? 0, x2: q.area?.[2] ?? 0, y2: q.area?.[3] ?? 0 })
+    if (q.kind === 'flag') return t('dlg.trigger.flag', { flag: flagName(q.flag ?? 0) })
     return t('dlg.trigger.talk', { a: charName(q.a), b: charName(q.b ?? '') }) + (q.recruit ? ` · ${t('dlg.recruits')}` : '')
   }
 
@@ -575,6 +584,8 @@
         {#if chapterNumber !== ANY_CHAPTER}
           <button onclick={() => addQuote('talk')} title={t('dlg.addTalkHint')}>＋ {t('dlg.addTalk')}</button>
           <button onclick={() => addQuote('turn')} title={t('dlg.addTurnHint')}>＋ {t('dlg.addTurn')}</button>
+          <button onclick={() => addQuote('area')} title={t('dlg.addAreaHint')}>＋ {t('dlg.addArea')}</button>
+          <button onclick={() => addQuote('flag')} title={t('dlg.addFlagHint')}>＋ {t('dlg.addFlag')}</button>
         {/if}
       </div>
       {#if scenes.some((s) => !s.messages.length)}
@@ -635,7 +646,7 @@
           {#if quoteIndex >= 0 && newQuotes[quoteIndex]?.kind === 'support'}
             <h3>{quoteLabel(newQuotes[quoteIndex])}</h3>
           {:else if quoteIndex >= 0}
-            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk', scene: 'SceneMessage' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
+            <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk', scene: 'SceneMessage', area: 'Area', flag: 'Flag' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
@@ -657,6 +668,27 @@
                   {#each ['player', 'enemy', 'ally'] as ph (ph)}<option value={ph}>{t(`dlg.phase.${ph}`)}</option>{/each}
                 </select>
               </label>
+              <NumberField label={t('dlg.endTurn')} value={q.endTurn ?? 0} min={0} max={99} compact onchange={(v) => editQuote({ endTurn: v })} />
+              <Help text={t('dlg.endTurnHint')} />
+            {:else if q.kind === 'area'}
+              {#each ['x1', 'y1', 'x2', 'y2'] as c, k (c)}
+                <NumberField label={c.toUpperCase()} value={q.area?.[k] ?? 0} min={0} max={127} compact
+                  onchange={(v) => editQuote({ area: (q.area ?? [0, 0, 0, 0]).map((old, j) => (j === k ? v : old)) })} />
+              {/each}
+              <Help text={t('dlg.addAreaHint')} />
+            {:else if q.kind === 'flag'}
+              {#if memories.length}
+                <label>
+                  <span>{t('dlg.flag')}</span>
+                  <select value={String(q.flag ?? '')} onchange={(e) => editQuote({ flag: Number((e.target as HTMLSelectElement).value) })}>
+                    {#if !memories.some((m) => m.flag === q.flag)}<option value={String(q.flag ?? '')}>{q.flag}</option>{/if}
+                    {#each memories as m (m.flag)}<option value={String(m.flag)}>{m.name}</option>{/each}
+                  </select>
+                </label>
+              {:else}
+                <NumberField label={t('dlg.flag')} value={q.flag ?? 0} min={0} max={299} compact onchange={(v) => editQuote({ flag: v })} />
+              {/if}
+              <Help text={t('dlg.addFlagHint')} />
             {:else}
             <label>
               <span>{q.kind === 'death' ? t('dlg.quoteDying') : t('dlg.quoteWho')}</span>
