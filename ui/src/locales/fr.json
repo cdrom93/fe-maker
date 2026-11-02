@@ -1597,7 +1597,7 @@
   "chapter.battleBgDefault": "Par défaut",
   "chapter.battleBgSet": "Jeu {n}",
   "chapter.battleBgHint": "Le décor derrière les combattants dépend de la case où ils se battent ; ce réglage choisit le jeu de décors (château, ruines, désert…). Entre parenthèses : les chapitres du jeu qui l'utilisent.",
-  "chapter.battleBgPreview": "Le décor sur une plaine",
+  "chapter.settings": "Réglages du chapitre",
   "chapter.camera": "Caméra au départ",
   "chapter.cameraPick": "Choisir sur la carte",
   "chapter.cameraPicking": "Cliquez sur une case",

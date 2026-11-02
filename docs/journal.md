@@ -138,3 +138,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : nouvelles scènes de zone (AREA) et de souvenir (AFEV sur un drapeau), scène de tour sur une plage de tours (sans drapeau, elle revient à chaque tour) ; build vérifié.
 - 02/11/2026 : #142 barres de PV et bulles déplacées dans des tuiles de sprites libres (0x340) : toutes les météos marchent avec, vérifié en jeu (tempête de neige, de sable, flammes) ; l'avertissement est retiré.
 - 02/11/2026 : #140 revu : marque du boss du jeu (lue dans la ROM) sur le brigand, porte de château (tuile la plus utilisée des cartes du jeu) pour « S'emparer d'une case ».
+- 02/11/2026 : #143 réglages du chapitre (convoi, préparation, brouillard, murs, météo, caméra, niveaux, fond de combat) dans une tuile repliée en bas de la fiche ; fonds de combat choisis dans une galerie d'images.

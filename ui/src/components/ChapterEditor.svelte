@@ -121,6 +121,19 @@
   const battleBg = $derived(lookEdit('battleBg') ?? chapter?.battleBg ?? 0)
   const camera = $derived(lookEdit('camera') ?? chapter?.camera ?? [0, 0])
   let pickingCamera = $state(false)
+  /** The camera is picked on the map, above the folded settings. */
+  function pickCamera() {
+    pickingCamera = !pickingCamera
+    pickingSeize = false
+    if (pickingCamera) mapEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+  /** What the folded settings hold, in a few words. */
+  const settingsSummary = $derived(chapter ? [
+    t(`weather.${weather}`),
+    battleBg === 0 ? t('chapter.battleBgDefault') : t('chapter.battleBgSet', { n: battleBg }),
+    ...((convoyEdit ?? chapter.convoy) ? [t('chapter.convoy')] : []),
+    ...(fog > 0 ? [t('chapter.fog')] : []),
+  ].join(' · ') : '')
   /** Battle background sets with the game's chapters that use them. */
   const battleBgSets = $derived(Array.from({ length: LAST_BATTLE_BG_SET + 1 }, (_, n) => {
     const users = [...new Set(chapters.filter((c) => c.battleBg === n && c.title).map((c) => c.title))]
@@ -545,72 +558,6 @@
             battleCharacters={new Set(battleGroups.flatMap((g) => unitsOf(g.name).map((u) => u.character)))}
             originalBoss={originalObjective?.boss ?? null} onchange={editObjective} onreset={resetObjective} />
         {/if}
-        <label class="check small convoy" title={t('chapter.convoyHint')}>
-          <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
-          {t('chapter.convoy')}
-          {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-        <label class="check small convoy" title={t('chapter.prepHint')}>
-          <input type="checkbox" checked={prepEdit ?? chapter.prep} onchange={(e) => setPrep((e.target as HTMLInputElement).checked)} />
-          {t('chapter.prep')}
-          {#if prepEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-        <label class="check small convoy" title={t('chapter.fogHint')}>
-          <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
-          {t('chapter.fog')}
-          {#if fog > 0}
-            <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
-              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
-            </select>
-          {/if}
-          {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
-        </label>
-        <div class="row wall-hp">
-          <NumberField label={t('chapter.wallHp')} value={wallHpEdit ?? chapter.wallHp} min={1} max={127} compact onchange={setWallHp} />
-          <Help text={t('chapter.wallHpHint')} />
-          {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
-        </div>
-        <div class="row wall-hp">
-          <label class="small setting">
-            {t('chapter.weather')}
-            <select value={weather} onchange={(e) => setLook('weather', (e.target as HTMLSelectElement).value)}>
-              {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w}`)}</option>{/each}
-            </select>
-          </label>
-          <Help text={t('chapter.weatherHint')} />
-          {#if lookEdit('weather') !== undefined}<span class="edited">✎</span>{/if}
-        </div>
-        <div class="row wall-hp">
-          <label class="small setting">
-            {t('chapter.battleBg')}
-            <select value={battleBg} onchange={(e) => setLook('battleBg', Number((e.target as HTMLSelectElement).value))}>
-              {#each battleBgSets as s (s.n)}
-                <option value={s.n}>{s.n === 0 ? t('chapter.battleBgDefault') : t('chapter.battleBgSet', { n: s.n })}{s.users ? ` (${s.users})` : ''}</option>
-              {/each}
-            </select>
-          </label>
-          <Help text={t('chapter.battleBgHint')} />
-          {#if lookEdit('battleBg') !== undefined}<span class="edited">✎</span>{/if}
-        </div>
-        <img class="pixel battle-bg" src={`/api/assets/battle-bg/${battleBg}`} alt={t('chapter.battleBgPreview')} title={t('chapter.battleBgPreview')} use:hideBroken />
-        <div class="row wall-hp">
-          <span class="small">{t('chapter.camera')} : {camera[0]}, {camera[1]}</span>
-          <button class:active={pickingCamera} onclick={() => { pickingCamera = !pickingCamera; pickingSeize = false }}>
-            {pickingCamera ? t('chapter.cameraPicking') : t('chapter.cameraPick')}
-          </button>
-          <Help text={t('chapter.cameraHint')} />
-          {#if lookEdit('camera') !== undefined}<span class="edited">✎</span>{/if}
-        </div>
-        {#if levelBonus}
-          <div class="row wall-hp">
-            <span class="small">{t('chapter.levelBonus')}</span>
-            <NumberField label={t('chapter.levelEasy')} value={levelBonus.easy} min={0} max={15} compact onchange={(v) => setLevelBonus('easy', v)} />
-            <NumberField label={t('chapter.levelNormal')} value={levelBonus.normal} min={0} max={15} compact onchange={(v) => setLevelBonus('normal', v)} />
-            <NumberField label={t('chapter.levelHard')} value={levelBonus.hard} min={0} max={15} compact onchange={(v) => setLevelBonus('hard', v)} />
-            <Help text={t('chapter.levelBonusHint')} />
-            {#if levelBonusEdited}<span class="edited">✎</span>{/if}
-          </div>
-        {/if}
       </section>
 
       <section class="panel">
@@ -886,6 +833,85 @@
         </section>
       </div>
 
+      <details class="panel settings">
+        <summary>
+          <h3>{t('chapter.settings')}</h3>
+          <span class="muted small">{settingsSummary}</span>
+        </summary>
+        <div class="settings-grid">
+          <div class="settings-col">
+            <label class="check small convoy" title={t('chapter.convoyHint')}>
+              <input type="checkbox" checked={convoyEdit ?? chapter.convoy} onchange={(e) => setConvoy((e.target as HTMLInputElement).checked)} />
+              {t('chapter.convoy')}
+              {#if convoyEdit !== undefined}<span class="edited">✎</span>{/if}
+            </label>
+            <label class="check small convoy" title={t('chapter.prepHint')}>
+              <input type="checkbox" checked={prepEdit ?? chapter.prep} onchange={(e) => setPrep((e.target as HTMLInputElement).checked)} />
+              {t('chapter.prep')}
+              {#if prepEdit !== undefined}<span class="edited">✎</span>{/if}
+            </label>
+            <label class="check small convoy" title={t('chapter.fogHint')}>
+              <input type="checkbox" checked={fog > 0} onchange={(e) => setFog((e.target as HTMLInputElement).checked ? 3 : 0)} />
+              {t('chapter.fog')}
+              {#if fog > 0}
+                <select value={fog} onchange={(e) => setFog(Number((e.target as HTMLSelectElement).value))} aria-label={t('chapter.fogRange')}>
+                  {#each [1, 2, 3, 4, 5, 6, 7, 8] as n (n)}<option value={n}>{t('chapter.fogRangeN', { n })}</option>{/each}
+                </select>
+              {/if}
+              {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
+            </label>
+            <div class="row wall-hp">
+              <NumberField label={t('chapter.wallHp')} value={wallHpEdit ?? chapter.wallHp} min={1} max={127} compact onchange={setWallHp} />
+              <Help text={t('chapter.wallHpHint')} />
+              {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
+            </div>
+            <div class="row wall-hp">
+              <label class="small setting">
+                {t('chapter.weather')}
+                <select value={weather} onchange={(e) => setLook('weather', (e.target as HTMLSelectElement).value)}>
+                  {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w}`)}</option>{/each}
+                </select>
+              </label>
+              <Help text={t('chapter.weatherHint')} />
+              {#if lookEdit('weather') !== undefined}<span class="edited">✎</span>{/if}
+            </div>
+            <div class="row wall-hp">
+              <span class="small">{t('chapter.camera')} : {camera[0]}, {camera[1]}</span>
+              <button class="small" class:active={pickingCamera} onclick={pickCamera}>
+                {pickingCamera ? t('chapter.cameraPicking') : t('chapter.cameraPick')}
+              </button>
+              <Help text={t('chapter.cameraHint')} />
+              {#if lookEdit('camera') !== undefined}<span class="edited">✎</span>{/if}
+            </div>
+            {#if levelBonus}
+              <div class="row wall-hp">
+                <span class="small">{t('chapter.levelBonus')}</span>
+                <NumberField label={t('chapter.levelEasy')} value={levelBonus.easy} min={0} max={15} compact onchange={(v) => setLevelBonus('easy', v)} />
+                <NumberField label={t('chapter.levelNormal')} value={levelBonus.normal} min={0} max={15} compact onchange={(v) => setLevelBonus('normal', v)} />
+                <NumberField label={t('chapter.levelHard')} value={levelBonus.hard} min={0} max={15} compact onchange={(v) => setLevelBonus('hard', v)} />
+                <Help text={t('chapter.levelBonusHint')} />
+                {#if levelBonusEdited}<span class="edited">✎</span>{/if}
+              </div>
+            {/if}
+          </div>
+        </div>
+          <div class="bg-title">
+            <span class="small">{t('chapter.battleBg')}</span>
+            <Help text={t('chapter.battleBgHint')} />
+            {#if lookEdit('battleBg') !== undefined}<span class="edited">✎</span>{/if}
+          </div>
+          <div class="bg-gallery" role="radiogroup" aria-label={t('chapter.battleBg')}>
+            {#each battleBgSets as s (s.n)}
+              <button role="radio" aria-checked={battleBg === s.n} class="bg-choice" class:active={battleBg === s.n}
+                title={s.users || undefined} onclick={() => setLook('battleBg', s.n)}>
+                <img class="pixel" src={`/api/assets/battle-bg/${s.n}`} alt="" loading="lazy" use:hideBroken />
+                <span class="tiny">{s.n === 0 ? t('chapter.battleBgDefault') : t('chapter.battleBgSet', { n: s.n })}</span>
+                {#if s.users}<span class="tiny muted users">{s.users}</span>{/if}
+              </button>
+            {/each}
+          </div>
+      </details>
+
     </div>
   {/if}
 </div>
@@ -950,7 +976,21 @@
   .actions button { flex: 1; }
   .danger { color: var(--bad); }
   .edited { color: var(--accent); }
-  .battle-bg { display: block; width: 240px; max-width: 100%; border-radius: var(--radius); margin: 0.2rem 0 0.4rem; }
+  .settings summary { display: flex; align-items: baseline; gap: 0.8rem; cursor: pointer; list-style: none; }
+  .settings summary::-webkit-details-marker { display: none; }
+  .settings summary::before { content: '▸'; color: var(--muted); }
+  .settings[open] summary::before { content: '▾'; }
+  .settings summary h3 { margin: 0; }
+  .settings[open] summary { margin-bottom: 0.8rem; }
+  .settings-grid { display: flex; flex-direction: column; gap: 0.3rem; }
+  .bg-title { display: flex; align-items: center; gap: 0.4rem; margin: 0.8rem 0 0.4rem; }
+  .bg-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.5rem; }
+  .bg-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.3rem; border: 2px solid transparent; border-radius: var(--radius); background: none; text-align: left; }
+  .bg-choice img { width: 100%; aspect-ratio: 240 / 104; border-radius: calc(var(--radius) - 2px); }
+  .bg-choice:hover { border-color: var(--border); }
+  .bg-choice.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .settings-col .row { min-height: 2rem; }
+  .bg-choice .users { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
   .tiny { font-size: 0.72rem; }
   .small { font-size: 0.8rem; }
   .warn { color: var(--warn); }
