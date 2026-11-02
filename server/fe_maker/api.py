@@ -1824,7 +1824,7 @@ def boss_mark():
 
 @app.get("/api/assets/terrain-icon/{terrain}")
 def terrain_icon(terrain: int):
-    """The tile the game's maps use most for a terrain (ticket 140: a castle gate for seizing)."""
+    """The tile the game's maps use most for a terrain (ticket 140: a fort for seizing)."""
     png = maps.terrain_icon(DECOMP_DIR, terrain, 2)
     if png is None:
         raise HTTPException(404)

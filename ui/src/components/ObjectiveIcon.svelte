@@ -3,7 +3,7 @@
   import { itemIconUrl, mapSpriteUrl } from '../lib/api'
   import { hideBroken } from '../lib/hideBroken'
 
-  /** An objective type as the game's visuals (ticket 140): enemy map sprites for the fights, a castle gate for seizing, an item icon otherwise. */
+  /** An objective type as the game's visuals (ticket 140): enemy map sprites for the fights, a fort for seizing, an item icon otherwise. */
   let { type }: { type: keyof typeof OBJECTIVE_ICONS } = $props()
   const sprites = $derived((OBJECTIVE_SPRITES as Record<string, readonly string[]>)[type])
 </script>
