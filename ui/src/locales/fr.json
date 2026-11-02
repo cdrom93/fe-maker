@@ -1585,7 +1585,6 @@
   "chapter.dangerZone": "Zone de danger des ennemis",
   "chapter.weather": "Météo",
   "chapter.weatherHint": "Ce qu'on voit sur la carte pendant le chapitre. Pluie, neige et tempête de sable ralentissent certaines classes (leurs coûts de déplacement selon la météo).",
-  "chapter.weatherClash": "Cette météo se mélange avec les options du jeu {options} : ses graphismes prennent la même place. Choisissez une autre météo ou retirez ces options.",
   "weather.fine": "Beau temps",
   "weather.clouds": "Nuages",
   "weather.rain": "Pluie",

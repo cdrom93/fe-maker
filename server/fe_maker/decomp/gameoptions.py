@@ -166,7 +166,7 @@ static void FemLoadHpBars(void) {
     for (length = 1; length <= 11; ++length) {
         u32 fill[2] = { 0, 0 };
         int color = length >= 9 ? 0xB : length >= 7 ? 0x1 : length >= 5 ? 0x3 : length >= 3 ? 0x4 : 0xC;
-        int tile = length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2;
+        int tile = 0x340 + length * 2;
         u32* left = (u32*) (0x06010000 + tile * 0x20);
         u32* right = left + 8;
 
@@ -202,7 +202,7 @@ static void FemPutHpBar(struct Unit * unit)
         if (length < 1)
             length = 1;
         CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x), OAM0_Y(0x100 + y + 10), gObject_16x8,
-            OAM2_CHR(length <= 7 ? 0x10 + length * 2 : 0x30 + (length - 7) * 2) + OAM2_LAYER(2));
+            OAM2_CHR(0x340 + length * 2) + OAM2_LAYER(2));
     }
 }
 
@@ -211,13 +211,14 @@ _ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_PO
 _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
 
 # A yellow bubble over the units the selected one can talk to, to recruit them or not, or support with (ticket 113, as
-# in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. Colors of the first object palette:
-# # border, y yellow, d dark.
+# in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. HP bars and bubble sit in object tiles
+# 0x340-0x37F, which nothing uses on the map (ticket 142: the weathers' particles take 0x12-0x7F of the first rows).
+# Colors of the first object palette: # border, y yellow, d dark.
 _BUBBLE = ("...########.....", "..#yyyyyyyy#....", ".#yyyyyyyyyy#...", ".#yydyydyydy#...",
            ".#yyyyyyyyyy#...", "..#yyyyyyyy#....", "...####yy###....", ".....#yy#.......",
            "......##........", "................", "................", "................",
            "................", "................", "................", "................")
-_BUBBLE_TILE = 0x3A
+_BUBBLE_TILE = 0x360
 
 
 def _bubble_tiles() -> str:

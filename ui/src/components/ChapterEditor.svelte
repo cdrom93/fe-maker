@@ -379,12 +379,7 @@
     picked ? problems.filter((p) => p.kind === 'chapters' && p.id === `${picked!.group}#${picked!.index}`) : [],
   )
 
-  /** Game options whose map sprites share video memory with some weathers (ticket 142). */
-  let clashOptions = $state<string[]>([])
-  const WEATHER_CLASH = ['snowstorm', 'sandstorm', 'flames']
-
   onMount(async () => {
-    api.gameOptions().then((g) => (clashOptions = ['hpBars', 'talkBubbles'].filter((k) => g.options[k]))).catch(() => {})
     const all = await api.chapters()
     chapters = all.filter((c) => !c.hidden).map((c) => ({ ...c, code: c.id, id: String(c.index), name: c.title || c.id }))
     // Opened from a link (e.g. the map editor): the chapter list was not loaded yet.
@@ -585,9 +580,6 @@
           <Help text={t('chapter.weatherHint')} />
           {#if lookEdit('weather') !== undefined}<span class="edited">✎</span>{/if}
         </div>
-        {#if WEATHER_CLASH.includes(weather) && clashOptions.length}
-          <p class="warn small">⚠ {t('chapter.weatherClash', { options: clashOptions.map((k) => t(`options.${k}`)).join(', ') })}</p>
-        {/if}
         <div class="row wall-hp">
           <label class="small setting">
             {t('chapter.battleBg')}

@@ -136,3 +136,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : #140 icônes d'objectifs « Vaincre le chef » (brigand ennemi avec l'emblème) et « Vaincre tous les ennemis » (deux soldats ennemis), sprites de carte du jeu.
 - 02/11/2026 : palette des scènes : changement de tuiles et retour, météo (macro WEA1 ajoutée au build quand une scène s'en sert), vue dans le brouillard, passer à l'ennemi, cacher/montrer, bruitage, téléportation, PV et IA (par la mémoire 1) ; vérifié en jeu.
 - 02/11/2026 : nouvelles scènes de zone (AREA) et de souvenir (AFEV sur un drapeau), scène de tour sur une plage de tours (sans drapeau, elle revient à chaque tour) ; build vérifié.
+- 02/11/2026 : #142 barres de PV et bulles déplacées dans des tuiles de sprites libres (0x340) : toutes les météos marchent avec, vérifié en jeu (tempête de neige, de sable, flammes) ; l'avertissement est retiré.

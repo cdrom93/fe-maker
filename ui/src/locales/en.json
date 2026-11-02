@@ -1585,7 +1585,6 @@
   "chapter.dangerZone": "Enemies' danger zone",
   "chapter.weather": "Weather",
   "chapter.weatherHint": "What the map shows during the chapter. Rain, snow and sandstorms slow some classes down (their movement costs by weather).",
-  "chapter.weatherClash": "This weather mixes up with the game options {options}: their graphics take the same place. Pick another weather or turn these options off.",
   "weather.fine": "Fine",
   "weather.clouds": "Clouds",
   "weather.rain": "Rain",
