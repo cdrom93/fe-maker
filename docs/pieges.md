@@ -15,6 +15,7 @@ piège dans sa section.
 - `data/banim/data_banim.o` dépend des objets que liste `linker_script_banim.txt`, pas du script lui-même : après un projet avec une animation importée, le build suivant (autre projet, animation retirée) gardait les anciennes animations, et un projet non modifié ne redonnait plus la ROM d'origine. `docker/entrypoint.sh` efface l'objet quand le script change (30/10/2026).
 
 ## Données du jeu (personnages, classes, objets, textes)
+- Images en gris de gbagfx (tuiles sans palette) : le blanc est la couleur 0 (couleur = 15 − gris / 17), et passer de L à P avec Pillow remappe les index : utiliser `Image.frombytes("P", ...)`.
 
 - A unit with any magic rank plays its battle animation's magic (ranged) moves, whatever weapon it strikes with (`UnitHasMagicRank` in `banim-battleparse.c`): a mage with a sword stood still. Projects mixing magic and physical ranks get `tweaks.animation_modes_by_weapon` (docs/audit-decomp.md item 59).
 - `decomp.animated_weapons` is shared by every project: merge the project's animations into a copy (`validation.animated_weapons`), never into it (ticket 50).

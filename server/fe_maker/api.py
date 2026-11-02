@@ -32,6 +32,7 @@ from .decomp import (
     averagestats,
     banim,
     banim_import,
+    battlebg,
     charpalettes,
     combat,
     convoy,
@@ -1809,6 +1810,15 @@ def ferepo_icons(q: str = "", refresh: bool = False, folder: str = "", offset: i
         raise HTTPException(503, str(e)) from e
     entries, total = ferepo.search(index, ferepo.ITEM_ICONS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
     return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ITEM_ICONS)}
+
+
+@app.get("/api/assets/battle-bg/{bg_set}")
+def battle_bg(bg_set: int):
+    """The plains background of a battle background set (ticket 141)."""
+    png = battlebg.preview(DECOMP_DIR, bg_set)
+    if png is None:
+        raise HTTPException(404)
+    return Response(png, media_type="image/png")
 
 
 @app.get("/api/assets/item-icon/{icon_id}")

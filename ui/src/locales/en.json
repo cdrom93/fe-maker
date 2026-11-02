@@ -1571,6 +1571,7 @@
   "chapter.battleBgDefault": "Default",
   "chapter.battleBgSet": "Set {n}",
   "chapter.battleBgHint": "The scenery behind the fighters depends on the cell they fight on; this setting picks the set of sceneries (castle, ruins, desert...). In brackets: the game's chapters using it.",
+  "chapter.battleBgPreview": "The background on plains",
   "chapter.camera": "Camera at the start",
   "chapter.cameraPick": "Pick on the map",
   "chapter.cameraPicking": "Click a cell",

@@ -600,6 +600,7 @@
           <Help text={t('chapter.battleBgHint')} />
           {#if lookEdit('battleBg') !== undefined}<span class="edited">✎</span>{/if}
         </div>
+        <img class="pixel battle-bg" src={`/api/assets/battle-bg/${battleBg}`} alt={t('chapter.battleBgPreview')} title={t('chapter.battleBgPreview')} use:hideBroken />
         <div class="row wall-hp">
           <span class="small">{t('chapter.camera')} : {camera[0]}, {camera[1]}</span>
           <button class:active={pickingCamera} onclick={() => { pickingCamera = !pickingCamera; pickingSeize = false }}>
@@ -957,6 +958,7 @@
   .actions button { flex: 1; }
   .danger { color: var(--bad); }
   .edited { color: var(--accent); }
+  .battle-bg { display: block; width: 240px; max-width: 100%; border-radius: var(--radius); margin: 0.2rem 0 0.4rem; }
   .tiny { font-size: 0.72rem; }
   .small { font-size: 0.8rem; }
   .warn { color: var(--warn); }

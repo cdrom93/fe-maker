@@ -427,3 +427,37 @@ def test_weather_battle_background_and_camera_of_a_chapter():
     settings = [{"initialWeather": "fine", "battleTileSet": 0, "initialPosX": 1, "initialPosY": 0}, {}]
     _set_chapter_look(settings, {"weather": {"0": "rain", "1": "acid"}, "battleBg": {"0": 99}, "camera": {"0": [5, 70]}})
     assert settings == [{"initialWeather": "rain", "battleTileSet": 0x14, "initialPosX": 5, "initialPosY": 63}, {}]
+
+
+def test_battle_background_preview_reads_whole_pictures_and_tile_sheets(tmp_path):
+    import io
+    import struct
+
+    from PIL import Image
+
+    from fe_maker.decomp import battlebg
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "data").mkdir()
+    folder = tmp_path / battlebg.FOLDER
+    folder.mkdir(parents=True)
+    (tmp_path / "src/data_terrains.c").write_text(
+        "CONST_DATA s8 gBanimBGLutDefault[] = {\n    [TERRAIN_PLAINS] = 1,\n};\n"
+        "CONST_DATA s8 gBanimBGLut01[] = {\n    [TERRAIN_PLAINS] = 2,\n};\n")
+    (tmp_path / battlebg.TABLE).write_text(
+        "gBattleBGDataTable:\n\t.word btl_bg_0_tiles, btl_bg_0_map, btl_bg_0_palette\n"
+        "\t.word btl_bg_1_tiles, btl_bg_1_map, btl_bg_2_palette\nbtl_bg_0_tiles:\n")
+    whole = Image.new("P", (240, 160), 1)
+    whole.putpalette([0, 0, 0, 200, 10, 10] + [0] * 762)
+    whole.save(folder / "btl_bg_0.png")
+    sheet = Image.new("L", (8, 16), 255)  # gbagfx grey: 255 is color 0
+    sheet.paste(255 - 17 * 3, (0, 8, 8, 16))  # tile 1: color 3
+    sheet.save(folder / "btl_bg_1.png")
+    (folder / "btl_bg_1.bin").write_bytes(struct.pack("<600H", *([0x1001] * 600)))  # tile 1, palette row 1
+    colors = [(0, 0, 0)] * 19 + [(10, 200, 30)] + [(0, 0, 0)] * 140
+    (folder / "btl_bg_2.pal").write_text("JASC-PAL\n0100\n160\n" + "".join(f"{r} {g} {b}\n" for r, g, b in colors))
+
+    first = Image.open(io.BytesIO(battlebg.preview(tmp_path, 0)))
+    assert first.size == (240, battlebg.SHOWN) and first.getpixel((5, 5)) == (200, 10, 10)
+    assert Image.open(io.BytesIO(battlebg.preview(tmp_path, 1))).getpixel((5, 5)) == (10, 200, 30)
+    assert battlebg.preview(tmp_path, 7) is None
