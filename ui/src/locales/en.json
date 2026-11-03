@@ -391,6 +391,7 @@
   "chapter.position": "Position when the battle starts",
   "chapter.entersFrom": "enters from {x}, {y}",
   "chapter.items": "Inventory",
+  "chapter.allyItemsHint": "If this character is already in the army, they keep their items, level and class: only the position counts. These items are only used on their first appearance.",
   "chapter.pickUnit": "Click a unit on the map to see its sheet.",
   "chapter.editHint": "Click a group to see its units, a unit to change it; drag it on the map to move it.",
   "chapter.autolevelHint": "The game levels the unit up to this level and gives it the stats that go with it. Without this box it shows the level but keeps its starting stats. A named ally starts from the level on their sheet with their own growths; an enemy or a generic follows its class.",

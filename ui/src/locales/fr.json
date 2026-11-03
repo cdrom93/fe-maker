@@ -391,6 +391,7 @@
   "chapter.position": "Position au début du combat",
   "chapter.entersFrom": "entre depuis {x}, {y}",
   "chapter.items": "Inventaire",
+  "chapter.allyItemsHint": "Si ce personnage est déjà dans l'armée, il garde son équipement, son niveau et sa classe : seule la position compte. Cet inventaire sert seulement à sa première apparition.",
   "chapter.pickUnit": "Cliquez sur une unité de la carte pour voir sa fiche.",
   "chapter.editHint": "Cliquez un groupe pour voir ses unités, une unité pour la modifier ; glissez-la sur la carte pour la déplacer.",
   "chapter.autolevelHint": "Le jeu fait monter l'unité jusqu'à ce niveau et lui donne les stats qui vont avec. Sans cette case, elle affiche le niveau mais garde ses stats de départ. Un allié nommé part du niveau de sa fiche, avec ses croissances ; un ennemi ou un générique suit celles de sa classe.",

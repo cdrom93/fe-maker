@@ -177,6 +177,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - Créer un chapitre d'après une fiche du wiki Fire Emblem (ticket 67), pour recréer un chapitre d'un autre jeu.
 - Coûts de déplacement selon la météo (demande du 02/11/2026) : le moteur a trois tables par type de déplacement (normal, pluie, neige et blizzard ; les autres météos prennent la normale), FE Maker ne fait que choisir le type. À faire : éditer ces tables terrain par terrain, puis éventuellement une table propre au sable (code de `GetUnitMovementCost`).
 - Idées de l'utilisateur (02/11/2026), pour plus tard : un système de forge d'armes ; travailler à plusieurs sur un même projet.
+- Idée de l'utilisateur (03/11/2026, #150) : des ennemis génériques tout prêts (classe, niveau, inventaire classique : soldat à la lance de fer, archer, mage…) à glisser-déposer sur la carte d'un chapitre.
 
 ### Phase 6 — Édition avancée et moteur
 - Patchs de confort restants : `docs/patchs-qol.md`.

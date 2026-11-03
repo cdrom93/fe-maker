@@ -480,6 +480,8 @@
           x, y, endX: x, endY: y,
         }
     Object.assign(unit, { x, y, endX: x, endY: y })
+    // A new ally is another character: the previous one's items would only be in the way (ticket 150).
+    if (!template && unit.side === 'player') Object.assign(unit, { items: [], itemDrop: false })
     editGroup(group, (units) => units.push(unit))
     hidden[group] = false
     picked = { group, index: current.length }
@@ -803,7 +805,7 @@
                 {#each SHOWN_STATS as s (s)}<span><span class="muted tiny">{t(`stat.${s}`)}</span> {unitStats[s]}</span>{/each}
               </div>
             {/if}
-            <h3>{t('chapter.items')}</h3>
+            <h3>{t('chapter.items')}{#if unit.side === 'player'} <Help text={t('chapter.allyItemsHint')} />{/if}</h3>
             {#each Array(ITEM_SLOTS) as _, slot (slot)}
               {@const id = unit.items[slot] ?? ''}
               {@const it = itemById.get(id)}
