@@ -1574,6 +1574,7 @@
   "checks.docker": "Docker",
   "checks.docker.missing": "It compiles the game. Install Docker Desktop, free for personal use.",
   "checks.docker.stopped": "Docker is installed but does not answer: start Docker Desktop and wait until it is ready. If it never starts, virtualization (Intel VT-x, AMD-V) is probably off in the BIOS.",
+  "checks.docker.starting": "FE Maker is starting Docker Desktop: allow about a minute. If it never starts, virtualization (Intel VT-x, AMD-V) is probably turned off in the BIOS.",
   "checks.mgba": "mGBA",
   "checks.mgba.missing": "This emulator runs the tests. Without it you can still export a patch.",
   "checks.error.unreachable": "GitHub does not answer: check your connection, then try again.",

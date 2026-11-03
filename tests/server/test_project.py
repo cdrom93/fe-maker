@@ -71,3 +71,14 @@ def test_show_original_stays_in_the_project(tmp_path, decomp_dir):
     assert project.show_original
     project.set_show_original(False)
     assert not Project(project.root, decomp_dir).show_original
+
+
+def test_a_cleared_chapter_starts_with_no_boss(tmp_path, decomp_dir, monkeypatch):
+    from fe_maker import api
+
+    project = Project.create(tmp_path / "blank", "Blank", decomp_dir=decomp_dir)
+    project.save("chapters", {**project.load("chapters"), "cleared": [3]})
+    monkeypatch.setattr(api.state, "project", project)
+    objective = {"type": "defeat_boss", "boss": "CHARACTER_BAZBA"}
+    assert api._project_objective(objective, 3)["boss"] is None
+    assert api._project_objective(objective, 2)["boss"] == "CHARACTER_BAZBA"

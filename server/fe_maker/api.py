@@ -569,7 +569,7 @@ def chapters_overview():
         if not symbol:
             continue
         try:
-            objective = d.read_objective(i)
+            objective = _project_objective(d.read_objective(i), i)
         except Exception:
             objective = None
         result[i] = {
@@ -1177,7 +1177,14 @@ def chapter_units(index: int):
 def chapter_objective(index: int):
     """The chapter's original objective (the project's edit, if any, is in data/chapters.json)."""
     _chapter(index)
-    return state.get_decomp().read_objective(index)
+    return _project_objective(state.get_decomp().read_objective(index), index)
+
+
+def _project_objective(objective: dict, index: int) -> dict:
+    """A chapter the project cleared (newchapter.py) has no boss of the game's story to start from (ticket 149)."""
+    if state.project and index in state.project.load("chapters").get("cleared", []):
+        return {**objective, "boss": None}
+    return objective
 
 
 def _game_class(class_id: str):

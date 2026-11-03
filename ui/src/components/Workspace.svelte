@@ -79,6 +79,12 @@
   }
 
   let projectMenu = $state<HTMLDetailsElement>()
+  /** The project's actions go in the app's top bar (ticket 145): one line less on every screen. */
+  function toHeader(node: HTMLElement) {
+    document.getElementById('header-actions')?.appendChild(node)
+    return { destroy: () => node.remove() }
+  }
+
   function fromMenu(action: () => void) {
     if (projectMenu) projectMenu.open = false
     action()
@@ -272,12 +278,13 @@
 
 <svelte:window onkeydown={onKey} />
 
+
 <div class="toolbar">
   <div class="title">
     <h1>{project.name}</h1>
     <span class="muted small">{saving ? t('ws.saving') : t('ws.saved')}</span>
   </div>
-  <div class="row">
+  <div class="row actions" use:toHeader>
     <button onclick={back} disabled={!trail.length} title={t('ws.backHint')}>← {t('ws.back')}</button>
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     {#if allSteps.length}
@@ -382,6 +389,13 @@
 {/if}
 
 <style>
+  /* In the app's top bar (App.svelte), on its dark background */
+  .actions { flex-wrap: nowrap; gap: 0.4rem; }
+  .actions button:not(.play), .actions .menu summary { background: transparent; color: var(--header-text); border-color: #ffffff33; padding: 0.25em 0.7em; font-size: 0.85rem; }
+  .actions button:not(.play):hover:not(:disabled), .actions .menu summary:hover { border-color: var(--header-text); }
+  .actions button.play { padding: 0.25em 0.8em; font-size: 0.85rem; }
+  .actions .changes summary { color: var(--header-muted); }
+  .actions .menu-items button { color: var(--text); border-color: var(--border); }
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
   .title { display: flex; align-items: baseline; gap: 0.75rem; }
   .changes { position: relative; font-size: 0.8rem; align-self: center; }

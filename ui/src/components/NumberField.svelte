@@ -10,6 +10,7 @@
     problem = '',
     compact = false,
     hint = '',
+    inline = false,
   }: {
     label: string
     value: number
@@ -19,6 +20,8 @@
     problem?: string
     compact?: boolean
     hint?: string
+    /** label, hint and field on one line */
+    inline?: boolean
   } = $props()
 
   let text = $state('')
@@ -42,7 +45,7 @@
   }
 </script>
 
-<label class:compact title={problem || undefined}>
+<label class:compact class:inline title={problem || undefined}>
   <span>{label}{#if hint} <Help text={hint} />{/if}</span>
   <input
     type="text"
@@ -56,5 +59,6 @@
 
 <style>
   input { width: 100%; text-align: right; font-variant-numeric: tabular-nums; }
+  .inline { display: flex; flex-direction: row; align-items: center; gap: 0.4rem; }
   .compact input { width: 3.3em; padding-left: 0.3em; padding-right: 0.3em; }
 </style>

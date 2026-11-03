@@ -149,3 +149,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 02/11/2026 : ménage de la doc : cahier (règles des chapitres, événements, musique regroupés, reports à sa demande), CHANGELOG et guides à jour.
 
 - 03/11/2026 : #150, une unité alliée ajoutée avec « + Unité » part d'un inventaire vide (les ennemis gardent la copie) ; bulle d'info : un allié déjà dans l'armée ne garde que la position. Ennemis génériques à glisser-déposer notés au cahier, après l'alpha.
+- 03/11/2026 : #145, les actions du projet (Retour, Annuler, Tester, Projet) passent dans la barre du haut ; #146, FE Maker démarre Docker Desktop s'il ne répond pas (`checks.start_docker`, état « starting » sur l'accueil) ; #148, PV des murs sur une ligne (`NumberField inline`) ; #149, un chapitre vidé n'a plus le chef du jeu d'origine. Notés au cahier : #144, #147, #151, #152, renforts répétés.

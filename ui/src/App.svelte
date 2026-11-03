@@ -59,6 +59,8 @@
     <strong>FE Maker</strong>
     <span class="muted">{t('app.tagline')}</span>
   </div>
+  <!-- The open project's actions (Workspace.svelte moves them here, ticket 145) -->
+  <div id="header-actions"></div>
   <div class="tools">
     <button class="ticket" title={t('ticket.buttonTitle')} aria-pressed={showTickets} class:active={showTickets} onclick={() => toggleTickets()}>
       {t('ticket.button')}{#if openTickets}<span class="count">{openTickets}</span>{/if}
@@ -109,6 +111,7 @@
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand strong { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
   .brand .muted { color: var(--header-muted); }
+  #header-actions { margin-left: auto; margin-right: 1.25rem; }
   .tools { display: flex; gap: 0.75rem; align-items: center; }
   .tools button { background: transparent; color: var(--header-text); border-color: #ffffff33; }
   .tools button:hover:not(:disabled) { border-color: var(--header-text); }

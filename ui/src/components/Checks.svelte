@@ -24,7 +24,12 @@
     }
   }
 
-  onMount(() => check())
+  onMount(() => {
+    check()
+    // While Docker Desktop starts (checks.py), look again until it answers.
+    const timer = setInterval(() => { if (!busy && checks.some((c) => c.detail === 'starting')) check() }, 5000)
+    return () => clearInterval(timer)
+  })
 </script>
 
 {#if missing.length || error}

@@ -86,6 +86,9 @@ def main() -> None:
     if not args.no_browser:
         threading.Timer(1.5, webbrowser.open, args=(url,)).start()
     print(f"FE Maker: {url}")
+    from . import checks
+
+    threading.Thread(target=checks.start_docker, daemon=True).start()   # builds need it (ticket 146)
     server = uvicorn.Server(uvicorn.Config("fe_maker.api:app", host="127.0.0.1", port=args.port))
     from .api import state
 

@@ -69,7 +69,7 @@
     </div>
     {#if !objective.boss}<p class="warn small">{t('objective.noBoss')}</p>{/if}
     {#if objective.boss && !battleCharacters.has(objective.boss)}<p class="warn small">{t('objective.bossAbsent')}</p>{/if}
-    {#if objective.boss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
+    {#if objective.boss && originalBoss && objective.boss !== originalBoss}<p class="muted small">{t('objective.bossQuote')}</p>{/if}
 {/snippet}
 
 <section class="objective">

@@ -863,8 +863,8 @@
               {#if fogEdit !== undefined}<span class="edited">✎</span>{/if}
             </label>
             <div class="row wall-hp">
-              <NumberField label={t('chapter.wallHp')} value={wallHpEdit ?? chapter.wallHp} min={1} max={127} compact onchange={setWallHp} />
-              <Help text={t('chapter.wallHpHint')} />
+              <NumberField label={t('chapter.wallHp')} hint={t('chapter.wallHpHint')} value={wallHpEdit ?? chapter.wallHp} min={1} max={127}
+                           compact inline onchange={setWallHp} />
               {#if wallHpEdit !== undefined}<span class="edited">✎</span>{/if}
             </div>
             <div class="row wall-hp">

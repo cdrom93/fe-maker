@@ -65,3 +65,22 @@ def test_a_checkout_has_everything_but_the_rom(monkeypatch, tmp_path):
     found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
     assert not found["rom"]["ok"] and not found["decomp"]["ok"] and found["mgba"]["ok"]
     assert found["docker"] == {"id": "docker", "ok": False, "detail": "stopped"}
+
+
+def test_a_stopped_docker_desktop_is_started(monkeypatch, tmp_path):
+    from fe_maker import checks
+    from fe_maker.config import Settings
+
+    exe = tmp_path / "Docker" / "Docker" / "Docker Desktop.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"")
+    launched = []
+    monkeypatch.setenv("ProgramFiles", str(tmp_path))
+    monkeypatch.setattr(checks, "_docker_state", lambda: (False, "stopped"))
+    monkeypatch.setattr(checks.subprocess, "Popen", lambda args, **kw: launched.append(args))
+    monkeypatch.setattr(checks, "_docker_started_at", None)
+    assert checks.start_docker() and launched == [[str(exe)]]
+    found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
+    assert found["docker"]["detail"] == "starting"
+    monkeypatch.setattr(checks, "_docker_state", lambda: (True, "27.0"))
+    assert not checks.start_docker()
