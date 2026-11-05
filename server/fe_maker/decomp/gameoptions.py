@@ -185,11 +185,18 @@ void LoadObjUIGfx(void) {
     FemLoadHpBars();
 """
 _ICONS = "void PutUnitSpriteIconsOam(void)\n{\n"
-_ICONS_BARS = """/* FE Maker: a bar under a wounded unit */
+_ICONS_BARS = """#include "face.h"
+
+/* FE Maker: a bar under a wounded unit */
 static void FemPutHpBar(struct Unit * unit)
 {
     int x = unit->xPos * 16 - gBmSt.camera.x;
     int y = unit->yPos * 16 - gBmSt.camera.y;
+    int i;
+
+    for (i = 0; i < FACE_SLOT_COUNT; ++i)
+        if (gFaces[i])
+            return; /* a portrait is shown: the bar would cover it (ticket 161) */
 
     if (x < -16 || x > DISPLAY_WIDTH || y < -16 || y > DISPLAY_HEIGHT)
         return;
@@ -246,6 +253,7 @@ static void FemLoadBubble(void) {
 
 """ + _OBJ_UI_LOAD + "    FemLoadBubble();\n"
 _ICONS_BUBBLE = """#include "eventinfo.h"
+#include "face.h"
 #include "bmreliance.h"
 
 /* FE Maker: a bubble on a unit the selected one can talk to, or support with */
@@ -255,6 +263,9 @@ static void FemPutBubble(struct Unit * unit)
     int y = unit->yPos * 16 - gBmSt.camera.y;
     int i, show;
 
+    for (i = 0; i < FACE_SLOT_COUNT; ++i)
+        if (gFaces[i])
+            return; /* a portrait is shown: the bubble would cover it (ticket 161) */
     if (!gActiveUnit || gActiveUnit == unit || !(gActiveUnit->state & US_HIDDEN)
         || UNIT_FACTION(gActiveUnit) != FACTION_BLUE || !gActiveUnit->pCharacterData)
         return;

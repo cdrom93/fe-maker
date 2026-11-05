@@ -393,6 +393,7 @@ class DecompData:
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
         self.item_amounts: dict[str, int] = {}   # items the project adds -> HP they heal, or Pure Water's barrier
+        self.item_use_bonuses: list[str] = []   # usable items, not boosters, given stat bonuses: kept on use
         self.item_temp_stats: dict[str, str] = {}   # Pure Water copies raising another stat than Resistance
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
@@ -2501,6 +2502,10 @@ class DecompData:
                 _set_int(f, "weaponExp", it["weaponExp"])
             if "statBonuses" in it:
                 self._set_item_bonus(f, it["statBonuses"])
+                effect = it.get("actsLike") or it.get("model") or it["id"]
+                if (it["weaponType"] == "item" and f.get("pStatBonuses") == f"&{NEW_BONUS_PREFIX}{f['number']}"
+                        and not effect.startswith("ITEM_BOOSTER_") and it["id"] not in self.item_use_bonuses):
+                    self.item_use_bonuses.append(it["id"])
             if it.get("spellFrom"):
                 self.spell_choices[it["id"]] = it["spellFrom"]
         self._apply_reservations(items)
@@ -2536,6 +2541,33 @@ class DecompData:
                        for name, bonus in self.item_bonuses.items() if name.startswith(NEW_BONUS_PREFIX))
         if rows:
             out[ITEMS_FILE] = out[ITEMS_FILE].replace(table, rows + table, 1)
+
+    def _with_use_bonuses(self, out: dict[str, str | bytes]) -> None:
+        """Ticket 162: a usable item given stat bonuses (a Vulnerary that also raises Strength) adds them for good when
+        used, as the game's boosters do (ApplyStatBoostItem); the item's own effect follows."""
+        if not self.item_use_bonuses:
+            return
+        rel = "src/bmusemind.c"
+        text = out.get(rel) or self._read(rel)
+        function = "void ActionStaffDoorChestUseItem(ProcPtr proc) {"
+        switch = "    switch (itemId) {\n"
+        at = text.index(function)
+        body_at = text.index(switch, at)
+        cases = "".join(f"        case {item}:\n" for item in self.item_use_bonuses)
+        helper = ("/* FE Maker: stat bonuses of a usable item, kept for good on use like a booster's (ticket 162) */\n"
+                  "static void ApplyUseStatBonusesFem(struct Unit* unit, int item) {\n"
+                  "    const struct ItemStatBonuses* bonuses = GetItemStatBonuses(item);\n\n"
+                  "    if (!bonuses)\n        return;\n\n"
+                  "    unit->maxHP += bonuses->hpBonus;\n    unit->curHP += bonuses->hpBonus;\n"
+                  "    unit->pow += bonuses->powBonus;\n    unit->skl += bonuses->sklBonus;\n"
+                  "    unit->spd += bonuses->spdBonus;\n    unit->def += bonuses->defBonus;\n"
+                  "    unit->res += bonuses->resBonus;\n    unit->lck += bonuses->lckBonus;\n"
+                  "    unit->movBonus += bonuses->movBonus;\n    unit->conBonus += bonuses->conBonus;\n"
+                  "    UnitCheckStatCaps(unit);\n}\n\n")
+        call = (switch + cases + "            ApplyUseStatBonusesFem(GetUnit(gActionData.subjectIndex),\n"
+                "                GetUnit(gActionData.subjectIndex)->items[gActionData.itemSlotIndex]);\n"
+                "            break;\n    }\n\n")
+        out[rel] = text[:at] + helper + text[at:body_at] + call + text[body_at:]
 
     def casts_at_range(self, class_id: str, model: str | None, item: dict, animations: dict | None,
                        assets_dir: Path | None) -> bool:
@@ -2695,6 +2727,7 @@ class DecompData:
         if self.new_items:
             self._with_new_item_copies(out)
         self._with_item_bonuses(out)
+        self._with_use_bonuses(out)
         self._with_spell_choices(out)
         self._with_animation_sounds(out)
         return out

@@ -1351,10 +1351,12 @@ def _item_number(item):
 
 
 def test_a_copied_vulnerary_heals_in_game(tmp_path):
-    """Ticket 144: an item the project adds acts like its model (here a Vulnerary) wherever the engine tests its number."""
+    """Ticket 144: an item the project adds acts like its model (here a Vulnerary) wherever the engine tests its number.
+    Ticket 162: its stat bonuses are kept for good on use, like a booster's."""
     probe = _bench(tmp_path, "copy", [[]])
     new = DecompData(probe.decomp_dir).new_item("ITEM_VULNERARY", {i["id"] for i in probe.load("items")})
     new["name"] = "Baume"
+    new["statBonuses"] = {"hp": 3, "pow": 2}
     probe.save("items", [*probe.load("items"), new])
     chapters = probe.load("chapters")
     chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["items"] = [new["id"]]
@@ -1363,8 +1365,10 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
     with Game(out.rom_path, out.map_path) as game:
         (unit,) = _bench_units(game)
         game.write(unit, 5, 0x13)
+        max_hp, power = game.read(unit, 0x12), game.read(unit, 0x14)
         _bench_use_item(game, unit)
         assert game.read(unit, 0x13) > 5
+        assert (game.read(unit, 0x12), game.read(unit, 0x14)) == (max_hp + 3, power + 2)
         assert game.read(unit, 0x1E, width=16) & 0xFF == _item_number(new)
         assert game.read(unit, 0x1E, width=16) >> 8 == new["uses"] - 1
 
