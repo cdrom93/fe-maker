@@ -11,6 +11,8 @@
   let error = $state('')
   let showLog = $state(false)
   let timer: ReturnType<typeof setTimeout> | undefined
+  // Progress guessed from the lines printed against the last build's count; past it, the bar has no value (ticket 156).
+  let progress = $derived(status?.expected && log.length < status.expected ? log.length / status.expected : null)
 
   async function poll() {
     try {
@@ -44,7 +46,11 @@
       <p>{error}</p>
     {:else if !status || status.state === 'running'}
       <h2>{t('build.running')}</h2>
-      <progress></progress>
+      {#if progress !== null}
+        <div class="bar"><progress value={progress}></progress><span>{Math.round(progress * 100)} %</span></div>
+      {:else}
+        <progress></progress>
+      {/if}
       <p class="muted">{t('build.firstTime')}</p>
       <p class="last mono">{log.at(-1) ?? ''}</p>
     {:else if status.state === 'done'}
@@ -70,6 +76,8 @@
   .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; padding: 1rem; z-index: 10; }
   .dialog { width: min(640px, 100%); max-height: 90vh; overflow: auto; }
   progress { width: 100%; }
+  .bar { display: flex; align-items: center; gap: 0.6rem; }
+  .bar span { min-width: 3.2rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   .mono { font-family: ui-monospace, Consolas, monospace; font-size: 0.75rem; }
   .last { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
   pre { white-space: pre-wrap; word-break: break-all; background: var(--panel-2); padding: 0.5rem; border-radius: 6px; }

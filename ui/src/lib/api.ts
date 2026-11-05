@@ -63,8 +63,8 @@ export const api = {
   setShowOriginal: (show: boolean) => request<{ show: boolean }>('PUT', '/api/project/show-original', { show }),
   applyProjectScope: (kept: { chapters: number[]; characters: string[]; classes: string[]; items: string[]; supports: boolean; title: string; hero: string }) =>
     request<{ backup: string; forced: Record<string, string[]> }>('POST', '/api/project/scope', kept),
-  chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[]; ai?: number[] }[]) =>
-    request<{ move: [number, number][]; strike: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
+  chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[]; ai?: number[]; mag?: number }[]) =>
+    request<{ move: [number, number][]; strike: [number, number][]; heal: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
@@ -93,8 +93,8 @@ export const api = {
     request<Record<string, { objective: Objective | null; groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[] }>>('GET', '/api/chapters/overview'),
   chapterObjective: (index: number) => request<Objective>('GET', `/api/chapters/${index}/objective`),
   maps: () => request<MapInfo[]>('GET', '/api/maps'),
-  unitStats: (unit: { character: string; classId: string; level: number; autolevel: boolean; side: string }) =>
-    request<Record<string, number>>('POST', '/api/units/stats', unit),
+  unitStats: (unit: { character: string; classId: string; level: number; autolevel: boolean; side: string; items: string[] }) =>
+    request<{ stats: Record<string, number>; ranks: Record<string, string> }>('POST', '/api/units/stats', unit),
   chapterDialogues: (index: number) =>
     request<{ scenes: DialogueScene[]; messages: Record<string, DialogueStep[]> }>('GET', `/api/chapters/${index}/dialogues`),
   dialogueFaces: () => request<DialogueFace[]>('GET', '/api/dialogues/faces'),

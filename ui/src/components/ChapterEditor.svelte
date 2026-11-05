@@ -45,6 +45,9 @@
   const LAST_BATTLE_BG_SET = 0x14
   const GROUP_SPRITES = 10
   const SHOWN_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']
+  // The game's weapon type icons follow the item icons, in the weapon type order (0x70 + type, src/statscreen.c).
+  const WTYPE_ICON = 0x70
+  const RANK_TYPES = ['sword', 'lance', 'axe', 'bow', 'staff', 'anima', 'light', 'dark']
   const GENERIC = '0x80' // first generic character id: no name, portrait or personal data
 
   // Several chapters share an internal id in the original game: list them by index.
@@ -57,10 +60,13 @@
   let dragging = $state<{ group: string; index: number } | null>(null)
   let mapEl = $state<HTMLDivElement>()
   let openGroup = $state<string | null>(null)
+  /** The turn picked in the timeline (0: the start): the map shows the units there at that turn (ticket 153). */
+  let focusTurn = $state<number | null>(null)
   let showCutscenes = $state(false)
   /** the map's change shown under the units */
   let shownChange = $state<number | null>(null)
   let unitStats = $state<Record<string, number> | null>(null)
+  let unitRanks = $state<Record<string, string>>({})
 
   const chapter = $derived(chapters[selected])
 
@@ -265,6 +271,12 @@
   // In the order of play: the first units, then the turns.
   const turnOf = (g: ChapterUnits['groups'][number]) => (g.origin === 'turn' ? (g.turn ?? 99) : 0)
   const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene').sort((a, b) => turnOf(a) - turnOf(b)))
+  // One row per turn where units come: the start, then each reinforcement turn (ticket 153).
+  const turnRows = $derived.by(() => {
+    const rows = new Map<number, typeof battleGroups>()
+    for (const g of battleGroups) rows.set(turnOf(g), [...(rows.get(turnOf(g)) ?? []), g])
+    return [...rows].map(([turn, list]) => ({ turn, groups: list }))
+  })
   const cutsceneGroups = $derived(groups.filter((g) => g.origin === 'cutscene') ?? [])
   const pickedOrigin = $derived(picked ? groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
@@ -337,31 +349,34 @@
   $effect(() => {
     if (!unit) return
     let stale = false
-    api.unitStats({ character: unit.character, classId: effectiveClass(unit), level: shownLevel(unit), autolevel: unit.autolevel, side: unit.side })
-      .then((stats) => {
-        if (!stale) unitStats = stats
+    api.unitStats({ character: unit.character, classId: effectiveClass(unit), level: shownLevel(unit), autolevel: unit.autolevel,
+                    side: unit.side, items: [...unit.items] })
+      .then((r) => {
+        if (!stale) [unitStats, unitRanks] = [r.stats, r.ranks]
       })
       .catch(() => {
-        if (!stale) unitStats = null
+        if (!stale) [unitStats, unitRanks] = [null, {}]
       })
     return () => {
       stale = true
     }
   })
 
-  // On the map: where the picked unit can go (blue) and strike (red), or all the enemies' danger zone.
+  // On the map: where the picked unit can go (blue), strike (red) and use its staves (green, ticket 157),
+  // or all the enemies' danger zone.
   let danger = $state(false)
-  let reach = $state<{ move: [number, number][]; strike: [number, number][] }>({ move: [], strike: [] })
+  let reach = $state<{ move: [number, number][]; strike: [number, number][]; heal: [number, number][] }>({ move: [], strike: [], heal: [] })
   const asked = $derived.by(() => {
     const shown = danger ? groups.flatMap((g) => unitsOf(g.name)).filter((u) => u.side === 'enemy') : unit ? [unit] : []
     return JSON.stringify(shown.map((u) => ({ classId: effectiveClass(u), x: u.endX, y: u.endY, items: u.items,
-                                              ai: u.side === 'enemy' && Array.isArray(u.ai) ? u.ai : undefined })))
+                                              ai: u.side === 'enemy' && Array.isArray(u.ai) ? u.ai : undefined,
+                                              mag: !danger && unitStats ? unitStats.pow : 0 })))
   })
   $effect(() => {
     const body = JSON.parse(asked)
     const index = chapter?.index
     if (index === undefined || !body.length) {
-      reach = { move: [], strike: [] }
+      reach = { move: [], strike: [], heal: [] }
       return
     }
     api.chapterReach(index, body).then((r) => {
@@ -417,6 +432,7 @@
     selected = index
     picked = null
     openGroup = null
+    focusTurn = null
     shownChange = null
     pickingSeize = false
     pickingCamera = false
@@ -564,12 +580,12 @@
 
       <section class="panel">
         {#if data}
-          {#snippet groupChip(g: ChapterUnits['groups'][number])}
+          {#snippet groupChip(g: ChapterUnits['groups'][number], short = false)}
               {@const shown = unitsOf(g.name)}
               <div class="group" class:open={openGroup === g.name}>
                 <input type="checkbox" title={t('chapter.showGroup')} aria-label={t('chapter.showGroup')} checked={!hidden[g.name]} onchange={(e) => (hidden[g.name] = !(e.target as HTMLInputElement).checked)} />
                 <button class="group-name" title="{t('chapter.openGroup')} ({g.name.replace('UnitDef_Event_', '')})" onclick={() => toggleGroup(g.name)}>
-                  <span>{originLabel(g.origin, g.turn)} <span class="muted tiny">{shown.length}</span>{#if edits[g.name]} <span class="edited">✎</span>{/if}</span>
+                  <span>{short && g.origin === 'turn' ? t('chapter.origin.turnShort') : originLabel(g.origin, g.turn)} <span class="muted tiny">{shown.length}</span>{#if edits[g.name]} <span class="edited">✎</span>{/if}</span>
                   <span class="group-sprites">
                     {#each shown.slice(0, GROUP_SPRITES) as u, i (i)}<img src={mapSpriteUrl(effectiveClass(u), u.side, true)} alt="" use:hideBroken />{/each}
                     {#if shown.length > GROUP_SPRITES}<span class="muted tiny">+{shown.length - GROUP_SPRITES}</span>{/if}
@@ -579,9 +595,20 @@
               </div>
           {/snippet}
           <h3 class="groups-title">{t('chapter.battleGroups')}</h3>
-          <div class="groups">
-            {#each battleGroups as g (g.name)}{@render groupChip(g)}{/each}
+          <div class="timeline">
+            {#each turnRows as row (row.turn)}
+              <button class="turn" class:focus={focusTurn === row.turn} title={t('chapter.turnFocusHint')}
+                      onclick={() => (focusTurn = focusTurn === row.turn ? null : row.turn)}>
+                {row.turn ? t('chapter.turnRow', { n: row.turn }) : t('chapter.turnStart')}
+              </button>
+              <div class="groups">
+                {#each row.groups as g (g.name)}{@render groupChip(g, true)}{/each}
+              </div>
+            {/each}
+          </div>
+          <div class="row timeline-tools">
             <button class="add-group" title={t('chapter.addReinforcementsHint')} onclick={addReinforcements}>＋ {t('chapter.addReinforcements')}</button>
+            <Help text={t('chapter.timelineHint')} />
           </div>
           {#if cutsceneGroups.length}
             <details class="cutscenes" bind:open={showCutscenes}>
@@ -693,6 +720,9 @@
               {#each reach.move as [x, y] (`${x},${y}`)}
                 {#if !danger}<span class="reach move" style="left: {x * CELL}px; top: {y * CELL}px"></span>{/if}
               {/each}
+              {#if !danger}
+                {#each reach.heal as [x, y] (`${x},${y}`)}<span class="reach heal" style="left: {x * CELL}px; top: {y * CELL}px"></span>{/each}
+              {/if}
               {#each danger ? [...reach.move, ...reach.strike] : reach.strike as [x, y] (`${x},${y}`)}
                 <span class="reach strike" style="left: {x * CELL}px; top: {y * CELL}px"></span>
               {/each}
@@ -705,12 +735,12 @@
                 {/each}
               {/if}
               {#each groups as g (g.name)}
-                {#if !hidden[g.name]}
+                {#if !hidden[g.name] && (focusTurn === null || (g.origin !== 'cutscene' && turnOf(g) <= focusTurn))}
                   {#each unitsOf(g.name) as u, i (i)}
                     <button
                       class="unit {u.side}"
                       class:picked={picked?.group === g.name && picked.index === i}
-                      class:dimmed={openGroup !== null && openGroup !== g.name}
+                      class:dimmed={(openGroup !== null && openGroup !== g.name) || (focusTurn !== null && turnOf(g) < focusTurn)}
                       class:locked={u.fixedPath}
                       style="left: {u.endX * CELL}px; top: {u.endY * CELL}px"
                       title="{unitName(u)} · {classById.get(effectiveClass(u))?.name ?? effectiveClass(u)} {t('chapter.levelShort')}{u.level}"
@@ -804,6 +834,15 @@
               <div class="unit-stats">
                 {#each SHOWN_STATS as s (s)}<span><span class="muted tiny">{t(`stat.${s}`)}</span> {unitStats[s]}</span>{/each}
               </div>
+              {#if Object.keys(unitRanks).length}
+                <!-- Weapon ranks, raised by the autolevel to what the items need (ticket 157) -->
+                <div class="unit-ranks">
+                  {#each Object.entries(unitRanks) as [w, rank] (w)}
+                    <span title={t(`wtype.${w}`)}><img class="pixel" src={itemIconUrl(WTYPE_ICON + RANK_TYPES.indexOf(w))} alt={t(`wtype.${w}`)} /> {rank}</span>
+                  {/each}
+                  <Help text={t(unit.autolevel ? 'chapter.ranksAutoHint' : 'chapter.ranksHint')} />
+                </div>
+              {/if}
             {/if}
             <h3>{t('chapter.items')}{#if unit.side === 'player'} <Help text={t('chapter.allyItemsHint')} />{/if}</h3>
             {#each Array(ITEM_SLOTS) as _, slot (slot)}
@@ -933,10 +972,20 @@
   }
   .shown-map { flex-direction: row; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
   .unit-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1rem 0.5rem; font-size: 0.85rem; }
+  .unit-ranks { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.7rem; margin-top: 0.35rem; font-size: 0.85rem; font-weight: 600; }
+  .unit-ranks span { display: inline-flex; align-items: center; gap: 0.2rem; }
+  .unit-ranks img { width: 16px; height: 16px; }
   .dropped { color: var(--good, #2e9e5b); font-weight: 600; }
   .quotes { margin: 0; }
   .check { flex-direction: row; align-items: center; gap: 0.35rem; color: var(--text); font-size: 0.85rem; }
   .groups-title { margin: 0.25rem 0 0.4rem; font-size: 0.8rem; }
+  .timeline { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 0.75rem; align-items: start; }
+  .timeline .turn { border: none; background: none; padding: 0.45rem 0.5rem; border-radius: 6px; font-weight: 700; font-size: 0.85rem; color: var(--accent); text-align: left; white-space: nowrap; }
+  .timeline .turn:hover { background: var(--panel-2); }
+  .timeline .turn.focus { background: var(--accent-soft); }
+  .timeline .groups { padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
+  .timeline .groups:last-child { border-bottom: none; }
+  .timeline-tools { margin-top: 0.5rem; align-items: center; gap: 0.4rem; }
   .cutscenes { margin-top: 0.6rem; }
   .cutscenes summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
   .cutscenes[open] summary { margin-bottom: 0.3rem; }
@@ -968,6 +1017,7 @@
   .reach { position: absolute; width: 32px; height: 32px; pointer-events: none; }
   .reach.move { background: rgb(64 128 255 / 35%); }
   .reach.strike { background: rgb(255 64 64 / 35%); }
+  .reach.heal { background: rgb(64 200 96 / 40%); }
   .seize-marker {
     position: absolute; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center;
     border: 3px solid #f1c40f; border-radius: 4px; background: rgb(241 196 15 / 0.25); font-size: 15px; pointer-events: none;

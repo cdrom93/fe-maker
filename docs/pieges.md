@@ -37,6 +37,8 @@ piège dans sa section.
 
 - Une arme de contact à portée 2 frappe de loin seulement si l'animation de la classe appelle le sort dans son mode à distance (`banim.casts_at_range`) : les haches ordinaires ne le font pas, d'où l'avertissement `noRangedAnimation`.
 
+- **Rangs d'armes et montée automatique** : une unité en montée automatique reçoit, pour chaque arme ou bâton qu'elle ne peut pas utiliser, le rang exact que l'objet demande, si elle a déjà un rang dans ce type (`UnitAutolevelWExp`, src/bmunit.c). Ne pas avertir d'un rang trop bas dans ce cas (ticket 157). La portée « Mag/2 » d'un bâton vaut au moins 5 (`GetUnitMagBy2Range`).
+
 ## Cartes
 
 - Les tuiles de sprites 0x12-0x7F des premières lignes sont aux particules de la météo : les barres de PV et les bulles sont en 0x340-0x37F, libres pendant la carte (#142). Le prologue cache les icônes de la carte (`EVFLAG_HIDE_BLINKING_ICON`) : tester les barres sur un autre chapitre.

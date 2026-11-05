@@ -585,6 +585,8 @@ export interface BuildStatus {
   state: 'idle' | 'running' | 'done' | 'error'
   log: string[]
   logSize: number
+  /** lines the last finished build printed: a guess of this one's length (ticket 156) */
+  expected?: number
   error: string | null
   patch: string | null
   launch: boolean

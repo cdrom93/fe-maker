@@ -62,3 +62,16 @@ def weapon_ranges(item_ids: list[str], items: list[dict]) -> list[tuple[int, int
         if it is not None and it.get("weaponType") not in NOT_WEAPONS and it["range"]["max"] > 0:
             found.append((max(it["range"]["min"], 1), it["range"]["max"]))
     return found
+
+
+def staff_ranges(item_ids: list[str], items: list[dict], mag: int = 0) -> list[tuple[int, int]]:
+    """Ranges of the staves carried (green on the map, ticket 157); a max range of 0 is Mag/2, at least 5, as in the
+    game (GetUnitMagBy2Range, src/bmunit.c)."""
+    by_id = {it["id"]: it for it in items}
+    found = []
+    for item in item_ids:
+        it = by_id.get(item)
+        if it is not None and it.get("weaponType") == "staff":
+            high = it["range"]["max"] or max(5, mag // 2)
+            found.append((max(it["range"]["min"], 1), high))
+    return found

@@ -691,10 +691,12 @@ def _rank_value(rank) -> int:
     return rank if isinstance(rank, int) else 0
 
 
-def weapon_problem(item: dict, character: dict | None, cls: dict | None) -> tuple[str, dict] | None:
+def weapon_problem(item: dict, character: dict | None, cls: dict | None, autolevel: bool = False) -> tuple[str, dict] | None:
     """Why a unit (its character and class) cannot use a weapon or staff it carries, as CanUnitUseWeapon
     (src/bmitem.c) decides: reserved for other classes or characters (weapon locks), a monster weapon,
-    or a weapon rank too low (the character's rank for the type, else its class's). None: it can."""
+    or a weapon rank too low (the character's rank for the type, else its class's). None: it can.
+    An autoleveled unit gets the rank its items need, when it has any rank in their type
+    (UnitAutolevelWExp, src/bmunit.c; ticket 157)."""
     wtype = item.get("weaponType")
     if wtype not in RANKABLE_TYPES and not item.get("monsterWeapon"):
         return None   # not a weapon or a staff
@@ -710,10 +712,30 @@ def weapon_problem(item: dict, character: dict | None, cls: dict | None) -> tupl
     need = _rank_value(item.get("weaponRank"))
     have = _rank_value((character or {}).get("weaponRanks", {}).get(wtype)) \
         or _rank_value((cls or {}).get("weaponRanks", {}).get(wtype))
-    if have < need:
+    if have < need and not (autolevel and have > 0):
         rank = next((r for r, v in RANK_VALUES.items() if v == need), str(need))
         return ("weaponRank", {"rank": rank, "wtype": wtype})
     return None
+
+
+def unit_ranks(character: dict | None, cls: dict | None, items: list[dict], autolevel: bool) -> dict[str, str]:
+    """Weapon ranks of a unit entering a chapter: the character's rank for each type, else its class's. An autoleveled
+    unit then gets, for each weapon or staff it carries but could not use, the rank that item needs, if it has
+    any rank in its type (UnitAutolevelWExp, src/bmunit.c; ticket 157). Only the types it has a rank in."""
+    ranks = {t: _rank_value((character or {}).get("weaponRanks", {}).get(t))
+             or _rank_value((cls or {}).get("weaponRanks", {}).get(t)) for t in RANKABLE_TYPES}
+    if autolevel:
+        for item in items:
+            wtype = item.get("weaponType")
+            why = weapon_problem(item, character, cls)
+            if wtype in ranks and ranks[wtype] and why and why[0] == "weaponRank":
+                ranks[wtype] = max(ranks[wtype], _rank_value(item.get("weaponRank")))
+    return {t: _rank_letter(v) for t, v in ranks.items() if v}
+
+
+def _rank_letter(value: int) -> str:
+    """The rank a weapon experience reaches: E from 1, D from 31... (RANK_VALUES)."""
+    return max((r for r, v in RANK_VALUES.items() if v <= value), key=RANK_VALUES.get, default="E")
 
 
 def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[dict], classes: list[dict], items: list[dict],
@@ -739,7 +761,7 @@ def _validate_unit_weapons(problems, decomp, chapters: dict, characters: list[di
                 class_id = character["class"] if named else u.get("class")
                 for item_id in u.get("items", []):
                     item = by_item.get(item_id)
-                    why = item and weapon_problem(item, character, by_class.get(class_id))
+                    why = item and weapon_problem(item, character, by_class.get(class_id), bool(u.get("autolevel")))
                     if why:
                         found[(name, n, item_id)] = (u.get("character"), why)
         return found

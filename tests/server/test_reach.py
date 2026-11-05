@@ -31,3 +31,11 @@ def test_the_ai_of_a_unit_limits_its_reach():
     assert reach.ai_reach([3, 0, 0, 0]) == (False, True)   # acts from its tile
     assert reach.ai_reach([0, 3, 0, 0]) == (False, True)   # stays
     assert reach.ai_reach([6, 0, 0, 0]) == (True, False)   # never acts
+
+
+def test_staves_reach_mag_by_2_tiles_at_least_5():
+    items = [{"id": "HEAL", "weaponType": "staff", "range": {"min": 1, "max": 1}},
+             {"id": "PHYSIC", "weaponType": "staff", "range": {"min": 1, "max": 0}},
+             {"id": "SWORD", "weaponType": "sword", "range": {"min": 1, "max": 1}}]
+    assert reach.staff_ranges(["HEAL", "PHYSIC", "SWORD"], items, mag=7) == [(1, 1), (1, 5)]
+    assert reach.staff_ranges(["PHYSIC"], items, mag=16) == [(1, 8)]

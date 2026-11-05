@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from . import __version__, decompfetch, emulator, ferepo, newchapter, scope, validation
 from .builder import BuildError
 from .checks import run_checks
-from .config import Settings, default_projects_dir, find_tiled
+from .config import Settings, config_dir, default_projects_dir, find_tiled
 from .decomp import (
     autotile,
     averagestats,
@@ -597,6 +597,8 @@ class ReachUnitIn(BaseModel):
     y: int
     items: list[str] = []
     ai: list[int] | None = None   # taken into account for enemies
+    mag: int = 0   # for staves reaching Mag/2 tiles
+
 
 
 class ReachIn(BaseModel):
@@ -626,6 +628,7 @@ def chapter_reach(index: int, body: ReachIn):
     costs = maps.movement_costs(DECOMP_DIR)
     moves: set[tuple[int, int]] = set()
     strikes: set[tuple[int, int]] = set()
+    heals: set[tuple[int, int]] = set()
     for unit in body.units:
         cls = classes.get(unit.classId)
         table = costs.get(cls.get("movement") or "") if cls else None
@@ -636,7 +639,8 @@ def chapter_reach(index: int, body: ReachIn):
         moves |= own
         if can_strike:
             strikes |= reach.strikes(own, reach.weapon_ranges(unit.items, items), width, height)
-    return {"move": sorted(moves), "strike": sorted(strikes - moves)}
+            heals |= reach.strikes(own, reach.staff_ranges(unit.items, items, unit.mag), width, height)
+    return {"move": sorted(moves), "strike": sorted(strikes - moves), "heal": sorted(heals - moves - strikes)}
 
 
 def _layout_changes(layout_id: str, project_maps: dict) -> list[dict]:
@@ -1117,6 +1121,7 @@ class UnitStatsIn(BaseModel):
     level: int
     autolevel: bool
     side: str
+    items: list[str] = []
 
 
 @app.post("/api/units/stats")
@@ -1127,8 +1132,12 @@ def unit_stats(body: UnitStatsIn):
     if cls is None:
         raise HTTPException(404, f"Unknown class {body.classId}")
     character = next((c for c in project.load("characters") if c["id"] == body.character), None)
-    return averagestats.average_stats(character, cls, body.level, body.autolevel, body.side,
-                                      state.get_decomp().character_number(body.character))
+    by_id = {i["id"]: i for i in project.load("items")}
+    return {
+        "stats": averagestats.average_stats(character, cls, body.level, body.autolevel, body.side,
+                                            state.get_decomp().character_number(body.character)),
+        "ranks": validation.unit_ranks(character, cls, [by_id[i] for i in body.items if i in by_id], body.autolevel),
+    }
 
 
 @app.get("/api/chapters/{index}/units")
@@ -2197,6 +2206,22 @@ class BuildIn(BaseModel):
     launch: bool = False
 
 
+# Lines a first build prints (make's ~1800 commands, measured 05/11/2026), before any build was counted (ticket 156).
+FIRST_BUILD_LINES = 2000
+
+
+def _build_lines_file() -> Path:
+    return config_dir() / "build-lines.txt"
+
+
+def expected_build_lines() -> int:
+    """The last finished build's line count: the best guess of how long this one is, for a progress bar."""
+    try:
+        return max(1, int(_build_lines_file().read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return FIRST_BUILD_LINES
+
+
 def _run_build(project: Project, launch: bool) -> None:
     st = state.build_status
     try:
@@ -2207,6 +2232,11 @@ def _run_build(project: Project, launch: bool) -> None:
         if launch:
             state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys)
         st["state"] = "done"
+        try:
+            _build_lines_file().parent.mkdir(parents=True, exist_ok=True)
+            _build_lines_file().write_text(str(len(st["log"])), encoding="utf-8")
+        except OSError:
+            pass
     except (ProjectError, BuildError, InvalidRomError, emulator.EmulatorError) as e:
         st["error"] = str(e)
         st["state"] = "error"
@@ -2224,7 +2254,10 @@ def start_build(body: BuildIn):
         raise HTTPException(409, "noRom")
     if not state.build_lock.acquire(blocking=False):
         raise HTTPException(409, "buildRunning")
-    state.build_status = {"state": "running", "log": [], "error": None, "patch": None, "launch": body.launch}
+    state.build_status = {
+        "state": "running", "log": [], "error": None, "patch": None, "launch": body.launch,
+        "expected": expected_build_lines(),
+    }
     threading.Thread(target=_run_build, args=(project, body.launch), daemon=True).start()
     return state.build_status
 

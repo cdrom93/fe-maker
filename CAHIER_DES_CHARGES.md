@@ -143,7 +143,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 
 ### Phase 3 — Chapitres
 **État** :
-- **Unités** : placement par glisser-déposer, inventaire, IA, unités de cinématique, renforts au tour N, niveau des alliés sur leur fiche, ennemis et génériques réglés dans le chapitre, montée automatique, niveaux selon la difficulté.
+- **Unités** : placement par glisser-déposer, inventaire, IA, unités de cinématique, renforts au tour N, niveau des alliés sur leur fiche, ennemis et génériques réglés dans le chapitre, montée automatique, niveaux selon la difficulté ; groupes rangés par tour (une ligne par tour, le tour choisi montré sur la carte, #153) ; rangs d'armes de l'unité et portée des bâtons en vert (#157).
 - **Fiche d'unité** : objet lâché à la mort, liens vers la réplique de combat et les dernières paroles, stats calculées (moyenne en montée automatique, comparée au jeu), carte affichée avec un changement, groupes dans l'ordre du jeu avec leurs sprites.
 - **Objectifs** : s'emparer, vaincre tous les ennemis ou le chef, survivre, atteindre une zone, protéger, texte de l'écran de statut, brouillard de guerre. Tour de Valni et ruines de Lagdou en lecture seule.
 - **Cartes** : peinture, blocs et bâtiments, terrains qui se raccordent tout seuls, « Remplir le vide », taille sur les quatre côtés (changements, villages, coffres, portes, unités et cases à prendre suivent ; pas les coordonnées écrites dans les scènes, un avertissement le dit), changements de carte, y compris sur les cartes qui n'en avaient pas, objets automatiques (villages, maisons, coffres, portes, murs fissurés, bois morts, magasins : leur changement et leur événement sont créés tout seuls), tuiles tournées, palettes et retouche de leurs couleurs (le brouillard suit), jeux de tuiles, aller-retour avec Tiled.
@@ -171,6 +171,8 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - **Pas vérifié** : l'import d'animation depuis le PC en jeu ; la musique vérifiée en jeu, jamais écoutée.
 
 ### Après l'alpha
+- **Présentation inspirée du wiki Fire Emblem** (fireemblemwiki.org, par exemple la page d'un chapitre : renforts tour par tour, tableaux d'unités) : l'utilisateur veut s'en inspirer pour d'autres écrans (ticket 153, 04/11/2026). Le chapitre tour par tour pourra aussi montrer les scènes de chaque tour.
+- Rangs d'armes réglables par unité dans le chapitre (ticket 157) : à discuter avec l'utilisateur ; aujourd'hui ils sont affichés seulement.
 - Agrandir les tables (objets, personnages, classes, cartes, chapitres).
 - **À faire, décidé par l'utilisateur le 01/11/2026** : créer de nouveaux objets à usage et de nouveaux bâtons. Le moteur les reconnaît à leur numéro : il faudra rendre leur effet réglable.
 - Ce que garde un projet (ticket 129) : retirer armes factices ou inutilisées, avec plusieurs filtres, et de même pour les classes, les personnages et les chapitres.

@@ -148,6 +148,9 @@ def test_weapon_a_unit_cannot_use():
     claw = {"weaponType": "monster", "weaponRank": 0, "monsterWeapon": True}
     assert weapon_problem(claw, None, {"id": "CLASS_MOGALL", "abilities": ["lock3"]}) is None
     assert weapon_problem(claw, hero, lord) == ("weaponReserved", {})
+    # Autoleveled: the rank rises to what the item needs, if the unit has any rank in its type (ticket 157)
+    assert weapon_problem(blade, None, lord, autolevel=True) is None
+    assert weapon_problem(blade, None, {"id": "CLASS_LORD", "weaponRanks": {}}, autolevel=True)[0] == "weaponRank"
 
 
 def test_unusable_weapons_of_units(decomp_dir):
@@ -211,3 +214,16 @@ def test_new_character_on_an_entry_the_game_uses(decomp_dir):
     codes = _codes(validate([*chars, free, taken], d.export_items(), d))
     assert ("CHARACTER_NEW_02", "id", "characterEntryTaken") in codes
     assert not any(c[0] == "CHARACTER_NEW_03" and c[2] == "characterEntryTaken" for c in codes)
+
+
+def test_ranks_of_an_autoleveled_unit():
+    from fe_maker.validation import unit_ranks
+
+    priest = {"id": "CLASS_PRIEST", "weaponRanks": {"staff": "E"}}
+    heal = {"id": "ITEM_HEAL", "weaponType": "staff", "weaponRank": "E"}
+    physic = {"id": "ITEM_PHYSIC", "weaponType": "staff", "weaponRank": "B"}
+    sword = {"id": "ITEM_SWORD", "weaponType": "sword", "weaponRank": "E"}
+    assert unit_ranks(None, priest, [heal, physic, sword], autolevel=False) == {"staff": "E"}
+    # Physic needs B: the game raises the staff rank to it; no sword rank, no sword (ticket 157)
+    assert unit_ranks(None, priest, [heal, physic, sword], autolevel=True) == {"staff": "B"}
+    assert unit_ranks({"weaponRanks": {"staff": 40}}, priest, [], autolevel=False) == {"staff": "D"}
