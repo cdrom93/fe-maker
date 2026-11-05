@@ -173,7 +173,12 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 ### Après l'alpha
 - **Présentation inspirée du wiki Fire Emblem** (fireemblemwiki.org, par exemple la page d'un chapitre : renforts tour par tour, tableaux d'unités) : l'utilisateur veut s'en inspirer pour d'autres écrans (ticket 153, 04/11/2026). Le chapitre tour par tour pourra aussi montrer les scènes de chaque tour.
 - Rangs d'armes réglables par unité dans le chapitre (ticket 157) : à discuter avec l'utilisateur ; aujourd'hui ils sont affichés seulement.
-- Agrandir les tables (objets, personnages, classes, cartes, chapitres).
+- Agrandir les tables (objets, personnages, classes, cartes, chapitres). Aller de pair avec la mémoire de sauvegarde (32 Ko, plan fixé par le jeu, `SaveBlocks` dans include/bmsave.h) : plus d'objets, de personnages ou de chapitres veut dire plus d'emplacements à sauvegarder (sacs, convoi, statistiques par personnage et par chapitre, drapeaux). Places possibles, notées le 05/11/2026 :
+  - zone libre 0x73A4-0x7400 (92 octets) : prise par les bonus temporaires (#144, 10 unités à la fois au plus par sauvegarde de mi-chapitre) ;
+  - zone des cartes bonus (0xC00 octets à la fin, `SRAM_OFFSET_XMAP`) : le jeu ne fait que la lire, si une signature y est ; sans doute inutilisée hors du Japon, à confirmer. Les bonus temporaires y tiendraient pour toutes les unités, sans limite ;
+  - arène en lien (0x89C octets) : seulement si le hack renonce au combat entre deux consoles (option d'auteur) ;
+  - un emplacement de partie en moins (0xDC8 octets) : 2 parties au lieu de 3 (option d'auteur, visible du joueur) ;
+  - refaire tout le plan de la mémoire : patch « Expanded Modular Save » de FEBuilder, si FE Maker doit sauvegarder beaucoup de données nouvelles.
 - **À faire, décidé par l'utilisateur le 01/11/2026** : créer de nouveaux objets à usage et de nouveaux bâtons. Le moteur les reconnaît à leur numéro : il faudra rendre leur effet réglable.
 - Ce que garde un projet (ticket 129) : retirer armes factices ou inutilisées, avec plusieurs filtres, et de même pour les classes, les personnages et les chapitres.
 - Animations : modifier une animation (une épée ou une lance à un pirate), proposer les mouvements manquants depuis le FE-Repo ou les adapter d'une autre arme (ticket 134). L'animation de hache levée générée reste dans git (67140b2).
