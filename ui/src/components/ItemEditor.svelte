@@ -226,7 +226,7 @@
                 </label>
               {/if}
               <NumberField label={t(water ? 'item.amountBarrier' : 'item.amountHeal')} value={it.effectAmount ?? amountOf}
-                           min={1} max={water ? ((it.effectStat ?? 'res') === 'res' ? 7 : 30) : 80}
+                           min={1} max={water ? ((it.effectStat ?? 'res') === 'res' ? 7 : 15) : 80}
                            onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
               <Help text={t(water ? 'item.amountBarrierHint' : 'item.amountHealHint')} />
             {/if}

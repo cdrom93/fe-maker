@@ -164,3 +164,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 05/11/2026 : #144, une copie de soin ou d'Eau bénite a ses propres PV rendus ou sa Résistance en plus (`effectAmount`, `_own_item_amount`), vérifié en jeu.
 - 05/11/2026 : banc d'essai des playtests (`_bench`, `tests/local/test_playtest.py`) : projet vierge, unités seules, menus prévisibles ; tests des objets copiés refaits dessus.
 - 05/11/2026 : #144, « Stat augmentée » : une copie d'Eau bénite donne un bonus qui baisse chaque tour à n'importe quelle stat (`effectStat`, `_with_temporary_bonus`), vérifié en jeu ; test de combat de la fiche arme passé sur le banc d'essai (`enemy_at`, `_bench_attack`).
+- 05/11/2026 : #144, bonus temporaires : un compteur par stat (15 au plus), cumulables, gardés par la sauvegarde de mi-chapitre (zone libre 0x73A4-0x7400) ; vérifié en jeu sur le banc avec sauvegarde, reprise et mémoire effacée entre les deux (`_bench_suspend_and_resume`).

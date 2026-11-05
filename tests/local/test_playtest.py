@@ -1292,9 +1292,9 @@ def _bench(tmp_path, name, items_by_unit, enemy_at=(14, 9)):
     return project
 
 
-def _bench_units(game):
+def _bench_units(game, turn=1):
     """The bench's units, in the order of BENCH_SPOTS: their addresses."""
-    assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.phase() == "player" and game.units())
+    assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == turn and game.phase() == "player" and game.units())
     game.run(120)
     base = game.address("gUnitArrayBlue")
     found = {(game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)): base + n * UNIT_SIZE
@@ -1311,6 +1311,26 @@ def _bench_attack(game, unit):
     game.press("A", wait=30)       # the first weapon
     game.press("A", wait=30)       # the target
     game.press("A", wait=30)       # the forecast
+
+
+def _bench_suspend_and_resume(game, units):
+    """On the bench: Suspend from the map menu and quit, wipe the units' memory and the turn (so only the save can
+    bring them back), then Resume Chapter from the title screen."""
+    game.move_cursor(14, 2)
+    game.press("A", wait=30)
+    game.press("UP", wait=15)
+    game.press("UP", wait=15)      # Suspend
+    for _ in range(4):             # Suspend, Yes (quit), then the two lines of "Next time, choose Resume Chapter"
+        game.press("A", wait=120)
+    turn = game.turn()
+    for unit in units:
+        for offset in range(0x10, UNIT_SIZE):
+            game.write(unit, 0, offset)
+    game.write("gPlaySt", 0, 0x10, width=16)
+    for _ in range(6):             # to the title screen's menu
+        game.press("START", wait=70)
+    assert game.wait_until(lambda: game.turn() == turn, seconds=20, step=60, tap="A")   # Resume Chapter, the save
+
 
 
 def _bench_use_item(game, unit, slot=0):
@@ -1351,7 +1371,7 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
 
 def test_copies_heal_and_protect_their_own_amount(tmp_path):
     """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance, another +4 Speed; both bonuses
-    drop by 1 at the next turn."""
+    drop by 1 at the next turn; a third one adds +5 Strength beside the Speed, and both survive a suspend."""
     project = _bench(tmp_path, "amount", [[], [], []])
     items = project.load("items")
     decomp = DecompData(project.decomp_dir)
@@ -1361,12 +1381,19 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     water.update(name="Eau", effectAmount=3)
     tonic = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"]})
     tonic.update(name="Tonique", effectAmount=4, effectStat="spd")
-    project.save("items", [*items, balm, water, tonic])
+    force = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"]})
+    force.update(name="Force", effectAmount=5, effectStat="pow")
+    project.save("items", [*items, balm, water, tonic, force])
     chapters = project.load("chapters")
     for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water, tonic)):
         unit["items"] = [item["id"]]
+    chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][2]["items"].append(force["id"])
     project.save("chapters", chapters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+
+    def bonuses(unit):   # 4 bits per stat: Strength, Skill, Speed, Defense, Luck
+        return game.read(unit, 0x3A) | game.read(unit, 0x3B) << 8 | game.read(unit, 0x47) << 16
+
     with Game(out.rom_path, out.map_path) as game:
         first, second, third = _bench_units(game)
         game.write(first, 5, 0x13)
@@ -1375,11 +1402,16 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
         _bench_use_item(game, second)
         assert game.read(second, 0x31) >> 4 == 3
         _bench_use_item(game, third)
-        assert (game.read(third, 0x3A), game.read(third, 0x3B)) == (3, 4)   # Speed, +4
+        assert bonuses(third) == 0x400   # Speed +4
         # every unit has acted: the turn ends by itself
         # (lowered at the start of the phase, after its banner: TickActiveFactionTurn)
         assert game.wait_until(lambda: game.turn() == 2 and game.read(second, 0x31) >> 4 == 2, seconds=120, step=30)
-        assert game.read(third, 0x3B) == 3
+        assert bonuses(third) == 0x300
+        _bench_use_item(game, third, slot=1)
+        assert bonuses(third) == 0x305   # Strength +5 beside Speed +3
+        _bench_suspend_and_resume(game, (second, third))
+        _bench_units(game, turn=2)
+        assert bonuses(third) == 0x305 and game.read(second, 0x31) >> 4 == 2
 
 
 def test_weapon_sheet_in_a_battle(tmp_path):

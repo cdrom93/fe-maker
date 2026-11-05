@@ -79,8 +79,72 @@ HEAL_ITEMS = {"ITEM_STAFF_HEAL", "ITEM_STAFF_PHYSIC", "ITEM_STAFF_FORTIFY", "ITE
               "ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 DRINK_HEAL_ITEMS = {"ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 AMOUNT_ITEMS = HEAL_ITEMS | {"ITEM_PUREWATER"}
-# a temporary bonus dropping each turn, on another stat than Pure Water's Resistance: its number in Unit._u3A
-TEMP_STATS = {"pow": 1, "skl": 2, "spd": 3, "def": 4, "lck": 6}
+# a temporary bonus dropping each turn, on another stat than Pure Water's Resistance: its 4 bits in the unit's spare
+# bytes (_u3A, _u3B, _u47 read as one number, TEMP_BONUSES_FEM), so every stat can have one at once
+TEMP_STATS = {"pow": 0, "skl": 1, "spd": 2, "def": 3, "lck": 4}
+TEMP_BONUS_MAX = 15
+TEMP_BONUS_MACROS = """
+/* FE Maker: temporary stat bonuses (Pure Water copies), 4 bits per stat in the spare bytes, see TEMP_STATS */
+#define TEMP_BONUSES_FEM(aUnit) ((aUnit)->_u3A | (aUnit)->_u3B << 8 | (aUnit)->_u47 << 16)
+#define TEMP_BONUS_FEM(aUnit, n) ((TEMP_BONUSES_FEM(aUnit) >> (4 * (n))) & 15)
+#define SET_TEMP_BONUSES_FEM(aUnit, v) ((aUnit)->_u3A = (v), (aUnit)->_u3B = (v) >> 8, (aUnit)->_u47 = (v) >> 16)
+
+"""
+# the suspend save has no room for them: up to 10 units' bonuses per suspend slot go in the save memory's unused
+# bytes (SaveBlocks._pad_, 0x73A4-0x7400, 46 bytes per slot), after the save time that ties them to their save
+TEMP_BONUS_SAVE = """
+/* FE Maker: the units' temporary bonuses, which the suspend save has no room for, in the unused bytes of the save
+   memory (0x73A4-0x7400): per suspend slot, the save time, a count, then up to 10 (unit, 3 bytes of bonuses). */
+#define TEMP_BONUS_SAVE_FEM(slot) ((u8 *) CART_SRAM + 0x73A4 + ((slot) - SAVE_ID_SUSPEND) * 46)
+
+static void WriteTempBonusesFem(int slot)
+{
+    u8 buf[46];
+    int i, count = 0;
+    u32 time = gPlaySt.time_saved;
+
+    for (i = 0; i < 46; i++)
+        buf[i] = 0;
+
+    for (i = 1; i < 0x100 && count < 10; i++) {
+        struct Unit *unit = GetUnit(i);
+        if (unit && unit->pCharacterData && TEMP_BONUSES_FEM(unit)) {
+            u8 *entry = buf + 5 + 4 * count++;
+            entry[0] = i;
+            entry[1] = unit->_u3A;
+            entry[2] = unit->_u3B;
+            entry[3] = unit->_u47;
+        }
+    }
+    buf[0] = time;
+    buf[1] = time >> 8;
+    buf[2] = time >> 16;
+    buf[3] = time >> 24;
+    buf[4] = count;
+    WriteAndVerifySramFast(buf, TEMP_BONUS_SAVE_FEM(slot), sizeof(buf));
+}
+
+static void ReadTempBonusesFem(int slot)
+{
+    u8 buf[46];
+    int i;
+
+    ReadSramFast(TEMP_BONUS_SAVE_FEM(slot), buf, sizeof(buf));
+    if ((buf[0] | buf[1] << 8 | buf[2] << 16 | (u32) buf[3] << 24) != gPlaySt.time_saved || buf[4] > 10)
+        return;
+
+    for (i = 0; i < buf[4]; i++) {
+        u8 *entry = buf + 5 + 4 * i;
+        struct Unit *unit = GetUnit(entry[0]);
+        if (unit && unit->pCharacterData) {
+            unit->_u3A = entry[1];
+            unit->_u3B = entry[2];
+            unit->_u47 = entry[3];
+        }
+    }
+}
+
+"""
 # a C expression compared to an item number: a name, then fields, indexes and call arguments
 ITEM_EXPR = r"[A-Za-z_]\w*(?:->\w+|\.\w+|\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))*"
 LAST_ITEM_NUMBER = 0xFE
@@ -2306,10 +2370,10 @@ class DecompData:
             self._with_temporary_bonus(out)
 
     def _with_temporary_bonus(self, out: dict[str, str | bytes]) -> None:
-        """A bonus to one stat that drops by 1 each turn, like Pure Water's Resistance (ticket 144). The game keeps
-        only that one (barrierDuration): the unit's two unused bytes hold the stat (_u3A, TEMP_STATS) and the bonus
-        (_u3B), lowered with the barrier at the start of each turn, cleared after the chapter. Suspend saves have no
-        room for them: a game resumed from a suspend loses the bonus."""
+        """Bonuses on any stat that drop by 1 each turn, like Pure Water's Resistance (ticket 144). The game keeps
+        only that one (barrierDuration): the unit's three spare bytes hold one 4-bit counter per stat (TEMP_STATS),
+        read by the stat getters, lowered with the barrier at the start of each turn, cleared after the chapter, and
+        kept across a suspend in the save memory's unused bytes (TEMP_BONUS_SAVE)."""
         def patch(rel: str, pairs: list[tuple[str, str]]) -> None:
             text = out.get(rel) or self._read(rel)
             for old, new in pairs:
@@ -2318,21 +2382,31 @@ class DecompData:
                 text = text.replace(old, new, 1)
             out[rel] = text
 
+        patch("include/bmunit.h", [("\n#endif // GUARD_BM_UNIT_H", TEMP_BONUS_MACROS + "#endif // GUARD_BM_UNIT_H")])
         getters = []
-        for name, n in (("Power", 1), ("Skill", 2), ("Speed", 3), ("Defense", 4), ("Luck", 6)):
+        for name, stat in (("Power", "pow"), ("Skill", "skl"), ("Speed", "spd"), ("Defense", "def"), ("Luck", "lck")):
             start = f"inline int GetUnit{name}(struct Unit* unit) {{"
             text = out.get("src/bmunit.c") or self._read("src/bmunit.c")
             at = text.index(start)
-            end = text.index("\n}\n", at)
-            body = text[at:end]
-            new_body = re.sub(r"(\n    return )([^;]+);", rf"\1\2 + (unit->_u3A == {n} ? unit->_u3B : 0);", body)
-            getters.append((body, new_body))
+            body = text[at:text.index("\n}\n", at)]
+            getters.append((body, re.sub(r"(\n    return )([^;]+);",
+                                         rf"\1\2 + TEMP_BONUS_FEM(unit, {TEMP_STATS[stat]});", body)))
         patch("src/bmunit.c", [*getters, (
             "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n",
             "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n\n"
-            "        if (unit->_u3B != 0)\n            unit->_u3B--;\n")])
+            "        if (TEMP_BONUSES_FEM(unit) != 0) {\n            u32 bonuses = 0;\n            int n;\n\n"
+            "            for (n = 0; n < 5; n++)\n                if (TEMP_BONUS_FEM(unit, n) != 0)\n"
+            "                    bonuses |= (TEMP_BONUS_FEM(unit, n) - 1) << (4 * n);\n\n"
+            "            SET_TEMP_BONUSES_FEM(unit, bonuses);\n        }\n")])
         patch("src/bmio.c", [("            unit->barrierDuration = 0;\n",
-                              "            unit->barrierDuration = 0;\n            unit->_u3B = 0;\n")])
+                              "            unit->barrierDuration = 0;\n            SET_TEMP_BONUSES_FEM(unit, 0);\n")])
+        patch("src/bmsave.c", [
+            ("void WriteSuspendSave(int slot)\n{", TEMP_BONUS_SAVE.lstrip("\n") + "void WriteSuspendSave(int slot)\n{"),
+            ("    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n",
+             "    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n    WriteTempBonusesFem(slot);\n"),
+            ("    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n}",
+             "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n"
+             "    ReadTempBonusesFem(slot + gSuspendSaveIdOffset);\n}")])
 
     def _own_item_amount(self, out: dict[str, str | bytes], new_id: str, model: str, amount: int) -> None:
         """A copy healing or protecting more or less than its model (ticket 144): its own case where the engine
@@ -2344,7 +2418,7 @@ class DecompData:
                 return
             end = text.index("\n}\n", start)
             body = text[start:end].replace(f" case {new_id}:", "")
-            body = re.sub(r"(switch \([^\n]*\) \{\n)", lambda m: m.group(1) + case, body, count=1)
+            body = re.sub(r"(switch \([^\n]*\)\s*\{\n)", lambda m: m.group(1) + case, body, count=1)
             out[rel] = text[:start] + body + text[end:]
 
         if model in HEAL_ITEMS:
@@ -2353,15 +2427,26 @@ class DecompData:
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}:\n            ExecVulneraryItem(proc, {amount});\n            break;\n")
         if model == "ITEM_PUREWATER":
-            stat = TEMP_STATS.get(self.item_temp_stats.get(new_id, "res"), 0)
-            effect = (f"GetUnit(gActionData.subjectIndex)->_u3A = {stat};\n"
-                      f"            GetUnit(gActionData.subjectIndex)->_u3B = {min(amount, 30)};\n") if stat \
-                else f"GetUnit(gActionData.subjectIndex)->barrierDuration = {min(amount, 7)};\n"
+            stat = TEMP_STATS.get(self.item_temp_stats.get(new_id, "res"))
+            if stat is None:
+                bonus = min(amount, 7)
+                own("src/bmitemuse.c", "s8 CanUnitUseItem(",
+                    f"    case {new_id}:\n        return unit->barrierDuration < {bonus};\n\n")
+                effect = f"drinker->barrierDuration = {bonus};"
+            else:
+                # a drink while the bonus is lower raises it back, like the game's Pure Water (refused at 7)
+                bonus, mask = min(amount, TEMP_BONUS_MAX), 15 << (4 * stat)
+                own("src/bmitemuse.c", "s8 CanUnitUseItem(",
+                    f"    case {new_id}:\n        return TEMP_BONUS_FEM(unit, {stat}) < {bonus};\n\n")
+                effect = (f"SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~{mask:#x}) | "
+                          f"{bonus << (4 * stat):#x});")
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
-                f"        case {new_id}:\n"
-                "            BattleInitItemEffect(GetUnit(gActionData.subjectIndex), gActionData.itemSlotIndex);\n"
-                f"            {effect}"
-                "            BattleApplyItemEffect(proc);\n            BeginBattleAnimations();\n            break;\n")
+                f"        case {new_id}: {{\n"
+                "            struct Unit* drinker = GetUnit(gActionData.subjectIndex);\n\n"
+                "            BattleInitItemEffect(drinker, gActionData.itemSlotIndex);\n"
+                f"            {effect}\n"
+                "            BattleApplyItemEffect(proc);\n            BeginBattleAnimations();\n            break;\n"
+                "        }\n")
 
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}

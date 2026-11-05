@@ -318,15 +318,23 @@ def test_a_copied_vulnerary_heals_its_own_amount(decomp_dir):
 
 
 def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
-    """Ticket 144: the unit's spare bytes hold a stat and a bonus that drops each turn, read by the stat getters."""
+    """Ticket 144: 4 bits per stat in the unit's spare bytes, read by the stat getters, lowered each turn, kept
+    across a suspend in the save memory's unused bytes."""
     d = DecompData(decomp_dir)
     getters = "".join(f"inline int GetUnit{name}(struct Unit* unit) {{\n    return unit->{f};\n}}\n"
                       for name, f in (("Power", "pow"), ("Skill", "skl"), ("Speed", "spd"), ("Defense", "def"),
                                       ("Resistance", "res"), ("Luck", "lck")))
     out = {
+        "include/bmunit.h": "struct Unit;\n#endif // GUARD_BM_UNIT_H\n",
         "src/bmunit.c": getters + "void Tick(struct Unit* unit) {\n        if (unit->barrierDuration != 0)\n"
                                   "            unit->barrierDuration--;\n}\n",
         "src/bmio.c": "void Reset(struct Unit* unit) {\n            unit->barrierDuration = 0;\n}\n",
+        "src/bmsave.c": "void WriteSuspendSave(int slot)\n{\n    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n}\n"
+                        "void ReadSuspendSave(int slot)\n{\n"
+                        "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n}\n",
+        "src/bmitemuse.c": "s8 CanUnitUseItem(struct Unit* unit, int item)\n{\n    switch (GetItemIndex(item))\n    {\n\n"
+                           "    case ITEM_PUREWATER: case ITEM_NEW_CE:\n        return CanUnitUsePureWaterItem(unit);\n"
+                           "    }\n}\n",
         "src/bmusemind.c": "void ActionStaffDoorChestUseItem(ProcPtr proc) {\n    switch (itemId) {\n"
                            "        case ITEM_PUREWATER: case ITEM_NEW_CE:\n            ExecPureWater(proc);\n"
                            "            break;\n    }\n}\n",
@@ -334,7 +342,12 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
     d.item_temp_stats["ITEM_NEW_CE"] = "spd"
     d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_PUREWATER", 12)
     d._with_temporary_bonus(out)
-    assert "->_u3A = 3;" in out["src/bmusemind.c"] and "->_u3B = 12;" in out["src/bmusemind.c"]
-    assert "return unit->spd + (unit->_u3A == 3 ? unit->_u3B : 0);" in out["src/bmunit.c"]
+    assert "SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~0xf00) | 0xc00);" in out["src/bmusemind.c"]
+    assert "case ITEM_NEW_CE:\n        return TEMP_BONUS_FEM(unit, 2) < 12;" in out["src/bmitemuse.c"]
+    assert "return unit->spd + TEMP_BONUS_FEM(unit, 2);" in out["src/bmunit.c"]
     assert "return unit->res;" in out["src/bmunit.c"]
-    assert "unit->_u3B--;" in out["src/bmunit.c"] and "unit->_u3B = 0;" in out["src/bmio.c"]
+    assert "#define TEMP_BONUS_FEM" in out["include/bmunit.h"]
+    assert "SET_TEMP_BONUSES_FEM(unit, bonuses);" in out["src/bmunit.c"]
+    assert "SET_TEMP_BONUSES_FEM(unit, 0);" in out["src/bmio.c"]
+    assert "WriteTempBonusesFem(slot);" in out["src/bmsave.c"]
+    assert "ReadTempBonusesFem(slot + gSuspendSaveIdOffset);" in out["src/bmsave.c"]

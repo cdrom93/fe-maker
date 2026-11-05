@@ -1333,7 +1333,7 @@
   "item.amountHealHint": "The HP this item gives back. A staff adds its user's Magic (80 at most).",
   "item.tempStat": "Raised stat",
   "item.amountBarrier": "Extra bonus",
-  "item.amountBarrierHint": "The bonus gained by drinking the item; it drops by 1 each turn. Resistance: 7 at most (a limit of the game's saves); another stat: 30 at most, lost when resuming a mid-chapter save.",
+  "item.amountBarrierHint": "The bonus gained by drinking the item; it drops by 1 each turn. Resistance: 7 at most (a limit of the game's saves); other stats: 15 at most, each its own bonus, which add up.",
   "item.noFree": "No free place left after the game's items.",
   "item.remove": "Remove this item",
   "item.useText": "Use text",
