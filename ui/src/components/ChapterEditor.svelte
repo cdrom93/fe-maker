@@ -331,8 +331,37 @@
     })
   }
 
-  // First corner of the area being chosen ("reach an area" objective).
-  let areaCorner = $state<{ x: number; y: number } | null>(null)
+  // The area being drawn ("reach an area" objective): dragged from one corner to the other, as in AreaPicker.svelte.
+  let areaDrag = $state<{ x: number; y: number; x2: number; y2: number } | null>(null)
+  const drawingArea = $derived(pickingSeize && objective?.type === 'area')
+
+  function tileAt(e: MouseEvent): [number, number] {
+    const rect = mapEl!.getBoundingClientRect()
+    return [Math.max(0, Math.min(data!.width - 1, Math.floor((e.clientX - rect.left) / CELL))),
+            Math.max(0, Math.min(data!.height - 1, Math.floor((e.clientY - rect.top) / CELL)))]
+  }
+
+  function areaDown(e: PointerEvent) {
+    if (!drawingArea || !mapEl || !data) return
+    e.preventDefault()
+    const [x, y] = tileAt(e)
+    areaDrag = { x, y, x2: x, y2: y }
+    mapEl.setPointerCapture(e.pointerId)
+  }
+
+  function areaMove(e: PointerEvent) {
+    if (!areaDrag) return
+    const [x, y] = tileAt(e)
+    areaDrag = { ...areaDrag, x2: x, y2: y }
+  }
+
+  function areaUp() {
+    const a = areaDrag
+    if (!a) return
+    areaDrag = null
+    editObjective({ area: { x1: Math.min(a.x, a.x2), y1: Math.min(a.y, a.y2), x2: Math.max(a.x, a.x2), y2: Math.max(a.y, a.y2) } })
+    pickingSeize = false
+  }
 
   /** Map click while choosing the tile to seize, or the two corners of the area to reach. */
   function pickTile(e: MouseEvent) {
@@ -345,17 +374,7 @@
       pickingCamera = false
       return
     }
-    if (objective?.type === 'area') {
-      if (!areaCorner) {
-        areaCorner = { x, y }
-        return
-      }
-      const a = areaCorner
-      editObjective({ area: { x1: Math.min(a.x, x), y1: Math.min(a.y, y), x2: Math.max(a.x, x), y2: Math.max(a.y, y) } })
-      areaCorner = null
-      pickingSeize = false
-      return
-    }
+    if (objective?.type === 'area') return   // drawn by dragging (areaDown...)
     editObjective({ seize: [{ x, y }] })
     pickingSeize = false
   }
@@ -752,6 +771,9 @@
             <div
               class="map"
               class:picking={pickingSeize || pickingCamera}
+              onpointerdown={areaDown}
+              onpointermove={areaMove}
+              onpointerup={areaUp}
               role="application"
               bind:this={mapEl}
               onclickcapture={(e) => {
@@ -764,8 +786,10 @@
               ondragover={(e) => e.preventDefault()}
               ondrop={drop}
             >
-              {#if objective?.type === 'area' && (objective.area || areaCorner)}
-                {@const a = objective.area && !areaCorner ? objective.area : { x1: areaCorner!.x, y1: areaCorner!.y, x2: areaCorner!.x, y2: areaCorner!.y }}
+              {#if objective?.type === 'area' && (objective.area || areaDrag)}
+                {@const a = areaDrag
+                  ? { x1: Math.min(areaDrag.x, areaDrag.x2), y1: Math.min(areaDrag.y, areaDrag.y2), x2: Math.max(areaDrag.x, areaDrag.x2), y2: Math.max(areaDrag.y, areaDrag.y2) }
+                  : objective.area!}
                 <span class="area-marker" style="left: {a.x1 * CELL}px; top: {a.y1 * CELL}px; width: {(a.x2 - a.x1 + 1) * CELL}px; height: {(a.y2 - a.y1 + 1) * CELL}px" title={t('objective.type.area')}><img class="pixel" src={itemIconUrl(OBJECTIVE_ICONS.area)} alt="" /></span>
               {/if}
               {#each reach.move as [x, y] (`${x},${y}`)}

@@ -950,7 +950,7 @@
   "objective.hint.area": "The chapter is won when a player unit (or the chosen character) ends its move in the area.",
   "objective.area": "Area",
   "objective.pickArea": "Draw on the map",
-  "objective.pickingArea": "Click two opposite corners…",
+  "objective.pickingArea": "Drag from one corner to the other…",
   "objective.areaWho": "Who:",
   "objective.anyPlayerUnit": "any player unit",
   "objective.protect": "To protect:",

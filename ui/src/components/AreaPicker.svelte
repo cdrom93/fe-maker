@@ -76,5 +76,6 @@
   .picker p { margin: 0; }
   .map { position: relative; cursor: crosshair; user-select: none; touch-action: none; max-width: 100%; }
   .map img { display: block; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
-  .area { position: absolute; box-sizing: border-box; border: 2px solid var(--accent); background: rgb(80 140 255 / 30%); pointer-events: none; }
+  /* the same look as an area objective on the chapter map (ChapterEditor .area-marker) */
+  .area { position: absolute; box-sizing: border-box; border: 3px dashed #e74c3c; background: rgb(231 76 60 / 0.15); pointer-events: none; }
 </style>

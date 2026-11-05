@@ -950,7 +950,7 @@
   "objective.hint.area": "Le chapitre est gagné quand une unité du joueur (ou le personnage choisi) termine son déplacement dans la zone.",
   "objective.area": "Zone",
   "objective.pickArea": "Tracer sur la carte",
-  "objective.pickingArea": "Cliquez deux coins opposés…",
+  "objective.pickingArea": "Glissez d'un coin à l'autre…",
   "objective.areaWho": "Qui :",
   "objective.anyPlayerUnit": "n'importe quelle unité du joueur",
   "objective.protect": "À protéger :",
