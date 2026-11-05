@@ -1277,50 +1277,96 @@ def test_screen_tint_counters_and_leaving_the_party(tmp_path):
         assert game.read(seth, 0x0C, width=32) & (1 << 16)   # Seth left the party (kept from chapter to chapter)
 
 
-def test_a_copied_vulnerary_heals_in_game(tmp_path):
-    """Ticket 144: an item the project adds acts like its model (here a Vulnerary) wherever the engine tests its number."""
-    project = Project.create(tmp_path / "copy", "Copy")
-    items = project.load("items")
-    new = DecompData(project.decomp_dir).new_item("ITEM_VULNERARY", {i["id"] for i in items})
-    new["name"] = "Baume"
-    project.save("items", [*items, new])
-    number = int(new["id"].removeprefix("ITEM_NEW_"), 16)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
-    with Game(out.rom_path, out.map_path) as game:
-        _on_map(game)
-        game.run(210)
-        base = game.address("gUnitArrayBlue")
-        unit = next(base + n * UNIT_SIZE for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)
-                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 1)
-        game.write(unit, number | 3 << 8, 0x1E, width=16)   # her only item: the copy, 3 uses
-        for n in range(1, 5):
-            game.write(unit, 0, 0x1E + 2 * n, width=16)
-        game.write(unit, 5, 0x13)
-        game.move_cursor(game.read(unit, 0x10), game.read(unit, 0x11))
-        game.press("A")
-        game.press("A", wait=60)
-        game.press("A", wait=30)      # Item (no weapon: the first command)
-        game.press("A", wait=30)      # the copy
-        game.press("A", wait=30)      # Use
-        assert game.wait_until(lambda: game.read(unit, 0x13) > 5, seconds=20, step=5)
-        assert game.wait_until(lambda: game.read(unit, 0x1E, width=16) == number | 2 << 8, seconds=20, step=10, tap="A")
+# ---------- test bench ----------
+# A blank project (a 15 x 10 plain): each unit alone, far from the others and from one unarmed enemy, carrying only what
+# the test gives it. Its command menu is always "Item, Wait" (no Rescue, Trade or Attack slipping in before).
+
+BENCH_SPOTS = [(2, 2), (8, 2), (2, 7), (8, 7)]
 
 
-def _use_first_item(game, unit, down=0):
-    """The unit uses its first item (it has no weapon: Item is the first command, after `down` others)."""
+def _bench(tmp_path, name, items_by_unit):
+    """A project on the bench: unit k stands at BENCH_SPOTS[k] with items_by_unit[k] (item ids)."""
+    from fe_maker import newchapter
+
+    project = Project.create(tmp_path / name, name)
+    newchapter.start_blank(project, True, "Banc", "Banc")
+    characters = project.load("characters")
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    lord = army[0]
+    placed = []
+    for k, items in enumerate(items_by_unit):
+        if k == 0:
+            unit = lord
+        else:
+            friend = DecompData(project.decomp_dir).new_character(True, {c["id"] for c in characters}, True)
+            friend["name"] = f"Banc {k}"
+            characters.append(friend)
+            unit = {**lord, "slot": None, "character": friend["id"], "class": friend["class"]}
+        x, y = BENCH_SPOTS[k]
+        unit.update(x=x, y=y, endX=x, endY=y, items=list(items))
+        placed.append(unit)
+    chapters["unitGroups"]["UnitDef_Event_PrologueAlly"] = placed
+    project.save("characters", characters)
+    dialogues = project.load("dialogues")
+    opening = dialogues["scripts"][DecompData(project.decomp_dir).chapter_openings()[0]]
+    enemies = next(c["args"][1] for c in opening if c["op"] == "LOAD1")
+    chapters["unitGroups"][enemies] = [{
+        "slot": None, "character": "CHARACTER_SOLDIER_83", "class": "CLASS_SOLDIER", "level": 1, "autolevel": False,
+        "side": "enemy", "x": 14, "y": 9, "endX": 14, "endY": 9, "items": [], "ai": [0, 0, 0, 0], "fixedPath": False}]
+    project.save("chapters", chapters)
+    return project
+
+
+def _bench_units(game):
+    """The bench's units, in the order of BENCH_SPOTS: their addresses."""
+    assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.phase() == "player" and game.units())
+    game.run(120)
+    base = game.address("gUnitArrayBlue")
+    found = {(game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)): base + n * UNIT_SIZE
+             for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)}
+    return [found[spot] for spot in BENCH_SPOTS if spot in found]
+
+
+def _bench_use_item(game, unit, slot=0):
+    """On the bench: the unit uses an item where it stands (Item is its first command)."""
     game.move_cursor(game.read(unit, 0x10), game.read(unit, 0x11))
     game.press("A")
-    game.press("A", wait=60)
-    for _ in range(down):
+    game.press("A", wait=60)       # stays
+    game.press("A", wait=30)       # Item
+    for _ in range(slot):
         game.press("DOWN", wait=15)
-    game.press("A", wait=30)      # Item
-    game.press("A", wait=30)      # the first item
-    game.press("A", wait=30)      # Use
+    game.press("A", wait=30)       # the item
+    game.press("A", wait=30)       # Use
+    game.run(300)
+
+
+def _item_number(item):
+    return int(item["id"].removeprefix("ITEM_NEW_"), 16)
+
+
+def test_a_copied_vulnerary_heals_in_game(tmp_path):
+    """Ticket 144: an item the project adds acts like its model (here a Vulnerary) wherever the engine tests its number."""
+    probe = _bench(tmp_path, "copy", [[]])
+    new = DecompData(probe.decomp_dir).new_item("ITEM_VULNERARY", {i["id"] for i in probe.load("items")})
+    new["name"] = "Baume"
+    probe.save("items", [*probe.load("items"), new])
+    chapters = probe.load("chapters")
+    chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["items"] = [new["id"]]
+    probe.save("chapters", chapters)
+    out = probe.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        (unit,) = _bench_units(game)
+        game.write(unit, 5, 0x13)
+        _bench_use_item(game, unit)
+        assert game.read(unit, 0x13) > 5
+        assert game.read(unit, 0x1E, width=16) & 0xFF == _item_number(new)
+        assert game.read(unit, 0x1E, width=16) >> 8 == new["uses"] - 1
 
 
 def test_copies_heal_and_protect_their_own_amount(tmp_path):
     """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance."""
-    project = Project.create(tmp_path / "amount", "Amount")
+    project = _bench(tmp_path, "amount", [[], []])
     items = project.load("items")
     decomp = DecompData(project.decomp_dir)
     balm = decomp.new_item("ITEM_VULNERARY", {i["id"] for i in items})
@@ -1328,24 +1374,15 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     balm.update(name="Baume", effectAmount=3)
     water.update(name="Eau", effectAmount=3)
     project.save("items", [*items, balm, water])
+    chapters = project.load("chapters")
+    for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water)):
+        unit["items"] = [item["id"]]
+    project.save("chapters", chapters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
     with Game(out.rom_path, out.map_path) as game:
-        _on_map(game)
-        game.run(210)
-        base = game.address("gUnitArrayBlue")
-        units = {game.read(game.read(base + n * UNIT_SIZE, width=32), 4): base + n * UNIT_SIZE
-                 for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)}
-        eirika, seth = units[1], units[2]
-        for unit, item in ((eirika, balm), (seth, water)):
-            game.write(unit, int(item["id"].removeprefix("ITEM_NEW_"), 16) | 3 << 8, 0x1E, width=16)
-            for n in range(1, 5):
-                game.write(unit, 0, 0x1E + 2 * n, width=16)
-        game.write(eirika, 5, 0x13)
-        _use_first_item(game, eirika)
-        assert game.wait_until(lambda: game.read(eirika, 0x13) != 5, seconds=20, step=5)
-        game.run(120)
-        assert game.read(eirika, 0x13) == 8
-        game.run(400)
-        _use_first_item(game, seth, down=1)   # Rescue Eirika comes first
-        assert game.wait_until(lambda: game.read(seth, 0x31) >> 4 != 0, seconds=20, step=5)
-        assert game.read(seth, 0x31) >> 4 == 3
+        first, second = _bench_units(game)
+        game.write(first, 5, 0x13)
+        _bench_use_item(game, first)
+        assert game.read(first, 0x13) == 8
+        _bench_use_item(game, second)
+        assert game.read(second, 0x31) >> 4 == 3

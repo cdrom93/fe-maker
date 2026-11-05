@@ -76,6 +76,7 @@ piège dans sa section.
 
 ## Tests en jeu (playtest)
 
+- Dans le prologue du jeu, le menu d'une unité change selon ses voisins (Seth peut porter Eirika : « Porter » passe avant « Objet ») et les ennemis attaquent. Pour tester une action, utiliser le banc d'essai `_bench` de `tests/local/test_playtest.py` : projet vierge, unités seules sur une plaine, un ennemi sans arme au loin, menu toujours « Objet, Attendre ».
 - In playtests, wait for animations before reading the screen (`press` waits 20 frames; a move takes ~40), pick menu entries by their position (menus differ with the situation: Attack only when an enemy is in range), and remember Canto (Seth can move again after an action).
 - Playtest harness: a chapter's turn/phase say "player" while its opening scene still runs; tapping A after it selects units. Wait for the scene to end before acting (`tests/local/test_playtest.py` shows how).
 
