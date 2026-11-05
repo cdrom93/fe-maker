@@ -121,6 +121,12 @@
   /** Any item can be copied into a new one (server: gamedata.new_item); the engine treats the copy as its model (ticket 144). */
   const copiable = $derived(!!it && !it.model && it.id !== 'ITEM_NONE')
   let addError = $state('')
+  /** What the copied item's effect gives in the game (HP healed; Pure Water: Resistance): a copy may give more or less. */
+  const GAME_AMOUNTS: Record<string, number> = {
+    ITEM_STAFF_HEAL: 10, ITEM_STAFF_PHYSIC: 10, ITEM_STAFF_FORTIFY: 10, ITEM_STAFF_MEND: 20, ITEM_STAFF_RECOVER: 80,
+    ITEM_VULNERARY: 10, ITEM_VULNERARY_2: 10, ITEM_ELIXIR: 80, ITEM_PUREWATER: 7,
+  }
+  const amountOf = $derived(it?.model ? GAME_AMOUNTS[it.actsLike ?? it.model] : undefined)
 
   async function addWeapon() {
     if (!it) return
@@ -204,6 +210,12 @@
                 {#each list.records.filter((r) => !r.model && r.id !== 'ITEM_NONE') as r (r.id)}<option value={r.id}>{r.name || r.id}</option>{/each}
               </select>
             </label>
+            {#if amountOf !== undefined}
+              {@const water = (it.actsLike ?? it.model) === 'ITEM_PUREWATER'}
+              <NumberField label={t(water ? 'item.amountBarrier' : 'item.amountHeal')} value={it.effectAmount ?? amountOf}
+                           min={1} max={water ? 7 : 80} onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
+              <Help text={t(water ? 'item.amountBarrierHint' : 'item.amountHealHint')} />
+            {/if}
           {:else if copiable}
             <p class="small">
               <button onclick={addWeapon} title={t('item.newFromHint')}>+ {t('item.newFrom')}</button>

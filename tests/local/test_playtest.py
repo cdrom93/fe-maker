@@ -1304,3 +1304,48 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
         game.press("A", wait=30)      # Use
         assert game.wait_until(lambda: game.read(unit, 0x13) > 5, seconds=20, step=5)
         assert game.wait_until(lambda: game.read(unit, 0x1E, width=16) == number | 2 << 8, seconds=20, step=10, tap="A")
+
+
+def _use_first_item(game, unit, down=0):
+    """The unit uses its first item (it has no weapon: Item is the first command, after `down` others)."""
+    game.move_cursor(game.read(unit, 0x10), game.read(unit, 0x11))
+    game.press("A")
+    game.press("A", wait=60)
+    for _ in range(down):
+        game.press("DOWN", wait=15)
+    game.press("A", wait=30)      # Item
+    game.press("A", wait=30)      # the first item
+    game.press("A", wait=30)      # Use
+
+
+def test_copies_heal_and_protect_their_own_amount(tmp_path):
+    """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance."""
+    project = Project.create(tmp_path / "amount", "Amount")
+    items = project.load("items")
+    decomp = DecompData(project.decomp_dir)
+    balm = decomp.new_item("ITEM_VULNERARY", {i["id"] for i in items})
+    water = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"]})
+    balm.update(name="Baume", effectAmount=3)
+    water.update(name="Eau", effectAmount=3)
+    project.save("items", [*items, balm, water])
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(210)
+        base = game.address("gUnitArrayBlue")
+        units = {game.read(game.read(base + n * UNIT_SIZE, width=32), 4): base + n * UNIT_SIZE
+                 for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)}
+        eirika, seth = units[1], units[2]
+        for unit, item in ((eirika, balm), (seth, water)):
+            game.write(unit, int(item["id"].removeprefix("ITEM_NEW_"), 16) | 3 << 8, 0x1E, width=16)
+            for n in range(1, 5):
+                game.write(unit, 0, 0x1E + 2 * n, width=16)
+        game.write(eirika, 5, 0x13)
+        _use_first_item(game, eirika)
+        assert game.wait_until(lambda: game.read(eirika, 0x13) != 5, seconds=20, step=5)
+        game.run(120)
+        assert game.read(eirika, 0x13) == 8
+        game.run(400)
+        _use_first_item(game, seth, down=1)   # Rescue Eirika comes first
+        assert game.wait_until(lambda: game.read(seth, 0x31) >> 4 != 0, seconds=20, step=5)
+        assert game.read(seth, 0x31) >> 4 == 3

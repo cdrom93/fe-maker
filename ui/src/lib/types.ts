@@ -39,6 +39,8 @@ export interface Item {
   model?: string
   /** items the project adds: the game's item whose effect they have (staff, key, potion...), when not their model's */
   actsLike?: string
+  /** items the project adds: HP healed, or Pure Water's Resistance, when not the game's amount */
+  effectAmount?: number
   weaponType: string
   might: number
   hit: number

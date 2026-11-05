@@ -74,6 +74,11 @@ ITEM_BONUS_FILE = "src/data_itembonus.c"
 # An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
 # battle animations, chosen by item number). Item numbers are one byte; 0xFF is left out.
 NEW_ITEM_PREFIX = "ITEM_NEW_"
+# items whose amount (HP healed; Pure Water: Resistance) a copy may change (ticket 144)
+HEAL_ITEMS = {"ITEM_STAFF_HEAL", "ITEM_STAFF_PHYSIC", "ITEM_STAFF_FORTIFY", "ITEM_STAFF_MEND", "ITEM_STAFF_RECOVER",
+              "ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
+DRINK_HEAL_ITEMS = {"ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
+AMOUNT_ITEMS = HEAL_ITEMS | {"ITEM_PUREWATER"}
 # a C expression compared to an item number: a name, then fields, indexes and call arguments
 ITEM_EXPR = r"[A-Za-z_]\w*(?:->\w+|\.\w+|\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))*"
 LAST_ITEM_NUMBER = 0xFE
@@ -321,6 +326,7 @@ class DecompData:
         self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
+        self.item_amounts: dict[str, int] = {}   # items the project adds -> HP they heal, or Pure Water's barrier
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
@@ -2290,6 +2296,34 @@ class DecompData:
                     text = re.sub(rf"^([ \t]*\{{\s*){m}(\s*,.*\n)", rf"\g<0>\g<1>{new_id}\g<2>", text, flags=re.MULTILINE)
             if text != original:
                 out[rel] = text
+        for new_id, model in news:
+            if new_id in self.item_amounts:
+                self._own_item_amount(out, new_id, model, self.item_amounts[new_id])
+
+    def _own_item_amount(self, out: dict[str, str | bytes], new_id: str, model: str, amount: int) -> None:
+        """A copy healing or protecting more or less than its model (ticket 144): its own case where the engine
+        writes the model's amount (HP healed by GetUnitItemHealAmount and ExecVulneraryItem, Pure Water's barrier)."""
+        def own(rel: str, function: str, case: str) -> None:
+            text = out.get(rel) or self._read(rel)
+            start = text.find(function)
+            if isinstance(text, bytes) or start < 0:
+                return
+            end = text.index("\n}\n", start)
+            body = text[start:end].replace(f" case {new_id}:", "")
+            body = re.sub(r"(switch \([^\n]*\) \{\n)", lambda m: m.group(1) + case, body, count=1)
+            out[rel] = text[:start] + body + text[end:]
+
+        if model in HEAL_ITEMS:
+            own("src/bmitem.c", "int GetUnitItemHealAmount(", f"    case {new_id}:\n        result = {amount};\n        break;\n")
+        if model in DRINK_HEAL_ITEMS:
+            own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
+                f"        case {new_id}:\n            ExecVulneraryItem(proc, {amount});\n            break;\n")
+        if model == "ITEM_PUREWATER":
+            own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
+                f"        case {new_id}:\n"
+                "            BattleInitItemEffect(GetUnit(gActionData.subjectIndex), gActionData.itemSlotIndex);\n"
+                f"            GetUnit(gActionData.subjectIndex)->barrierDuration = {min(amount, 7)};\n"
+                "            BattleApplyItemEffect(proc);\n            BeginBattleAnimations();\n            break;\n")
 
     def apply_items(self, items: list[dict]) -> None:
         entries = {e.fields["number"]: e for e in self.items.entries}
@@ -2300,6 +2334,8 @@ class DecompData:
                 entry = entries[it["id"]] = self._add_item(it["id"], it.get("model"))
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("actsLike"):
                 self.item_acts_like[it["id"]] = it["actsLike"]   # another item's effect (ticket 144)
+            if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectAmount"):
+                self.item_amounts[it["id"]] = int(it["effectAmount"])
             if entry is None:
                 raise GameDataError(f"Unknown item {it['id']}")
             f = entry.fields

@@ -297,3 +297,21 @@ def test_a_copied_item_can_have_another_items_effect(decomp_dir):
     d.apply_items([*d.export_items(), new])
     code = d.changed_files()["src/cp_testitems.c"]
     assert "case ITEM_TESTSTAFF: case ITEM_NEW_02:" in code and "case ITEM_TESTBLADE:\n" in code
+
+
+def test_a_copied_vulnerary_heals_its_own_amount(decomp_dir):
+    """Ticket 144: a copy healing more or less gets its own case where the engine writes the model's amount."""
+    d = DecompData(decomp_dir)
+    out = {
+        "src/bmitem.c": "int GetUnitItemHealAmount(struct Unit* unit, int item) {\n    int result = 0;\n\n"
+                        "    switch (GetItemIndex(item)) {\n\n    case ITEM_VULNERARY: case ITEM_NEW_CE:\n        result = 10;\n"
+                        "        break;\n    }\n    return result;\n}\n",
+        "src/bmusemind.c": "void ActionStaffDoorChestUseItem(ProcPtr proc) {\n    switch (itemId) {\n"
+                           "        case ITEM_VULNERARY: case ITEM_NEW_CE:\n            ExecVulneraryItem(proc, 10);\n"
+                           "            break;\n    }\n}\n",
+    }
+    d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_VULNERARY", 3)
+    assert "case ITEM_NEW_CE:\n        result = 3;\n        break;\n" in out["src/bmitem.c"]
+    assert "case ITEM_VULNERARY:\n" in out["src/bmitem.c"]
+    assert "case ITEM_NEW_CE:\n            ExecVulneraryItem(proc, 3);" in out["src/bmusemind.c"]
+    assert "case ITEM_VULNERARY:\n            ExecVulneraryItem(proc, 10);" in out["src/bmusemind.c"]
