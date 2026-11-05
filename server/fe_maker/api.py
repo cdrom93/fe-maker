@@ -1179,7 +1179,22 @@ def chapter_units(index: int):
             {**g, "units": group_units(g["name"]), "edited": g["name"] in edited}
             for g in (units.chapter_unit_groups(DECOMP_DIR, symbol) if symbol else [])
         ],
+        "loadedBy": _new_groups_scenes(index),
     }
+
+
+LOAD_OPS = {"LOAD1", "LOAD2", "LOAD3"}
+
+
+def _new_groups_scenes(index: int) -> dict[str, list[str]]:
+    """The scenes (their scripts, edited in the project) that bring each group the project made for this chapter."""
+    if state.project is None:
+        return {}
+    made = [n for n, g in state.project.load("chapters").get("newGroups", {}).items() if g.get("chapter") == index]
+    scripts = state.project.load("dialogues").get("scripts", {})
+    return {name: sorted(script for script, commands in scripts.items()
+                         if any(c.get("op") in LOAD_OPS and name in (c.get("args") or []) for c in commands))
+            for name in made}
 
 
 @app.get("/api/chapters/{index}/objective")

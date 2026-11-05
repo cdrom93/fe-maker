@@ -376,7 +376,7 @@
   {:else if tab === 'options'}
     <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} scopeFirst={startsBlank} />
   {:else}
-    {#key added}<DialogueEditor list={lists.dialogues} characters={lists.characters.records} {problems} />{/key}
+    {#key added}<DialogueEditor list={lists.dialogues} chapterList={lists.chapters} characters={lists.characters.records} {problems} />{/key}
   {/if}
 {/if}
 

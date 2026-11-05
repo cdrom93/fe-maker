@@ -356,7 +356,8 @@ export interface MapObjects {
 
 export interface UnitGroup {
   name: string
-  origin: 'players' | 'opening' | 'cutscene' | 'turn'
+  /** scene: a group the project made, that only scenes bring */
+  origin: 'players' | 'opening' | 'cutscene' | 'turn' | 'scene'
   turn: number | null
   units: MapUnit[]
   edited?: boolean
@@ -369,6 +370,8 @@ export interface NewGroup {
   chapter: number
   turn: number
   phase: 'player' | 'enemy' | 'ally'
+  /** only brought by scenes (their command LOAD1), never on a turn by itself */
+  scene?: boolean
 }
 
 /** Item icons imported into the project, on the places the game leaves free. */
@@ -383,6 +386,8 @@ export interface ChapterUnits {
   /** the map's changes (doors, villages...), to see the map with one of them */
   changes: { id: number; x: number; y: number; w: number; h: number }[]
   groups: UnitGroup[]
+  /** scripts of the scenes that bring each group the project made */
+  loadedBy?: Record<string, string[]>
 }
 
 /** Levels the game takes from a chapter's enemies in easy and normal, and adds in hard. */

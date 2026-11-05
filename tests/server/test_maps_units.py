@@ -469,3 +469,19 @@ def test_lz77_reads_literals_and_back_references():
     # 6 bytes: "ab" as literals, then 4 bytes copied from 2 back ("abab")
     data = bytes([0x10, 6, 0, 0, 0b00100000, ord("a"), ord("b"), 0x10, 0x01])
     assert lz77(data) == b"ababab"
+
+
+def test_a_scene_group_has_no_turn_event_and_its_scene_declares_it(monkeypatch, decomp_dir):
+    from fe_maker.decomp.gamedata import DecompData
+
+    d = DecompData(decomp_dir)
+    turns = []
+    monkeypatch.setattr(d, "_add_turn_event", lambda name, meta: turns.append(name))
+    scene = {"chapter": 0, "turn": 1, "phase": "enemy", "scene": True}
+    d.apply_chapters({"unitGroups": {}, "newGroups": {"UnitDef_FEM_0_0": scene}})
+    assert turns == [] and "UnitDef_FEM_0_0[] = {" in d.changed_files()[units.NEW_GROUPS_FILE]
+    original = d.script_commands("EventScr_TestOpening")
+    d.apply_dialogues({"messages": {}, "quotes": [], "scripts": {
+        "EventScr_TestOpening": [{"op": "LOAD1", "args": ["1", "UnitDef_FEM_0_0"]}, *original]}})
+    source = next(s for rel, s in d.changed_files().items() if rel.endswith("test-eventinfo.h"))
+    assert source.index("extern CONST_DATA struct UnitDefinition UnitDef_FEM_0_0[];") < source.index("LOAD1(1, UnitDef_FEM_0_0)")

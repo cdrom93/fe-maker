@@ -9,7 +9,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, Item, LevelBonus, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
+  import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, DialogueScene, Item, LevelBonus, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
   import Mention from './Mention.svelte'
@@ -185,12 +185,30 @@
   const newGroups = $derived(Object.entries(list.records[0]?.newGroups ?? {}).filter(([, g]) => g.chapter === chapter?.index))
   const groups = $derived<UnitGroup[]>([
     ...(data?.groups ?? []).map((g) => ({ ...g, turn: list.records[0]?.groupTurns?.[g.name]?.turn ?? g.turn })),
-    ...newGroups.map(([name, g]) => ({ name, origin: 'turn' as const, turn: g.turn, units: [], edited: true, new: true })),
+    ...newGroups.map(([name, g]) => ({ name, origin: g.scene ? ('scene' as const) : ('turn' as const), turn: g.scene ? null : g.turn, units: [], edited: true, new: true })),
   ])
   const openNew = $derived(openGroup ? list.records[0]?.newGroups?.[openGroup] : undefined)
   /** One of the game's reinforcement groups, open: its turn can change (ticket 109). */
   const openTurnGroup = $derived(!openNew ? groups.find((g) => g.name === openGroup && g.origin === 'turn') : undefined)
   const clearedChapter = $derived(!!chapter && !!list.records[0]?.cleared?.includes(chapter.index))
+
+  /** A new group only scenes bring (their command "Faire venir un groupe d'unités"): empty, to fill on the map. */
+  function addSceneGroup() {
+    if (!chapter) return
+    const taken = new Set(Object.keys(list.records[0]?.newGroups ?? {}))
+    let n = 0
+    while (taken.has(`UnitDef_FEM_${chapter.index}_${n}`)) n++
+    const name = `UnitDef_FEM_${chapter.index}_${n}`
+    const index = chapter.index
+    list.update(0, (c) => {
+      c.newGroups ??= {}
+      c.newGroups[name] = { chapter: index, turn: 1, phase: 'enemy', scene: true }
+      c.unitGroups[name] = []
+    })
+    hidden[name] = false
+    openGroup = name
+    picked = null
+  }
 
   /** New reinforcements: one copy of the chapter's first enemy (or a generic unit), at turn 2. */
   function addReinforcements() {
@@ -270,7 +288,11 @@
   // Groups whose units only appear in a cutscene before the battle (other map).
   // In the order of play: the first units, then the turns.
   const turnOf = (g: ChapterUnits['groups'][number]) => (g.origin === 'turn' ? (g.turn ?? 99) : 0)
-  const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene').sort((a, b) => turnOf(a) - turnOf(b)))
+  const battleGroups = $derived(groups.filter((g) => g.origin !== 'cutscene' && g.origin !== 'scene').sort((a, b) => turnOf(a) - turnOf(b)))
+  /** Groups the project made for its scenes, with the scenes that bring them. */
+  const sceneGroups = $derived(groups.filter((g) => g.origin === 'scene'))
+  let sceneLabels = $state<Record<string, string>>({})
+  const broughtBy = (name: string) => (data?.loadedBy?.[name] ?? []).map((s) => sceneLabels[s] ?? s)
   // One row per turn where units come: the start, then each reinforcement turn (ticket 153).
   const turnRows = $derived.by(() => {
     const rows = new Map<number, typeof battleGroups>()
@@ -444,6 +466,9 @@
       api.chapterObjective(chapters[index].index).then((o) => {
         if (selected === index) originalObjective = o
       })
+      api.chapterDialogues(chapters[index].index).then((d) => {
+        if (selected === index) sceneLabels = Object.fromEntries(d.scenes.map((sc) => [sc.script, sceneLabel(sc)]))
+      }).catch(() => {})
       data = await api.chapterUnits(chapters[index].index)
       hidden = Object.fromEntries(groups.map((g) => [g.name, g.origin === 'cutscene']))
     } finally {
@@ -558,6 +583,13 @@
     return null
   }
 
+  function sceneLabel(sc: DialogueScene): string {
+    const tr = sc.trigger
+    const key = `dlg.trigger.${tr.kind}`
+    const text = t(key, { n: tr.turn ?? '', a: tr.a ?? '', b: tr.b ?? '', x: tr.x ?? '', y: tr.y ?? '' })
+    return text === key ? sc.script : text
+  }
+
   function originLabel(origin: string, turn: number | null): string {
     return origin === 'turn' ? t('chapter.origin.turn', { n: turn ?? '?' }) : t(`chapter.origin.${origin}`)
   }
@@ -606,9 +638,16 @@
                 {#each row.groups as g (g.name)}{@render groupChip(g, true)}{/each}
               </div>
             {/each}
+            {#if sceneGroups.length}
+              <span class="turn scenes">{t('chapter.sceneRow')}</span>
+              <div class="groups">
+                {#each sceneGroups as g (g.name)}{@render groupChip(g)}{/each}
+              </div>
+            {/if}
           </div>
           <div class="row timeline-tools">
             <button class="add-group" title={t('chapter.addReinforcementsHint')} onclick={addReinforcements}>＋ {t('chapter.addReinforcements')}</button>
+            <button class="add-group" title={t('chapter.addSceneGroupHint')} onclick={addSceneGroup}>＋ {t('chapter.addSceneGroup')}</button>
             <Help text={t('chapter.timelineHint')} />
           </div>
           {#if cutsceneGroups.length}
@@ -622,7 +661,18 @@
           {#if openGroup && groups.some((g) => g.name === openGroup)}
             {@const og = openGroup}
             <div class="group-units">
-              {#if openNew}
+              {#if openNew?.scene}
+                {@const by = broughtBy(og)}
+                <div class="row new-group">
+                  {#if by.length}
+                    <span class="small">{t('chapter.broughtBy')} {#each by as label, k (k)}{k ? ', ' : ''}<Mention kind="dialogues" id={String(chapter.index)}>{label}</Mention>{/each}</span>
+                  {:else}
+                    <span class="warn small">{t('chapter.notBrought')}</span>
+                  {/if}
+                  <button class="danger" onclick={() => removeNewGroup(og)}>{t('chapter.removeSceneGroup')}</button>
+                  <Help text={t('chapter.sceneGroupHint')} />
+                </div>
+              {:else if openNew}
                 <div class="row new-group">
                   <NumberField label={t('dlg.turn')} value={openNew.turn} min={1} max={99} compact onchange={(v) => editNewGroup(og, { turn: v })} />
                   <label>
@@ -648,7 +698,7 @@
                   {/if}
                 </div>
               {/if}
-              {#if !cutsceneGroups.some((g) => g.name === og) && unitsOf(og).length}
+              {#if !cutsceneGroups.some((g) => g.name === og) && !openNew?.scene && unitsOf(og).length}
                 <button class="dup" title={t('chapter.duplicateGroupHint')} onclick={() => duplicateGroup(og)}>⧉ {t('chapter.duplicateGroup')}</button>
               {/if}
               <table>
@@ -736,7 +786,7 @@
                 {/each}
               {/if}
               {#each groups as g (g.name)}
-                {#if !hidden[g.name] && (focusTurn === null || (g.origin !== 'cutscene' && turnOf(g) <= focusTurn))}
+                {#if !hidden[g.name] && (focusTurn === null || (g.origin !== 'cutscene' && g.origin !== 'scene' && turnOf(g) <= focusTurn))}
                   {#each unitsOf(g.name) as u, i (i)}
                     <button
                       class="unit {u.side}"
@@ -984,6 +1034,7 @@
   .timeline .turn { border: none; background: none; padding: 0.45rem 0.5rem; border-radius: 6px; font-weight: 700; font-size: 0.85rem; color: var(--accent); text-align: left; white-space: nowrap; }
   .timeline .turn:hover { background: var(--panel-2); }
   .timeline .turn.focus { background: var(--accent-soft); }
+  .timeline .turn.scenes { cursor: default; color: var(--muted); }
   .timeline .groups { padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
   .timeline .groups:last-child { border-bottom: none; }
   .timeline-tools { margin-top: 0.5rem; align-items: center; gap: 0.4rem; }

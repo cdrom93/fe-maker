@@ -156,7 +156,7 @@
   function summarize(index: number, original: Objective | null, groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[]) {
     const edits = chapterList.records[0]
     const objective = original ? { ...original, ...(edits?.objectives?.[String(index)] ?? {}) } : null
-    const newGroups = Object.entries(edits?.newGroups ?? {}).filter(([, g]) => g.chapter === index).map(([name]) => name)
+    const newGroups = Object.entries(edits?.newGroups ?? {}).filter(([, g]) => g.chapter === index && !g.scene).map(([name]) => name)
     const fighting = [
       ...groups.filter((g) => g.origin !== 'cutscene').map((g) => edits?.unitGroups?.[g.name] ?? g.units),
       ...newGroups.map((name) => edits?.unitGroups?.[name] ?? []),

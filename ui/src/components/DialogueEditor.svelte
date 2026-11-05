@@ -15,7 +15,7 @@
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { layout, layoutBoxes, lineWidth } from '../lib/textLayout'
   import { EXPRESSIONS, expressionsAt, fromDisplay, toDisplay } from '../lib/dialogueCodes'
-  import type { Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem, SupportPair } from '../lib/types'
+  import type { ChaptersData, Character, ChapterInfo, DialogueFace, DialogueFont, DialogueScene, DialoguesData, DialogueStep, NewQuote, Problem, SupportPair } from '../lib/types'
   import Mention from './Mention.svelte'
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
@@ -27,7 +27,9 @@
   import TalkBubble from './TalkBubble.svelte'
   import TriggerPhrase from './TriggerPhrase.svelte'
 
-  let { list, characters, problems }: { list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[] } = $props()
+  let { list, characters, problems, chapterList }: {
+    list: EditableList<DialoguesData>; characters: Character[]; problems: Problem[]; chapterList?: EditableList<ChaptersData>
+  } = $props()
 
   // Speaker slots, left to right on the screen, with the center of the portrait in 8-pixel tiles
   // (gTalkFaceHPosLut, src/scene.c). Portraits on the left half look to the right.
@@ -637,7 +639,7 @@
 
     {#if scriptName}
       <section class="panel">
-        <ScriptEditor name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(resolveMessage(id))}
+        <ScriptEditor {chapterList} name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(resolveMessage(id))}
                       sceneKind={scenes.find((s) => s.script === scriptName)?.trigger.kind ?? ''} />
       </section>
     {:else if messageId}

@@ -472,7 +472,8 @@ class DecompData:
     def export_chapters() -> dict:
         """Project chapter data. Unit groups and objectives (by chapter index) are stored
         only once edited (see units.py and objectives.py). New groups (reinforcements):
-        "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups".
+        "newGroups" {name: {"chapter", "turn", "phase"}}, their units in "unitGroups"; with "scene": true, a group
+        only a scene brings (its command "Faire venir un groupe d'unités"), never on a turn by itself.
         "convoy" {chapter index: bool}: convoy available, once changed (convoy.py).
         "fog" {chapter index: vision range}: fog of war (0: none), once changed.
         "wallHp" {chapter index: HP}: cracked walls' HP, once changed.
@@ -516,7 +517,7 @@ class DecompData:
         # After the clearing, which would take their events away
         for name, meta in new_groups.items():
             group_units = chapters.get("unitGroups", {}).get(name, [])
-            if group_units:
+            if group_units or meta.get("scene"):
                 self._add_reinforcements(name, meta, group_units)
         self._apply_group_turns(chapters)
         # Fog of war: the units' vision range, 0 for none (chapter settings' initialFogLevel, ticket 43)
@@ -1091,12 +1092,14 @@ class DecompData:
 
     def _add_reinforcements(self, name: str, meta: dict, group_units: list[dict]) -> None:
         """A group made in the project: its units arrive at the start of turn N of a side, with the
-        game's reinforcement routine (EventScr_LoadReinforce: camera on them, then they appear)."""
+        game's reinforcement routine (EventScr_LoadReinforce: camera on them, then they appear).
+        A scene's group ("scene": true) is only written: the scenes that load it bring it."""
         if not re.fullmatch(r"UnitDef_FEM_\w+", name):
             raise GameDataError(f"Bad name for a new unit group: {name}")
         self.unit_defs[units.NEW_GROUPS_FILE] = self.unit_defs[units.NEW_GROUPS_FILE].rstrip("\n") + "\n" + \
             units.render_new_group(name, group_units, units.ai_macros(self.decomp_dir))
-        self._add_turn_event(name, meta)
+        if not meta.get("scene"):
+            self._add_turn_event(name, meta)
 
     def _apply_group_turns(self, chapters: dict) -> None:
         """The game's reinforcement groups (ticket 109): "groupTurns" {group: {chapter, turn, phase}} moves their turn;
@@ -1199,6 +1202,20 @@ class DecompData:
             if bad is not None:
                 raise GameDataError(f"{name}: bad command {bad.get('op')}")
             self.event_sources[rel] = source[:start] + events.render_script(commands) + source[end:]
+            self._declare_new_groups(rel, commands)
+
+    def _declare_new_groups(self, rel: str, commands: list[dict]) -> None:
+        """The groups the project made (in src/events_udefs.c) that a script loads, declared in its file."""
+        names = sorted({a for c in commands for a in c.get("args") or []
+                        if isinstance(a, str) and re.fullmatch(r"UnitDef_FEM_\w+", a)})
+        source = self.event_sources[rel]
+        missing = [n for n in names if not re.search(rf"struct\s+UnitDefinition\s+{n}\s*\[", source)]
+        if not missing:
+            return
+        includes = list(re.finditer(r"^#include[^\n]*\n", source, re.M))
+        at = includes[-1].end() if includes else 0
+        decl = "".join(f"extern CONST_DATA struct UnitDefinition {n}[];\n" for n in missing)
+        self.event_sources[rel] = source[:at] + decl + source[at:]
 
     # ---------- supports ----------
 

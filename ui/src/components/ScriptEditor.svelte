@@ -6,7 +6,7 @@
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { Character, DialoguesData, EventCommand, EventsReference, Memory, Problem } from '../lib/types'
+  import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import { AI_PRESETS } from '../lib/ai'
 
@@ -19,6 +19,7 @@
     firstLine,
     onopenmessage,
     sceneKind = '',
+    chapterList,
   }: {
     name: string
     /** chapter index (unit groups of the chapter are offered), -1 if none */
@@ -32,6 +33,8 @@
     onopenmessage: (id: string) => void
     /** what starts the script (beginning, ending...): the opening and ending scenes can be replaced by a simple one */
     sceneKind?: string
+    /** the project's chapter data: the groups it made can be picked, and a new scene group made from here */
+    chapterList?: EditableList<ChaptersData>
   } = $props()
 
   const NEW_MESSAGE = 'new:'   // a message made for a script (server: dialogues.SCENE_MESSAGE)
@@ -80,7 +83,40 @@
   let file = $state('')
   let error = $state('')
   let groups = $state<string[]>([])
-  let groupOrigins = $state<{ name: string; origin: string }[]>([])
+  let groupOrigins = $state<{ name: string; origin: string; turn: number | null; count: number }[]>([])
+  const NEW_GROUP = '__new_group'
+  /** Groups a scene can bring: the chapter's, then the ones the project made for it, with a readable name. */
+  const groupChoices = $derived.by(() => {
+    const data = chapterList?.records[0]
+    const made = Object.entries(data?.newGroups ?? {}).filter(([, g]) => g.chapter === chapter)
+    const label = (origin: string, turn: number | null) =>
+      origin === 'turn' ? t('chapter.origin.turn', { n: turn ?? '?' }) : t(`chapter.origin.${origin}`)
+    return [
+      ...groupOrigins.map((g) => ({ name: g.name, label: label(g.origin, g.turn), count: data?.unitGroups?.[g.name]?.length ?? g.count })),
+      ...made.map(([name, g]) => ({ name, label: label(g.scene ? 'scene' : 'turn', g.turn), count: data?.unitGroups?.[name]?.length ?? 0 })),
+    ]
+  })
+
+  /** A new group only scenes bring, made in the chapter's data and picked here (then filled on the chapter's map). */
+  function newSceneGroup(): string | null {
+    if (!chapterList || chapter < 0) return null
+    const taken = new Set(Object.keys(chapterList.records[0]?.newGroups ?? {}))
+    let n = 0
+    while (taken.has(`UnitDef_FEM_${chapter}_${n}`)) n++
+    const group = `UnitDef_FEM_${chapter}_${n}`
+    const index = chapter
+    chapterList.update(0, (c) => {
+      c.newGroups ??= {}
+      c.newGroups[group] = { chapter: index, turn: 1, phase: 'enemy', scene: true }
+      c.unitGroups[group] = []
+    })
+    return group
+  }
+
+  function pickGroup(i: number, k: number, value: string) {
+    const group = value === NEW_GROUP ? newSceneGroup() : value
+    if (group) setArg(i, k, group)
+  }
   let selected = $state<number | null>(null)
   let adding = $state('')
   /** The memory whose name is being typed (its flag). */
@@ -121,7 +157,7 @@
     if (c >= 0) {
       api.chapterUnits(c).then((u) => {
         groups = u.groups.map((g) => g.name)
-        groupOrigins = u.groups.map((g) => ({ name: g.name, origin: g.origin }))
+        groupOrigins = u.groups.map((g) => ({ name: g.name, origin: g.origin, turn: g.turn, count: g.units.length }))
       }).catch(() => {})
     }
   })
@@ -657,7 +693,15 @@
                   {:else if a.kind === 'script'}
                     <input value={v} list="ev-scripts" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                   {:else if a.kind === 'group'}
-                    <input value={v} list="ev-groups" onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
+                    {@const choice = groupChoices.find((g) => g.name === v)}
+                    <select value={v} onchange={(e) => pickGroup(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#if !choice}<option value={v}>{v.replace('UnitDef_Event_', '')}</option>{/if}
+                      {#each groupChoices as g (g.name)}
+                        <option value={g.name}>{g.label} · {t('dlg.groupUnits', { n: g.count })} ({g.name.replace('UnitDef_Event_', '').replace('UnitDef_', '')})</option>
+                      {/each}
+                      {#if chapterList && chapter >= 0}<option value={NEW_GROUP}>＋ {t('dlg.newSceneGroup')}</option>{/if}
+                    </select>
+                    {#if choice}<Mention kind="chapters" id={String(chapter)}><span class="tiny">{t('dlg.placeGroup')}</span></Mention>{/if}
                   {:else}
                     <input class:short={['x', 'y', 'frames', 'number', 'amount', 'mapChange', 'percent', 'counter'].includes(a.kind)} value={v} onchange={(e) => setArg(i, k, (e.target as HTMLInputElement).value)} />
                     {#if a.kind === 'frames' && /^\d+$/.test(v)}<span class="tiny muted">{(Number(v) / 60).toFixed(1)} s</span>{/if}
@@ -728,7 +772,6 @@
       {/if}
     {/if}
   </ol>
-  <datalist id="ev-groups">{#each groups as g (g)}<option value={g}></option>{/each}</datalist>
   <datalist id="ev-scripts">{#each reference?.scripts ?? [] as s (s)}<option value={s}></option>{/each}</datalist>
 
   {#if reference}
