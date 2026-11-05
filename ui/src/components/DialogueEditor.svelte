@@ -20,6 +20,7 @@
   import NumberField from './NumberField.svelte'
   import RecordList from './RecordList.svelte'
   import ScriptEditor from './ScriptEditor.svelte'
+  import AreaPicker from './AreaPicker.svelte'
   import ConversationThread from './ConversationThread.svelte'
   import { faceName } from '../lib/faces'
   import FacePicker from './FacePicker.svelte'
@@ -700,6 +701,9 @@
                   onchange={(v) => editQuote({ area: (q.area ?? [0, 0, 0, 0]).map((old, j) => (j === k ? v : old)) })} />
               {/each}
               <Help text={t('dlg.addAreaHint')} />
+              {#if chapter && chapter.index >= 0}
+                <AreaPicker chapter={chapter.index} area={q.area ?? [0, 0, 0, 0]} onchange={(area) => editQuote({ area })} />
+              {/if}
             {:else if q.kind === 'flag'}
               {#if memories.length}
                 <label>

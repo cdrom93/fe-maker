@@ -1655,6 +1655,7 @@
   "dlg.sequence": "Déroulé",
   "dlg.sequenceHint": "Les commandes de la scène : son dialogue, et ce qu'on veut avant ou après (faire venir des unités, teinter l'écran, météo, PV, bruitage…).",
   "dlg.backToDialogue": "Retour au dialogue",
+  "dlg.areaDraw": "Tracez la zone sur la carte en glissant la souris d'un coin à l'autre.",
   "chapter.itemDrop": "Lâche son dernier objet à sa mort",
   "chapter.itemDropHint": "Si le joueur la bat, l'unité qui porte le coup reçoit le dernier objet de son inventaire. En jeu, cet objet s'affiche en vert sur sa fiche.",
   "chapter.battleQuote": "Réplique de combat",
