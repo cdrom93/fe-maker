@@ -382,34 +382,6 @@ def test_class_generic_portrait_reaches_the_game(tmp_path):
         assert game.read("gClassData", (0x4E - 1) * 0x54 + 8, width=16) == 0x7F
 
 
-def test_weapon_sheet_in_a_battle(tmp_path):
-    """Double attack, poison and a Strength malus, played: the enemy takes two hits of the lowered damage and is poisoned."""
-    project = Project.create(tmp_path / "battle", "Battle")
-    items = project.load("items")
-    next(i for i in items if i["id"] == "ITEM_SWORD_STEEL").update(
-        properties=["brave"], weaponEffect="poison", hit=255, crit=0, might=1, statBonuses={"pow": -9, "spd": -15})
-    project.save("items", items)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
-    with Game(out.rom_path, out.map_path) as game:
-        enemy = _seth_attacks(game)
-        place = (enemy["x"], enemy["y"])
-        def now():
-            return next((u for u in game.units("Red") if (u["x"], u["y"]) == place), None)
-
-        assert game.wait_until(lambda: game.phase() == "player" and (now() is None or now()["hp"] < enemy["hp"]),
-                               seconds=60, step=20)
-        game.run(120)
-        attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
-        defense = game.read("gBattleTarget", 0x5C, width=16, signed=True)
-        force = game.read("gBattleActor", 0x14)
-        print("force", force, "attack", attack, "defense", defense, "hp", enemy["hp"], "->", now())
-        assert now() is not None and enemy["hp"] - now()["hp"] == 2 * (attack - defense) > 0
-        base = game.address("gUnitArrayRed")
-        unit = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
-                    and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
-        assert game.read(unit, 0x30) & 0xF == 1
-
-
 def test_item_sheet_reaches_the_game(tmp_path):
     """Type, properties, effect, rank points, bonuses and spell, as the engine reads them."""
     project = Project.create(tmp_path / "items", "Items")
@@ -1284,8 +1256,9 @@ def test_screen_tint_counters_and_leaving_the_party(tmp_path):
 BENCH_SPOTS = [(2, 2), (8, 2), (2, 7), (8, 7)]
 
 
-def _bench(tmp_path, name, items_by_unit):
-    """A project on the bench: unit k stands at BENCH_SPOTS[k] with items_by_unit[k] (item ids)."""
+def _bench(tmp_path, name, items_by_unit, enemy_at=(14, 9)):
+    """A project on the bench: unit k stands at BENCH_SPOTS[k] with items_by_unit[k] (item ids); one unarmed enemy
+    soldier stands at enemy_at (next to a unit, it is the only target of its Attack)."""
     from fe_maker import newchapter
 
     project = Project.create(tmp_path / name, name)
@@ -1313,7 +1286,8 @@ def _bench(tmp_path, name, items_by_unit):
     enemies = next(c["args"][1] for c in opening if c["op"] == "LOAD1")
     chapters["unitGroups"][enemies] = [{
         "slot": None, "character": "CHARACTER_SOLDIER_83", "class": "CLASS_SOLDIER", "level": 1, "autolevel": False,
-        "side": "enemy", "x": 14, "y": 9, "endX": 14, "endY": 9, "items": [], "ai": [0, 0, 0, 0], "fixedPath": False}]
+        "side": "enemy", "x": enemy_at[0], "y": enemy_at[1], "endX": enemy_at[0], "endY": enemy_at[1],
+        "items": [], "ai": [0, 0, 0, 0], "fixedPath": False}]
     project.save("chapters", chapters)
     return project
 
@@ -1326,6 +1300,17 @@ def _bench_units(game):
     found = {(game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)): base + n * UNIT_SIZE
              for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)}
     return [found[spot] for spot in BENCH_SPOTS if spot in found]
+
+
+def _bench_attack(game, unit):
+    """On the bench: the unit attacks, where it stands, with its first weapon the enemy next to it."""
+    game.move_cursor(game.read(unit, 0x10), game.read(unit, 0x11))
+    game.press("A")
+    game.press("A", wait=60)       # stays
+    game.press("A", wait=30)       # Attack
+    game.press("A", wait=30)       # the first weapon
+    game.press("A", wait=30)       # the target
+    game.press("A", wait=30)       # the forecast
 
 
 def _bench_use_item(game, unit, slot=0):
@@ -1365,24 +1350,68 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
 
 
 def test_copies_heal_and_protect_their_own_amount(tmp_path):
-    """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance."""
-    project = _bench(tmp_path, "amount", [[], []])
+    """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance, another +4 Speed; both bonuses
+    drop by 1 at the next turn."""
+    project = _bench(tmp_path, "amount", [[], [], []])
     items = project.load("items")
     decomp = DecompData(project.decomp_dir)
     balm = decomp.new_item("ITEM_VULNERARY", {i["id"] for i in items})
     water = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"]})
     balm.update(name="Baume", effectAmount=3)
     water.update(name="Eau", effectAmount=3)
-    project.save("items", [*items, balm, water])
+    tonic = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"]})
+    tonic.update(name="Tonique", effectAmount=4, effectStat="spd")
+    project.save("items", [*items, balm, water, tonic])
     chapters = project.load("chapters")
-    for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water)):
+    for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water, tonic)):
         unit["items"] = [item["id"]]
     project.save("chapters", chapters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
     with Game(out.rom_path, out.map_path) as game:
-        first, second = _bench_units(game)
+        first, second, third = _bench_units(game)
         game.write(first, 5, 0x13)
         _bench_use_item(game, first)
         assert game.read(first, 0x13) == 8
         _bench_use_item(game, second)
         assert game.read(second, 0x31) >> 4 == 3
+        _bench_use_item(game, third)
+        assert (game.read(third, 0x3A), game.read(third, 0x3B)) == (3, 4)   # Speed, +4
+        # every unit has acted: the turn ends by itself
+        # (lowered at the start of the phase, after its banner: TickActiveFactionTurn)
+        assert game.wait_until(lambda: game.turn() == 2 and game.read(second, 0x31) >> 4 == 2, seconds=120, step=30)
+        assert game.read(third, 0x3B) == 3
+
+
+def test_weapon_sheet_in_a_battle(tmp_path):
+    """Double attack, poison and a Strength malus, played: the enemy takes two hits of the lowered damage and is poisoned."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "battle", [["ITEM_SWORD_IRON"], []], enemy_at=place)   # a weapon the lord can wield; a
+    # second unit, which does not act, keeps the turn from ending by itself (the enemy would then move)
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(
+        properties=["brave"], weaponEffect="poison", hit=255, crit=0, might=1, statBonuses={"pow": -9, "spd": -15})
+    project.save("items", items)
+    characters = project.load("characters")
+    lord = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord)["bases"].update(pow=12, skl=20)   # a known hit through the malus
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 40   # outlives the hits
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        def now():
+            return next((u for u in game.units("Red") if (u["x"], u["y"]) == place), None)
+
+        before = now()["hp"]
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.phase() == "player" and (now() is None or now()["hp"] < before),
+                               seconds=60, step=20)
+        game.run(120)
+        attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
+        defense = game.read("gBattleTarget", 0x5C, width=16, signed=True)
+        print("attack", attack, "defense", defense, "hp", before, "->", now())
+        assert now() is not None and before - now()["hp"] == 2 * (attack - defense) > 0
+        base = game.address("gUnitArrayRed")
+        unit = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
+                    and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
+        assert game.read(unit, 0x30) & 0xF == 1

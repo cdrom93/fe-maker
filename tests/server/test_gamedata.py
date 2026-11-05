@@ -315,3 +315,26 @@ def test_a_copied_vulnerary_heals_its_own_amount(decomp_dir):
     assert "case ITEM_VULNERARY:\n" in out["src/bmitem.c"]
     assert "case ITEM_NEW_CE:\n            ExecVulneraryItem(proc, 3);" in out["src/bmusemind.c"]
     assert "case ITEM_VULNERARY:\n            ExecVulneraryItem(proc, 10);" in out["src/bmusemind.c"]
+
+
+def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
+    """Ticket 144: the unit's spare bytes hold a stat and a bonus that drops each turn, read by the stat getters."""
+    d = DecompData(decomp_dir)
+    getters = "".join(f"inline int GetUnit{name}(struct Unit* unit) {{\n    return unit->{f};\n}}\n"
+                      for name, f in (("Power", "pow"), ("Skill", "skl"), ("Speed", "spd"), ("Defense", "def"),
+                                      ("Resistance", "res"), ("Luck", "lck")))
+    out = {
+        "src/bmunit.c": getters + "void Tick(struct Unit* unit) {\n        if (unit->barrierDuration != 0)\n"
+                                  "            unit->barrierDuration--;\n}\n",
+        "src/bmio.c": "void Reset(struct Unit* unit) {\n            unit->barrierDuration = 0;\n}\n",
+        "src/bmusemind.c": "void ActionStaffDoorChestUseItem(ProcPtr proc) {\n    switch (itemId) {\n"
+                           "        case ITEM_PUREWATER: case ITEM_NEW_CE:\n            ExecPureWater(proc);\n"
+                           "            break;\n    }\n}\n",
+    }
+    d.item_temp_stats["ITEM_NEW_CE"] = "spd"
+    d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_PUREWATER", 12)
+    d._with_temporary_bonus(out)
+    assert "->_u3A = 3;" in out["src/bmusemind.c"] and "->_u3B = 12;" in out["src/bmusemind.c"]
+    assert "return unit->spd + (unit->_u3A == 3 ? unit->_u3B : 0);" in out["src/bmunit.c"]
+    assert "return unit->res;" in out["src/bmunit.c"]
+    assert "unit->_u3B--;" in out["src/bmunit.c"] and "unit->_u3B = 0;" in out["src/bmio.c"]

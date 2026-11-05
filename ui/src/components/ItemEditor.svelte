@@ -126,6 +126,8 @@
     ITEM_STAFF_HEAL: 10, ITEM_STAFF_PHYSIC: 10, ITEM_STAFF_FORTIFY: 10, ITEM_STAFF_MEND: 20, ITEM_STAFF_RECOVER: 80,
     ITEM_VULNERARY: 10, ITEM_VULNERARY_2: 10, ITEM_ELIXIR: 80, ITEM_PUREWATER: 7,
   }
+  /** The stat a Pure Water copy raises for a few turns (server: gamedata.TEMP_STATS; Resistance is the game's own). */
+  const TEMP_STATS = ['res', 'pow', 'skl', 'spd', 'def', 'lck']
   const amountOf = $derived(it?.model ? GAME_AMOUNTS[it.actsLike ?? it.model] : undefined)
 
   async function addWeapon() {
@@ -212,8 +214,20 @@
             </label>
             {#if amountOf !== undefined}
               {@const water = (it.actsLike ?? it.model) === 'ITEM_PUREWATER'}
+              {#if water}
+                <label>
+                  <span>{t('item.tempStat')}</span>
+                  <select value={it.effectStat ?? 'res'} onchange={(e) => {
+                    const v = (e.target as HTMLSelectElement).value
+                    edit((i) => { if (v === 'res') delete i.effectStat; else i.effectStat = v })
+                  }}>
+                    {#each TEMP_STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
+                  </select>
+                </label>
+              {/if}
               <NumberField label={t(water ? 'item.amountBarrier' : 'item.amountHeal')} value={it.effectAmount ?? amountOf}
-                           min={1} max={water ? 7 : 80} onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
+                           min={1} max={water ? ((it.effectStat ?? 'res') === 'res' ? 7 : 30) : 80}
+                           onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
               <Help text={t(water ? 'item.amountBarrierHint' : 'item.amountHealHint')} />
             {/if}
           {:else if copiable}

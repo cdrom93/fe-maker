@@ -79,6 +79,8 @@ HEAL_ITEMS = {"ITEM_STAFF_HEAL", "ITEM_STAFF_PHYSIC", "ITEM_STAFF_FORTIFY", "ITE
               "ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 DRINK_HEAL_ITEMS = {"ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 AMOUNT_ITEMS = HEAL_ITEMS | {"ITEM_PUREWATER"}
+# a temporary bonus dropping each turn, on another stat than Pure Water's Resistance: its number in Unit._u3A
+TEMP_STATS = {"pow": 1, "skl": 2, "spd": 3, "def": 4, "lck": 6}
 # a C expression compared to an item number: a name, then fields, indexes and call arguments
 ITEM_EXPR = r"[A-Za-z_]\w*(?:->\w+|\.\w+|\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))*"
 LAST_ITEM_NUMBER = 0xFE
@@ -327,6 +329,7 @@ class DecompData:
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
         self.item_amounts: dict[str, int] = {}   # items the project adds -> HP they heal, or Pure Water's barrier
+        self.item_temp_stats: dict[str, str] = {}   # Pure Water copies raising another stat than Resistance
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
@@ -2297,8 +2300,39 @@ class DecompData:
             if text != original:
                 out[rel] = text
         for new_id, model in news:
-            if new_id in self.item_amounts:
-                self._own_item_amount(out, new_id, model, self.item_amounts[new_id])
+            if new_id in self.item_amounts or new_id in self.item_temp_stats:
+                self._own_item_amount(out, new_id, model, self.item_amounts.get(new_id, 7))
+        if any(model == "ITEM_PUREWATER" for new_id, model in news if new_id in self.item_temp_stats):
+            self._with_temporary_bonus(out)
+
+    def _with_temporary_bonus(self, out: dict[str, str | bytes]) -> None:
+        """A bonus to one stat that drops by 1 each turn, like Pure Water's Resistance (ticket 144). The game keeps
+        only that one (barrierDuration): the unit's two unused bytes hold the stat (_u3A, TEMP_STATS) and the bonus
+        (_u3B), lowered with the barrier at the start of each turn, cleared after the chapter. Suspend saves have no
+        room for them: a game resumed from a suspend loses the bonus."""
+        def patch(rel: str, pairs: list[tuple[str, str]]) -> None:
+            text = out.get(rel) or self._read(rel)
+            for old, new in pairs:
+                if old not in text:
+                    raise GameDataError(f"{rel}: temporary bonus: {old.strip()} not found")
+                text = text.replace(old, new, 1)
+            out[rel] = text
+
+        getters = []
+        for name, n in (("Power", 1), ("Skill", 2), ("Speed", 3), ("Defense", 4), ("Luck", 6)):
+            start = f"inline int GetUnit{name}(struct Unit* unit) {{"
+            text = out.get("src/bmunit.c") or self._read("src/bmunit.c")
+            at = text.index(start)
+            end = text.index("\n}\n", at)
+            body = text[at:end]
+            new_body = re.sub(r"(\n    return )([^;]+);", rf"\1\2 + (unit->_u3A == {n} ? unit->_u3B : 0);", body)
+            getters.append((body, new_body))
+        patch("src/bmunit.c", [*getters, (
+            "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n",
+            "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n\n"
+            "        if (unit->_u3B != 0)\n            unit->_u3B--;\n")])
+        patch("src/bmio.c", [("            unit->barrierDuration = 0;\n",
+                              "            unit->barrierDuration = 0;\n            unit->_u3B = 0;\n")])
 
     def _own_item_amount(self, out: dict[str, str | bytes], new_id: str, model: str, amount: int) -> None:
         """A copy healing or protecting more or less than its model (ticket 144): its own case where the engine
@@ -2319,10 +2353,14 @@ class DecompData:
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}:\n            ExecVulneraryItem(proc, {amount});\n            break;\n")
         if model == "ITEM_PUREWATER":
+            stat = TEMP_STATS.get(self.item_temp_stats.get(new_id, "res"), 0)
+            effect = (f"GetUnit(gActionData.subjectIndex)->_u3A = {stat};\n"
+                      f"            GetUnit(gActionData.subjectIndex)->_u3B = {min(amount, 30)};\n") if stat \
+                else f"GetUnit(gActionData.subjectIndex)->barrierDuration = {min(amount, 7)};\n"
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}:\n"
                 "            BattleInitItemEffect(GetUnit(gActionData.subjectIndex), gActionData.itemSlotIndex);\n"
-                f"            GetUnit(gActionData.subjectIndex)->barrierDuration = {min(amount, 7)};\n"
+                f"            {effect}"
                 "            BattleApplyItemEffect(proc);\n            BeginBattleAnimations();\n            break;\n")
 
     def apply_items(self, items: list[dict]) -> None:
@@ -2334,6 +2372,8 @@ class DecompData:
                 entry = entries[it["id"]] = self._add_item(it["id"], it.get("model"))
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("actsLike"):
                 self.item_acts_like[it["id"]] = it["actsLike"]   # another item's effect (ticket 144)
+            if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectStat") and it["effectStat"] != "res":
+                self.item_temp_stats[it["id"]] = it["effectStat"]
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectAmount"):
                 self.item_amounts[it["id"]] = int(it["effectAmount"])
             if entry is None:

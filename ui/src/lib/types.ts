@@ -41,6 +41,7 @@ export interface Item {
   actsLike?: string
   /** items the project adds: HP healed, or Pure Water's Resistance, when not the game's amount */
   effectAmount?: number
+  effectStat?: string
   weaponType: string
   might: number
   hit: number
