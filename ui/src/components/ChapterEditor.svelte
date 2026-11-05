@@ -277,7 +277,8 @@
     for (const g of battleGroups) rows.set(turnOf(g), [...(rows.get(turnOf(g)) ?? []), g])
     return [...rows].map(([turn, list]) => ({ turn, groups: list }))
   })
-  const cutsceneGroups = $derived(groups.filter((g) => g.origin === 'cutscene') ?? [])
+  // A chapter rewritten from scratch (newchapter.py) loses the game's scenes: their groups, emptied, are left out.
+  const cutsceneGroups = $derived(groups.filter((g) => g.origin === 'cutscene' && !(clearedChapter && !unitsOf(g.name).length)))
   const pickedOrigin = $derived(picked ? groups.find((g) => g.name === picked!.group)?.origin : undefined)
   const edits = $derived(list.records[0]?.unitGroups ?? {})
 
