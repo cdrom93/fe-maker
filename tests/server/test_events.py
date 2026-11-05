@@ -139,3 +139,13 @@ def test_screen_tint_archives_the_palettes_once_and_counters_are_checked():
     assert ev.validate_command({"op": "ScreenTint", "args": ["4", "red", "0", "0"]}) == "badArguments"
     assert ev.validate_command({"op": "COUNTER_SET", "args": ["8", "1"]}) == "badArguments"
     assert ev.validate_command({"op": "COUNTER_INC", "args": ["2"]}) is None
+
+
+def test_a_new_scene_with_its_own_sequence(decomp_dir):
+    d = DecompData(decomp_dir)
+    scene = {"key": "k1", "commands": [{"op": "TEXTSHOW", "args": ["new:k1"]}, {"op": "TEXTSHOW", "args": ["new:other"]},
+                                        {"op": "ENDA"}]}
+    script, commands = d._scene_script("EventScr_FEM_Turn_0_0", scene, 0x900, {"other": 0x901})
+    assert "TEXTSHOW(0x900)\n    TEXTSHOW(0x901)\n    ENDA" in script and commands[0]["args"] == ["0x900"]
+    # without a sequence: the message alone, as before (ticket 151)
+    assert "TEXTSHOW(0x900)" in d._scene_script("EventScr_FEM_Turn_0_0", {}, 0x900, {})[0]

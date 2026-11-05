@@ -56,6 +56,17 @@
   let messageId = $state<string | null>(null)
   /** event script shown in the visual editor (instead of a message) */
   let scriptName = $state<string | null>(null)
+  /** A scene made in the project whose sequence is open (its place in the new quotes, ticket 151). */
+  let sequenceQuote = $state<number | null>(null)
+  const SEQUENCE_KINDS = ['turn', 'area', 'flag']
+
+  /** Open the sequence of a new scene; it needs a key, its message's name in the commands. */
+  function openSequence(i: number) {
+    if (!newQuotes[i]?.key) list.update(0, (d) => {
+      if (d.quotes?.[i] && !d.quotes[i].key) d.quotes[i].key = `scene${Date.now().toString(36)}`
+    })
+    sequenceQuote = i
+  }
   let stepIndex = $state(0)
   let showTutorials = $state(false)
   // "talk": the message as a conversation, typed in bubbles, portraits dragged on the stage (ticket 24);
@@ -178,6 +189,7 @@
 
   function pick(id: string) {
     scriptName = null
+    sequenceQuote = null
     messageId = id
     // The conversation view adds after the selected line: start at the end of the message.
     stepIndex = view === 'talk' ? Math.max(0, steps.length - 1) : 0
@@ -642,6 +654,12 @@
         <ScriptEditor {chapterList} name={scriptName} chapter={chapter?.index ?? -1} {list} {characters} {problems} firstLine={firstLineOf} onopenmessage={(id) => pick(resolveMessage(id))}
                       sceneKind={scenes.find((s) => s.script === scriptName)?.trigger.kind ?? ''} />
       </section>
+    {:else if sequenceQuote !== null && newQuotes[sequenceQuote]}
+      <section class="panel">
+        <button class="link small" onclick={() => pick(`${NEW}${sequenceQuote}`)}>← {t('dlg.backToDialogue')}</button>
+        <ScriptEditor {chapterList} quote={sequenceQuote} name={quoteLabel(newQuotes[sequenceQuote])} chapter={chapter?.index ?? -1} {list} {characters} {problems}
+                      firstLine={firstLineOf} onopenmessage={(id) => pick(resolveMessage(id))} />
+      </section>
     {:else if messageId}
       <section class="panel message-editor">
         <div class="head">
@@ -650,6 +668,10 @@
           {:else if quoteIndex >= 0}
             <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk', scene: 'SceneMessage', area: 'Area', flag: 'Flag' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
             <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
+            {#if SEQUENCE_KINDS.includes(newQuotes[quoteIndex]?.kind ?? '')}
+              {@const qi = quoteIndex}
+              <button class="sequence" title={t('dlg.sequenceHint')} onclick={() => openSequence(qi)}>⚙ {t('dlg.sequence')}{#if newQuotes[qi]?.commands}<span class="edited"> ✎</span>{/if}</button>
+            {/if}
           {:else}
             <h3>{t('dlg.message', { id: hex(messageId) })}</h3>
             {#if edited[messageId]}<button class="to-original link" onclick={resetMessage}>{t('dlg.reset')}</button>{/if}

@@ -981,10 +981,10 @@ class DecompData:
             self._add_talk(n, talk)
         turns = [q for q in data.get("quotes", []) if q.get("kind") == "turn"]
         for n, scene in enumerate(turns):
-            self._add_turn_scene(n, scene)
+            self._add_turn_scene(n, scene, scene_ids)
         for kind in ("area", "flag"):
             for n, scene in enumerate(q for q in data.get("quotes", []) if q.get("kind") == kind):
-                self._add_misc_scene(kind, n, scene)
+                self._add_misc_scene(kind, n, scene, scene_ids)
         if data.get("scripts"):
             self._apply_scripts(data["scripts"], scene_ids)
         if data.get("triggers"):
@@ -1061,7 +1061,29 @@ class DecompData:
         used = mapobjects.used_flags([s for r, s in self.event_sources.items() if r.startswith(prefix)])
         return next(f for f in range(first, 100) if f not in used)
 
-    def _add_turn_scene(self, n: int, scene: dict) -> None:
+    def _scene_script(self, name: str, scene: dict, message: int, scene_ids: dict[str, int]) -> tuple[str, list[dict]]:
+        """Script of a scene made in the project: its message, or its own sequence ("commands", ticket 151) where
+        "new:<key>" stands for its message (its "key") or the message of another scene of the project."""
+        commands = scene.get("commands")
+        if not commands:
+            return dialogues.scene_script(name, message), []
+        ids = {**scene_ids, **({scene["key"]: message} if scene.get("key") else {})}
+
+        def arg(value):
+            if isinstance(value, str) and value.startswith(dialogues.SCENE_MESSAGE):
+                key = value[len(dialogues.SCENE_MESSAGE):]
+                if key not in ids:
+                    raise GameDataError(f"{name}: unknown new message {key}")
+                return f"0x{ids[key]:X}"
+            return value
+
+        commands = [{**c, "args": [arg(a) for a in c["args"]]} if c.get("args") else c for c in commands]
+        bad = next((c for c in commands if events.validate_command(c)), None)
+        if bad is not None:
+            raise GameDataError(f"{name}: bad command {bad.get('op')}")
+        return f"CONST_DATA EventListScr {name}[] = {{{events.render_script(commands)}}};\n\n", commands
+
+    def _add_turn_scene(self, n: int, scene: dict, scene_ids: dict[str, int] | None = None) -> None:
         """A message at the start of turn N of a side (once); with an end turn, at the start of each turn
         from N to the end (no flag: the game runs a flagless event every time)."""
         index = int(scene.get("chapter", 0))
@@ -1072,10 +1094,11 @@ class DecompData:
         flag = f"EVFLAG_TMP({self._free_flag(found[0], dialogues.TALK_FIRST_FLAG)})" if end <= turn else "0"
         message = self.texts.add(self._message(scene.get("steps") or []))
         name = f"EventScr_FEM_Turn_{index}_{n}"
-        self._add_to_list(found, dialogues.scene_script(name, message),
-                          [f"TURN({flag}, {name}, {turn}, {end if end > turn else 0}, {faction})"])
+        script, commands = self._scene_script(name, scene, message, scene_ids or {})
+        self._add_to_list(found, script, [f"TURN({flag}, {name}, {turn}, {end if end > turn else 0}, {faction})"])
+        self._declare_new_groups(found[0], commands)
 
-    def _add_misc_scene(self, kind: str, n: int, scene: dict) -> None:
+    def _add_misc_scene(self, kind: str, n: int, scene: dict, scene_ids: dict[str, int] | None = None) -> None:
         """A message (once) when a player unit stops in an area (AREA), or once a flag is set (AFEV:
         a memory, or a flag set by another scene)."""
         index = int(scene.get("chapter", 0))
@@ -1088,7 +1111,9 @@ class DecompData:
             entry = f"AREA(EVFLAG_TMP({flag}), {name}, {min(x1, x2)}, {min(y1, y2)}, {max(x1, x2)}, {max(y1, y2)})"
         else:
             entry = f"AFEV(EVFLAG_TMP({flag}), {name}, {int(scene.get('flag') or 0)})"
-        self._add_to_list(found, dialogues.scene_script(name, message), [entry])
+        script, commands = self._scene_script(name, scene, message, scene_ids or {})
+        self._add_to_list(found, script, [entry])
+        self._declare_new_groups(found[0], commands)
 
     def _add_reinforcements(self, name: str, meta: dict, group_units: list[dict]) -> None:
         """A group made in the project: its units arrive at the start of turn N of a side, with the

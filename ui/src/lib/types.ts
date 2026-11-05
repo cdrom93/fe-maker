@@ -547,6 +547,8 @@ export interface NewQuote {
   area?: number[]
   /** flag scene: shown once this flag is set (a memory, or a flag another scene sets) */
   flag?: number
+  /** turn, area or flag scene: its own sequence (event commands; "new:<key>" is its message), instead of the message alone */
+  commands?: EventCommand[]
   /** chapter index; 255 = every chapter */
   chapter: number
   a: string

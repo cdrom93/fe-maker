@@ -20,6 +20,7 @@
     onopenmessage,
     sceneKind = '',
     chapterList,
+    quote,
   }: {
     name: string
     /** chapter index (unit groups of the chapter are offered), -1 if none */
@@ -35,6 +36,8 @@
     sceneKind?: string
     /** the project's chapter data: the groups it made can be picked, and a new scene group made from here */
     chapterList?: EditableList<ChaptersData>
+    /** a scene made in the project (its place in the new quotes): its sequence is kept in the quote (ticket 151) */
+    quote?: number
   } = $props()
 
   const NEW_MESSAGE = 'new:'   // a message made for a script (server: dialogues.SCENE_MESSAGE)
@@ -122,8 +125,14 @@
   /** The memory whose name is being typed (its flag). */
   let renaming = $state<number | null>(null)
 
-  const commands = $derived<EventCommand[]>(list.records[0]?.scripts?.[name] ?? original)
-  const edited = $derived(!!list.records[0]?.scripts?.[name])
+  const sceneQuote = $derived(quote !== undefined ? list.records[0]?.quotes?.[quote] : undefined)
+  /** A new scene's sequence until it is edited: its message, as the build writes it (dialogues.scene_script). */
+  const quoteDefault = $derived<EventCommand[]>(sceneQuote ? [
+    { op: 'TEXTSTART' }, { op: 'TEXTSHOW', args: [`${NEW_MESSAGE}${sceneQuote.key ?? ''}`] }, { op: 'TEXTEND' }, { op: 'REMA' },
+    { op: 'NoFade' }, { op: 'ENDA' },
+  ] : [])
+  const commands = $derived<EventCommand[]>(quote !== undefined ? (sceneQuote?.commands ?? quoteDefault) : (list.records[0]?.scripts?.[name] ?? original))
+  const edited = $derived(quote !== undefined ? !!sceneQuote?.commands : !!list.records[0]?.scripts?.[name])
   const named = $derived(characters.filter((c) => c.id.startsWith('CHARACTER_')))
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
   const itemName = (id: string) => reference?.items.find((i) => i.id === id)?.name || id.replace('ITEM_', '')
@@ -140,12 +149,13 @@
     error = ''
     selected = null
     const known = untrack(() => reference)
-    Promise.all([known ? Promise.resolve(known) : api.eventsReference(), api.eventScript(n)])
+    const ownScene = quote !== undefined
+    Promise.all([known ? Promise.resolve(known) : api.eventsReference(), ownScene ? Promise.resolve(null) : api.eventScript(n)])
       .then(([ref, s]) => {
         if (n !== name) return
         reference = ref
-        original = s.commands
-        file = s.file
+        original = s?.commands ?? []
+        file = s?.file ?? ''
       })
       .catch((e) => (error = String(e)))
   })
@@ -172,6 +182,18 @@
   }
 
   function save(next: EventCommand[], memory?: Memory | null) {
+    if (quote !== undefined) {
+      const same = JSON.stringify(next) === JSON.stringify(quoteDefault)
+      const q = quote
+      list.update(0, (d) => {
+        if (memory) (d.memories ??= []).push({ ...memory })
+        const target = d.quotes?.[q]
+        if (!target) return
+        if (same) delete target.commands
+        else target.commands = JSON.parse(JSON.stringify(next))
+      })
+      return
+    }
     const same = JSON.stringify(next) === JSON.stringify(original)
     list.update(0, (d) => {
       if (memory) (d.memories ??= []).push({ ...memory })
@@ -561,8 +583,10 @@
   }
 
   function resetScript() {
+    const q = quote
     list.update(0, (d) => {
-      if (d.scripts) delete d.scripts[name]
+      if (q !== undefined) delete d.quotes?.[q]?.commands
+      else if (d.scripts) delete d.scripts[name]
     })
   }
 
