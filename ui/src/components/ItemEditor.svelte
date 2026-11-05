@@ -195,6 +195,15 @@
               {t('item.copyOf')} <Mention kind="items" id={it.model}>{list.records.find((r) => r.id === it.model)?.name ?? it.model}</Mention>
               <button class="link" onclick={removeWeapon}>{t('item.remove')}</button>
             </p>
+            <label>
+              <span>{t('item.actsLike')} <Help text={t('item.actsLikeHint')} /></span>
+              <select value={it.actsLike ?? it.model} onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value
+                edit((i) => { if (v === i.model) delete i.actsLike; else i.actsLike = v })
+              }}>
+                {#each list.records.filter((r) => !r.model && r.id !== 'ITEM_NONE') as r (r.id)}<option value={r.id}>{r.name || r.id}</option>{/each}
+              </select>
+            </label>
           {:else if copiable}
             <p class="small">
               <button onclick={addWeapon} title={t('item.newFromHint')}>+ {t('item.newFrom')}</button>

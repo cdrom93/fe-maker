@@ -6,7 +6,7 @@
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
-  import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, Problem } from '../lib/types'
+  import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import { AI_PRESETS } from '../lib/ai'
 
@@ -181,12 +181,14 @@
     return null
   }
 
-  function save(next: EventCommand[], memory?: Memory | null) {
+  /** `message`: a new message of the project the commands use, saved with them (one undo step). */
+  function save(next: EventCommand[], memory?: Memory | null, message?: NewQuote) {
     if (quote !== undefined) {
       const same = JSON.stringify(next) === JSON.stringify(quoteDefault)
       const q = quote
       list.update(0, (d) => {
         if (memory) (d.memories ??= []).push({ ...memory })
+        if (message) (d.quotes ??= []).push(message)
         const target = d.quotes?.[q]
         if (!target) return
         if (same) delete target.commands
@@ -197,6 +199,7 @@
     const same = JSON.stringify(next) === JSON.stringify(original)
     list.update(0, (d) => {
       if (memory) (d.memories ??= []).push({ ...memory })
+      if (message) (d.quotes ??= []).push(message)
       d.scripts ??= {}
       if (same) delete d.scripts[name]
       else d.scripts[name] = JSON.parse(JSON.stringify(next))
@@ -330,7 +333,15 @@
     // what a condition on someone holds is usually for them
     const about = inCondition ? commands.slice(0, at).reverse().find((c) => c.op === 'CHECK_ALIVE')?.args?.[0] : undefined
     if ((adding === 'GiveItem' || adding === 'ChangeStat') && about) added[0].args![0] = about
-    save([...commands.slice(0, at), ...added, ...commands.slice(at)], memory)
+    const spec = reference?.commands[op] ?? []
+    const messageArg = CONDITIONS.includes(op) ? -1 : spec.findIndex((a) => a.kind === 'message')
+    let message: NewQuote | undefined
+    if (messageArg >= 0) {
+      const key = `s${Date.now().toString(36)}`
+      message = { kind: 'scene', key, chapter, a: '', steps: [] }
+      added[0].args![messageArg] = `${NEW_MESSAGE}${key}`
+    }
+    save([...commands.slice(0, at), ...added, ...commands.slice(at)], memory, message)
     if (memory) renaming = memory.flag
     // a condition: select its branch, the next command added goes inside it
     selected = at + added.length - (CONDITIONS.includes(adding) ? 2 : 1)
@@ -342,15 +353,10 @@
    *  using it, saved together (one undo step). */
   function withNewMessage(build: (ref: string) => EventCommand[], extra: { question?: boolean; memory?: Memory } = {}) {
     const key = `s${Date.now().toString(36)}`
-    const next = build(`${NEW_MESSAGE}${key}`)
-    list.update(0, (d) => {
-      d.quotes ??= []
-      d.quotes.push({ kind: 'scene', key, chapter, a: '', steps: [], ...(extra.question ? { question: true } : {}) })
-      if (extra.memory) (d.memories ??= []).push({ ...extra.memory })
-      d.scripts ??= {}
-      d.scripts[name] = JSON.parse(JSON.stringify(next))
-    })
+    save(build(`${NEW_MESSAGE}${key}`), extra.memory,
+         { kind: 'scene', key, chapter, a: '', steps: [], ...(extra.question ? { question: true } : {}) })
   }
+
 
   function newMessageAt(i: number, k: number) {
     withNewMessage((ref) => commands.map((c, n) => (n === i ? { ...c, args: (c.args ?? []).map((a, j) => (j === k ? ref : a)) } : c)))

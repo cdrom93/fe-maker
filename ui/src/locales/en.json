@@ -1327,6 +1327,8 @@
   "item.newFromHint": "Adds an item to the game, a copy of this one: same effect (healing, key, staff…), same spell and battle animations; name, stats, uses, price and icon to adjust afterwards (49 places after the game's items)",
   "item.copyName": "{name} 2",
   "item.copyOf": "Added item, a copy of",
+  "item.actsLike": "Effect like",
+  "item.actsLikeHint": "The game's item whose in-game effect this one has (healing, key, staff, potion…): by default the one it copies. Name, stats, range and uses stay its own.",
   "item.noFree": "No free place left after the game's items.",
   "item.remove": "Remove this item",
   "item.useText": "Use text",

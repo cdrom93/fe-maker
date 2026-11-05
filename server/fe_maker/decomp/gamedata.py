@@ -320,6 +320,7 @@ class DecompData:
         self.new_support_blocks: list[str] = []
         self.new_anim_confs: list[str] = []   # AnimConf arrays FE Maker adds (declared in data_classes.c)
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
+        self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
@@ -2264,7 +2265,7 @@ class DecompData:
                               text, flags=re.MULTILINE)
             if text != self._read(rel):
                 out[rel] = text
-        self._copy_item_behaviour(out, [(new_id, model) for new_id, (_n, model) in news])
+        self._copy_item_behaviour(out, [(new_id, self.item_acts_like.get(new_id) or model) for new_id, (_n, model) in news])
 
     def _copy_item_behaviour(self, out: dict[str, str | bytes], news: list[tuple[str, str]]) -> None:
         """Staves and items act by their number in the engine (ticket 144): wherever the C code tests a model
@@ -2297,6 +2298,8 @@ class DecompData:
             entry = entries.get(it["id"])
             if entry is None and it["id"].startswith(NEW_ITEM_PREFIX):
                 entry = entries[it["id"]] = self._add_item(it["id"], it.get("model"))
+            if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("actsLike"):
+                self.item_acts_like[it["id"]] = it["actsLike"]   # another item's effect (ticket 144)
             if entry is None:
                 raise GameDataError(f"Unknown item {it['id']}")
             f = entry.fields

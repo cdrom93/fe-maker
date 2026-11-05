@@ -1327,6 +1327,8 @@
   "item.newFromHint": "Ajoute un objet au jeu, copie de celui-ci : même effet (soin, clé, bâton…), même sort et mêmes animations de combat ; nom, stats, utilisations, prix et icône à régler ensuite (49 places après les objets du jeu)",
   "item.copyName": "{name} 2",
   "item.copyOf": "Objet ajouté, copie de",
+  "item.actsLike": "Effet comme",
+  "item.actsLikeHint": "L'objet du jeu dont celui-ci a l'effet en jeu (soin, clé, bâton, potion…) : par défaut celui qu'il copie. Nom, stats, portée et utilisations restent les siens.",
   "item.noFree": "Plus de place libre après les objets du jeu.",
   "item.remove": "Supprimer cet objet",
   "item.useText": "Texte d'utilisation",

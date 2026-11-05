@@ -37,6 +37,8 @@ export interface Item {
   name: string
   /** weapons the project adds (ITEM_NEW_xx): the game's weapon they copy (spell, own animations) */
   model?: string
+  /** items the project adds: the game's item whose effect they have (staff, key, potion...), when not their model's */
+  actsLike?: string
   weaponType: string
   might: number
   hit: number

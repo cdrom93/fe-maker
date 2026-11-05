@@ -287,3 +287,13 @@ def test_a_copied_item_acts_like_its_model_in_the_engine(decomp_dir):
             in code)
     assert "(bu->weaponBefore != ITEM_TESTBLADE && bu->weaponBefore != ITEM_NEW_02)" in code
     assert "{ ITEM_TESTBLADE, AiTestBlade },\n    { ITEM_NEW_02, AiTestBlade },\n    { ITEM_NONE, NULL }," in code
+
+
+def test_a_copied_item_can_have_another_items_effect(decomp_dir):
+    """Ticket 144: a copy can take the effect of another item than its model."""
+    d = DecompData(decomp_dir)
+    new = d.new_item("ITEM_TESTBLADE", set())
+    new["actsLike"] = "ITEM_TESTSTAFF"
+    d.apply_items([*d.export_items(), new])
+    code = d.changed_files()["src/cp_testitems.c"]
+    assert "case ITEM_TESTSTAFF: case ITEM_NEW_02:" in code and "case ITEM_TESTBLADE:\n" in code

@@ -9,5 +9,7 @@ if not exist ".venv\Scripts\python.exe" (
         exit /b 1
     )
     ".venv\Scripts\python.exe" -m pip install --quiet -e .\server
+    rem a desktop shortcut with FE Maker's icon, made once
+    powershell -NoProfile -Command "$s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop') + '\FE Maker.lnk'); $s.TargetPath = '%~dp0lancer-fe-maker.bat'; $s.WorkingDirectory = '%~dp0'; $s.IconLocation = '%~dp0server\fe_maker\fe-maker.ico,0'; $s.Save()" >nul 2>&1
 )
 ".venv\Scripts\python.exe" -m fe_maker

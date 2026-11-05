@@ -9,6 +9,8 @@ int TestItemEffect(int item)
     switch (GetItemIndex(item)) {
     case ITEM_TESTBLADE:
         return 1;
+    case ITEM_TESTSTAFF:
+        return 1;
     }
     if (GetItemIndex(gUnits[2]->items[0]) == ITEM_TESTBLADE)
         return 2;

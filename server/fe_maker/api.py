@@ -1007,6 +1007,26 @@ def convert_map(layout_id: str, body: ConvertIn):
     return {"rows": grids[0], "changes": [{**c, "rows": g} for c, g in zip(changes, grids[1:])], "missingTerrains": missing}
 
 
+MESSAGE_ARGS = {"Text": 0, "TEXTSHOW": 0, "TEXTCONT": 0, "Text_BG": 1}
+
+
+def script_message_ids(commands: list[dict]) -> list[int]:
+    """The game's messages a sequence shows, in order (the project's own, "new:<key>", are listed by the editor)."""
+    ids: list[int] = []
+    for c in commands:
+        at = MESSAGE_ARGS.get(c.get("op", ""))
+        args = c.get("args") or []
+        if at is None or at >= len(args):
+            continue
+        try:
+            value = int(str(args[at]).strip(), 0)
+        except ValueError:
+            continue
+        if value not in ids:
+            ids.append(value)
+    return ids
+
+
 @app.get("/api/chapters/{index}/dialogues")
 def chapter_dialogues(index: int):
     """Scenes of a chapter that show messages (what starts them) and their messages as steps,
@@ -1018,6 +1038,10 @@ def chapter_dialogues(index: int):
         # its events are emptied at build time (newchapter.py): only its opening and ending are left, rewritten
         scenes = [{**s, "messages": []} for s in scenes if s["trigger"]["kind"] in ("beginning", "ending")
                   and not s["trigger"].get("via")]
+    if state.project is not None:
+        # a sequence edited in the project shows the game's messages it uses now (ticket 160)
+        edited = state.project.load("dialogues").get("scripts", {})
+        scenes = [{**s, "messages": script_message_ids(edited[s["script"]])} if s["script"] in edited else s for s in scenes]
     ids = {i for s in scenes for i in s["messages"]}
     messages = {}
     for i in sorted(ids):

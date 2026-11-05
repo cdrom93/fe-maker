@@ -500,3 +500,12 @@ def test_an_event_made_in_the_dialogues_tab_brings_its_group(monkeypatch):
     }
     monkeypatch.setattr(api.state, "project", type("P", (), {"load": lambda self, name: data[name]})())
     assert api._new_groups_scenes(1) == {"UnitDef_FEM_1_0": ["new:turn"]}
+
+
+def test_an_edited_sequence_lists_the_messages_it_shows():
+    """Ticket 160: the Dialogues tab lists the game's messages of the sequence as edited, not as in the game."""
+    from fe_maker import api
+
+    commands = [{"op": "Text", "args": ["0x0"]}, {"op": "LOAD1", "args": ["1", "X"]}, {"op": "TEXTSHOW", "args": ["new:k"]},
+                {"op": "Text_BG", "args": ["0x1C", "0x91A"]}, {"op": "Text", "args": ["0"]}]
+    assert api.script_message_ids(commands) == [0, 0x91A]
