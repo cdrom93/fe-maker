@@ -156,3 +156,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 05/11/2026 : #151, #152, les scènes de tour, de zone et de souvenir créées dans l'onglet Dialogues ont un déroulé (« Déroulé », `quotes[i].commands`, « new:<key> » pour leur propre dialogue), écrit à la compilation à la place du dialogue seul (`DecompData._scene_script`). Reste : la zone choisie sur la carte.
 - 05/11/2026 : #151, la zone d'une scène de zone se trace en glissant la souris sur la carte du chapitre (`AreaPicker.svelte`).
 - 05/11/2026 : homogénéité (règle ajoutée dans CLAUDE.md) : la zone d'un objectif « Atteindre une zone » se trace aussi en glissant la souris, et le rectangle des scènes de zone a le même aspect que celui des objectifs.
+- 05/11/2026 : « scène » devient « évènement » partout dans l'interface (vocabulaire de FEBuilder) ; l'onglet Dialogues sépare « Nouvelles répliques » et « Nouveaux évènements ».

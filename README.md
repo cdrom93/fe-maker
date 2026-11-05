@@ -12,7 +12,7 @@
 | Unités | Personnages, classes, objets, armes, triangle des armes, couleurs en combat tirées du portrait | Characters, classes, items, weapons, weapon triangle, battle colours drawn from the portrait |
 | Cartes | Peinture, terrains qui se raccordent tout seuls, bâtiments, villages, coffres et portes, aller-retour avec Tiled | Painting, terrains that join by themselves, buildings, villages, chests and doors, round trip with Tiled |
 | Chapitres | Placement, IA, renforts, objectifs, portée et zone de danger | Placement, AI, reinforcements, objectives, reach and danger zone |
-| Dialogues | Conversations, scènes visuelles, souvenirs des choix du joueur, répliques, soutiens | Conversations, visual scenes, memories of the player's choices, quotes, supports |
+| Dialogues | Conversations, évènements, souvenirs des choix du joueur, répliques, soutiens | Conversations, events, memories of the player's choices, quotes, supports |
 | Ressources | Portraits, animations de combat et sprites de carte du FE-Repo ou du PC, crédits automatiques | Portraits, battle animations and map sprites from FE-Repo or your PC, automatic credits |
 | Options | Réglages de départ, confort (barres de PV, mode débutant...), projet vierge | Starting settings, comfort (HP bars, beginner mode...), blank project |
 | Tester | Dans mGBA, depuis le début ou un chapitre ; export en patch `.ups` | In mGBA, from the start or a chapter; `.ups` patch export |

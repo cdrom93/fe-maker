@@ -60,6 +60,8 @@
   /** A scene made in the project whose sequence is open (its place in the new quotes, ticket 151). */
   let sequenceQuote = $state<number | null>(null)
   const SEQUENCE_KINDS = ['turn', 'area', 'flag']
+  /** What the project adds that is a quote (said in battle); the rest are events (a trigger, a sequence, a dialogue). */
+  const QUOTE_KINDS: string[] = ['battle', 'death']
 
   /** Open the sequence of a new scene; it needs a key, its message's name in the commands. */
   function openSequence(i: number) {
@@ -107,6 +109,7 @@
   const chapterNumber = $derived(chapter ? (chapter.index < 0 ? ANY_CHAPTER : chapter.index) : -1)
   // New quotes of this chapter, with their place in the project list.
   const chapterQuotes = $derived(newQuotes.map((q, i) => ({ q, i })).filter(({ q }) => q.chapter === chapterNumber))
+const addedLists = $derived([    { title: 'dlg.newQuotes', added: chapterQuotes.filter(({ q }) => QUOTE_KINDS.includes(q.kind)) },    { title: 'dlg.newEvents', added: chapterQuotes.filter(({ q }) => !QUOTE_KINDS.includes(q.kind)) },  ])
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
   let showEmpty = $state(false)
   // A scene without dialogue only matters to whoever looks for it, unless the project changed it.
@@ -582,17 +585,19 @@
         {/if}
       {:else}
       {#if !visibleScenes.length}<p class="muted">{t('dlg.none')}</p>{/if}
-      {#if chapterQuotes.length}
-        <div class="scene">
-          <div class="scene-title"><span class="kind new">{t('dlg.newQuotes')}</span></div>
-          {#each chapterQuotes as { q, i } (i)}
-            <button class="message" class:active={messageId === `${NEW}${i}`} onclick={() => pick(`${NEW}${i}`)}>
-              {#if portraitOf.has(faceOf(q.a))}<span class="faces-mini"><img src={portraitUrl(portraitOf.get(faceOf(q.a))!, true)} alt="" /></span>{/if}
-              <span class="first">{quoteLabel(q)}</span>
-            </button>
-          {/each}
-        </div>
-      {/if}
+      {#each addedLists as { title, added } (title)}
+        {#if added.length}
+          <div class="scene">
+            <div class="scene-title"><span class="kind new">{t(title)}</span></div>
+            {#each added as { q, i } (i)}
+              <button class="message" class:active={messageId === `${NEW}${i}`} onclick={() => pick(`${NEW}${i}`)}>
+                {#if portraitOf.has(faceOf(q.a))}<span class="faces-mini"><img src={portraitUrl(portraitOf.get(faceOf(q.a))!, true)} alt="" /></span>{/if}
+                <span class="first">{quoteLabel(q)}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      {/each}
       <div class="add">
         <button onclick={() => addQuote('battle')} title={t('dlg.addBattleHint')}>＋ {t('dlg.addBattle')}</button>
         <button onclick={() => addQuote('death')} title={t('dlg.addDeathHint')}>＋ {t('dlg.addDeath')}</button>
@@ -668,7 +673,7 @@
             <h3>{quoteLabel(newQuotes[quoteIndex])}</h3>
           {:else if quoteIndex >= 0}
             <h3>{t(`dlg.add${{ battle: 'Battle', death: 'Death', talk: 'Talk', turn: 'Turn', support: 'Talk', scene: 'SceneMessage', area: 'Area', flag: 'Flag' }[newQuotes[quoteIndex]?.kind ?? 'battle']}`)}</h3>
-            <button class="link danger" onclick={removeQuote}>{t('dlg.removeQuote')}</button>
+            <button class="link danger" onclick={removeQuote}>{t(QUOTE_KINDS.includes(newQuotes[quoteIndex]?.kind ?? '') ? 'dlg.removeQuote' : 'dlg.removeEvent')}</button>
             {#if SEQUENCE_KINDS.includes(newQuotes[quoteIndex]?.kind ?? '')}
               {@const qi = quoteIndex}
               <button class="sequence" title={t('dlg.sequenceHint')} onclick={() => openSequence(qi)}>⚙ {t('dlg.sequence')}{#if newQuotes[qi]?.commands}<span class="edited"> ✎</span>{/if}</button>

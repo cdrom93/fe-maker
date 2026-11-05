@@ -38,7 +38,7 @@ Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un ch
 | Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes ; les couleurs en combat d'un personnage, tirées de son portrait ou peintes sur le sprite |
 | Options du jeu | Réglages de départ, confort, options de test, ce que garde le projet |
 
-Dans un chapitre, une **scène** est un moment du jeu : son déclencheur dit quand elle arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché. Une scène peut venir à un tour ou sur plusieurs tours, en parlant, quand une unité s'arrête dans une zone ou d'après un souvenir.
+Dans un chapitre, un **évènement** est un moment du jeu : son déclencheur dit quand il arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché. Un évènement peut venir à un tour ou sur plusieurs tours, en parlant, quand une unité s'arrête dans une zone ou d'après un souvenir. Les **répliques** (en combat, à la mort) ne sont pas des évènements.
 
 Un petit **i** à côté d'un titre ou d'une option donne son explication : survolez-le.
 
