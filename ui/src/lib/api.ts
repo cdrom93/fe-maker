@@ -195,7 +195,7 @@ export const api = {
   importTiled: (id: string) => request<TiledMap & { modified: number }>('GET', `/api/maps/${id}/tiled`),
   readTmx: (id: string, text: string) => request<TiledMap>('POST', `/api/maps/${id}/tiled/read`, { text }),
   mapTileset: (id: string, edits: TilesetEdits | null, palette: string | null, base: string | null, colors: MapsData['paletteColors'] = {}) =>
-    request<{ sheet: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base, colors }),
+    request<{ sheet: string; codes: string; terrains: number[]; duplicates: boolean[] }>('POST', `/api/maps/${id}/tileset`, { edits, palette, base, colors }),
   transformTiles: (id: string, body: {
     rows: number[][]; op: string; terrain?: number; edits: TilesetEdits | null; painted: MapsData['layouts']; bases: Record<string, string>
   }) =>
@@ -223,8 +223,9 @@ export const chapterMapUrl = (index: number, version = '', change: number | null
   `/api/chapters/${index}/map.png?v=${version}${change === null ? '' : `&change=${change}`}`
 export const animationUrl = (number: number | string, mode: string, palette = 0, colors?: string[]) =>
   `/api/animations/${number}/${mode}.png?palette=${palette}${colors ? `&colors=${colors.map((c) => c.slice(1)).join(',')}` : ''}`
-export const mapTilesetUrl = (id: string, base: string | null = null) =>
-  `/api/maps/${id}/tileset.png${base ? `?base=${encodeURIComponent(base)}` : ''}`
+/** `coded`: each pixel's red is its colour number (palette line * 16 + index). */
+export const mapTilesetUrl = (id: string, base: string | null = null, coded = false) =>
+  `/api/maps/${id}/tileset.png?${base ? `base=${encodeURIComponent(base)}&` : ''}${coded ? 'coded=true' : ''}`
 export const mapSpriteUrl = (classId: string, side: string, trim = false) =>
   `/api/assets/map-sprite/${classId}?side=${side}${trim ? '&trim=true' : ''}&v=${mapSpriteVersion.n}`
 /** `smile`, `eyes`: the dialogue face as the expression codes leave it. */

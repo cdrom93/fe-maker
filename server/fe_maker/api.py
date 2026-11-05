@@ -804,6 +804,7 @@ def edited_tileset(layout_id: str, body: TilesetIn):
             palette = maps.with_colors(DECOMP_DIR, assets, body.colors, Path(folder)).palette
             assets = dataclasses.replace(tileset.edited_assets(Path(folder)), palette=palette)
             png = maps.render_tileset(assets)
+            codes = maps.render_tileset(assets, coded=True)
             duplicates = maps.duplicate_metatiles(assets)
     except tileedit.TileEditError as e:
         raise HTTPException(409, str(e)) from e
@@ -811,6 +812,7 @@ def edited_tileset(layout_id: str, body: TilesetIn):
     for slot in (body.edits or {}).get("metatiles", {}):
         duplicates[int(slot)] = False
     return {"sheet": "data:image/png;base64," + base64.b64encode(png).decode(), "terrains": list(tileset.terrain),
+            "codes": "data:image/png;base64," + base64.b64encode(codes).decode(),
             "duplicates": duplicates}
 
 
@@ -846,9 +848,9 @@ def transform_tiles(layout_id: str, body: TransformIn):
 
 
 @app.get("/api/maps/{layout_id}/tileset.png")
-def map_tileset(layout_id: str, palette: str | None = None, base: str | None = None):
+def map_tileset(layout_id: str, palette: str | None = None, base: str | None = None, coded: bool = False):
     _layout(layout_id)
-    png = maps.render_tileset(maps.layout_assets(DECOMP_DIR, layout_id, base, palette))
+    png = maps.render_tileset(maps.layout_assets(DECOMP_DIR, layout_id, base, palette), coded)
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 

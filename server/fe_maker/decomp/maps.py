@@ -232,10 +232,14 @@ def render_map(assets: MapAssets, scale: int = 1, fog: bool = False,
     return _png(canvas, scale), width, height
 
 
-def render_tileset(assets: MapAssets) -> bytes:
-    """PNG of all the tileset's metatiles, TILESET_COLUMNS per row (the map editor's palette)."""
+def render_tileset(assets: MapAssets, coded: bool = False) -> bytes:
+    """PNG of all the tileset's metatiles, TILESET_COLUMNS per row (the map editor's palette).
+
+    `coded`: each pixel's red is its colour number, palette line * 16 + index (a click on the map picks a colour)."""
     metatiles, _terrain = read_config(assets.config)
     palette, draw = _metatile_painter(assets)
+    if coded:
+        palette = [v for i in range(256) for v in (i, 0, 0)]
     rows = -(-len(metatiles) // TILESET_COLUMNS)
     canvas = Image.new("P", (TILESET_COLUMNS * 16, rows * 16))
     canvas.putpalette(palette)

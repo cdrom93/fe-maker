@@ -1,5 +1,7 @@
 <script module lang="ts">
   import Help from './Help.svelte'
+  import PaletteFamilies from './PaletteFamilies.svelte'
+  import { families } from '../lib/colors'
   import type { MapLayout } from '../lib/types'
 
   /** Draws the current brush metatile on a small canvas. */
@@ -98,6 +100,9 @@
   // The map's tileset as in the game; `layout` and `sheet` add the project's mirrored and turned tiles.
   let baseLayout = $state<MapLayout | null>(null)
   let baseSheet = $state<HTMLImageElement | null>(null)
+  /** The same sheets in colour numbers (red = palette line * 16 + index): a click on the map picks a colour (ticket 147). */
+  let codes = $state<ImageData | null>(null)
+  let baseCodes = $state<ImageData | null>(null)
   let transformError = $state('')
   /** Tiles a mirror or turn would add to the tileset (ticket 22): shown on the brush, created only once
    *  the user says so. `similar`: the game's own tiles drawn that way (ticket 18), offered instead. */
@@ -245,13 +250,15 @@
     if (!edits && !palette && !colors[base.palette ?? '']) {
       layout = base
       sheet = baseSheet
+      codes = baseCodes
       return
     }
     api.mapTileset(id, edits, palette, tileSheet, colors).then(async (r) => {
-      const img = await loadImage(r.sheet)
+      const [img, coded] = await Promise.all([loadImage(r.sheet), loadImage(r.codes)])
       if (n !== tilesetRequest || maps[selected]?.id !== id) return
       layout = { ...base, terrains: r.terrains, duplicates: r.duplicates }
       sheet = img
+      codes = pixelsOf(coded)
     }).catch(() => {})
   })
 
@@ -404,8 +411,10 @@
     const id = maps[index].id
     const tileSheet = list.records[0]?.bases?.[id] || null
     loadingBase = tileSheet
-    const [data, img] = await Promise.all([api.map(id, tileSheet), loadImage(mapTilesetUrl(id, tileSheet))])
+    const [data, img, coded] = await Promise.all([api.map(id, tileSheet), loadImage(mapTilesetUrl(id, tileSheet)),
+                                                  loadImage(mapTilesetUrl(id, tileSheet, true))])
     if (maps[selected]?.id !== id) return
+    baseCodes = pixelsOf(coded)
     loadingBase = null
     baseSheet = img
     baseLayout = data
@@ -417,6 +426,15 @@
     const count = new Map<number, number>()
     for (const row of data.rows) for (const c of row) count.set(c, (count.get(c) ?? 0) + 1)
     setBrush([...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0)
+  }
+
+  function pixelsOf(img: HTMLImageElement): ImageData {
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    return ctx.getImageData(0, 0, img.width, img.height)
   }
 
   function loadImage(url: string): Promise<HTMLImageElement> {
@@ -565,6 +583,29 @@
       ctx.globalAlpha = 0.6
       for (let y = area.y0; y <= area.y1; y++) for (let x = area.x0; x <= area.x1; x++) if (editable({ x, y })) drawTile(ctx, stampTile(x, y, hover), x * cell, y * cell, cell)
       ctx.globalAlpha = 1
+    }
+    const focus = colorsOpen ? colorFocus : null
+    if (focus?.length && codes && layout) {
+      const shade = new ImageData(width * TILE, height * TILE)
+      const wanted = new Set(focus.map((i) => colorLine * 16 + i))
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const m = shownTile(x, y)
+          const sx = (m % layout.columns) * TILE
+          const sy = Math.floor(m / layout.columns) * TILE
+          for (let py = 0; py < TILE; py++) {
+            for (let px = 0; px < TILE; px++) {
+              if (wanted.has(codes.data[((sy + py) * codes.width + sx + px) * 4])) continue
+              shade.data[((y * TILE + py) * width * TILE + x * TILE + px) * 4 + 3] = 170
+            }
+          }
+        }
+      }
+      const off = document.createElement('canvas')
+      off.width = width * TILE
+      off.height = height * TILE
+      off.getContext('2d')!.putImageData(shade, 0, 0)
+      ctx.drawImage(off, 0, 0, width * cell, height * cell)
     }
     if (area) {
       ctx.strokeStyle = '#fff'
@@ -735,6 +776,17 @@
     const p = cellAt(e)
     if (!p) return
     e.preventDefault()
+    // While the colours are open, a click picks the colour under the mouse (as on a character's sprite).
+    if (colorsOpen && e.button === 0 && codes && layout && mapCanvas) {
+      const r = mapCanvas.getBoundingClientRect()
+      const m = shownTile(p.x, p.y)
+      const px = Math.min(TILE - 1, Math.floor(((e.clientX - r.left) / cell - p.x) * TILE))
+      const py = Math.min(TILE - 1, Math.floor(((e.clientY - r.top) / cell - p.y) * TILE))
+      const code = codes.data[(((Math.floor(m / layout.columns) * TILE) + py) * codes.width + (m % layout.columns) * TILE + px) * 4]
+      colorLine = Math.floor(code / 16)
+      pickedColor = code % 16 || null
+      return
+    }
     // Right button: take the tile under the mouse, or a block by dragging (whatever the tool).
     if (e.button === 2) {
       copyStart = p
@@ -979,15 +1031,32 @@
   const shownPalette = $derived(layout?.palettes.find((p) => p.id === (chosenPalette ?? layout?.palette)))
   const ownColors = $derived(shownPalette ? list.records[0]?.paletteColors?.[shownPalette.id] : undefined)
 
-  /** A color of the shown palette, for every chapter using it; back to the game's, it is no longer stored. */
-  function setColor(index: number, color: string) {
+  /** The colours on the map: the line of the picked colour, the picked one, and the ones shown alone. */
+  let colorsOpen = $state(false)
+  let colorLine = $state(0)
+  let pickedColor = $state<number | null>(null)
+  let hoveredColors = $state<number[] | null>(null)
+  const colorFocus = $derived(hoveredColors ?? (pickedColor === null || !shownPalette?.lines
+    ? null : families(shownPalette.lines[colorLine]).find((f) => f.includes(pickedColor!)) ?? null))
+  $effect(() => {
+    void shownPalette?.id
+    colorLine = 0
+    pickedColor = hoveredColors = null
+  })
+  const lineColors = (l: number) => (shownPalette?.lines?.[l] ?? []).map((c, k) => ownColors?.[l * 16 + k] ?? c)
+
+  /** A whole line of colours chosen at once. */
+  function setLine(l: number, colours: string[]) {
     const pal = shownPalette
     if (!pal?.lines) return
     list.update(0, (d) => {
       const all = (d.paletteColors ??= {})
       const own = (all[pal.id] ??= {})
-      if (color === pal.lines![Math.floor(index / 16)][index % 16]) delete own[index]
-      else own[index] = color
+      colours.forEach((color, k) => {
+        if (!k) return
+        if (color === pal.lines![l][k]) delete own[l * 16 + k]
+        else own[l * 16 + k] = color
+      })
       if (!Object.keys(own).length) delete all[pal.id]
     })
   }
@@ -1328,20 +1397,18 @@
           {/if}
         {/if}
         {#if shownPalette?.lines}
-          <details class="colors-panel">
+          <details class="colors-panel" bind:open={colorsOpen}>
             <summary class="small">{t('maps.colors')} {#if ownColors}<span class="edited">✎</span>{/if} <Help text={t('maps.colorsHint', { n: shownPalette.chapters.length })} /></summary>
-            <div class="color-lines">
+            <div class="color-lines" role="radiogroup" aria-label={t('maps.colors')}>
               {#each shownPalette.lines as line, l (l)}
-                <div class="color-line">
-                  {#each line as color, k (k)}
-                    {#if k}
-                      <input type="color" aria-label={t('maps.colorLabel', { line: l + 1, n: k })} value={ownColors?.[l * 16 + k] ?? color}
-                             onchange={(e) => setColor(l * 16 + k, (e.target as HTMLInputElement).value)} />
-                    {/if}
-                  {/each}
-                </div>
+                <button class="color-line" class:active={colorLine === l} role="radio" aria-checked={colorLine === l}
+                        title={t('maps.colorLine', { line: l + 1 })} onclick={() => { colorLine = l; pickedColor = null }}>
+                  {#each lineColors(l) as color, k (k)}{#if k}<span style="background: {color}"></span>{/if}{/each}
+                </button>
               {/each}
             </div>
+            <PaletteFamilies colours={lineColors(colorLine)} base={shownPalette.lines[colorLine]} picked={pickedColor} bind:hovered={hoveredColors}
+                             hint={t('maps.colorsClick')} onsave={(c) => setLine(colorLine, c)} />
             {#if ownColors}<button class="to-original link" onclick={resetColors}>{t('maps.colorsReset')}</button>{/if}
           </details>
         {/if}
@@ -1881,9 +1948,10 @@
   .base-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.25rem; }
   .base-choice.active { border-color: var(--accent); background: var(--accent-soft); }
   .base-choice .thumb { width: 96px; height: 48px; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; border-radius: 3px; }
-  .color-lines { display: flex; flex-direction: column; gap: 2px; margin: 0.4rem 0; }
-  .color-line { display: flex; flex-wrap: wrap; gap: 2px; }
-  .color-line input { width: 22px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: none; cursor: pointer; }
+  .color-lines { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
+  .color-line { display: flex; padding: 0.25rem 0.4rem; }
+  .color-line.active { border-color: var(--accent); background: var(--accent-soft); }
+  .color-line span { width: 8px; height: 12px; }
   .swatches { display: flex; }
   .swatches span { width: 8px; height: 12px; }
 </style>
