@@ -109,7 +109,16 @@
   const chapterNumber = $derived(chapter ? (chapter.index < 0 ? ANY_CHAPTER : chapter.index) : -1)
   // New quotes of this chapter, with their place in the project list.
   const chapterQuotes = $derived(newQuotes.map((q, i) => ({ q, i })).filter(({ q }) => q.chapter === chapterNumber))
-const addedLists = $derived([    { title: 'dlg.newQuotes', added: chapterQuotes.filter(({ q }) => QUOTE_KINDS.includes(q.kind)) },    { title: 'dlg.newEvents', added: chapterQuotes.filter(({ q }) => !QUOTE_KINDS.includes(q.kind)) },  ])
+// A dialogue written for an event's sequence ("new:<key>") is listed under that event, not as a new event (ticket 160).
+  const sceneQuotes = (script: string) => {
+    const text = JSON.stringify(list.records[0]?.scripts?.[script] ?? [])
+    return chapterQuotes.filter(({ q }) => q.kind === 'scene' && q.key && text.includes(`"new:${q.key}"`))
+  }
+  const attached = $derived(new Set(scenes.flatMap((sc) => sceneQuotes(sc.script).map(({ i }) => i))))
+  const addedLists = $derived([
+    { title: 'dlg.newQuotes', added: chapterQuotes.filter(({ q }) => QUOTE_KINDS.includes(q.kind)) },
+    { title: 'dlg.newEvents', added: chapterQuotes.filter(({ q, i }) => !QUOTE_KINDS.includes(q.kind) && !attached.has(i)) },
+  ])
   const charName = (id: string) => characters.find((c) => c.id === id)?.name || id.replace('CHARACTER_', '')
   let showEmpty = $state(false)
   // A scene without dialogue only matters to whoever looks for it, unless the project changed it.
@@ -624,7 +633,13 @@ const addedLists = $derived([    { title: 'dlg.newQuotes', added: chapterQuotes.
                     onclick={() => { scriptName = scene.script; messageId = null }}>⚙{#if list.records[0]?.scripts?.[scene.script]}<span class="edited">✎</span>{/if}</button>
             {#if canRemove(scene)}<button class="script-button danger" title={t('dlg.removeScene')} aria-label={t('dlg.removeScene')} onclick={() => removeScene(scene)}>✕</button>{/if}
           </div>
-          {#if !scene.messages.length}<span class="muted tiny no-message">{t('dlg.noMessage')}</span>{/if}
+          {#if !scene.messages.length && !sceneQuotes(scene.script).length}<span class="muted tiny no-message">{t('dlg.noMessage')}</span>{/if}
+          {#each sceneQuotes(scene.script) as { i } (i)}
+            <button class="message" class:active={messageId === `${NEW}${i}`} onclick={() => pick(`${NEW}${i}`)}>
+              <span class="faces-mini">{#each [...new Set(newQuotes[i].steps.filter((s) => s.kind === 'face').map((s) => s.face ?? ''))].slice(0, 4) as fc (fc)}{#if portraitOf.has(fc)}<img src={portraitUrl(portraitOf.get(fc)!, true)} alt={faceLabel(fc)} title={faceLabel(fc)} />{/if}{/each}</span>
+              <span class="first">{firstLineOf(`${NEW}${i}`) || '…'}</span>
+            </button>
+          {/each}
           {#each scene.messages as m (m)}
             {@const id = String(m)}
             {@const msgSteps = edited[id] ?? originals[id] ?? []}

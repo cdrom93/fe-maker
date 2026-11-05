@@ -1191,9 +1191,13 @@ def _new_groups_scenes(index: int) -> dict[str, list[str]]:
     if state.project is None:
         return {}
     made = [n for n, g in state.project.load("chapters").get("newGroups", {}).items() if g.get("chapter") == index]
-    scripts = state.project.load("dialogues").get("scripts", {})
-    return {name: sorted(script for script, commands in scripts.items()
-                         if any(c.get("op") in LOAD_OPS and name in (c.get("args") or []) for c in commands))
+    dialogues = state.project.load("dialogues")
+    # an event's sequence edited in the project, or an event made in the Dialogues tab ("new:<kind>", ticket 159)
+    sequences = list(dialogues.get("scripts", {}).items())
+    sequences += [(f"new:{q.get('kind')}", q["commands"]) for q in dialogues.get("quotes", [])
+                  if q.get("commands") and q.get("chapter") == index]
+    return {name: sorted({script for script, commands in sequences
+                          if any(c.get("op") in LOAD_OPS and name in (c.get("args") or []) for c in commands)})
             for name in made}
 
 

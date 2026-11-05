@@ -292,7 +292,9 @@
   /** Groups the project made for its scenes, with the scenes that bring them. */
   const sceneGroups = $derived(groups.filter((g) => g.origin === 'scene'))
   let sceneLabels = $state<Record<string, string>>({})
-  const broughtBy = (name: string) => (data?.loadedBy?.[name] ?? []).map((s) => sceneLabels[s] ?? s)
+  /** Events made in the Dialogues tab, as the server names them in loadedBy. */
+  const NEW_EVENT_LABELS: Record<string, string> = { 'new:turn': 'dlg.addTurn', 'new:area': 'dlg.addArea', 'new:flag': 'dlg.addFlag' }
+  const broughtBy = (name: string) => (data?.loadedBy?.[name] ?? []).map((s) => NEW_EVENT_LABELS[s] ? t(NEW_EVENT_LABELS[s]) : sceneLabels[s] ?? s)
   // One row per turn where units come: the start, then each reinforcement turn (ticket 153).
   const turnRows = $derived.by(() => {
     const rows = new Map<number, typeof battleGroups>()

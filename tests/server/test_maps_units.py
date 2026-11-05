@@ -485,3 +485,18 @@ def test_a_scene_group_has_no_turn_event_and_its_scene_declares_it(monkeypatch, 
         "EventScr_TestOpening": [{"op": "LOAD1", "args": ["1", "UnitDef_FEM_0_0"]}, *original]}})
     source = next(s for rel, s in d.changed_files().items() if rel.endswith("test-eventinfo.h"))
     assert source.index("extern CONST_DATA struct UnitDefinition UnitDef_FEM_0_0[];") < source.index("LOAD1(1, UnitDef_FEM_0_0)")
+
+
+def test_an_event_made_in_the_dialogues_tab_brings_its_group(monkeypatch):
+    """Ticket 159: a turn event's own sequence loads the group, so the group is not shown as brought by nothing."""
+    from fe_maker import api
+
+    data = {
+        "chapters": {"newGroups": {"UnitDef_FEM_1_0": {"chapter": 1, "turn": 1, "phase": "enemy", "scene": True}}},
+        "dialogues": {"scripts": {}, "quotes": [
+            {"kind": "turn", "chapter": 1, "key": "k", "commands": [{"op": "LOAD1", "args": ["1", "UnitDef_FEM_1_0"]}]},
+            {"kind": "turn", "chapter": 2, "key": "j", "commands": [{"op": "LOAD1", "args": ["1", "UnitDef_FEM_1_0"]}]},
+        ]},
+    }
+    monkeypatch.setattr(api.state, "project", type("P", (), {"load": lambda self, name: data[name]})())
+    assert api._new_groups_scenes(1) == {"UnitDef_FEM_1_0": ["new:turn"]}
