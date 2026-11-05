@@ -36,6 +36,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - Never commit ROMs, `.gba` files or assets extracted from the game. The decomp stays an unmodified submodule; modified decomp files exist only in the build overlay (the decomp has no license, so modified decomp code is never redistributed).
 - Do not add fixes tied to the original FE8 story unless the user asks: tell the user instead. The goal is to let users rebuild everything from scratch; the original story is only test material.
 - Every new game option goes in a category, never in a flat list: `SWITCH_GROUPS` in `gameoptions.py` (ticket 118); a new kind of option gets a new category with its `options.group.<name>` strings.
+- Keep the UI consistent (user's rule): reuse the look, components, words and placement already used for the same thing elsewhere; no one-off variant.
 - Everything mentioned in the UI is clickable and opens its sheet (spec principle 8): use `Mention` and the navigator (`ui/src/lib/navigation.svelte.ts`).
 - Class gender is shown after the class name: ♂ blue, ♀ pink (`GenderSign`).
 - No decorative emojis (ticket 54): an emoji only where it is an icon standing for something (map tools and objects, objective types, event commands, expression codes, markers like ⚠ ⭐ ✎); never put before the text of a button, link, title or sentence.
