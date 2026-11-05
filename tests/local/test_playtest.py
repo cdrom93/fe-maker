@@ -1275,3 +1275,32 @@ def test_screen_tint_counters_and_leaving_the_party(tmp_path):
         seth = next(base + i * 0x48 for i in range(62) if game.read(base + i * 0x48, width=32)
                     and game.read(game.read(base + i * 0x48, width=32), 4) == 2)
         assert game.read(seth, 0x0C, width=32) & (1 << 16)   # Seth left the party (kept from chapter to chapter)
+
+
+def test_a_copied_vulnerary_heals_in_game(tmp_path):
+    """Ticket 144: an item the project adds acts like its model (here a Vulnerary) wherever the engine tests its number."""
+    project = Project.create(tmp_path / "copy", "Copy")
+    items = project.load("items")
+    new = DecompData(project.decomp_dir).new_item("ITEM_VULNERARY", {i["id"] for i in items})
+    new["name"] = "Baume"
+    project.save("items", [*items, new])
+    number = int(new["id"].removeprefix("ITEM_NEW_"), 16)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(210)
+        base = game.address("gUnitArrayBlue")
+        unit = next(base + n * UNIT_SIZE for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)
+                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 1)
+        game.write(unit, number | 3 << 8, 0x1E, width=16)   # her only item: the copy, 3 uses
+        for n in range(1, 5):
+            game.write(unit, 0, 0x1E + 2 * n, width=16)
+        game.write(unit, 5, 0x13)
+        game.move_cursor(game.read(unit, 0x10), game.read(unit, 0x11))
+        game.press("A")
+        game.press("A", wait=60)
+        game.press("A", wait=30)      # Item (no weapon: the first command)
+        game.press("A", wait=30)      # the copy
+        game.press("A", wait=30)      # Use
+        assert game.wait_until(lambda: game.read(unit, 0x13) > 5, seconds=20, step=5)
+        assert game.wait_until(lambda: game.read(unit, 0x1E, width=16) == number | 2 << 8, seconds=20, step=10, tap="A")

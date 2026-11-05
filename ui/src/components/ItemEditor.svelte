@@ -118,8 +118,8 @@
     })
   }
 
-  /** Weapons can be copied into new ones (server: gamedata.new_item); consumables and staves act by item number. */
-  const copiable = $derived(!!it && !it.model && reference.rankableTypes.includes(it.weaponType) && it.weaponType !== 'staff')
+  /** Any item can be copied into a new one (server: gamedata.new_item); the engine treats the copy as its model (ticket 144). */
+  const copiable = $derived(!!it && !it.model && it.id !== 'ITEM_NONE')
   let addError = $state('')
 
   async function addWeapon() {

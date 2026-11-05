@@ -158,3 +158,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 05/11/2026 : homogénéité (règle ajoutée dans CLAUDE.md) : la zone d'un objectif « Atteindre une zone » se trace aussi en glissant la souris, et le rectangle des scènes de zone a le même aspect que celui des objectifs.
 - 05/11/2026 : « scène » devient « évènement » partout dans l'interface (vocabulaire de FEBuilder) ; l'onglet Dialogues sépare « Nouvelles répliques » et « Nouveaux évènements ».
 - 05/11/2026 : #159, un groupe d'évènement fait venir par un évènement créé dans l'onglet Dialogues n'est plus dit « fait venir par aucun évènement » ; #160, les dialogues écrits dans le déroulé d'un évènement s'affichent sous cet évènement (plus de « sans dialogue »).
+- 05/11/2026 : #144, tout objet se copie (bâtons, armes de monstre, potions, clés…) et la copie agit comme son modèle dans le moteur (`_copy_item_behaviour`) ; Vulnéraire copié vérifié en jeu.

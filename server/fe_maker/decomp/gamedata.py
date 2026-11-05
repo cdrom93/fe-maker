@@ -74,6 +74,8 @@ ITEM_BONUS_FILE = "src/data_itembonus.c"
 # An item the project adds is a weapon after the game's table, copying a model weapon (its spell and its own
 # battle animations, chosen by item number). Item numbers are one byte; 0xFF is left out.
 NEW_ITEM_PREFIX = "ITEM_NEW_"
+# a C expression compared to an item number: a name, then fields, indexes and call arguments
+ITEM_EXPR = r"[A-Za-z_]\w*(?:->\w+|\.\w+|\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))*"
 LAST_ITEM_NUMBER = 0xFE
 CLASS_CONSTANTS_FILE = "include/constants/classes.h"
 MOVING_SPRITES_FILE = "src/unit_icon_move_data.c"
@@ -2212,10 +2214,11 @@ class DecompData:
         return max(int(v, 0) for v in re.findall(r"\bITEM_\w+\s*=\s*(0x[0-9A-Fa-f]+|\d+)", self._read(ITEM_CONSTANTS_FILE)))
 
     def new_item(self, model: str, taken: set[str]) -> dict:
-        """Sheet of a weapon to add, copying `model`; `taken` are the ids already in the project."""
+        """Sheet of an item to add (weapon, staff, monster weapon, consumable...), copying `model`;
+        `taken` are the ids already in the project. The engine treats the copy as its model (_copy_item_behaviour)."""
         record = next((r for r in self.export_items() if r["id"] == model), None)
-        if record is None or record["weaponType"] not in set(RANKABLE_TYPES) - {"staff"}:
-            raise GameDataError("notAWeapon")
+        if record is None or model == "ITEM_NONE":
+            raise GameDataError("notAnItem")
         for n in range(self.last_item_number() + 1, LAST_ITEM_NUMBER + 1):
             new_id = f"{NEW_ITEM_PREFIX}{n:02X}"
             if new_id not in taken:
@@ -2223,7 +2226,7 @@ class DecompData:
         raise GameDataError("noFreeItem")
 
     def _add_item(self, new_id: str, model: str | None) -> Entry:
-        """A weapon the project adds: an entry after the game's ones, with the fields of its model."""
+        """An item the project adds: an entry after the game's ones, with the fields of its model."""
         n = int(new_id.removeprefix(NEW_ITEM_PREFIX), 16)
         if not self.last_item_number() < n <= LAST_ITEM_NUMBER:
             raise GameDataError(f"{new_id}: not after the game's items")
@@ -2260,6 +2263,31 @@ class DecompData:
                               lambda m, i=new_id, mo=model: m.group(0) + re.sub(rf"\b{re.escape(mo)}\b", i, m.group(0)),
                               text, flags=re.MULTILINE)
             if text != self._read(rel):
+                out[rel] = text
+        self._copy_item_behaviour(out, [(new_id, model) for new_id, (_n, model) in news])
+
+    def _copy_item_behaviour(self, out: dict[str, str | bytes], news: list[tuple[str, str]]) -> None:
+        """Staves and items act by their number in the engine (ticket 144): wherever the C code tests a model
+        (`case ITEM_X:`, `... == ITEM_X`, a row `{ ITEM_X, ... }` of the AI tables), its copies are added."""
+        src = self.decomp_dir / "src"
+        if not news or not src.is_dir():
+            return
+        for path in sorted(src.glob("*.c")):
+            rel = f"src/{path.name}"
+            if rel == ITEMS_FILE:
+                continue
+            original = out.get(rel) or self._read(rel)
+            if isinstance(original, bytes) or not any(model in original for _i, model in news):
+                continue
+            text = original
+            for new_id, model in news:
+                m = re.escape(model)
+                text = re.sub(rf"\bcase {m}:", f"case {model}: case {new_id}:", text)
+                text = re.sub(rf"(?<![\w>.\]])({ITEM_EXPR})\s*==\s*{m}\b", rf"(\1 == {model} || \1 == {new_id})", text)
+                text = re.sub(rf"(?<![\w>.\]])({ITEM_EXPR})\s*!=\s*{m}\b", rf"(\1 != {model} && \1 != {new_id})", text)
+                if path.name.startswith("cp"):
+                    text = re.sub(rf"^([ \t]*\{{\s*){m}(\s*,.*\n)", rf"\g<0>\g<1>{new_id}\g<2>", text, flags=re.MULTILINE)
+            if text != original:
                 out[rel] = text
 
     def apply_items(self, items: list[dict]) -> None:

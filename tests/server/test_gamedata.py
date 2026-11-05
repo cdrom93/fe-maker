@@ -222,8 +222,8 @@ def test_new_weapon_copies_its_model_after_the_game_items(decomp_dir):
     assert "IA_LOCK_4" in added   # reserved like its model
 
 
-def test_only_weapons_can_be_copied(decomp_dir):
-    with pytest.raises(GameDataError, match="notAWeapon"):
+def test_only_items_can_be_copied(decomp_dir):
+    with pytest.raises(GameDataError, match="notAnItem"):
         DecompData(decomp_dir).new_item("ITEM_NONE", set())
 
 
@@ -274,3 +274,16 @@ def _description_index(d):
     from fe_maker.decomp.gamedata import _int_field
 
     return _int_field(d.characters.entries[0].fields, "descTextId")
+
+
+def test_a_copied_item_acts_like_its_model_in_the_engine(decomp_dir):
+    """Ticket 144: staves and items act by their number, so the copy joins each test of its model's number."""
+    d = DecompData(decomp_dir)
+    new = d.new_item("ITEM_TESTBLADE", set())
+    d.apply_items([*d.export_items(), new])
+    code = d.changed_files()["src/cp_testitems.c"]
+    assert "case ITEM_TESTBLADE: case ITEM_NEW_02:" in code
+    assert ("(GetItemIndex(gUnits[2]->items[0]) == ITEM_TESTBLADE || GetItemIndex(gUnits[2]->items[0]) == ITEM_NEW_02)"
+            in code)
+    assert "(bu->weaponBefore != ITEM_TESTBLADE && bu->weaponBefore != ITEM_NEW_02)" in code
+    assert "{ ITEM_TESTBLADE, AiTestBlade },\n    { ITEM_NEW_02, AiTestBlade },\n    { ITEM_NONE, NULL }," in code

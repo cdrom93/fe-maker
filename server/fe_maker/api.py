@@ -319,7 +319,7 @@ class NewItemIn(BaseModel):
 
 @app.post("/api/items/new")
 def new_item(body: NewItemIn):
-    """Sheet of a weapon to add after the game's items, copying a model weapon."""
+    """Sheet of an item to add after the game's items, copying a model item (weapon, staff, consumable...)."""
     project = state.require_project()
     try:
         return DecompData(project.decomp_dir).new_item(body.model, {i["id"] for i in project.load("items")})
