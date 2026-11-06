@@ -28,6 +28,11 @@ from . import strmag
 REPO = "MokhaLeee/fe8u-cskillsys-kernel"
 COMMIT = "fb545870458f3c3629cab6cfb2330c3308d2ce6d"
 ICON_URL = f"https://raw.githubusercontent.com/{REPO}/{COMMIT}/Contents/Gfx/Sources/SkillIcon/{{}}.png"
+# The triggered skill's name in battle: Huichelaar's display from the Skill System (CC0), at a fixed commit
+SS_REPO = "FireEmblemUniverse/SkillSystem_FE8"
+SS_COMMIT = "aefb81278ae814ecc53175f79813bc099dae0346"
+BOX_URL = (f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}"
+           "/EngineHacks/SkillSystem/Internals/Graphics/ProcDisplayTiles.png")
 MAX_PER_SHEET = 3
 MAX_SHOWN = 4
 MAX_SKILLS = 63           # icons after the game's 224, in the 0x120 entries of the moved lookup table
@@ -198,11 +203,19 @@ def icon_path(skill_id: str) -> Path:
     skill = BY_ID.get(skill_id)
     if skill is None:
         raise SkillError("unknownSkill")
-    path = _cache() / f"{skill.icon}.png"
+    return _download(ICON_URL.format(skill.icon), _cache() / f"{skill.icon}.png")
+
+
+def box_png() -> bytes:
+    """The box behind a triggered skill's name in battle (Huichelaar's ProcDisplayTiles, Skill System, CC0)."""
+    return _download(BOX_URL, config_dir() / "skillsystem" / SS_COMMIT[:12] / "ProcDisplayTiles.png").read_bytes()
+
+
+def _download(url: str, path: Path) -> Path:
     if path.is_file():
         return path
     from ..ferepo import _ssl_context
-    request = urllib.request.Request(ICON_URL.format(skill.icon), headers={"User-Agent": "FE-Maker"})
+    request = urllib.request.Request(url, headers={"User-Agent": "FE-Maker"})
     try:
         with urllib.request.urlopen(request, timeout=30, context=_ssl_context()) as response:
             data = response.read(64 * 1024)
@@ -321,10 +334,17 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         f"{lines}    (void) defender;\n}}\n\n"
         "void ComputeBattleUnitStats(struct BattleUnit* attacker, struct BattleUnit* defender) {"), rel)
     battle = _replace(battle, end, end.replace("}\n", "    ApplyBattleSkillsFem(attacker, defender);\n}\n"), rel)
+    # the triggered skills to show in battle (banim-main.c), cleared for each battle
+    marker = "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
+    battle = _replace(battle, marker, (
+        f"#define sSkillShownFem ((vu8*) {SHOWN_SKILLS})\n#define SKILL_SHOWN_SIZE_FEM 0x{SHOWN_SIZE:X}\n\n" + marker), rel)
     if any(s.kind == "order" for s in skills):
         battle = _battle_order(battle, numbers, rel)
     if any(s.kind in ("proc", "hits") for s in skills):
         battle = _hit_skills(battle, [s for s in skills if s.kind in ("proc", "hits")], rel)
+    battle = _replace(battle, "void BattleUnwind(void) {\n    ClearBattleHits();\n",
+                      "void BattleUnwind(void) {\n    ClearBattleHits();\n"
+                      "    CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM);\n", rel)
     files[rel] = battle
 
     # icons: after the game's, their lookup table in free RAM
@@ -333,9 +353,13 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     base = sheet.count('.incbin "graphics/item_icon/item_icon_') - sheet.count("item_icon_palette.agbpal")
     icons = "".join(f"\t.global item_icon_skill_fem_{s.id}\nitem_icon_skill_fem_{s.id}:\n"
                     f"\t.incbin \"graphics/item_icon/item_icon_skill_fem_{s.id}.4bpp\"\n" for s in skills)
-    files[rel] = _replace(sheet, "\t.global item_icon_palette\n", icons + "\t.global item_icon_palette\n", rel)
+    box = ("\t.align 2\n\t.global gSkillBoxFem\ngSkillBoxFem:\n"
+           "\t.incbin \"graphics/item_icon/skill_box_fem.4bpp\"\n")
+    files[rel] = _replace(sheet, "\t.global item_icon_palette\n", icons + box + "\t.global item_icon_palette\n", rel)
     for s in skills:
         files[f"graphics/item_icon/item_icon_skill_fem_{s.id}.png"] = icon_png(s.id)
+    files["graphics/item_icon/skill_box_fem.png"] = box_png()
+    files.update(_skill_name_in_battle(decomp_dir, files, skills, texts, base))
     rel = "src/icon.c"
     icon = _read(files, decomp_dir, rel)
     icon = _replace(icon, "EWRAM_DATA static struct IconStruct DrawnIconLookupTable[MAX_ICON_COUNT] = {0};\n", (
@@ -354,6 +378,9 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
 DRAIN_FLAG = "0x02028D80"   # one byte after the icon table, in the same free RAM: Sol or Aether triggered on this hit
 ASTRA_FLAG = "0x02028D81"   # the next one: Astra triggered in this battle (the attacker's hits are halved)
+# then the triggered skills to show, 2 bytes per hit (the actor's, the target's), and the last round shown: 0x02028D82-91
+SHOWN_SKILLS = "0x02028D82"
+SHOWN_SIZE = 0x10
 
 
 def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
@@ -375,7 +402,12 @@ static int SkillProcRateFem(struct BattleUnit* unit, int skill, int rate)
         return FALSE;
     if (!SkillTesterFem(&unit->unit, skill))
         return FALSE;
-    return BattleRoll2RN(rate, FALSE);
+    if (!BattleRoll2RN(rate, FALSE))
+        return FALSE;
+    /* its name is shown with this hit (2 bytes per hit: the actor's skill, the target's) */
+    if (gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX)
+        sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2 + (unit == &gBattleTarget)] = skill;
+    return TRUE;
 }}
 
 static int SkillProcFem(struct BattleUnit* unit, int skill)
@@ -434,6 +466,208 @@ static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUni
         "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN) {\n",
         "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN\n"
         "            || (sHitDrainFem && gBattleStats.damage > 0)) { /* FE Maker: Sol, Aether */\n"), rel)
+
+
+def _skill_name_in_battle(decomp_dir: Path, files: dict, skills: list[Skill], texts: dict[str, int], base: int) -> dict:
+    """The triggered skill's name and icon under the unit's name plate, in battle animations: Huichelaar's
+    SkillProcDisplay from the Skill System (CC0), started where the game plays its own skill effects (C07)."""
+    out = {}
+    numbers = {s.id: i + 1 for i, s in enumerate(skills)}
+    icons = ", ".join(str(base + i) for i in range(len(skills)))
+    descs = ", ".join(str(texts[s.id]) for s in skills)
+    game = {flag: numbers.get(sid, 0) for flag, sid in (("SURE_SHOT", "SureShot"), ("PIERCE", "Pierce"),
+                                                        ("GREAT_SHIELD", "GreatShield"))}
+    rel = "src/banim-ekrgauge.c"
+    gauge = _read(files, decomp_dir, rel)
+    # the HP bar's buffer leaves the last 4 tiles of its 2 rows alone: the skill icon is there (KeepProcSkillIcon.s)
+    out[rel] = _replace(gauge, "        RegisterDataMove((void *)gUnk_Banim_02016E48, (void *)0x06013000, 0x800);\n",
+                        "        RegisterDataMove((void *)gUnk_Banim_02016E48, (void *)0x06013000, 0x380);"
+                        " /* FE Maker: skill icon (Huichelaar) */\n"
+                        "        RegisterDataMove((void *)gUnk_Banim_02017248, (void *)0x06013400, 0x380);\n", rel)
+    # in bmbattle.c, whose constants the linker keeps (banim-main.c's .rodata is discarded)
+    rel = "src/bmbattle.c"
+    battle = _read(files, decomp_dir, rel)
+    out[rel] = battle + f'''
+#include "anime.h"
+#include "ekrbattle.h"
+#include "fontgrp.h"
+#include "bmlib.h"
+#include "icon.h"
+#include "functions.h"
+#include "hardware.h"
+
+/* FE Maker: the triggered skill's name and icon in battle (Huichelaar's SkillProcDisplay, Skill System, CC0) */
+#define sSkillRoundFem (*(vu8*) ({SHOWN_SKILLS} + 2 * BATTLE_HIT_MAX))
+#define SKILL_NAME_TIME_FEM 120
+#define SKILL_NAME_WIDTH_FEM 8
+
+extern struct Font* gActiveFont;
+extern const u8 gSkillBoxFem[];
+
+static const u16 sSkillIconFem[SKILL_COUNT_FEM + 1] = {{ 0, {icons} }};
+static const u16 sSkillTextFem[SKILL_COUNT_FEM + 1] = {{ 0, {descs} }};
+
+struct SkillNameProcFem {{
+    PROC_HEADER;
+    u8 skill;
+    u8 right;
+    u8 timer;
+    struct Text text;
+}};
+
+static void SkillNameInitFem(struct SkillNameProcFem* proc)
+{{
+    struct Font font;
+    struct Font* active = gActiveFont;
+    char name[0x20];
+    const char* str = GetStringFromIndex(sSkillTextFem[proc->skill]);
+    int i;
+
+    for (i = 0; str[i] && str[i] != ':' && i < 0x1F; i++)   /* the help text up to its colon */
+        name[i] = str[i];
+    name[i] = 0;
+
+    Copy2dChr(item_icon_tiles + sSkillIconFem[proc->skill] * 0x80, (void*) 0x6013380, 2, 2);
+
+    InitTextFont(&font, (void*) 0x6000020, 1, 2);
+    SetTextDrawNoClear();   /* the glyphs replace the box's pixels */
+    InitText(&proc->text, SKILL_NAME_WIDTH_FEM);
+    Text_SetCursor(&proc->text, GetStringTextCenteredPos(SKILL_NAME_WIDTH_FEM * 8, name));
+    CpuFastCopy(gSkillBoxFem, (void*) 0x6000020, SKILL_NAME_WIDTH_FEM * 64);
+    Text_DrawString(&proc->text, name);
+    SetTextFont(active);
+    proc->timer = 0;
+}}
+
+/* the name slides in under the name plate, stays, slides back; the icon follows its end */
+static void SkillNameLoopFem(struct SkillNameProcFem* proc)
+{{
+    struct Anim icon;
+    s16 x;
+    int i, end = proc->timer - (SKILL_NAME_TIME_FEM + (SKILL_NAME_WIDTH_FEM + 2));
+
+    proc->timer++;
+    if (proc->timer > SKILL_NAME_TIME_FEM + (SKILL_NAME_WIDTH_FEM + 2) * 2) {{
+        Proc_Break(proc);
+        return;
+    }}
+    if (proc->timer <= SKILL_NAME_WIDTH_FEM + 2) {{
+        x = proc->timer << 3;
+        for (i = 0; i < proc->timer - 2; i++) {{
+            if (proc->right) {{
+                gBG0TilemapBuffer[0x9D - ((proc->timer - 3) - i)] = 0x3000 | (1 + i * 2);
+                gBG0TilemapBuffer[0xBD - ((proc->timer - 3) - i)] = 0x3000 | (2 + i * 2);
+            }} else {{
+                gBG0TilemapBuffer[0x80 + ((proc->timer - 3) - i)] = 0x2000 | ((SKILL_NAME_WIDTH_FEM * 2 - 1) - i * 2);
+                gBG0TilemapBuffer[0xA0 + ((proc->timer - 3) - i)] = 0x2000 | ((SKILL_NAME_WIDTH_FEM * 2) - i * 2);
+            }}
+        }}
+        BG_EnableSyncByMask(BG0_SYNC_BIT);
+    }} else if (end > 0) {{
+        x = ((SKILL_NAME_WIDTH_FEM + 2) - end) << 3;
+        if (proc->right) {{
+            gBG0TilemapBuffer[(0x9D - SKILL_NAME_WIDTH_FEM) + end] = 0x3080;
+            gBG0TilemapBuffer[(0xBD - SKILL_NAME_WIDTH_FEM) + end] = 0x3080;
+            for (i = end; i < SKILL_NAME_WIDTH_FEM; i++) {{
+                gBG0TilemapBuffer[(0x9D - SKILL_NAME_WIDTH_FEM) + i + 1] = 0x3000 | (((i - end) * 2) + 1);
+                gBG0TilemapBuffer[(0xBD - SKILL_NAME_WIDTH_FEM) + i + 1] = 0x3000 | (((i - end) * 2) + 2);
+            }}
+        }} else {{
+            gBG0TilemapBuffer[(0x80 + SKILL_NAME_WIDTH_FEM) - end] = 0x2080;
+            gBG0TilemapBuffer[(0xA0 + SKILL_NAME_WIDTH_FEM) - end] = 0x2080;
+            for (i = end; i < SKILL_NAME_WIDTH_FEM; i++) {{
+                gBG0TilemapBuffer[(0x80 + SKILL_NAME_WIDTH_FEM) - (i + 1)] =
+                    0x2000 | ((SKILL_NAME_WIDTH_FEM * 2) - (((i - end) * 2) + 1));
+                gBG0TilemapBuffer[(0xA0 + SKILL_NAME_WIDTH_FEM) - (i + 1)] =
+                    0x2000 | ((SKILL_NAME_WIDTH_FEM * 2) - ((i - end) * 2));
+            }}
+        }}
+        BG_EnableSyncByMask(BG0_SYNC_BIT);
+    }} else
+        x = (SKILL_NAME_WIDTH_FEM + 2) * 8;
+
+    x = proc->right ? 240 - x : x - 16;
+    icon.pSpriteData = gUnknown_085B9544;
+    icon.oamBase = 0;
+    icon.oam2Base = 0xD19C;   /* the item icon palette (OBJ 13), tile 0x19C */
+    icon.xPosition = gpProcEkrGauge->unk32 + x;
+    icon.yPosition = gpProcEkrGauge->unk3A + 32;
+    icon.state2 = 0;
+    AnimDisplay(&icon);
+}}
+
+static void SkillNameEndFem(struct SkillNameProcFem* proc)
+{{
+    int i;
+
+    CpuFastFill(0, (void*) 0x6013380, 0x40);
+    CpuFastFill(0, (void*) 0x6013780, 0x40);
+    CpuFastFill(0, (void*) 0x6000020, SKILL_NAME_WIDTH_FEM * 64);
+    for (i = 0; i < SKILL_NAME_WIDTH_FEM; i++) {{
+        gBG0TilemapBuffer[0x80 + i] = 0x2080;
+        gBG0TilemapBuffer[0xA0 + i] = 0x2080;
+        gBG0TilemapBuffer[0x9D - i] = 0x3080;
+        gBG0TilemapBuffer[0xBD - i] = 0x3080;
+    }}
+    BG_EnableSyncByMask(BG0_SYNC_BIT);
+}}
+
+static const struct ProcCmd ProcScr_SkillNameFem[] = {{
+    PROC_NAME("SkillNameFem"),
+    PROC_SET_END_CB(SkillNameEndFem),
+    PROC_END_DUPLICATES,
+    PROC_SLEEP(1),
+    PROC_CALL(SkillNameInitFem),
+    PROC_REPEAT(SkillNameLoopFem),
+    PROC_END,
+}};
+
+/* At C07 (the attack starts), once per round: the attacker's triggered skill, else the defender's, else the game's
+   Sure Strike, Pierce or Great Shield */
+void StartSkillNameFem(struct Anim* anim)
+{{
+    struct SkillNameProcFem* proc;
+    int round = anim->nextRoundId - 1;
+    int pos = GetAnimPosition(anim);
+    int actor = (pos == POS_L) == (gpEkrBattleUnitLeft == &gBattleActor);
+    int skill, right = pos == POS_R;
+    u16 flags;
+
+    if (round < 0 || round >= BATTLE_HIT_MAX || sSkillRoundFem == round + 1 || gpProcEkrGauge == NULL)
+        return;
+    sSkillRoundFem = round + 1;
+    skill = sSkillShownFem[round * 2 + !actor];
+    if (skill == 0) {{
+        skill = sSkillShownFem[round * 2 + actor];
+        right = !right;
+    }}
+    if (skill == 0) {{
+        flags = GetRoundFlagByAnim(anim);
+        right = pos == POS_R;
+        if (flags & ANIM_ROUND_SURE_SHOT)
+            skill = {game["SURE_SHOT"]};
+        else if (flags & ANIM_ROUND_PIERCE)
+            skill = {game["PIERCE"]};
+        else if (flags & ANIM_ROUND_GREAT_SHIELD) {{
+            skill = {game["GREAT_SHIELD"]};
+            right = !right;
+        }}
+    }}
+    if (skill == 0 || skill > SKILL_COUNT_FEM)
+        return;
+    proc = Proc_Start(ProcScr_SkillNameFem, gpProcEkrGauge);
+    proc->skill = skill;
+    proc->right = right;
+}}
+'''
+    rel = "src/banim-main.c"
+    main = _replace(_read(files, decomp_dir, rel), "void BattleAIS_ExecCommands(void)\n{",
+                    "void StartSkillNameFem(struct Anim* anim); /* FE Maker: skills.py, in bmbattle.c */\n\n"
+                    "void BattleAIS_ExecCommands(void)\n{", rel)
+    out[rel] = _replace(main, "                case 0x07:\n",
+                        "                case 0x07:\n                    if (GetAISLayerId(anim) == 0)\n"
+                        "                        StartSkillNameFem(anim); /* FE Maker */\n", rel)
+    return out
 
 
 def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:

@@ -40,6 +40,7 @@ def test_skills_match_the_decomp(monkeypatch):
     if not (DECOMP / "src/bmunit.c").is_file():
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["StrBonus", "Vantage", "DefiantSpd"]}]
     classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["BlowDarting"]}]
     used = skills.used(characters, classes, False)
@@ -66,6 +67,7 @@ def test_triggered_skills_go_into_each_hit(monkeypatch):
     if not (DECOMP / "src/bmbattle.c").is_file():
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna", "Sol", "Colossus"]}]
     classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["Pavise"]}]
     used = skills.used(characters, classes, False)
@@ -81,9 +83,28 @@ def test_adept_and_astra_add_hits_within_the_games_six(monkeypatch):
     if not (DECOMP / "src/bmbattle.c").is_file():
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Adept", "Astra"]}]
     used = skills.used(characters, [], False)
     battle = skills.apply(DECOMP, {}, characters, [], {"label": 1, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
     assert "result += HitCountSkillsFem(attacker);" in battle and "SKILL_FEM_Astra, unit->unit.spd)" in battle
     assert "i < count && gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX - 1;" in battle
-    assert "ClearBattleHits();\n    sAstraFem = FALSE;" in battle and "gBattleStats.damage /= 2;" in battle
+    assert "    sAstraFem = FALSE;\n" in battle and "gBattleStats.damage /= 2;" in battle
+
+
+def test_triggered_skill_name_shown_in_battle(monkeypatch):
+    """Lot 2: each triggered skill is noted with its hit, then shown at C07 in the battle animation (Huichelaar's
+    display); the HP bar leaves the skill icon's tiles alone."""
+    if not DECOMP.is_dir():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {"label": 1, **{s.id: 2 for s in used}}, False)
+    assert "sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2 + (unit == &gBattleTarget)] = skill;" in files[
+        "src/bmbattle.c"]
+    assert "void StartSkillNameFem(struct Anim* anim)\n" in files["src/bmbattle.c"]
+    assert "StartSkillNameFem(anim); /* FE Maker */" in files["src/banim-main.c"]
+    assert "0x06013400, 0x380);" in files["src/banim-ekrgauge.c"]
+    assert files["graphics/item_icon/skill_box_fem.png"] == b"\x89PNG"
