@@ -1394,7 +1394,8 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
     tonic = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"]})
     tonic.update(name="Tonique", effectAmount=4, effectStat="spd")
     force = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"]})
-    force.update(name="Force", tempBonuses={"pow": 5, "def": -2})   # ticket 164: several stats, a malus
+    force.update(name="Force", tempBonuses={"pow": 5, "def": -2, **({"mag": 3} if split else {})})   # ticket 164: several
+    # stats, a malus; ticket 27: Magic too, with the split
     small = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"], force["id"]})
     small.update(name="Petite", tempBonuses={"pow": 2, "spd": -1})
     project.save("items", [*items, balm, water, tonic, force, small])
@@ -1435,10 +1436,11 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
         assert game.wait_until(lambda: game.turn() == 2 and game.read(second, 0x31) >> 4 == 2, seconds=120, step=30)
         assert bonuses(third) == 0x300
         _bench_use_item(game, third, slot=1)
-        assert bonuses(third) == 0xE305   # Strength +5, Defense -2 beside Speed +3
+        drunk = 0x300E305 if split else 0xE305   # Strength +5, Defense -2 (Magic +3) beside Speed +3
+        assert bonuses(third) == drunk
         _bench_suspend_and_resume(game, (second, third), wipe_table if split else None)
         _bench_units(game, turn=2)
-        assert bonuses(third) == 0xE305 and game.read(second, 0x31) >> 4 == 2
+        assert bonuses(third) == drunk and game.read(second, 0x31) >> 4 == 2
         set_bonuses(first, 0x05)   # Strength +5 already
         _bench_use_item(game, first, slot=1)
         assert bonuses(first) == 0xF05   # the strongest wins: Strength stays +5; Speed -1
@@ -1561,3 +1563,10 @@ def test_magic_split_from_strength(tmp_path):
         magic = game.read(attacker, 0x3A, signed=True)
         _bench_suspend_and_resume(game, [attacker, idle])
         assert game.read(attacker, 0x3A, signed=True) == magic
+        game.run(120)                      # the resumed map takes keys once it is shown
+        game.move_cursor(14, 2)            # the unit list (map menu, Unit), its page 2: Str, then Mag
+        game.press("A", wait=60)
+        game.press("A", wait=180)
+        game.press("RIGHT", wait=90)
+        game.screenshot().save(tmp_path / "unit_list.png")
+        print("unit list:", tmp_path / "unit_list.png")

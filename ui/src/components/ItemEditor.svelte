@@ -130,7 +130,7 @@
   }
   /** A Pure Water copy's bonuses or maluses, fading by 1 each turn (server: gamedata.temp_bonuses, ticket 164). Before
    *  ticket 164 a copy raised one stat (effectStat, effectAmount); without either, the game's +7 Resistance. */
-  const TEMP_STATS = ['pow', 'skl', 'spd', 'def', 'res', 'lck']
+  const TEMP_STATS = $derived(withMagic(['pow', 'skl', 'spd', 'def', 'res', 'lck']))   // Magic: strMagSplit
   function tempBonuses(i: Item): Record<string, number> {
     if (i.tempBonuses) return i.tempBonuses
     if (i.effectStat && i.effectStat !== 'res') return { [i.effectStat]: Math.min(i.effectAmount ?? 7, 7) }

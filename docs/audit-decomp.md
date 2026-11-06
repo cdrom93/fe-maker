@@ -203,5 +203,5 @@ Les plus gros blocs, sur 1,1 Mo au total :
 
 - `struct Unit` n'a que trois octets libres (0x3A, 0x3B, 0x47) ; `struct BattleUnit` a deux octets de remplissage (0x59, 0x7F).
 - EWRAM pleine jusqu'à `gLoadUnitBuffer` (0x0203EFB8, adresse fixe de `ldscript.txt`) : pas de place sans décaler le jeu. IWRAM : les données finissent vers 0x030067AC, la pile commence à 0x03007E00 (environ 5,7 Ko libres entre les deux) ; une variable s'y place à la fin de `sym_iwram.txt`.
-- Mémoire de sauvegarde : la zone des cartes bonus (0xC00 octets à la fin, `SRAM_OFFSET_XMAP`) n'est lue par le jeu que derrière son en-tête « XMAP » ; FE Maker écrit plus loin (à +0x100), sans toucher à l'en-tête.
+- Mémoire de sauvegarde : la zone des cartes bonus (0xC00 octets à la fin, `SRAM_OFFSET_XMAP`) n'est lue par le jeu que derrière son en-tête « XMAP » ; FE Maker écrit plus loin, sans toucher à l'en-tête : la magie des unités de chaque emplacement à +0x100 (0x80 par emplacement), le 4e octet des bonus temporaires (magie) des sauvegardes de mi-chapitre à +0x400 (0x10 par emplacement).
 - La sauvegarde de partie garde 51 unités bleues ; celle de mi-chapitre 51 bleues, 50 rouges, 10 vertes, dans l'ordre des tableaux d'unités ; `CopyGameSave` (menu de sauvegarde) copie un emplacement entier.

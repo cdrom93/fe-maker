@@ -106,7 +106,11 @@ void ApplyPromotionMagicFem(struct Unit* unit, int classId);
 # ticket 164's counters leave _u3A for a table by unit number (IWRAM, sym_iwram.txt)
 TEMP_TABLE = ("extern u32 gTempBonusesFem[0xC0];\n"
               "#define TEMP_BONUSES_FEM(aUnit) (gTempBonusesFem[(u8) (aUnit)->index])\n")
-TEMP_TABLE_SET = "#define SET_TEMP_BONUSES_FEM(aUnit, v) (gTempBonusesFem[(u8) (aUnit)->index] = (v) & 0xFFFFFF)\n"
+# 7 counters there: Magic's is the 7th (gamedata.TEMP_STATS)
+TEMP_TABLE_SET = "#define SET_TEMP_BONUSES_FEM(aUnit, v) (gTempBonusesFem[(u8) (aUnit)->index] = (v) & 0xFFFFFFF)\n"
+# the suspend save's 4th byte of each unit's counters (Magic), beside its 3 bytes (gamedata.TEMP_BONUS_SAVE)
+TEMP_MAGIC_SAVE = ("#define TEMP_MAG_SAVE_FEM(slot) ((u8 *) CART_SRAM + SRAM_OFFSET_XMAP + 0x400"
+                   " + ((slot) - SAVE_ID_SUSPEND) * 0x10)\n\n")
 
 UNIT_FUNCTIONS = """int GetUnitMagicFem(struct Unit* unit) {
     int item = GetUnitEquippedWeapon(unit);
@@ -269,11 +273,60 @@ def _status_screen(files: dict, decomp_dir: Path) -> None:
         ("    102, 88, MSG_54B,\n", "    102, 104, MSG_54B,\n"),
         ("    102, 104, MSG_54C,\n", "    102, 120, MSG_54C,\n"),
     ]
+    # the battles / wins / losses line (after a first playthrough) one row lower, below Res
+    pairs += [("gUiTmScratchA + TILEMAP_INDEX(3, 14));", "gUiTmScratchA + TILEMAP_INDEX(3, 15));")] + [
+        (f"TILEMAP_INDEX({x} + CountDigits(stats->{field}), 14)", f"TILEMAP_INDEX({x} + CountDigits(stats->{field}), 15)")
+        for x, field in ((3, "battleAmt"), (7, "winAmt"), (11, "lossAmt"))]
     for old, new in pairs:
         if old not in text:
             raise StrMagError(f"Strength/Magic split: src/statscreen.c does not match ({old.strip()})")
         text = text.replace(old, new, 1)
     files[rel] = text
+
+
+def _unit_list(files: dict, decomp_dir: Path) -> None:
+    """Page 2 of the unit list: Str, Mag, Skl, Spd, Lck, Def, Res (Mag takes Affin's place, which the status screen
+    still shows; the page has no room for 8 numbers); its sort by Magic in place of the sort by affinity."""
+    rel = "src/unitlistscreen.c"
+    text = files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
+    start = text.index("        case UNITLIST_PAGE_2:\n            PutNumberOrBlank(")
+    end = text.index("            break;\n", start)
+    columns = [("UNIT_POW_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->pow", "GetUnitPower"),
+               ("UNIT_MAG_MAX_FEM(gSortedUnits[unitNum]->unit) == UNIT_MAG_FEM(gSortedUnits[unitNum]->unit)",
+                "GetUnitMagicFem"),
+               ("UNIT_SKL_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->skl", "GetUnitSkill"),
+               ("UNIT_SPD_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->spd", "GetUnitSpeed"),
+               ("UNIT_LCK_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->lck", "GetUnitLuck"),
+               ("UNIT_DEF_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->def", "GetUnitDefense"),
+               ("UNIT_RES_MAX(gSortedUnits[unitNum]->unit) == gSortedUnits[unitNum]->unit->res", "GetUnitResistance")]
+    body = "        case UNITLIST_PAGE_2: /* FE Maker: Mag after Str (ticket 27) */\n" + "".join(
+        f"            PutNumberOrBlank(\n                tm + y * 0x20 + {9 + 3 * n},\n"
+        f"                {at_max} ? 4 : 2,\n                {getter}(gSortedUnits[unitNum]->unit));\n"
+        for n, (at_max, getter) in enumerate(columns)) + "\n"
+    text = text[:start] + body + text[end:]
+    affinity_sort = ("            #define KEY(i) (GetUnitAffinityIcon(gSortedUnits[(i)]->unit))\n"
+                     "            SORT_MAIN(SORT_CORE_KEY(KEY, <, SWAP), SORT_CORE_KEY(KEY, >, SWAP))\n"
+                     "            #undef KEY\n")
+    if text.count(affinity_sort) != 1:
+        raise StrMagError("Strength/Magic split: src/unitlistscreen.c does not match (sort)")
+    text = text.replace(affinity_sort, "            SORT_BY_FUNC(GetUnitMagicFem) /* FE Maker: Magic (ticket 27) */\n"
+                                       "            break;\n")
+    # the column headers: Str (no longer S/M) and its help, Mag (sort key 13, Affin's) after it, the others one column
+    # (24 pixels) further
+    page = text.index("    [UNITLIST_PAGE_2] =\n")
+    page_end = text.index("    [UNITLIST_PAGE_3] =\n")
+    fields = text[page:page_end]
+    entry = ("        {{\n            .sortKey = UNITLIST_SORTKEY_{key},\n            .labelString = 0x{label:08X},\n"
+             "            .xColumn = {x},\n            .helpTextId = 0x{help:08X},\n        }},\n")
+    old = [(7, 0x4EB, 64, 0x6EA), (8, 0x4EC, 91, 0x548), (9, 0x4ED, 113, 0x549), (10, 0x4EE, 136, 0x54A),
+           (11, 0x4EF, 161, 0x54B), (12, 0x4F0, 184, 0x54C), (13, 0x4F1, 203, 0x551)]
+    new = [(7, 0x4FE, 64, 0x546), (13, 0x4FF, 88, 0x547), (8, 0x4EC, 115, 0x548), (9, 0x4ED, 137, 0x549),
+           (10, 0x4EE, 160, 0x54A), (11, 0x4EF, 185, 0x54B), (12, 0x4F0, 208, 0x54C)]
+    old_text = "".join(entry.format(key=k, label=lab, x=x, help=h) for k, lab, x, h in old)
+    if fields.count(old_text) != 1:
+        raise StrMagError("Strength/Magic split: src/unitlistscreen.c does not match (columns)")
+    fields = fields.replace(old_text, "".join(entry.format(key=k, label=lab, x=x, help=h) for k, lab, x, h in new))
+    files[rel] = text[:page] + fields + text[page_end:]
 
 
 def _level_up_screens(files: dict, decomp_dir: Path) -> None:
@@ -334,7 +387,28 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
              "            entry[1] = TEMP_BONUSES_FEM(unit);\n            entry[2] = TEMP_BONUSES_FEM(unit) >> 8;\n"
              "            entry[3] = TEMP_BONUSES_FEM(unit) >> 16;\n"),
             ("            unit->_u3A = entry[1];\n            unit->_u3B = entry[2];\n            unit->_u47 = entry[3];\n",
-             "            SET_TEMP_BONUSES_FEM(unit, entry[1] | entry[2] << 8 | entry[3] << 16);\n")])
+             "            SET_TEMP_BONUSES_FEM(unit, entry[1] | entry[2] << 8 | entry[3] << 16 | (u32) top[i] << 24);\n"),
+            # Magic's counter (the 4th byte) in the bonus-map zone, after the Magic bytes
+            ("static void WriteTempBonusesFem(int slot)\n{\n    u8 buf[46];\n",
+             TEMP_MAGIC_SAVE + "static void WriteTempBonusesFem(int slot)\n{\n    u8 buf[46];\n    u8 top[10];\n"),
+            ("    for (i = 0; i < 46; i++)\n        buf[i] = 0;\n",
+             "    for (i = 0; i < 46; i++)\n        buf[i] = 0;\n    for (i = 0; i < 10; i++)\n        top[i] = 0;\n"),
+            ("            entry[0] = i;\n",
+             "            top[count - 1] = TEMP_BONUSES_FEM(unit) >> 24;\n            entry[0] = i;\n"),
+            ("    WriteAndVerifySramFast(buf, TEMP_BONUS_SAVE_FEM(slot), sizeof(buf));\n",
+             "    WriteAndVerifySramFast(buf, TEMP_BONUS_SAVE_FEM(slot), sizeof(buf));\n"
+             "    WriteAndVerifySramFast(top, TEMP_MAG_SAVE_FEM(slot), sizeof(top));\n"),
+            ("static void ReadTempBonusesFem(int slot)\n{\n    u8 buf[46];\n",
+             "static void ReadTempBonusesFem(int slot)\n{\n    u8 buf[46];\n    u8 top[10];\n"),
+            ("    ReadSramFast(TEMP_BONUS_SAVE_FEM(slot), buf, sizeof(buf));\n",
+             "    ReadSramFast(TEMP_BONUS_SAVE_FEM(slot), buf, sizeof(buf));\n"
+             "    ReadSramFast(TEMP_MAG_SAVE_FEM(slot), top, sizeof(top));\n")])
+        # Magic's counter, the 7th: lowered each turn, combined with a drink's (and read by GetUnitMagicFem)
+        loop = "for (n = 0; n < 6; n++) {"
+        for rel in ("include/bmunit.h", "src/bmunit.c"):
+            if text(rel).count(loop) != 1:
+                raise StrMagError(f"Strength/Magic split: {rel} does not match (temporary bonuses)")
+            files[rel] = text(rel).replace(loop, "for (n = 0; n < 7; n++) {")
     patch("include/bmbattle.h", [
         ("    /* 7E */ s8 hasItemEffectTarget;\n    /* 7F */ /* pad */\n",
          "    /* 7E */ s8 hasItemEffectTarget;\n    /* 7F */ s8 changeMagFem; /* FE Maker: Magic gained (ticket 27) */\n"),
@@ -361,10 +435,13 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
             "        SET_TEMP_BONUSES_FEM(&gUnitArrayBlue[i - 1], gTempStackFem[i & 0x3F]);\n"))
 
     # the unit: data, loading, automatic levels, caps, copies
+    unit_functions = UNIT_FUNCTIONS if not temp_table else UNIT_FUNCTIONS.replace(
+        "    return UNIT_MAG_FEM(unit) + (bonuses ? bonuses->magBonus : 0);",
+        "    return TempStatFem(UNIT_MAG_FEM(unit) + (bonuses ? bonuses->magBonus : 0) + TEMP_BONUS_FEM(unit, 6));")
     bmunit = text("src/bmunit.c")
     power = _getter_body(bmunit, "Power")
     unit_pairs = [
-        (power, _tables(decomp_dir, characters, classes) + UNIT_FUNCTIONS + power),
+        (power, _tables(decomp_dir, characters, classes) + unit_functions + power),
         ("    unit->lck   = character->baseLck;\n",
          "    unit->lck   = character->baseLck;\n"
          "    UNIT_MAG_FEM(unit) = (s8) gCharacterMagFem[character->number][0]\n"
@@ -451,6 +528,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     _status_screen(files, decomp_dir)
     _level_up_screens(files, decomp_dir)
+    _unit_list(files, decomp_dir)
 
     # items: a Magic bonus beside the others (weapons while equipped, boosters and usable items for good)
     patch("include/bmitem.h", [("    /* 08 */ s8 conBonus;\n};\n",

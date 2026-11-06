@@ -13,6 +13,8 @@ piège dans sa section.
 - C-SkillSys prototype (ticket 27, stopped 24/10/2026, removed from the repo 29/10/2026, still in git history): it rebuilt every game text from its own copy and replaced item/spell tables, so it would erase FE Maker's edits: see `docs/separation-force-magie.md` before going further. Builds also output `fireemblem8.elf`.
 
 - `data/banim/data_banim.o` dépend des objets que liste `linker_script_banim.txt`, pas du script lui-même : après un projet avec une animation importée, le build suivant (autre projet, animation retirée) gardait les anciennes animations, et un projet non modifié ne redonnait plus la ROM d'origine. `docker/entrypoint.sh` efface l'objet quand le script change (30/10/2026).
+- Fiche d'unité, page 1 : la ligne combats / victoires / défaites (`DisplayBwl`, ligne 14) n'apparaît qu'après une première partie finie ; une ligne de plus dans la colonne de gauche (Mag, 06/11) la recouvrait sans que les tests sans fenêtre le voient. `heredoc` du terminal : il abîme les antislashs (`
+` du code C) ; écrire ces scripts dans un fichier.
 
 ## Données du jeu (personnages, classes, objets, textes)
 

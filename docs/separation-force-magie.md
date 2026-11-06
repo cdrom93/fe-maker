@@ -56,7 +56,10 @@ Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option d
 
 - Par défaut : l'option est cochée dans tout nouveau projet créé depuis FE Maker (vierge ou non) ; un projet existant garde son choix, et `Project.create` seul reste le jeu d'origine (reconstruction à l'identique).
 
-Reste : liste des unités (colonne Mag), bonus temporaires sur la magie, aperçu du combat dans FE Maker ; montée de niveau sur la carte pas vue en jeu.
+- Liste des unités : page 2 « Str Mag Skl Spd Lck Def Res » ; la page n'a pas la place pour 8 nombres, la magie prend la place de l'affinité (toujours sur la fiche d'unité), et son tri remplace celui par affinité.
+- Bonus temporaires sur la magie : 7e compteur de la table (bits 24-27), baissé à chaque tour, lu par `GetUnitMagicFem` ; gardé à la sauvegarde de mi-chapitre (4e octet dans la zone des cartes bonus). La ligne combats/victoires/défaites de la fiche d'unité (après une première partie finie) descend d'une ligne sous Rés.
+
+Reste : aperçu du combat dans FE Maker ; montée de niveau sur la carte et ligne combats/victoires/défaites pas vues en jeu.
 
 ## Ce qu'il faut changer dans la décomp
 

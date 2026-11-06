@@ -81,7 +81,8 @@ DRINK_HEAL_ITEMS = {"ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 AMOUNT_ITEMS = HEAL_ITEMS | {"ITEM_PUREWATER"}
 # temporary bonuses or maluses that fade by 1 each turn (Pure Water copies, tickets 144 and 164): a signed 4-bit counter
 # per stat (-8 to +7) in the unit's spare bytes (_u3A, _u3B, _u47 read as one number, TEMP_BONUSES_FEM)
-TEMP_STATS = {"pow": 0, "skl": 1, "spd": 2, "def": 3, "res": 4, "lck": 5}
+# Magic only with strMagSplit, whose table has room for a 7th counter (strmag.py)
+TEMP_STATS = {"pow": 0, "skl": 1, "spd": 2, "def": 3, "res": 4, "lck": 5, "mag": 6}
 TEMP_BONUS_MIN, TEMP_BONUS_MAX = -8, 7
 TEMP_BONUS_MACROS = """
 /* FE Maker: temporary stat bonuses (Pure Water copies), a signed 4-bit counter per stat in the spare bytes */
@@ -385,7 +386,7 @@ def _rank_value(value: str | int) -> int:
     return RANK_VALUES[value] if isinstance(value, str) else int(value)
 
 
-def temp_bonuses(item: dict) -> dict[str, int] | None:
+def temp_bonuses(item: dict, magic: bool = False) -> dict[str, int] | None:
     """A Pure Water copy's bonuses fading each turn (stat -> -8..+7, ticket 164), None when it keeps the game's +7
     Resistance. Before ticket 164 a copy raised one stat: effectStat with effectAmount."""
     if "tempBonuses" in item:
@@ -395,7 +396,7 @@ def temp_bonuses(item: dict) -> dict[str, int] | None:
     else:
         return None
     return {stat: max(TEMP_BONUS_MIN, min(TEMP_BONUS_MAX, int(value)))
-            for stat, value in bonuses.items() if stat in TEMP_STATS and value}
+            for stat, value in bonuses.items() if stat in TEMP_STATS and value and (magic or stat != "mag")}
 
 
 class DecompData:
@@ -2523,7 +2524,7 @@ class DecompData:
                 self.item_acts_like[it["id"]] = it["actsLike"]   # another item's effect (ticket 144)
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectAmount"):
                 self.item_amounts[it["id"]] = int(it["effectAmount"])
-            if it["id"].startswith(NEW_ITEM_PREFIX) and (bonuses := temp_bonuses(it)) is not None:
+            if it["id"].startswith(NEW_ITEM_PREFIX) and (bonuses := temp_bonuses(it, self.magic_split)) is not None:
                 if list(bonuses) == ["res"] and bonuses["res"] > 0:
                     self.item_amounts[it["id"]] = bonuses["res"]   # the game's own Resistance bonus (barrierDuration)
                 elif bonuses:

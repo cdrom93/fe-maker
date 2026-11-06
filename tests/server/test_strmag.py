@@ -48,3 +48,25 @@ def test_average_stats_with_magic():
     assert "mag" not in averagestats.average_stats(hero, mage, 3, True, "player", 1)
     assert averagestats.average_stats(hero, mage, 3, True, "player", 1, classes)["mag"] == 1 + 4 + 2
     assert averagestats.average_stats(hero, sage, 3, True, "player", 1, classes)["mag"] == 9   # the class's maximum
+
+
+def test_the_unit_list_shows_magic_after_strength():
+    """Page 2 of the unit list: Str, Mag, then the others; Magic's sort in place of the affinity's."""
+    if not (DECOMP / "src/unitlistscreen.c").is_file():
+        pytest.skip("no decomp")
+    files: dict = {}
+    strmag._unit_list(files, DECOMP)
+    text = files["src/unitlistscreen.c"]
+    page = text[text.index("case UNITLIST_PAGE_2: /*"):text.index("case UNITLIST_PAGE_3:")]
+    assert page.index("GetUnitPower") < page.index("GetUnitMagicFem") < page.index("GetUnitSkill")
+    assert "GetUnitAffinityIcon" not in page
+    assert "SORT_BY_FUNC(GetUnitMagicFem)" in text
+    assert ".labelString = 0x000004FF," in text
+
+
+def test_magic_temporary_bonus_only_with_the_split():
+    from fe_maker.decomp.gamedata import TEMP_STATS, temp_bonuses
+    drink = {"tempBonuses": {"pow": 2, "mag": 3}}
+    assert temp_bonuses(drink) == {"pow": 2}
+    assert temp_bonuses(drink, magic=True) == {"pow": 2, "mag": 3}
+    assert TEMP_STATS["mag"] == 6   # the 7th counter, beside the table's 6 (strmag.TEMP_TABLE_SET keeps 28 bits)
