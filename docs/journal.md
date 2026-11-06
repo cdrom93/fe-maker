@@ -174,3 +174,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : séparation force / magie (#27), première étape : moteur (option `strMagSplit`, `strmag.py`), vérifié en jeu (attaque au tome = puissance + magie, magie gardée après une sauvegarde de mi-chapitre) ; les bonus temporaires du #164 passent dans une table en IWRAM quand l'option est active (vérifié en jeu aussi).
 - 06/11/2026 : séparation force / magie (#27) : fiche d'unité, montées de niveau, bonus de magie des objets, arène, magie estimée pour une sauvegarde plus ancienne, bonus temporaires gardés au tri des préparatifs ; vérifié en jeu.
 - 06/11/2026 : séparation force / magie (#27) : colonne « Mag » dans les fiches personnage, classe, objet et les stats d'unité du chapitre quand l'option est active.
+- 06/11/2026 : séparation force / magie (#27) cochée d'office dans tout nouveau projet créé depuis FE Maker.

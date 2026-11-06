@@ -242,6 +242,8 @@ def create_project(body: CreateProjectIn):
     folder = Path(body.folder) if body.folder else default_projects_dir() / slugify(body.name)
     try:
         project = Project.create(folder, body.name.strip(), body.author.strip())
+        # Strength and Magic apart in every new hack (ticket 27); Project.create alone stays the original game
+        project.set_game_options({**project.game_options, "strMagSplit": True})
         if body.blank is not None:
             newchapter.start_blank(project, body.blank.characters, body.blank.title, body.blank.hero)
             project.set_show_original(False)

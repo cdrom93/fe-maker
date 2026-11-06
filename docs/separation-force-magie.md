@@ -54,6 +54,8 @@ Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option d
 
 - FE Maker : avec l'option, colonne « Mag » après « For » (renommée) dans les fiches personnage (base, croissance, moyenne), classe (base, maximum, croissance, gain de promotion), objet (bonus) et dans les stats d'une unité du chapitre ; sans valeur saisie, la valeur par défaut du moteur s'affiche.
 
+- Par défaut : l'option est cochée dans tout nouveau projet créé depuis FE Maker (vierge ou non) ; un projet existant garde son choix, et `Project.create` seul reste le jeu d'origine (reconstruction à l'identique).
+
 Reste : liste des unités (colonne Mag), bonus temporaires sur la magie, aperçu du combat dans FE Maker ; montée de niveau sur la carte pas vue en jeu.
 
 ## Ce qu'il faut changer dans la décomp
