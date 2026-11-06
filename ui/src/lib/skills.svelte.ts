@@ -6,7 +6,7 @@ import { api } from './api'
 import { magicSplit } from './magic.svelte'
 
 export interface SkillEntry { id: string; kind: string; magic: boolean }
-export interface GameSkill { id: string; abilities: string[]; classes: string[] }
+export interface GameSkill { id: string; abilities: string[]; classes: string[]; characters: string[] }
 export interface SkillCatalogue { skills: SkillEntry[]; game: GameSkill[]; maxPerSheet: number }
 
 export const skillsOption = $state({ on: false })
@@ -23,9 +23,10 @@ export function loadSkills(): Promise<void> {
 /** The skills a sheet can offer (Magic ones only with the split). */
 export const offeredSkills = () => skillCatalogue.skills.filter((s) => !s.magic || magicSplit.on)
 
-/** The game skills a unit has from its abilities (its own and its class's) and its class. */
-export const gameSkills = (abilities: string[], classId?: string) =>
-  skillCatalogue.game.filter((g) => g.abilities.some((a) => abilities.includes(a)) || (!!classId && g.classes.includes(classId)))
+/** The game skills a unit has from its abilities (its own and its class's), its class and itself. */
+export const gameSkills = (abilities: string[], classId?: string, characterId?: string) =>
+  skillCatalogue.game.filter((g) => g.abilities.some((a) => abilities.includes(a)) || (!!classId && g.classes.includes(classId))
+    || (!!characterId && (g.characters ?? []).includes(characterId)))
     .map((g) => g.id)
 
 export const skillIcon = (id: string) => `/api/skills/${encodeURIComponent(id)}/icon.png`

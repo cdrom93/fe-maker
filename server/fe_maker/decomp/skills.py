@@ -141,8 +141,10 @@ GAME_SKILLS: tuple[Skill, ...] = (
           game="UNIT_CATTRIBUTES(unit) & CA_THIEF"),
     Skill("Dance", "game", "Dance", "Dance:[NL]Unit can use the[NL]Dance command.",
           game="UNIT_CATTRIBUTES(unit) & (CA_DANCE | CA_PLAY)"),
+    # the convoy: the supply class, or the route's lord (SupplyUsability, bmmenu.c)
     Skill("Supply", "game", "Supply", "Supply:[NL]Unit can use the[NL]Supply command.",
-          game="UNIT_CATTRIBUTES(unit) & CA_SUPPLY"),
+          game="(UNIT_CATTRIBUTES(unit) & CA_SUPPLY) || unit->pCharacterData->number =="
+               " (gPlaySt.chapterModeIndex == CHAPTER_MODE_EPHRAIM ? CHARACTER_EPHRAIM : CHARACTER_EIRIKA)"),
     Skill("Crit", "game", "Crit", "Crit +15:[NL]Crit rate +15%.", game="UNIT_CATTRIBUTES(unit) & CA_CRITBONUS"),
     Skill("Lethality", "game", "Lethality", "Lethality:[NL]May kill in one hit.[NL](Skill % activation)",
           game="UNIT_CATTRIBUTES(unit) & CA_ASSASSIN"),
@@ -154,6 +156,9 @@ GAME_SKILLS: tuple[Skill, ...] = (
           game="unit->pClassData->number == CLASS_WYVERN_KNIGHT || unit->pClassData->number == CLASS_WYVERN_KNIGHT_F"),
     Skill("GreatShield", "game", "GreatShield", "Great Shield:[NL]Nullifies an attack.[NL](Level % activation)",
           game="unit->pClassData->number == CLASS_GENERAL || unit->pClassData->number == CLASS_GENERAL_F"),
+    # effective against monsters (IsUnitEffectiveAgainst, bmitem.c); the Skill System's class skill for Bishops
+    Skill("Slayer", "game", "Slayer", "Slayer:[NL]Deals effective damage[NL]to monsters.",
+          game="unit->pClassData->number == CLASS_BISHOP || unit->pClassData->number == CLASS_BISHOP_F"),
 )
 
 BY_ID = {s.id: s for s in CATALOGUE + GAME_SKILLS}
@@ -173,11 +178,14 @@ GAME_SOURCES = {"Canto": (["canto"], []), "Steal": (["steal"], []), "LockTouch":
                 "Lethality": (["lethality"], []), "Summon": (["summon"], []),
                 "SureShot": ([], ["CLASS_SNIPER", "CLASS_SNIPER_F"]),
                 "Pierce": ([], ["CLASS_WYVERN_KNIGHT", "CLASS_WYVERN_KNIGHT_F"]),
-                "GreatShield": ([], ["CLASS_GENERAL", "CLASS_GENERAL_F"])}
+                "GreatShield": ([], ["CLASS_GENERAL", "CLASS_GENERAL_F"]),
+                "Slayer": ([], ["CLASS_BISHOP", "CLASS_BISHOP_F"])}
+GAME_CHARACTERS = {"Supply": ["CHARACTER_EIRIKA", "CHARACTER_EPHRAIM"]}   # the routes' lords
 
 
 def game_catalogue() -> list[dict]:
-    return [{"id": s.id, "abilities": GAME_SOURCES[s.id][0], "classes": GAME_SOURCES[s.id][1]} for s in GAME_SKILLS]
+    return [{"id": s.id, "abilities": GAME_SOURCES[s.id][0], "classes": GAME_SOURCES[s.id][1],
+             "characters": GAME_CHARACTERS.get(s.id, [])} for s in GAME_SKILLS]
 
 
 def used(characters: list[dict], classes: list[dict], magic_split: bool) -> list[Skill]:
@@ -755,7 +763,9 @@ def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], numbers: 
     icons = ", ".join(str(base + i) for i in range(len(skills)))
     descs = ", ".join(str(texts[s.id]) for s in skills)
     game_lines = "".join(f"    if ({s.game})\n        list[count++] = SKILL_FEM_{s.id};\n" for s in game)
-    helpers = f"""/* FE Maker: skills on page 1 (docs/competences.md; layout of the Skill System's MSS) */
+    helpers = f"""#include "constants/characters.h"
+
+/* FE Maker: skills on page 1 (docs/competences.md; layout of the Skill System's MSS) */
 static const u16 sSkillIconFem[SKILL_COUNT_FEM + 1] = {{ 0, {icons} }};
 static const u16 sSkillTextFem[SKILL_COUNT_FEM + 1] = {{ 0, {descs} }};
 

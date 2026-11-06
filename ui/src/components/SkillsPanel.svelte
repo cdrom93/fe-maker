@@ -8,6 +8,7 @@
     fromClass = [],
     abilities,
     classId,
+    characterId,
     onchange,
   }: {
     /** the sheet's own skills */
@@ -17,6 +18,8 @@
     /** the abilities that give the game's skills (a character's: its own and its class's) */
     abilities: string[]
     classId?: string
+    /** character sheets: the game skills given by the character itself (the routes' lords: Supply) */
+    characterId?: string
     onchange: (skills: string[]) => void
   } = $props()
 
@@ -24,7 +27,7 @@
 
   const KINDS = ['stat', 'battle', 'order', 'proc', 'hits']
   const offered = $derived(offeredSkills().filter((s) => !skills.includes(s.id) && !fromClass.includes(s.id)))
-  const game = $derived(gameSkills(abilities, classId))
+  const game = $derived(gameSkills(abilities, classId, characterId))
   const full = $derived(skills.length >= skillCatalogue.maxPerSheet)
 
   function add(id: string) {
