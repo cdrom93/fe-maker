@@ -95,7 +95,7 @@ def test_adept_and_astra_add_hits_within_the_games_six(monkeypatch):
 def test_triggered_skill_name_shown_in_battle(monkeypatch):
     """Lot 2: each triggered skill is noted with its hit, then shown at C07 in the battle animation (Huichelaar's
     display); the HP bar leaves the skill icon's tiles alone."""
-    if not DECOMP.is_dir():
+    if not (DECOMP / "include/bmunit.h").is_file():
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
