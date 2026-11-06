@@ -24,7 +24,8 @@ KEYS = ("A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L")
 FPS = 60
 UNIT_SIZE = 0x48
 
-_MAP_SYMBOL_RE = re.compile(r"^\s+0x([0-9a-f]{8})\s+([A-Za-z_]\w*)\s*$", re.MULTILINE)
+# a symbol, or one the linker script places (`name = .`, sym_iwram.txt)
+_MAP_SYMBOL_RE = re.compile(r"^\s+0x([0-9a-f]{8})\s+([A-Za-z_]\w*)(?: = \.)?\s*$", re.MULTILINE)
 
 
 class PlaytestError(Exception):

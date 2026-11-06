@@ -40,6 +40,18 @@ Aucun patch existant ne modifie le code de la décomp : celui de FEBuilder (asse
 
 Plan : écrire la séparation directement dans les fonctions de la décomp (comme `seize.py` / `convoy.py`, dans le dossier de compilation), en reprenant le **code C** du module force/magie du C-SkillSys (MIT, crédit dans `CREDITS.md`), surtout les parties difficiles : sauvegarde agrandie et écran de montée de niveau. Pas de patch compilé, pas de traduction d'adresses.
 
+## Avancement (06/11/2026)
+
+Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option du jeu `strMagSplit`) :
+
+- La magie est dans l'octet 0x3A de l'unité, comme dans le Skill System : elle suit l'unité dans toutes les copies du jeu (unités de combat, recrutement, tri de l'équipe aux préparatifs). Une table par numéro d'unité aurait été perdue à ces copies. Les bonus temporaires du #164, qui occupaient cet octet, passent alors dans une table par numéro d'unité en IWRAM (ils ne durent que quelques tours ; le tri de l'équipe peut les effacer).
+- Données : une table par classe (base, croissance, maximum, gain de promotion) et par personnage (base, croissance) dans `bmunit.c`, écrites depuis les valeurs « mag » du projet. Sans valeur : une classe qui a un rang de bâton, d'anima, de lumière ou de ténèbres prend les chiffres de sa force, les autres partent de 0 (croissance 5 % pour les génériques) ; un personnage d'une classe magique prend sa force, les autres 0 (croissance : le quart de celle de la force).
+- Combat : la magie compte quand l'arme a `IA_MAGIC` (tomes) ou `IA_MAGICDAMAGE` (épées magiques à distance, qui gardent leur moitié) ; la force sinon. Bâtons : soins, précision et portée avec la magie. IA : dégâts estimés des tomes avec la magie.
+- Sauvegardes : les unités sauvegardées n'ont pas un bit libre ; la magie de chaque emplacement va dans la zone des cartes bonus de la mémoire de sauvegarde (voir `docs/audit-decomp.md`), avec l'heure de la sauvegarde pour la reconnaître. Une sauvegarde faite avant l'option relit une magie à 0.
+- Vérifié en jeu (`tests/local`, `test_magic_split_from_strength`) : attaque au tome = puissance + magie ; magie gardée après une sauvegarde de mi-chapitre.
+
+Reste, dans l'ordre : écrans (fiche d'unité, montée de niveau en combat et sur la carte, liste des unités), objets (bonus de magie des armes, fortifiants, bonus temporaires sur la magie), arène, fiches personnage et classe de FE Maker (colonnes Mag), aperçu du combat dans FE Maker.
+
 ## Ce qu'il faut changer dans la décomp
 
 Environ 80 endroits lisent ou écrivent `pow` (hors tables de données), dans une vingtaine de fichiers :

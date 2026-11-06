@@ -45,6 +45,7 @@ One line per module: what it does, where its data lives, what to watch out for. 
 - `danceanim.py`: a class or character that dances without a dancer's sprite: the map animation is skipped (it reads past the sprite's list otherwise, a crash of the original game too); written only then.
 - `chapterflags.py`: temporary flags above 40 cleared at each chapter, and up to 56 kept by a suspend: `ResetChapterFlags` and the saved size rewritten only when a project uses them.
 - `prep.py`: preparations screen per chapter (`data/chapters.json` "prep", on by default in added chapters), the opening scene's `CALL(EventScr_08591FD8)`, `DecompData.apply_prep`.
+- `strmag.py`: Strength/Magic split (game option `strMagSplit`): Magic in the unit's byte `_u3A`, tables by class and character in `bmunit.c`, `BATTLE_ATTACK_STAT_FEM` in combat, Magic bytes of each save slot in the bonus-map zone of the save memory; ticket 164's temporary bonuses move to an IWRAM table (`sym_iwram.txt`).
 - `seize.py`: who can seize: `CanUnitSeize` rewritten only when characters' `canSeize` change.
 - `convoy.py`: who opens the convoy and the chapters without it; `SupplyUsability` / `HasConvoyAccess` rewritten only when the project changes them; characters' `convoyAccess`, chapters' "convoy".
 - `story.py`: how chapters follow each other: MNCH / MNC2 / MNC3 / MNC4 / MoveToChapter commands, `DecompData.chapter_links`; edits are edited scripts in `data/dialogues.json` "scripts", shown in the "Story flow" tab `ChapterFlow.svelte`.

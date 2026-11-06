@@ -1313,9 +1313,9 @@ def _bench_attack(game, unit):
     game.press("A", wait=30)       # the forecast
 
 
-def _bench_suspend_and_resume(game, units):
+def _bench_suspend_and_resume(game, units, wipe=None):
     """On the bench: Suspend from the map menu and quit, wipe the units' memory and the turn (so only the save can
-    bring them back), then Resume Chapter from the title screen."""
+    bring them back; `wipe`, a function, wipes more), then Resume Chapter from the title screen."""
     game.move_cursor(14, 2)
     game.press("A", wait=30)
     game.press("UP", wait=15)
@@ -1327,6 +1327,8 @@ def _bench_suspend_and_resume(game, units):
         for offset in range(0x10, UNIT_SIZE):
             game.write(unit, 0, offset)
     game.write("gPlaySt", 0, 0x10, width=16)
+    if wipe:
+        wipe()
     for _ in range(6):             # to the title screen's menu
         game.press("START", wait=70)
     assert game.wait_until(lambda: game.turn() == turn, seconds=20, step=60, tap="A")   # Resume Chapter, the save
@@ -1373,11 +1375,15 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
         assert game.read(unit, 0x1E, width=16) >> 8 == new["uses"] - 1
 
 
-def test_copies_heal_and_protect_their_own_amount(tmp_path):
+@pytest.mark.parametrize("split", [False, True])
+def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
     """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance, another +4 Speed; both bonuses
     drop by 1 at the next turn; a third one adds +5 Strength beside the Speed, and both survive a suspend.
-    Ticket 164: a weaker drink on the same stat keeps the strongest bonus (the default rule); a malus shows."""
+    Ticket 164: a weaker drink on the same stat keeps the strongest bonus (the default rule); a malus shows.
+    Ticket 27: with Strength and Magic split, the bonuses move from the unit's spare bytes to a table by unit number."""
     project = _bench(tmp_path, "amount", [[], [], []])
+    if split:
+        project.set_game_options({**project.game_options, "strMagSplit": True})
     items = project.load("items")
     decomp = DecompData(project.decomp_dir)
     balm = decomp.new_item("ITEM_VULNERARY", {i["id"] for i in items})
@@ -1400,7 +1406,19 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
 
     def bonuses(unit):   # 4 signed bits per stat: Str, Skl, Spd, Def, Res, Lck
+        if split:
+            return game.read("gTempBonusesFem", 4 * game.read(unit, 0x0B), width=32)
         return game.read(unit, 0x3A) | game.read(unit, 0x3B) << 8 | game.read(unit, 0x47) << 16
+
+    def set_bonuses(unit, value):
+        if split:
+            game.write("gTempBonusesFem", value, 4 * game.read(unit, 0x0B), width=32)
+        else:
+            game.write(unit, value, 0x3A)
+
+    def wipe_table():
+        for unit in (second, third):
+            set_bonuses(unit, 0)
 
     with Game(out.rom_path, out.map_path) as game:
         first, second, third = _bench_units(game)
@@ -1417,10 +1435,10 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
         assert bonuses(third) == 0x300
         _bench_use_item(game, third, slot=1)
         assert bonuses(third) == 0xE305   # Strength +5, Defense -2 beside Speed +3
-        _bench_suspend_and_resume(game, (second, third))
+        _bench_suspend_and_resume(game, (second, third), wipe_table if split else None)
         _bench_units(game, turn=2)
         assert bonuses(third) == 0xE305 and game.read(second, 0x31) >> 4 == 2
-        game.write(first, 0x05, 0x3A)   # Strength +5 already
+        set_bonuses(first, 0x05)   # Strength +5 already
         _bench_use_item(game, first, slot=1)
         assert bonuses(first) == 0xF05   # the strongest wins: Strength stays +5; Speed -1
         game.move_cursor(game.read(third, 0x10), game.read(third, 0x11))
@@ -1485,3 +1503,39 @@ def test_hp_bars_hide_under_a_portrait(tmp_path):
         game.press("A", wait=120)      # Suspend: a portrait asks whether to quit
         game.screenshot().save(tmp_path / "face.png")
         print("screenshots:", tmp_path)
+
+
+def test_magic_split_from_strength(tmp_path):
+    """Ticket 27: with strMagSplit, a tome hits with Magic (the unit's byte 0x3A), a sword with Strength; Magic comes back
+    after a suspend."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "strmag", [["ITEM_ANIMA_FIRE"], []], enemy_at=place)
+    options = dict(project.game_options)
+    options["strMagSplit"] = True
+    project.set_game_options(options)
+    chapters = project.load("chapters")
+    lord = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    lord["class"] = "CLASS_MAGE_F"
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    hero = next(c for c in characters if c["id"] == lord["character"])
+    hero["class"] = "CLASS_MAGE_F"
+    hero["weaponRanks"] = {}
+    hero["bases"].update(pow=1, mag=9, skl=20)
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, idle = _bench_units(game)
+        magic = game.read(attacker, 0x3A, signed=True)
+        strength = game.read(attacker, 0x14, signed=True)
+        assert magic >= 9 and magic != strength
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.phase() == "player" and game.read("gBattleActor", 0x5A, width=16), seconds=60)
+        game.run(120)
+        attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
+        print("magic", magic, "strength", strength, "attack", attack)
+        assert attack == 5 + magic                     # Fire's might + Magic
+        magic = game.read(attacker, 0x3A, signed=True)   # a level up may have raised it
+        _bench_suspend_and_resume(game, [attacker, idle])
+        assert game.read(attacker, 0x3A, signed=True) == magic

@@ -1607,6 +1607,8 @@
   "options.hpBarsHint": "Une barre sous les unités blessées.",
   "options.casualMode": "Mode débutant",
   "options.casualModeHint": "Une unité vaincue revient au chapitre suivant.",
+  "options.strMagSplit": "Force et magie séparées",
+  "options.strMagSplitHint": "La magie devient une caractéristique à part : elle compte pour les tomes, les épées magiques à distance et les bâtons, la force pour le reste.",
   "options.actAfterTalk": "Agir après avoir parlé",
   "options.actAfterTalkHint": "Parler ou utiliser un soutien ne termine plus le tour de l'unité : elle peut encore attaquer, échanger ou attendre. Comme dans les Fire Emblem récents.",
   "options.dangerZone": "Zone de danger avec Select",

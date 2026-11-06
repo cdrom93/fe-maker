@@ -191,7 +191,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 
 ### Phase 6 — Édition avancée et moteur
 - Patchs de confort restants : `docs/patchs-qol.md`.
-- Séparation force / magie (ticket 27) : `docs/separation-force-magie.md` ; piste retenue, reprendre le code C du C-SkillSys (MIT), à lancer avec l'accord de l'utilisateur.
+- Séparation force / magie (ticket 27) : `docs/separation-force-magie.md`. **Commencée le 06/11** (option du jeu « Force et magie séparées », catégorie Règles) : moteur fait et vérifié en jeu (magie dans l'octet 0x3A de l'unité, tables par classe et personnage, attaque des tomes et des épées magiques à distance, bâtons, montées de niveau, promotions, IA, sauvegardes de partie et de mi-chapitre). Reste : écrans (fiche d'unité, montées de niveau, liste des unités), objets (bonus de magie, fortifiants), arène, fiches personnage et classe dans FE Maker ; pas encore testé par l'utilisateur.
 - Mécaniques des hacks aimés par l'utilisateur (ticket 43, `docs/inspirations-hacks.md`) : objectif « s'échapper », chapitres annexes à condition, patchs à cocher (Locktouch, Pousser, échanges FE5), puis talents, arts de combat et reclassement.
 - « Mode expert » : accès au code C depuis l'outil, modules moteur réutilisables et partagés entre utilisateurs.
 

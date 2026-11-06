@@ -198,3 +198,10 @@ Les plus gros blocs, sur 1,1 Mo au total :
 - Mémoire de sauvegarde (`SaveBlocks`, include/bmsave.h) : 0x73A4-0x7400 (92 octets, `_pad_`) n'est utilisé par rien ; la sauvegarde de mi-chapitre range chaque unité au bit près (`SuspendSavePackedUnit`, aucun bit libre). `struct Unit` a trois octets libres : `_u3A`, `_u3B`, `_u47`. FE Maker y range les bonus temporaires (#144).
 - Météo `WEATHER_NIGHT` (3) : pas une nuit mais `WfxBlue`, un dégradé bleu écrit dans la couleur 0 de la palette à chaque ligne (interruption HBlank, bmio.c), utilisé seulement par le menu de débogage ; il reste actif hors de la carte (flashs bleus en quittant la fiche d'un personnage, #163). Les visages (`gFaces`) sont des objets de la couche 2, comme les icônes des unités : une icône poussée avant passe devant (#161).
 - Écran de stats : `PutNumberBonus` (fontgrp.c) n'affiche qu'un bonus positif (« +N » vert) ; un malus d'arme (bonus de stats négatif) donne un affichage faux dans le jeu d'origine. FE Maker l'écrit en gris (« -N ») quand les bonus temporaires sont utilisés.
+
+## Place libre pour la séparation force / magie (06/11/2026)
+
+- `struct Unit` n'a que trois octets libres (0x3A, 0x3B, 0x47) ; `struct BattleUnit` a deux octets de remplissage (0x59, 0x7F).
+- EWRAM pleine jusqu'à `gLoadUnitBuffer` (0x0203EFB8, adresse fixe de `ldscript.txt`) : pas de place sans décaler le jeu. IWRAM : les données finissent vers 0x030067AC, la pile commence à 0x03007E00 (environ 5,7 Ko libres entre les deux) ; une variable s'y place à la fin de `sym_iwram.txt`.
+- Mémoire de sauvegarde : la zone des cartes bonus (0xC00 octets à la fin, `SRAM_OFFSET_XMAP`) n'est lue par le jeu que derrière son en-tête « XMAP » ; FE Maker écrit plus loin (à +0x100), sans toucher à l'en-tête.
+- La sauvegarde de partie garde 51 unités bleues ; celle de mi-chapitre 51 bleues, 50 rouges, 10 vertes, dans l'ordre des tableaux d'unités ; `CopyGameSave` (menu de sauvegarde) copie un emplacement entier.

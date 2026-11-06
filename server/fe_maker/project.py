@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import builder, ferepo, migrations, newchapter, ups
-from .decomp import gameoptions, tweaks
+from .decomp import gameoptions, strmag, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .migrations import FORMAT_VERSION, PROJECT_FILE, ProjectError
@@ -260,6 +260,8 @@ class Project:
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
         files = gameoptions.apply(decomp_dir, self.game_options, files, menu_texts)
+        if self.game_options.get("strMagSplit"):
+            files = strmag.apply(decomp_dir, files, self.load("characters"), self.load("classes"))
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:

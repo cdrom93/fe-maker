@@ -1607,6 +1607,8 @@
   "options.hpBarsHint": "A bar under wounded units.",
   "options.casualMode": "Casual mode",
   "options.casualModeHint": "A fallen unit comes back for the next chapter.",
+  "options.strMagSplit": "Strength and magic split",
+  "options.strMagSplitHint": "Magic becomes its own stat: it counts for tomes, magic swords at range and staves, strength for the rest.",
   "options.actAfterTalk": "Act after talking",
   "options.actAfterTalkHint": "Talking or using a support no longer ends the unit's turn: it can still attack, trade or wait. As in recent Fire Emblem games.",
   "options.dangerZone": "Danger zone with Select",
