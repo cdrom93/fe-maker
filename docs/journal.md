@@ -194,3 +194,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : ticket 168 : réglages de FE Maker (retours au jeu d'origine, tests) rangés en un panneau « FE Maker » par catégories, comme les options du jeu.
 - 06/11/2026 : retours des testeurs, schéma choisi par l'utilisateur (relais Cloudflare vers un dépôt GitHub privé, mode admin, projet joint sur case à cocher, pas de Discord) noté au cahier, section 4, étape 7.
 - 06/11/2026 : alpha, choix de l'utilisateur : musique avant la sortie, test avec quelques personnes choisies avant l'annonce, cartes Trello à reprendre dans les tickets.
+- 06/11/2026 : alpha, ajouts de l'utilisateur au plan : compilation sans Docker sous Windows (étude de faisabilité d'abord), vidéo de démonstration, hack témoin à partager sur FEU.
