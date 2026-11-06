@@ -191,3 +191,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : compétences de classe par défaut du Skill System (FEBuilder) comparées : toutes des capacités du jeu déjà montrées ; ajout d'Approvisionnement (seigneur de la route, par personnage) et de Tueur (Évêque) aux compétences du jeu, fiche FE Maker du personnage comprise.
 - 06/11/2026 : ticket 170 : le nom de compétence en combat ne change plus la palette du côté gauche ; une compétence de l'attaquant sans effet du jeu joue le flash et le son de Coup sûr ; playtest (Sol).
 - 06/11/2026 : compétences, lot 2 terminé : icône de la compétence déclenchée à côté de la boîte de combat sur la carte, sans animation (`SPD_Map` de Huichelaar) ; playtest (Sol, animations coupées par `gPlaySt.config`).
+- 06/11/2026 : ticket 168 : réglages de FE Maker (retours au jeu d'origine, tests) rangés en un panneau « FE Maker » par catégories, comme les options du jeu.

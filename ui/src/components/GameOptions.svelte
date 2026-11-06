@@ -69,32 +69,31 @@
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
+  <!-- FE Maker's own settings, by category like the game options below (ticket 168) -->
   <section class="panel">
+    <h3>{t('options.editorTitle')} <Help text={t('options.editorHint')} /></h3>
+    <h4>{t('options.group.interface')}</h4>
     <label class="switch">
       <input type="checkbox" checked={projectView.showOriginal} onchange={(e) => setShowOriginal((e.target as HTMLInputElement).checked)} />
       <span><strong>{t('options.showOriginal')}</strong> <Help text={t('options.showOriginalHint')} /></span>
     </label>
-  </section>
-  {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
-  {#if test}
-    <section class="panel">
-      <h3>{t('options.testTitle')} <Help text={t('ws.startHint')} /></h3>
-      <div class="grid">
-        <label>
-          <span>{t('ws.start')}</span>
-          <select value={test.start} onchange={(e) => setTest({ start: (e.target as HTMLSelectElement).value })}>
-            <option value="map">{t('ws.start.map')}</option>
-            <option value="menu">{t('ws.start.menu')}</option>
-            <option value="normal">{t('ws.start.normal')}</option>
-          </select>
-        </label>
-      </div>
-      <label class="switch" title={t('ws.simplePrologueHint')}>
+    {#if test}
+      <h4>{t('options.testTitle')}</h4>
+      <label class="switch">
+        <span><strong>{t('options.testStart')}</strong> <Help text={t('ws.startHint')} /></span>
+        <select value={test.start} onchange={(e) => setTest({ start: (e.target as HTMLSelectElement).value })}>
+          <option value="map">{t('ws.start.map')}</option>
+          <option value="menu">{t('ws.start.menu')}</option>
+          <option value="normal">{t('ws.start.normal')}</option>
+        </select>
+      </label>
+      <label class="switch">
         <input type="checkbox" checked={test.simplePrologue} onchange={(e) => setTest({ simplePrologue: (e.target as HTMLInputElement).checked })} />
         <span><strong>{t('ws.simplePrologue')}</strong> <Help text={t('ws.simplePrologueHint')} /></span>
       </label>
-    </section>
-  {/if}
+    {/if}
+  </section>
+  {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
   {#if data}
     <section class="panel">
       <h3>{t('options.defaultsTitle')} <Help text={`${t('options.defaultsHint')} ${t('options.gameDefaultHint')}`} /></h3>
@@ -141,8 +140,6 @@
 
 <style>
   .options { display: flex; flex-direction: column; gap: 1rem; max-width: 60rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.75rem; }
-  .grid label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
   .switch { display: flex; flex-direction: row; gap: 0.5rem; align-items: flex-start; padding: 0.35rem 0; }
   .switch input { margin-top: 0.2rem; }
   h4 { margin: 0.8rem 0 0.1rem; font-size: 0.85rem; color: var(--muted); }
