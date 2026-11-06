@@ -36,7 +36,7 @@ Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un ch
 | Campagne | L'enchaînement des chapitres, ajouter un chapitre, terminer le jeu, la liste « À faire » |
 | Chapitres | Le même chapitre en trois vues : unités et objectif, carte, dialogues ; ses réglages (météo, fond de combat, caméra, brouillard…) sont repliés en bas |
 | Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes ; les couleurs en combat d'un personnage, tirées de son portrait ou peintes sur le sprite |
-| Options du jeu | Réglages de départ, confort, options de test, ce que garde le projet |
+| Options du jeu | Règles (force et magie séparées...), réglages de départ, confort, fiches des unités, options de test, ce que garde le projet |
 
 Dans un chapitre, un **évènement** est un moment du jeu : son déclencheur dit quand il arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché. Un évènement peut venir à un tour ou sur plusieurs tours, en parlant, quand une unité s'arrête dans une zone ou d'après un souvenir. Les **répliques** (en combat, à la mort) ne sont pas des évènements.
 
@@ -49,7 +49,7 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 ## Limites connues de l'alpha
 
 - Les chapitres ajoutés prennent des places libres du jeu : 21 dans un projet ordinaire, 41 dans un projet vierge.
-- Armes ajoutées : copies d'une arme du jeu (49 places). Pas de nouveaux objets à usage ni de bâtons.
+- Armes et objets ajoutés : copies d'un objet du jeu (49 places) ; une copie de potion ou de bâton garde l'effet d'un objet du jeu, avec ses propres quantités.
 - Une épée, une lance ou une hache qui frappe à distance demande une animation qui a le mouvement « Attaque à distance » : la plupart des haches du jeu ne l'ont pas. Le filtre « Frappe à distance » de la bibliothèque en trouve dans le FE-Repo.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.

@@ -36,7 +36,7 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 | Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
 | Chapters | One chapter in three views: units and objective, map, dialogues; its settings (weather, battle background, camera, fog...) are folded at the bottom |
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes; a character's battle colours, drawn from their portrait or painted on the sprite |
-| Game options | Starting settings, comfort, test options, what the project keeps |
+| Game options | Rules (Strength and Magic split...), starting settings, comfort, unit screens, test options, what the project keeps |
 
 In a chapter, an **event** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown. An event can come on a turn or over several turns, on Talk, when a unit stops in an area, or from a memory. **Quotes** (in battle, on death) are not events.
 
@@ -49,7 +49,7 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 ## Known limits of the alpha
 
 - Added chapters take free slots of the game: 21 in an ordinary project, 41 in a blank one.
-- Added weapons are copies of a game weapon (49 slots). No new usable items or staves.
+- Added weapons and items are copies of a game item (49 slots); a copied potion or staff keeps the effect of a game item, with its own amounts.
 - A sword, lance or axe that strikes at range needs an animation with the "Ranged attack" movement: most of the game's axes have none. The library's "Strikes at range" filter finds some in FE-Repo.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
