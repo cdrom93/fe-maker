@@ -61,7 +61,8 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
 2. **Compétences à déclenchement** : Luna, Sol, Pavise, Adept, Aether…
    - **État (06/11/2026)** : 8 faites, vérifiées par playtest pour Luna et Sol (`tests/local`) : Luna, Corona, Sol, Éther, Ignis, Colosse, Pavois, Égide. Repris de `Kernel/Wizardry/Misc/SkillEffects/BattleDamage/AttackerSkills.c` et `DefenderSkills.c`, taux de `Misc/SkillActRate.c` (la technique en %, jamais dans l'aperçu du combat), au même commit. Dans `BattleGenerateHitAttributes` du jeu : avant les dégâts (défense, attaque, Pavois et Égide), après le critique (Colosse), et le soin de Sol et d'Éther à la place de celui de Nosferatu.
    - Affichage : pas de nom à l'activation pour l'instant ; les effets du jeu servent de signe (Luna et Corona comme Perce, Pavois et Égide comme Grand bouclier, Colosse comme un critique, Sol et Éther comme Nosferatu). À voir en jeu par l'utilisateur, surtout le soin de Sol avec une arme physique en animation de combat.
-   - Reste : Adept et Astra (coups en plus, ordre des coups), le nom affiché au déclenchement (sur la carte et en combat).
+   - Adepte et Astra (06/11) : repris de `GetBattleUnitHitCount` (`BattleOrder.c`), vérifiés par playtest. Le jeu ne garde que 7 entrées de coups par combat (6 coups et la fin, tableau à adresse fixe) : un assaut s'arrête quand le tableau est plein (le C-SkillSys agrandit ce tableau ; pas nous). Astra ne joue que pour l'unité qui engage, chance = vitesse en %.
+   - Reste : le nom affiché au déclenchement (sur la carte et en combat).
    - Taux selon la Technique, comme dans le C-SkillSys.
    - Nom affiché à l'activation, sur la carte et en combat.
 3. **Compétences apprises** :

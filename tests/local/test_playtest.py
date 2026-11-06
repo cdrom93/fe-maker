@@ -1700,3 +1700,37 @@ def test_luna_and_sol_trigger_on_each_hit(tmp_path):
         assert hit & (1 << 16) and hit & (1 << 8)   # BATTLE_HIT_ATTR_PIERCE (Luna), _HPSTEAL (Sol)
         dealt = foe_hp - game.read(foe, 0x13)
         assert dealt > 0 and game.read(attacker, 0x13) == min(16, 5 + dealt)
+
+
+@pytest.mark.parametrize("skill", ["Adept", "Astra"])
+def test_adept_and_astra_add_hits(tmp_path, skill):
+    """Skills lot 2: with full HP, Adept gives one more hit per attack (2, then 2 in the follow-up); Astra (100 Speed:
+    always) gives 5 halved hits, and the battle stops at the game's 6 hits."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, skill.lower(), [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=10, crit=0)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = [skill]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 30, 0x16)       # Speed 30: doubles the soldier
+        if skill == "Astra":
+            game.write(attacker, 100, 0x16)  # Speed 100: Astra always triggers
+        _bench_attack(game, attacker)
+        game.run(240)
+        hits = [game.read("gBattleHitArray", 4 * k, width=32) for k in range(7)]
+        print("hits", [hex(h) for h in hits])
+        count = next(k for k, h in enumerate(hits) if (h >> 19) & 0x10)   # BATTLE_HIT_INFO_END
+        assert count == (4 if skill == "Adept" else 6)
+        assert not any(h & (1 << 3) for h in hits[:count])                 # all the lord's (no counter: unarmed)
+        if skill == "Astra":
+            attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
+            defense = game.read("gBattleTarget", 0x5C, width=16, signed=True)
+            assert (hits[0] >> 24) == (attack - defense) // 2

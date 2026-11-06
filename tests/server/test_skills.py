@@ -75,3 +75,15 @@ def test_triggered_skills_go_into_each_hit(monkeypatch):
     assert "SkillProcFem(defender, SKILL_FEM_Pavise)" in battle and "gBattleStats.damage *= 3;" in battle
     assert "|| (sHitDrainFem && gBattleStats.damage > 0)) { /* FE Maker: Sol, Aether */" in battle
     assert battle.index("static void ApplyHitSkillsFem") < battle.index("void BattleGenerateHitAttributes(")
+
+
+def test_adept_and_astra_add_hits_within_the_games_six(monkeypatch):
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Adept", "Astra"]}]
+    used = skills.used(characters, [], False)
+    battle = skills.apply(DECOMP, {}, characters, [], {"label": 1, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    assert "result += HitCountSkillsFem(attacker);" in battle and "SKILL_FEM_Astra, unit->unit.spd)" in battle
+    assert "i < count && gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX - 1;" in battle
+    assert "ClearBattleHits();\n    sAstraFem = FALSE;" in battle and "gBattleStats.damage /= 2;" in battle

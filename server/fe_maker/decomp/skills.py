@@ -116,6 +116,13 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Pavise", "proc", "Pavise", "Pavise:[NL]Nullifies a physical attack.[NL](Skill % activation).",
           code="if (!magic && SkillProcFem(defender, SKILL_FEM_Pavise))\n"
                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
+    Skill("Adept", "hits", "Adept", "Adept:[NL]Attacks one more time[NL]when HP is full.",
+          code="if (SkillTesterFem(&unit->unit, SKILL_FEM_Adept) && unit->hpInitial == unit->unit.maxHP)\n"
+               "            more += 1;"),
+    Skill("Astra", "hits", "Astra", "Astra:[NL]Unit attacks 5 times but damage[NL]is halved. (SPD % activation).",
+          code="if (unit == &gBattleActor && SkillProcRateFem(unit, SKILL_FEM_Astra, unit->unit.spd)) {\n"
+               "            sAstraFem = TRUE;\n            more += 4;\n        }",
+          after="if (sAstraFem && attacker == &gBattleActor)\n            gBattleStats.damage /= 2;"),
     Skill("Aegis", "proc", "Aegis", "Aegis:[NL]Nullifies a magic attack.[NL](Skill % activation).",
           code="if (magic && SkillProcFem(defender, SKILL_FEM_Aegis))\n"
                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
@@ -316,8 +323,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     battle = _replace(battle, end, end.replace("}\n", "    ApplyBattleSkillsFem(attacker, defender);\n}\n"), rel)
     if any(s.kind == "order" for s in skills):
         battle = _battle_order(battle, numbers, rel)
-    if any(s.kind == "proc" for s in skills):
-        battle = _hit_skills(battle, [s for s in skills if s.kind == "proc"], rel)
+    if any(s.kind in ("proc", "hits") for s in skills):
+        battle = _hit_skills(battle, [s for s in skills if s.kind in ("proc", "hits")], rel)
     files[rel] = battle
 
     # icons: after the game's, their lookup table in free RAM
@@ -346,25 +353,42 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
 
 DRAIN_FLAG = "0x02028D80"   # one byte after the icon table, in the same free RAM: Sol or Aether triggered on this hit
+ASTRA_FLAG = "0x02028D81"   # the next one: Astra triggered in this battle (the attacker's hits are halved)
 
 
 def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
     """Skills that trigger on a hit, Skill % of the time (C-SkillSys's CheckBattleSkillActivate, never in the forecast):
     before the damage (defense, attack, Pavise and Aegis as the game's Great Shield, Luna and Corona as its Pierce),
     after the critical roll (Colossus, shown as a critical hit), and the HP drain of Sol and Aether, as Nosferatu's."""
-    before = "".join(f"    {{\n        {s.code}\n    }}\n" for s in procs if s.code)
+    hits = [s for s in procs if s.kind == "hits"]
+    before = "".join(f"    {{\n        {s.code}\n    }}\n" for s in procs if s.kind == "proc" and s.code)
+    more = "".join(f"    {{\n        {s.code}\n    }}\n" for s in hits)
     after = "".join(f"    {{\n        {s.after}\n    }}\n" for s in procs if s.after)
     battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", f"""\
 /* FE Maker: skills that trigger on a hit (C-SkillSys: SkillActRate.c, SkillEffects/BattleDamage) */
 #define sHitDrainFem (*(vu8*) {DRAIN_FLAG})
+#define sAstraFem (*(vu8*) {ASTRA_FLAG})
 
-static int SkillProcFem(struct BattleUnit* unit, int skill)
+static int SkillProcRateFem(struct BattleUnit* unit, int skill, int rate)
 {{
     if (gBattleStats.config & BATTLE_CONFIG_SIMULATE)
         return FALSE;
     if (!SkillTesterFem(&unit->unit, skill))
         return FALSE;
-    return BattleRoll2RN(unit->unit.skl, FALSE);
+    return BattleRoll2RN(rate, FALSE);
+}}
+
+static int SkillProcFem(struct BattleUnit* unit, int skill)
+{{
+    return SkillProcRateFem(unit, skill, unit->unit.skl);
+}}
+
+/* Adept and Astra (C-SkillSys, BattleOrder.c, GetBattleUnitHitCount): hits added to a round */
+static int HitCountSkillsFem(struct BattleUnit* unit)
+{{
+    int more = 0;
+
+{more}    return more;
 }}
 
 static void ApplyHitSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender, short* attack, short* defense)
@@ -396,6 +420,16 @@ static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUni
              "                attacker->unit.curHP += gBattleStats.damage;\n\n"
              "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_HPSTEAL;\n"
              "        }\n")
+    if hits:
+        # extra hits: the game keeps 7 entries (6 hits and the end), in RAM at a fixed place: a round stops when full
+        battle = _replace(battle, "    result <<= BattleCheckBraveEffect(attacker);\n\n    return result;\n",
+                          "    result <<= BattleCheckBraveEffect(attacker);\n    result += HitCountSkillsFem(attacker);\n\n"
+                          "    return result;\n", rel)
+        battle = _replace(battle, "    for (i = 0; i < count; ++i) {\n        gBattleHitIterator->attributes |= attrs;\n",
+                          "    for (i = 0; i < count && gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX - 1; ++i) {\n"
+                          "        gBattleHitIterator->attributes |= attrs;\n", rel)
+        battle = _replace(battle, "void BattleUnwind(void) {\n    ClearBattleHits();\n",
+                          "void BattleUnwind(void) {\n    ClearBattleHits();\n    sAstraFem = FALSE;\n", rel)
     return _replace(battle, drain, drain.replace(
         "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN) {\n",
         "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN\n"
