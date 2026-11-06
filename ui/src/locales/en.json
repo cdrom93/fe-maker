@@ -1523,6 +1523,8 @@
   "options.holdAToSpeedUpHint": "From the first playthrough.",
   "options.stationaryRange": "No range for units that never move",
   "options.stationaryRangeHint": "An enemy that stays shows only what it can strike.",
+  "options.statusGrowths": "Growths on the status screen (Select)",
+  "options.statusGrowthsHint": "On the first page of a unit's status screen, Select shows its growth rates in place of its stats.",
   "flow.add.button": "Add a chapter after this one",
   "flow.add.title": "Title",
   "flow.add.width": "Width",

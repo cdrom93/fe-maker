@@ -48,7 +48,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 }
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
-                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
+                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange", "statusGrowths"),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit"),
                  "items": ("tempBonusRule",)}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
@@ -385,6 +385,81 @@ def with_defaults(source: str, options: dict) -> str:
     return source[:m.start()] + body + source[m.end():]
 
 
+# Ticket 166: on page 1 of the status screen, Select shows the character's growth rates in place of the stats (with the
+# Metis Tome's +5, as CheckBattleUnitLevelUp uses them), a bar up to 100 %, and an HP line in place of the battles /
+# wins / losses one; Mov and Con, which do not grow, stay. Magic's growth with the Strength/Magic split (strmag.py).
+STATUS_FILE = "src/statscreen.c"
+STATUS_HEADER = "include/statscreen.h"
+_STATUS_FIELD = "    /* 08 */ s8 inTransition;\n"
+_STATUS_FIELD_GROWTHS = _STATUS_FIELD + "    /* 09 */ u8 growthsFem; /* FE Maker: growth rates shown (Select, ticket 166) */\n"
+_STATUS_OPEN = "    gStatScreen.help = NULL;\n"   # StartStatScreen (inTransition = FALSE is first in PageSlide_OnEnd)
+_STATUS_OPEN_GROWTHS = _STATUS_OPEN + "    gStatScreen.growthsFem = FALSE;\n"
+_STATUS_BAR = ("void DrawStatWithBar(int num, int x, int y, int base, int total, int max)\n{\n"
+               "    int diff = total - base;\n")
+_STATUS_BAR_GROWTHS = """/* FE Maker (ticket 166): a stat's growth rate by its bar number (0 Str, 1 Skl, 2 Spd, 3 Lck, 4 Def,
+   5 Res, 8 Mag with the Strength/Magic split, 9 HP), -1 for Mov and Con */
+static int GetStatGrowthFem(struct Unit* unit, int num)
+{
+    const struct CharacterData* character = unit->pCharacterData;
+    int bonus = (unit->state & US_GROWTH_BOOST) ? 5 : 0;
+
+    switch (num) {
+    case 0: return character->growthPow + bonus;
+    case 1: return character->growthSkl + bonus;
+    case 2: return character->growthSpd + bonus;
+    case 3: return character->growthLck + bonus;
+    case 4: return character->growthDef + bonus;
+    case 5: return character->growthRes + bonus;
+#ifdef UNIT_MAG_FEM
+    case 8: return gCharacterMagFem[character->number][1] + bonus;
+#endif
+    case 9: return character->growthHP + bonus;
+    }
+    return -1;
+}
+
+""" + _STATUS_BAR + """    int growth = gStatScreen.growthsFem ? GetStatGrowthFem(gStatScreen.unit, num) : -1;
+
+    if (growth >= 0) { /* FE Maker: the growth rate (one tile right, where the bonus goes: 100 % fits), its bar up to 100 % */
+        PutNumberOrBlank(gUiTmScratchA + TILEMAP_INDEX(x + 1, y), TEXT_COLOR_SYSTEM_BLUE, growth);
+        DrawStatBarGfx(0x401 + num*6, 6,
+            gUiTmScratchC + TILEMAP_INDEX(x - 2, y + 1),
+            TILEREF(0, STATSCREEN_BGPAL_6), 41, (growth > 100 ? 100 : growth) * 41 / 100, 0);
+        return;
+    }
+
+"""
+_STATUS_BWL = ("void DisplayBwl(void)\n{\n"
+               "    struct UnitUsageStats* stats = GetPidStats(gStatScreen.unit->pCharacterData->number);\n")
+_STATUS_BWL_GROWTHS = _STATUS_BWL + """
+    if (gStatScreen.growthsFem) { /* FE Maker (ticket 166): HP's growth in place of this line, below Res */
+#ifdef UNIT_MAG_FEM
+        int y = 15;
+#else
+        int y = 13;
+#endif
+        ClearText(&gStatScreen.text[STATSCREEN_TEXT_BWL]);
+        PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_BWL], gUiTmScratchA + TILEMAP_INDEX(1, y),
+            TEXT_COLOR_SYSTEM_GOLD, 0, 0, GetStringFromIndex(MSG_4E9)); // HP
+        DrawStatWithBar(9, 5, y, 0, 0, 0);
+        return;
+    }
+"""
+_STATUS_KEYS = "    else if (gKeyStatusPtr->newKeys & R_BUTTON)\n    {\n"
+_STATUS_KEYS_GROWTHS = """    else if ((gKeyStatusPtr->newKeys & SELECT_BUTTON) && (gStatScreen.page == STATSCREEN_PAGE_0))
+    {
+        /* FE Maker (ticket 166): growth rates or stats */
+        gStatScreen.growthsFem = !gStatScreen.growthsFem;
+        DisplayPage(gStatScreen.page);
+        TileMap_CopyRect(gUiTmScratchA, gBG0TilemapBuffer + TILEMAP_INDEX(12, 2), 18, 18);
+        TileMap_CopyRect(gUiTmScratchC, gBG2TilemapBuffer + TILEMAP_INDEX(12, 2), 18, 18);
+        BG_EnableSyncByMask(BG0_SYNC_BIT | BG2_SYNC_BIT);
+        PlaySoundEffect(SONG_SE_SYS_CURSOR_LR1);
+    }
+
+""" + _STATUS_KEYS
+
+
 def _replace(source: str, old: str, new: str, rel: str) -> str:
     if old not in source:
         raise TweakError(f"A game option does not match this version of the decomp ({rel})")
@@ -444,6 +519,13 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BUBBLE, MAP_SPRITES_FILE)
+    if options.get("statusGrowths"):
+        files[STATUS_HEADER] = _replace(current(STATUS_HEADER), _STATUS_FIELD, _STATUS_FIELD_GROWTHS, STATUS_HEADER)
+        source = current(STATUS_FILE)
+        for old, new in ((_STATUS_OPEN, _STATUS_OPEN_GROWTHS), (_STATUS_BAR, _STATUS_BAR_GROWTHS),
+                         (_STATUS_BWL, _STATUS_BWL_GROWTHS), (_STATUS_KEYS, _STATUS_KEYS_GROWTHS)):
+            source = _replace(source, old, new, STATUS_FILE)
+        files[STATUS_FILE] = source
     if options.get("noSupportAnimations"):
         label, on_help = menu_texts
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)

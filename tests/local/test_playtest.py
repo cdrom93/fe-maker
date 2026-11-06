@@ -1383,6 +1383,7 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
     Ticket 164: a weaker drink on the same stat keeps the strongest bonus (the default rule); a malus shows.
     Ticket 27: with Strength and Magic split, the bonuses move from the unit's spare bytes to a table by unit number."""
     project = _bench(tmp_path, "amount", [[], [], []])
+    project.set_game_options({**project.game_options, "statusGrowths": True})   # ticket 166: Select shows growths
     if split:
         project.set_game_options({**project.game_options, "strMagSplit": True})
     items = project.load("items")
@@ -1448,6 +1449,9 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
         game.press("R", wait=120)       # the status screen: Defense shows its -2
         game.screenshot().save(tmp_path / "status.png")
         print("status screen:", tmp_path / "status.png")
+        game.press("SELECT", wait=30)   # ticket 166: the growth rates, an HP line below Res
+        game.screenshot().save(tmp_path / "growths.png")
+        print("growths:", tmp_path / "growths.png")
 
 
 def test_weapon_sheet_in_a_battle(tmp_path):
@@ -1515,6 +1519,7 @@ def test_magic_split_from_strength(tmp_path):
     project = _bench(tmp_path, "strmag", [["ITEM_ANIMA_FIRE"], []], enemy_at=place)
     options = dict(project.game_options)
     options["strMagSplit"] = True
+    options["statusGrowths"] = True
     project.set_game_options(options)
     chapters = project.load("chapters")
     lord = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
@@ -1541,6 +1546,10 @@ def test_magic_split_from_strength(tmp_path):
         game.press("R", wait=120)          # the status screen: Str, then Mag (with the tome's +3)
         game.screenshot().save(tmp_path / "status.png")
         print("status screen:", tmp_path / "status.png")
+        game.press("SELECT", wait=30)      # ticket 166: the growth rates (Magic's too), then the stats again
+        game.screenshot().save(tmp_path / "growths.png")
+        print("growths:", tmp_path / "growths.png")
+        game.press("SELECT", wait=30)
         game.press("B", wait=90)
         magic += 3
         game.write(attacker, 99, 0x09)     # one more experience point: a level up after the battle

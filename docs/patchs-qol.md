@@ -39,6 +39,7 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 | Mode Débutant (Casual) en option | `CasualMode`, `CasualMode_Gameoption`, `CasualModeMenu2.en` | C : les unités vaincues reviennent au chapitre suivant |
 | Plusieurs marqueurs de sortie / repères sur la carte | `MultiTileMarker` | C, et un outil de l'éditeur de cartes |
 | Zone de danger des ennemis (Select) | `Danger Zone` | **Fait** (`dangerZone`) : l'affichage du jeu lui-même, sans toucher aux palettes |
+| Croissances sur la fiche d'unité (Select, ticket 166) | (Skill System, dans sa fiche réécrite) | **Fait** (`statusGrowths`) : page 1, croissances du personnage (+5 du Tome de Metis), barre jusqu'à 100 %, ligne PV sous Rés, magie avec la séparation |
 
 ## Priorité 3 : changements de règles appréciés (option, décochés)
 
