@@ -36,7 +36,7 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 | Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
 | Chapters | One chapter in three views: units and objective, map, dialogues; its settings (weather, battle background, camera, fog...) are folded at the bottom |
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes; a character's battle colours, drawn from their portrait or painted on the sprite |
-| Game options | Rules (Strength and Magic split...), starting settings, comfort, unit screens, test options, what the project keeps |
+| Game options | Rules (Strength and Magic split, skills...), starting settings, comfort, unit screens, test options, what the project keeps |
 
 In a chapter, an **event** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown. An event can come on a turn or over several turns, on Talk, when a unit stops in an area, or from a memory. **Quotes** (in battle, on death) are not events.
 

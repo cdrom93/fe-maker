@@ -14,7 +14,8 @@
 | Chapitres | Placement, IA, renforts, objectifs, portée et zone de danger | Placement, AI, reinforcements, objectives, reach and danger zone |
 | Dialogues | Conversations, évènements, souvenirs des choix du joueur, répliques, soutiens | Conversations, events, memories of the player's choices, quotes, supports |
 | Ressources | Portraits, animations de combat et sprites de carte du FE-Repo ou du PC, crédits automatiques | Portraits, battle animations and map sprites from FE-Repo or your PC, automatic credits |
-| Options | Règles (force et magie séparées...), réglages de départ, confort (barres de PV, mode débutant...), projet vierge | Rules (Strength and Magic split...), starting settings, comfort (HP bars, beginner mode...), blank project |
+| Compétences | Une vingtaine de compétences passives (bonus de stats, Sursaut, coups, Initiative...) sur les fiches personnage et classe, montrées sur la fiche de l'unité dans le jeu (portées du C-SkillSys) | About twenty passive skills (stat bonuses, Defiant, Blows, Vantage...) on character and class sheets, shown on the unit's status screen in game (ported from C-SkillSys) |
+| Options | Règles (force et magie séparées, compétences...), réglages de départ, confort (barres de PV, mode débutant...), projet vierge | Rules (Strength and Magic split, skills...), starting settings, comfort (HP bars, beginner mode...), blank project |
 | Tester | Dans mGBA, depuis le début ou un chapitre ; export en patch `.ups` | In mGBA, from the start or a chapter; `.ups` patch export |
 
 Interface en français et en anglais. / *Interface in French and English.*

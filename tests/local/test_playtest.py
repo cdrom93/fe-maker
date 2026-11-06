@@ -1579,3 +1579,90 @@ def test_magic_split_from_strength(tmp_path):
         game.press("RIGHT", wait=90)
         game.screenshot().save(tmp_path / "unit_list.png")
         print("unit list:", tmp_path / "unit_list.png")
+
+
+def test_skills_in_battle_and_on_the_status_screen(tmp_path):
+    """Skills lot 1 (docs/competences.md): a character's Str+2 and Darting Blow, its class's Def+2, counted in battle;
+    the status screen shows "Skills" and their icons below Cond, R shows a skill's text."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "skills", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "strMagSplit": True, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=0)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_unit = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    lord = next(c for c in characters if c["id"] == lord_unit["character"])
+    lord["skills"] = ["StrBonus", "BlowDarting"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == lord_unit["class"])["skills"] = ["DefBonus"]
+    project.save("classes", classes)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        pow_, spd, def_ = game.read(attacker, 0x14), game.read(attacker, 0x16), game.read(attacker, 0x17)
+        game.move_cursor(game.read(attacker, 0x10), game.read(attacker, 0x11))
+        game.press("R", wait=120)
+        game.screenshot().save(tmp_path / "status.png")
+        print("status screen:", tmp_path / "status.png")
+        for key in ("R", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT"):   # Res, then the 2nd skill
+            game.press(key, wait=20)
+        game.run(120)                   # the help box writes its text letter by letter
+        game.screenshot().save(tmp_path / "help.png")
+        print("help:", tmp_path / "help.png")
+        game.press("B", wait=30)
+        game.press("B", wait=60)
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor = game.address("gBattleActor")
+        assert game.read(actor, 0x14) == pow_ + 2
+        assert game.read(actor, 0x17) == def_ + 2
+        assert game.read(actor, 0x5E, width=16, signed=True) == spd + 6
+
+
+def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
+    """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
+    strikes first, then the lord twice in a row (its follow-up before any counter)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "order", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    for item in items:
+        if item["id"] in ("ITEM_SWORD_IRON", "ITEM_LANCE_IRON"):
+            item.update(weight=0, hit=255, might=0, crit=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    enemy = next(u for group in chapters["unitGroups"].values() for u in group if u.get("character") == "CHARACTER_SOLDIER_83")
+    enemy["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    lord = next(c for c in characters if c["id"] == lord_id)
+    lord["skills"] = ["Desperation"]
+    lord["bases"]["spd"] = 15   # doubles the soldier
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"].update(hp=40, spd=0)
+    project.save("characters", characters)
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == "CLASS_SOLDIER")["skills"] = ["Vantage"]
+    project.save("classes", classes)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 7, 0x13)       # 7 HP of 16: under half
+        base = game.address("gUnitArrayRed")
+        foe = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
+                   and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
+        game.write(foe, 10, 0x13)            # 10 HP of 40
+        _bench_attack(game, attacker)
+        game.run(240)
+        hits = [game.read("gBattleHitArray", 4 * k, width=32) for k in range(4)]
+        attributes = [h & 0x7FFFF for h in hits]
+        print("hits", [hex(h) for h in hits])
+        retaliate, followup = 1 << 3, 1 << 2   # BATTLE_HIT_ATTR_RETALIATE, _FOLLOWUP
+        assert attributes[0] & retaliate                 # Vantage: the soldier first
+        assert not attributes[1] & (retaliate | followup)
+        assert attributes[2] & followup                   # Desperation: the lord again at once
+        assert (hits[3] >> 19) & 0x10                     # BATTLE_HIT_INFO_END after them: no counter

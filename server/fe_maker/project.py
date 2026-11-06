@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import builder, ferepo, migrations, newchapter, ups
-from .decomp import gameoptions, strmag, tweaks
+from .decomp import gameoptions, skills, strmag, tweaks
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .migrations import FORMAT_VERSION, PROJECT_FILE, ProjectError
@@ -258,12 +258,18 @@ class Project:
         menu_texts = (0, 0)
         if self.game_options.get("noSupportAnimations"):
             menu_texts = data.add_texts(gameoptions.MENU_TEXTS["label"], gameoptions.MENU_TEXTS["help"])
+        magic_split = bool(self.game_options.get("strMagSplit"))
+        skill_texts = {}
+        if self.game_options.get("skills"):
+            skill_texts = skills.add_texts(data, skills.used(self.load("characters"), self.load("classes"), magic_split))
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
         files = gameoptions.apply(decomp_dir, self.game_options, files, menu_texts)
         if self.game_options.get("strMagSplit"):
             files = strmag.apply(decomp_dir, files, self.load("characters"), self.load("classes"))
+        if self.game_options.get("skills"):
+            files = skills.apply(decomp_dir, files, self.load("characters"), self.load("classes"), skill_texts, magic_split)
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:

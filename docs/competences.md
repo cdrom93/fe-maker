@@ -51,6 +51,13 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
      - le catalogue dans une liste ;
      - le choix sur les fiches personnage et classe.
    - Vérifié en jeu par playtest.
+   - **État (06/11/2026)** : fait et vérifié par playtest (`tests/local` : bonus en combat, ordre des coups, fiche et aide R), pas encore vu en jeu par l'utilisateur. Commit d'origine `fb545870458f3c3629cab6cfb2330c3308d2ce6d` ; repris de :
+     - testeur et tables : `Kernel/Wizardry/Core/SkillSys/kernel` (3 compétences par personnage et par classe) ;
+     - bonus de stats et Sursaut de stats : `Kernel/Wizardry/Core/UnitStatusGetter/source/*Getter.c` ;
+     - Sursaut (critique, esquive), coups, Colère : `Kernel/Wizardry/Core/BattleSys/Source/PreBattleCalc.c` ;
+     - Initiative et Désespoir : `Kernel/Wizardry/Core/BattleSys/Source/BattleOrder.c` ;
+     - textes du jeu : `Contents/Texts/Source/texts` (celui de Désespoir réécrit) ; icônes : `Contents/Gfx/Sources/SkillIcon` (Perce prend l'icône de Luna, absente sinon).
+   - Écarts : les bonus de PV, de constitution et de déplacement prévus ne sont pas faits (pas de getter simple dans le jeu) ; les textes du jeu restent en anglais ; la fiche montre 4 icônes au plus.
 2. **Compétences à déclenchement** : Luna, Sol, Pavise, Adept, Aether…
    - Taux selon la Technique, comme dans le C-SkillSys.
    - Nom affiché à l'activation, sur la carte et en combat.
@@ -77,11 +84,11 @@ Plus tard :
 ## Suivre le C-SkillSys et ses auteurs
 
 - **Licence** :
-  - Le code repris reste sous MIT. Cette licence demande de garder son texte avec toute copie : on le met dans `licenses/cskillsys-MIT.txt` dès le premier code copié.
+  - Le code repris reste sous MIT. Cette licence demande de garder son texte avec toute copie : il est dans `licenses/cskillsys-MIT.txt`.
   - FE Maker, en GPL-3.0, peut inclure du code MIT.
 - **Commit d'origine** : chaque compétence portée note le commit et le fichier du C-SkillSys d'où elle vient.
 - **Mises à jour** :
-  - Un outil (`tools/cskillsys_watch.py`, à écrire) liste ce qui a changé en amont depuis ce commit dans les fichiers repris.
+  - Un outil (`tools/cskillsys_watch.py`) liste ce qui a changé en amont depuis ce commit dans les fichiers repris.
   - On reporte les corrections à la main, compétence par compétence.
   - Rien n'est suivi automatiquement : le portage est une copie adaptée, pas une dépendance.
 - **Participation des auteurs** :

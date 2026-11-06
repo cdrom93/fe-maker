@@ -51,6 +51,7 @@ from .decomp import (
     prep,
     quotes,
     reach,
+    skills,
     story,
     supports,
     tiled,
@@ -243,7 +244,7 @@ def create_project(body: CreateProjectIn):
     try:
         project = Project.create(folder, body.name.strip(), body.author.strip())
         # Strength and Magic apart in every new hack (ticket 27); Project.create alone stays the original game
-        project.set_game_options({**project.game_options, "strMagSplit": True})
+        project.set_game_options({**project.game_options, "strMagSplit": True, "skills": True})
         if body.blank is not None:
             newchapter.start_blank(project, body.blank.characters, body.blank.title, body.blank.hero)
             project.set_show_original(False)
@@ -1914,6 +1915,23 @@ def item_icon(icon_id: int, line: int = 0):
     if png is None:
         raise HTTPException(404)
     return Response(png, media_type="image/png")
+
+
+@app.get("/api/skills")
+def skills_catalogue():
+    """Skills offered on the character and class sheets (game option skills), and the game's class abilities shown
+    as skills."""
+    return {"skills": skills.catalogue(), "game": skills.game_catalogue(), "maxPerSheet": skills.MAX_PER_SHEET}
+
+
+@app.get("/api/skills/{skill_id}/icon.png")
+def skill_icon(skill_id: str):
+    try:
+        path = skills.icon_path(skill_id)
+    except skills.SkillError as e:
+        raise HTTPException(404 if str(e) == "unknownSkill" else 502, str(e))
+    return Response(render_indexed(path, read_agbpal(DECOMP_DIR / ITEM_ICON_PALETTE)[:16], 3), media_type="image/png",
+                    headers={"Cache-Control": "max-age=86400"})
 
 
 def _face_with_expression(portrait_id: int, sheet, smile: bool, eyes: str | None) -> Response:

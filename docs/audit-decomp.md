@@ -201,6 +201,8 @@ Les plus gros blocs, sur 1,1 Mo au total :
 
 ## Place libre pour la séparation force / magie (06/11/2026)
 
+- Compétences (06/11) : le tampon d'impression de débogage `gUnknown_02026E30` de `fontgrp.c` (0x02026E30 à 0x02028E44, d'après le document FREE-RAM-SPACE de StanHash) n'est utilisé que par les menus de débogage ; la table des icônes déplacée y prend 0x120 entrées de 4 octets à 0x02028900. `DrawnIconLookupTable` (`icon.c`) : 224 entrées de 4 octets (alignement agbcc), effacées par `ResetIconGraphics` ; les icônes se lisent à `item_icon_tiles + n × 0x80`, celles ajoutées après les 224 du jeu marchent donc sans autre changement.
+
 - `struct Unit` n'a que trois octets libres (0x3A, 0x3B, 0x47) ; `struct BattleUnit` a deux octets de remplissage (0x59, 0x7F).
 - EWRAM pleine jusqu'à `gLoadUnitBuffer` (0x0203EFB8, adresse fixe de `ldscript.txt`) : pas de place sans décaler le jeu. IWRAM : les données finissent vers 0x030067AC, la pile commence à 0x03007E00 (environ 5,7 Ko libres entre les deux) ; une variable s'y place à la fin de `sym_iwram.txt`.
 - Mémoire de sauvegarde : la zone des cartes bonus (0xC00 octets à la fin, `SRAM_OFFSET_XMAP`) n'est lue par le jeu que derrière son en-tête « XMAP » ; FE Maker écrit plus loin, sans toucher à l'en-tête : la magie des unités de chaque emplacement à +0x100 (0x80 par emplacement), le 4e octet des bonus temporaires (magie) des sauvegardes de mi-chapitre à +0x400 (0x10 par emplacement).

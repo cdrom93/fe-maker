@@ -36,7 +36,7 @@ Un projet s'ouvre sur **Campagne**, le graphe de vos chapitres. La fiche d'un ch
 | Campagne | L'enchaînement des chapitres, ajouter un chapitre, terminer le jeu, la liste « À faire » |
 | Chapitres | Le même chapitre en trois vues : unités et objectif, carte, dialogues ; ses réglages (météo, fond de combat, caméra, brouillard…) sont repliés en bas |
 | Personnages, Classes, Objets, Combat | Les fiches du jeu ; ajouter des personnages, des armes, des classes ; les couleurs en combat d'un personnage, tirées de son portrait ou peintes sur le sprite |
-| Options du jeu | Règles (force et magie séparées...), réglages de départ, confort, fiches des unités, options de test, ce que garde le projet |
+| Options du jeu | Règles (force et magie séparées, compétences...), réglages de départ, confort, fiches des unités, options de test, ce que garde le projet |
 
 Dans un chapitre, un **évènement** est un moment du jeu : son déclencheur dit quand il arrive (« Début du tour 3 »), son **déroulé** ce qui se passe dans l'ordre, et ses **dialogues** le texte affiché. Un évènement peut venir à un tour ou sur plusieurs tours, en parlant, quand une unité s'arrête dans une zone ou d'après un souvenir. Les **répliques** (en combat, à la mort) ne sont pas des évènements.
 

@@ -1,4 +1,5 @@
 import { iconVersion, mapSpriteVersion, portraitVersion } from './portraits.svelte'
+import type { SkillCatalogue } from './skills.svelte'
 import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
 
 /** What a project keeps of the game (server: scope.py) */
@@ -76,6 +77,7 @@ export const api = {
   newCharacter: (ally: boolean) =>
     request<{ record: Character; replaces: string | null }>('POST', '/api/characters/new', { ally }),
   gameOptions: () => request<GameOptionsData>('GET', '/api/project/game-options'),
+  skills: () => request<SkillCatalogue>('GET', '/api/skills'),
   setGameOptions: (options: Record<string, number | boolean | string>) => request<GameOptionsData>('PUT', '/api/project/game-options', options),
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
   newChapter: (after: number, width: number, height: number, title: string) =>

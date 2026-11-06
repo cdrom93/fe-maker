@@ -50,7 +50,7 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
                  "screens": ("statusGrowths",),
-                 "rules": ("actAfterTalk", "casualMode", "strMagSplit"),
+                 "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule",)}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
 # the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).

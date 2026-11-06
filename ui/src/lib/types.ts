@@ -24,6 +24,8 @@ export interface Character {
   weaponRanks: Record<string, string | number>
   affinity: string | null
   abilities: string[]
+  /** skills (game option skills, lib/skills.svelte.ts) */
+  skills?: string[]
   /** opens the convoy, with the units next to them (missing in older projects: Eirika and Ephraim) */
   convoyAccess?: boolean
   /** can seize (missing in older projects: Eirika and Ephraim, by route; server: seize.py) */
@@ -101,6 +103,8 @@ export interface ClassData {
   relativePower: number
   weaponRanks: Record<string, string | number>
   abilities: string[]
+  /** skills (game option skills, lib/skills.svelte.ts) */
+  skills?: string[]
   promotions: string[]
   movement: string | null
   terrainBonus: string | null

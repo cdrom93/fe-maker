@@ -18,6 +18,8 @@
   import AffinityPicker from './AffinityPicker.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { characterMagic, classMagic, statLabel, withMagic } from '../lib/magic.svelte'
+  import { skillsOption } from '../lib/skills.svelte'
+  import SkillsPanel from './SkillsPanel.svelte'
 
   let {
     list,
@@ -343,6 +345,11 @@
         seize={{ on: ch.canSeize ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.canSeize = on)) }}
       />
       </details>
+
+      {#if skillsOption.on}
+        <SkillsPanel skills={ch.skills ?? []} fromClass={cls?.skills ?? []} abilities={[...(ch.abilities ?? []), ...(cls?.abilities ?? [])]}
+          classId={cls?.id} onchange={(skills) => edit((c) => (c.skills = skills))} />
+      {/if}
 
       {#if isNew(ch.id)}
         <p class="small"><button class="link" onclick={removeCharacter}>{t('character.remove')}</button></p>

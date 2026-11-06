@@ -18,6 +18,8 @@
   import ReservedWeapons from './ReservedWeapons.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { classMagic, statLabel, withMagic } from '../lib/magic.svelte'
+  import { skillsOption } from '../lib/skills.svelte'
+  import SkillsPanel from './SkillsPanel.svelte'
 
   let {
     list,
@@ -333,6 +335,10 @@
       <BattleAnimation classId={cl.id} className={cl.name} {items} wtypes={[...reference.rankableTypes, 'item']} onchanged={onanimations} />
 
       <AbilitiesPanel abilities={cl.abilities} fromClass={[]} fixed={cl.gender ? { female: cl.gender === 'female' } : {}} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
+
+      {#if skillsOption.on}
+        <SkillsPanel skills={cl.skills ?? []} abilities={cl.abilities} classId={cl.id} onchange={(skills) => edit((c) => (c.skills = skills))} />
+      {/if}
 
       {#if mine.length}
         <section class="panel issues">
