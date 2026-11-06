@@ -1738,11 +1738,12 @@ def test_adept_and_astra_add_hits(tmp_path, skill):
 
 def test_triggered_skill_name_in_battle_animation(tmp_path):
     """Skills lot 2: a triggered skill shows its name and icon under the unit's name plate in the battle animation
-    (Huichelaar's display, Skill System): Seth, with Luna and 100 Skill, attacks in the prologue."""
+    (Huichelaar's display, Skill System): Seth, with Sol and 100 Skill, attacks in the prologue. Ticket 170: Sol, which
+    has no game effect, plays the game's skill flash and sound (Sure Strike's); the gauge's palette stays."""
     project = Project.create(tmp_path / "skillname", "SkillName")
     project.set_game_options({**project.game_options, "skills": True})
     characters = project.load("characters")
-    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Luna"]
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
     project.save("characters", characters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
     with Game(out.rom_path, out.map_path) as game:
@@ -1750,7 +1751,7 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
         base = game.address("gUnitArrayBlue")
         seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
                     and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
-        game.write(seth, 100, 0x15)          # Skill 100: Luna always triggers
+        game.write(seth, 100, 0x15)          # Skill 100: Sol always triggers
         _seth_attacks(game)
         assert game.wait_until(lambda: game.read(0x02028D82) or game.read(0x02028D83), seconds=20, step=5)
         print("shown", [game.read(0x02028D82 + k) for k in range(16)])
@@ -1759,3 +1760,4 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
             game.screenshot().convert("RGB").save(tmp_path / f"battle{k}.png")
         print("screenshots:", tmp_path)
         assert game.read(0x02028D90)         # a round was shown
+        assert game.read("gAnimRoundData", 2, width=16) & 0x800   # ANIM_ROUND_SURE_SHOT on Seth's side (right)

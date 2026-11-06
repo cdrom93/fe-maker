@@ -528,6 +528,7 @@ static void SkillNameInitFem(struct SkillNameProcFem* proc)
     struct Font font;
     struct Font* active = gActiveFont;
     char name[0x20];
+    u16 palette[0x10];
     const char* str = GetStringFromIndex(sSkillTextFem[proc->skill]);
     int i;
 
@@ -537,7 +538,9 @@ static void SkillNameInitFem(struct SkillNameProcFem* proc)
 
     Copy2dChr(item_icon_tiles + sSkillIconFem[proc->skill] * 0x80, (void*) 0x6013380, 2, 2);
 
+    CpuCopy16(PAL_BG(2), palette, sizeof(palette));   /* the font loads its palette there: the gauge's is kept */
     InitTextFont(&font, (void*) 0x6000020, 1, 2);
+    CpuCopy16(palette, PAL_BG(2), sizeof(palette));
     SetTextDrawNoClear();   /* the glyphs replace the box's pixels */
     InitText(&proc->text, SKILL_NAME_WIDTH_FEM);
     Text_SetCursor(&proc->text, GetStringTextCenteredPos(SKILL_NAME_WIDTH_FEM * 8, name));
@@ -645,12 +648,17 @@ void StartSkillNameFem(struct Anim* anim)
         return;
     sSkillRoundFem = round + 1;
     skill = sSkillShownFem[round * 2 + !actor];
+    flags = GetRoundFlagByAnim(anim);
+    /* the attacker's skill plays the game's skill flash and sound (Sure Strike's), as the Skill System does,
+       unless a game effect (Pierce for Luna, Great Shield for Pavise) already plays */
+    if (skill && !(flags & (ANIM_ROUND_SURE_SHOT | ANIM_ROUND_PIERCE | ANIM_ROUND_GREAT_SHIELD))
+        && gAnimRoundData[round * 2 + pos] != 0xFFFF)
+        gAnimRoundData[round * 2 + pos] |= ANIM_ROUND_SURE_SHOT;
     if (skill == 0) {{
         skill = sSkillShownFem[round * 2 + actor];
         right = !right;
     }}
     if (skill == 0) {{
-        flags = GetRoundFlagByAnim(anim);
         right = pos == POS_R;
         if (flags & ANIM_ROUND_SURE_SHOT)
             skill = {game["SURE_SHOT"]};

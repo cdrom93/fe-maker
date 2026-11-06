@@ -19,6 +19,7 @@ piège dans sa section.
 - agbcc aligne les structures sur 4 octets : `struct IconStruct` (deux `u8`) fait 4 octets, la table des icônes 224 × 4 = 0x380. En déplaçant la table (compétences, 06/11), une taille comptée à 2 octets par entrée a fait déborder `CpuFill16` sur la police du jeu (`gDefaultFont`, juste après) : la phase joueur restait figée sans curseur. Calculer avec `sizeof`, vérifier dans le `.map` ce qui suit.
 - Redessiner un texte du jeu dans une autre couleur : `PutDrawText` n'efface pas le `Text`, les pixels du nouveau texte se mêlent (OU binaire) à ceux de l'ancien et donnent des teintes fausses (souvent le contour). Appeler `ClearText` avant (ticket 166, noms des stats colorés).
 - Le `.rodata` de `src/banim-main.o` est jeté par le script de liens (`.rodata' referenced in section `.text'... defined in discarded section`) : pas de constante (tableau, script de proc) dans ce fichier ; les mettre dans un fichier dont le `.rodata` est gardé (`bmbattle.c`) et n'y laisser que l'appel.
+- `InitTextFont` charge la palette du texte dans la palette de fond qu'on lui donne : en animation de combat, la palette 2 est celle du côté gauche (plaques et jauge, rouge pour l'ennemi), qui devenait kaki (ticket 170). La sauvegarder avant et la remettre après.
 
 ## Données du jeu (personnages, classes, objets, textes)
 
