@@ -70,3 +70,18 @@ def test_magic_temporary_bonus_only_with_the_split():
     assert temp_bonuses(drink) == {"pow": 2}
     assert temp_bonuses(drink, magic=True) == {"pow": 2, "mag": 3}
     assert TEMP_STATS["mag"] == 6   # the 7th counter, beside the table's 6 (strmag.TEMP_TABLE_SET keeps 28 bits)
+
+
+def test_level_up_boxes_show_magic_under_strength():
+    """Ticket 165: HP, Str, Mag, Skl on the left, Spd, Lck, Def, Res on the right, in both level up boxes."""
+    if not (DECOMP / "src/banim-ekrlvup.c").is_file():
+        pytest.skip("no decomp")
+    files: dict = {}
+    strmag._level_up_screens(files, DECOMP)
+    header = files["include/ekrlevelup.h"]
+    assert header.index("EKRLVUP_STAT_POW") < header.index("EKRLVUP_STAT_CON") < header.index("EKRLVUP_STAT_SKL")
+    battle = files["src/banim-ekrlvup.c"]
+    labels = battle[battle.index("EkrLvupMsgsStr[]"):battle.index("EkrLvupMsgsMag[]")]
+    assert [line.strip(" &,") for line in labels.splitlines()[1:9]] == [
+        "gMid_Hp", "gMid_Str", "gMid_Mag", "gMid_Skl", "gMid_Spd", "gMid_Lck", "gMid_Def", "gMid_Res"]
+    assert ".x = 1, .y = 8,\n        .msg = { &gMid_Mag, &gMid_Mag }" in files["src/mapanim_lvupfx.c"]

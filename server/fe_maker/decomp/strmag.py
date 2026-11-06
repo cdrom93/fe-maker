@@ -331,7 +331,8 @@ def _unit_list(files: dict, decomp_dir: Path) -> None:
 
 def _level_up_screens(files: dict, decomp_dir: Path) -> None:
     """The level up boxes (battle, map, a booster used in the prep screen) have 8 lines: Con, which levels do not
-    raise, gives its line to Mag (as in the Skill System); Str is always Str."""
+    raise, gives its line to Mag (as in the Skill System); Str is always Str. Ticket 165: HP, Str, Mag, Skl on the
+    left, Spd, Lck, Def, Res on the right (Con's slot, holding Magic, moves after Str)."""
     def patch(rel: str, pairs: list[tuple[str, str]], every: bool = False) -> None:
         text = files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
         for old, new in pairs:
@@ -341,8 +342,10 @@ def _level_up_screens(files: dict, decomp_dir: Path) -> None:
         files[rel] = text
 
     patch("src/banim-ekrlvup.c", [
-        ("    &gMid_Res,\n    &gMid_Con\n", "    &gMid_Res,\n    &gMid_Mag\n"),
+        # the labels: Hp, Str, Mag (Con's slot, ticket 165), then Skl to Res
+        ("    &gMid_Res,\n    &gMid_Con\n", "    &gMid_Res\n"),
         ("    &gMid_Hp,\n    &gMid_Mag,\n", "    &gMid_Hp,\n    &gMid_Str,\n"),
+        ("    &gMid_Str,\n    &gMid_Skl,\n", "    &gMid_Str,\n    &gMid_Mag,\n    &gMid_Skl,\n"),
         ("unit->pClassData->baseCon + unit->pCharacterData->baseCon + bunit2->changeCon;",
          "UNIT_MAG_FEM(unit) + bunit2->changeMagFem;"),
         ("bunit->unit.pClassData->baseCon + bunit->unit.pCharacterData->baseCon;", "UNIT_MAG_FEM(&bunit->unit);")],
@@ -350,6 +353,20 @@ def _level_up_screens(files: dict, decomp_dir: Path) -> None:
     patch("src/banim-ekrlvup.c", [
         ("[EKRLVUP_STAT_CON] = unit->pClassData->baseCon + unit->pCharacterData->baseCon;",
          "[EKRLVUP_STAT_CON] = UNIT_MAG_FEM(unit);")], every=True)
+    # the battle box draws its slots in order (sEfxLvupPartsPos: 4 on the left, then 4 on the right): Con's slot
+    # (Magic) after Str's
+    patch("include/ekrlevelup.h", [(
+        "    EKRLVUP_STAT_POW,\n    EKRLVUP_STAT_SKL,\n    EKRLVUP_STAT_SPD,\n    EKRLVUP_STAT_LCK,\n"
+        "    EKRLVUP_STAT_DEF,\n    EKRLVUP_STAT_RES,\n    EKRLVUP_STAT_CON,\n",
+        "    EKRLVUP_STAT_POW,\n    EKRLVUP_STAT_CON, /* FE Maker: Magic (ticket 27) */\n    EKRLVUP_STAT_SKL,\n"
+        "    EKRLVUP_STAT_SPD,\n    EKRLVUP_STAT_LCK,\n    EKRLVUP_STAT_DEF,\n    EKRLVUP_STAT_RES,\n")])
+    # the map box places each line itself (x, y in tiles)
+    places = [("Skl", (1, 8), (1, 10)), ("Spd", (1, 10), (9, 4)), ("Lck", (9, 4), (9, 6)), ("Def", (9, 6), (9, 8)),
+              ("Res", (9, 8), (9, 10)), ("Con", (9, 10), (1, 8))]
+    patch("src/mapanim_lvupfx.c", [
+        (f"        .x = {x}, .y = {y},\n        .msg = {{ &gMid_{m}, &gMid_{m} }},\n",
+         f"        .x = {nx}, .y = {ny},\n        .msg = {{ &gMid_{m}, &gMid_{m} }},\n")
+        for m, (x, y), (nx, ny) in places])
     patch("src/mapanim_lvupfx.c", [
         ("        return gManimSt.actor[actor_id].bu->changeCon;\n",
          "        return gManimSt.actor[actor_id].bu->changeMagFem;\n"),

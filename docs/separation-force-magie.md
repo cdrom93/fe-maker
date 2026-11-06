@@ -48,7 +48,7 @@ Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option d
 - Données : une table par classe (base, croissance, maximum, gain de promotion) et par personnage (base, croissance) dans `bmunit.c`, écrites depuis les valeurs « mag » du projet. Sans valeur : une classe qui a un rang de bâton, d'anima, de lumière ou de ténèbres prend les chiffres de sa force, les autres partent de 0 (croissance 5 % pour les génériques) ; un personnage d'une classe magique prend sa force, les autres 0 (croissance : le quart de celle de la force).
 - Combat : la magie compte quand l'arme a `IA_MAGIC` (tomes) ou `IA_MAGICDAMAGE` (épées magiques à distance, qui gardent leur moitié) ; la force sinon. Bâtons : soins, précision et portée avec la magie. IA : dégâts estimés des tomes avec la magie.
 - Sauvegardes : les unités sauvegardées n'ont pas un bit libre ; la magie de chaque emplacement va dans la zone des cartes bonus de la mémoire de sauvegarde (voir `docs/audit-decomp.md`), avec l'heure de la sauvegarde pour la reconnaître. Une sauvegarde faite avant l'option (sans ces octets) estime la magie depuis les données : base du personnage et de sa classe, gain de promotion, croissance moyenne pour les niveaux gagnés.
-- Écrans : fiche d'unité (ligne « Mag » sous « Str », avec le bonus de l'arme équipée), montées de niveau en combat et sur la carte (9e ligne).
+- Écrans : fiche d'unité (ligne « Mag » sous « Str », avec le bonus de l'arme équipée), montées de niveau en combat et sur la carte (la case de la constitution, qui ne monte pas, passe à la magie ; ordre du #165 : PV, For, Mag, Tech à gauche, Vit, Chance, Déf, Rés à droite).
 - Objets : un bonus de magie (`statBonuses.mag`) pour les armes équipées, les fortifiants et les objets à utiliser ; l'arène attaque avec la magie pour une arme magique.
 - Vérifié en jeu (`tests/local`, `test_magic_split_from_strength`) : attaque au tome = puissance + magie + bonus du tome ; fiche d'unité ; montée de niveau en combat (+1 en magie) ; magie gardée après une sauvegarde de mi-chapitre ; bonus temporaires (`test_copies_heal_and_protect_their_own_amount`, avec et sans l'option).
 
@@ -59,7 +59,7 @@ Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option d
 - Liste des unités : page 2 « Str Mag Skl Spd Lck Def Res » ; la page n'a pas la place pour 8 nombres, la magie prend la place de l'affinité (toujours sur la fiche d'unité), et son tri remplace celui par affinité.
 - Bonus temporaires sur la magie : 7e compteur de la table (bits 24-27), baissé à chaque tour, lu par `GetUnitMagicFem` ; gardé à la sauvegarde de mi-chapitre (4e octet dans la zone des cartes bonus). La ligne combats/victoires/défaites de la fiche d'unité (après une première partie finie) descend d'une ligne sous Rés.
 
-Reste : aperçu du combat dans FE Maker ; montée de niveau sur la carte et ligne combats/victoires/défaites pas vues en jeu.
+Reste : aperçu du combat dans FE Maker ; ligne combats/victoires/défaites pas vue en jeu (montée de niveau sur la carte vue par l'utilisateur).
 
 ## Ce qu'il faut changer dans la décomp
 
