@@ -193,3 +193,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : compétences, lot 2 terminé : icône de la compétence déclenchée à côté de la boîte de combat sur la carte, sans animation (`SPD_Map` de Huichelaar) ; playtest (Sol, animations coupées par `gPlaySt.config`).
 - 06/11/2026 : ticket 168 : réglages de FE Maker (retours au jeu d'origine, tests) rangés en un panneau « FE Maker » par catégories, comme les options du jeu.
 - 06/11/2026 : retours des testeurs, schéma choisi par l'utilisateur (relais Cloudflare vers un dépôt GitHub privé, mode admin, projet joint sur case à cocher, pas de Discord) noté au cahier, section 4, étape 7.
+- 06/11/2026 : alpha, choix de l'utilisateur : musique avant la sortie, test avec quelques personnes choisies avant l'annonce, cartes Trello à reprendre dans les tickets.
