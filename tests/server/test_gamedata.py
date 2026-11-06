@@ -329,6 +329,8 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
         "src/bmunit.c": getters + "void Tick(struct Unit* unit) {\n        if (unit->barrierDuration != 0)\n"
                                   "            unit->barrierDuration--;\n}\n",
         "src/bmio.c": "void Reset(struct Unit* unit) {\n            unit->barrierDuration = 0;\n}\n",
+        "src/fontgrp.c": "void PutNumberBonus(int number, u16 *tm)\n{\n    if (number == 0)\n        return;\n\n}\n",
+        "src/statscreen.c": "void DrawStatWithBar(void)\n{\n    DrawStatBarGfx(0x401 + num*6, 6,\n        0);\n}\n",
         "src/bmsave.c": "void WriteSuspendSave(int slot)\n{\n    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n}\n"
                         "void ReadSuspendSave(int slot)\n{\n"
                         "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n}\n",
@@ -342,12 +344,13 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
     d.item_temp_bonuses["ITEM_NEW_CE"] = {"spd": 6, "def": -3}
     d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_PUREWATER", 7)
     d._with_temporary_bonus(out)
-    assert "SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~0xff00) | 0xd600);" in out["src/bmusemind.c"]
-    usable = "case ITEM_NEW_CE:\n        return TEMP_BONUS_FEM(unit, 2) < 6 || TEMP_BONUS_FEM(unit, 3) > -3;"
+    assert "SET_TEMP_BONUSES_FEM(drinker, TempBonusesAfterFem(drinker, 0xff00, 0xd600));" in out["src/bmusemind.c"]
+    usable = "case ITEM_NEW_CE:\n        return TempBonusesAfterFem(unit, 0xff00, 0xd600) != TEMP_BONUSES_FEM(unit);"
     assert usable in out["src/bmitemuse.c"]
     assert "return TempStatFem(unit->spd + TEMP_BONUS_FEM(unit, 2));" in out["src/bmunit.c"]
     assert "return TempStatFem(unit->res + TEMP_BONUS_FEM(unit, 4));" in out["src/bmunit.c"]
-    assert "#define TEMP_BONUS_FEM" in out["include/bmunit.h"]
+    assert "#define TEMP_BONUS_FEM" in out["include/bmunit.h"] and "#define TEMP_BONUS_RULE_FEM 0" in out["include/bmunit.h"]
+    assert "TEXT_SPECIAL_DASH" in out["src/fontgrp.c"] and "base = total;" in out["src/statscreen.c"]
     assert "SET_TEMP_BONUSES_FEM(unit, bonuses);" in out["src/bmunit.c"]
     assert "SET_TEMP_BONUSES_FEM(unit, 0);" in out["src/bmio.c"]
     assert "WriteTempBonusesFem(slot);" in out["src/bmsave.c"]
@@ -374,3 +377,15 @@ def test_temp_bonuses_of_a_pure_water_copy():
     assert temp_bonuses({"tempBonuses": {"pow": 9, "spd": -12, "lck": 0, "hp": 3}}) == {"pow": 7, "spd": -8}
     assert temp_bonuses({"effectStat": "lck", "effectAmount": 12}) == {"lck": 7}
     assert temp_bonuses({"effectAmount": 3}) is None
+
+
+def test_the_stacking_rule_of_temporary_bonuses_is_a_game_option(tmp_path):
+    """Ticket 164: the strongest wins unless the project picks another rule (only written when the bonuses are)."""
+    from fe_maker.decomp import gameoptions
+
+    header = "#define TEMP_BONUS_RULE_FEM 0\n"
+    assert gameoptions.validate({"tempBonusRule": "add"}) is None
+    assert gameoptions.validate({"tempBonusRule": "max"}) == "badGameOption"
+    files = gameoptions.apply(tmp_path, {"tempBonusRule": "replace"}, {"include/bmunit.h": header})
+    assert files["include/bmunit.h"] == "#define TEMP_BONUS_RULE_FEM 2\n"
+    assert "include/bmunit.h" not in gameoptions.apply(tmp_path, {"tempBonusRule": "add"}, {})

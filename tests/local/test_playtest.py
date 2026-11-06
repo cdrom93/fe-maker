@@ -1375,7 +1375,8 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
 
 def test_copies_heal_and_protect_their_own_amount(tmp_path):
     """Ticket 144: a Vulnerary copy heals 3 HP, a Pure Water copy gives +3 Resistance, another +4 Speed; both bonuses
-    drop by 1 at the next turn; a third one adds +5 Strength beside the Speed, and both survive a suspend."""
+    drop by 1 at the next turn; a third one adds +5 Strength beside the Speed, and both survive a suspend.
+    Ticket 164: a weaker drink on the same stat keeps the strongest bonus (the default rule); a malus shows."""
     project = _bench(tmp_path, "amount", [[], [], []])
     items = project.load("items")
     decomp = DecompData(project.decomp_dir)
@@ -1387,11 +1388,14 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     tonic.update(name="Tonique", effectAmount=4, effectStat="spd")
     force = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"]})
     force.update(name="Force", tempBonuses={"pow": 5, "def": -2})   # ticket 164: several stats, a malus
-    project.save("items", [*items, balm, water, tonic, force])
+    small = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"], force["id"]})
+    small.update(name="Petite", tempBonuses={"pow": 2, "spd": -1})
+    project.save("items", [*items, balm, water, tonic, force, small])
     chapters = project.load("chapters")
     for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water, tonic)):
         unit["items"] = [item["id"]]
     chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][2]["items"].append(force["id"])
+    chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["items"].append(small["id"])
     project.save("chapters", chapters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
 
@@ -1416,6 +1420,13 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
         _bench_suspend_and_resume(game, (second, third))
         _bench_units(game, turn=2)
         assert bonuses(third) == 0xE305 and game.read(second, 0x31) >> 4 == 2
+        game.write(first, 0x05, 0x3A)   # Strength +5 already
+        _bench_use_item(game, first, slot=1)
+        assert bonuses(first) == 0xF05   # the strongest wins: Strength stays +5; Speed -1
+        game.move_cursor(game.read(third, 0x10), game.read(third, 0x11))
+        game.press("R", wait=120)       # the status screen: Defense shows its -2
+        game.screenshot().save(tmp_path / "status.png")
+        print("status screen:", tmp_path / "status.png")
 
 
 def test_weapon_sheet_in_a_battle(tmp_path):

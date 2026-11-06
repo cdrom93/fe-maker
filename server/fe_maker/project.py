@@ -214,7 +214,8 @@ class Project:
             raise ProjectError(problem)
         self.meta["gameOptions"] = {k: v for k, v in options.items()
                                     if k in gameoptions.SWITCHES and v or k in gameoptions.DEFAULTS
-                                    and v != gameoptions.DEFAULTS[k][1]}
+                                    and v != gameoptions.DEFAULTS[k][1]
+                                    or k in gameoptions.CHOICES and v != gameoptions.CHOICES[k][0]}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def update_credits(self) -> None:

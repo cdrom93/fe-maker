@@ -7,7 +7,7 @@
   import { t } from '../lib/i18n.svelte'
   import ProjectScope from './ProjectScope.svelte'
 
-  type Reference = { options: Record<string, number | boolean>; groups: Record<string, string[]>; defaults: Record<string, { game: number; values: number[] }> }
+  type Reference = { options: Record<string, number | boolean | string>; groups: Record<string, string[]>; choices: Record<string, string[]>; defaults: Record<string, { game: number; values: number[] }> }
 
   let { onteststart, onscope, scopeFirst = false }: {
     /** where test builds now start */
@@ -38,7 +38,7 @@
     }
   }
 
-  async function set(key: string, value: number | boolean) {
+  async function set(key: string, value: number | boolean | string) {
     if (!data) return
     saving = true
     error = ''
@@ -114,10 +114,20 @@
       {#each Object.entries(data.groups) as [group, keys] (group)}
         <h4>{t(`options.group.${group}`)}</h4>
         {#each keys as key (key)}
+          {#if data.choices[key]}
+            <label class="switch">
+              <span><strong>{t(`options.${key}`)}</strong> <Help text={t(`options.${key}Hint`)} /></span>
+              <select value={data.options[key] ?? data.choices[key][0]} disabled={saving}
+                      onchange={(e) => set(key, (e.target as HTMLSelectElement).value)}>
+                {#each data.choices[key] as choice (choice)}<option value={choice}>{t(`options.${key}.${choice}`)}</option>{/each}
+              </select>
+            </label>
+          {:else}
           <label class="switch">
             <input type="checkbox" checked={!!data.options[key]} disabled={saving} onchange={(e) => set(key, (e.target as HTMLInputElement).checked)} />
             <span><strong>{t(`options.${key}`)}</strong> <Help text={t(`options.${key}Hint`)} /></span>
           </label>
+          {/if}
         {/each}
       {/each}
     </section>

@@ -10,8 +10,9 @@ export type ProjectScope = {
 
 /** Options of the built game (server: decomp/gameoptions.py) */
 type GameOptionsData = {
-  options: Record<string, number | boolean>
+  options: Record<string, number | boolean | string>
   groups: Record<string, string[]>
+  choices: Record<string, string[]>
   defaults: Record<string, { game: number; values: number[] }>
 }
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
@@ -75,7 +76,7 @@ export const api = {
   newCharacter: (ally: boolean) =>
     request<{ record: Character; replaces: string | null }>('POST', '/api/characters/new', { ally }),
   gameOptions: () => request<GameOptionsData>('GET', '/api/project/game-options'),
-  setGameOptions: (options: Record<string, number | boolean>) => request<GameOptionsData>('PUT', '/api/project/game-options', options),
+  setGameOptions: (options: Record<string, number | boolean | string>) => request<GameOptionsData>('PUT', '/api/project/game-options', options),
   chapters: () => request<ChapterInfo[]>('GET', '/api/chapters'),
   newChapter: (after: number, width: number, height: number, title: string) =>
     request<{ index: number; problems: Problem[] }>('POST', '/api/chapters/new', { after, width, height, title }),

@@ -2234,6 +2234,7 @@ def put_world_map(body: WorldMapIn):
 def get_game_options():
     """Options of the built game the project changes, and what can be set (decomp/gameoptions.py)."""
     return {"options": state.require_project().game_options, "groups": gameoptions.SWITCH_GROUPS,
+            "choices": {k: list(values) for k, values in gameoptions.CHOICES.items()},
             "defaults": {k: {"game": game, "values": list(values)} for k, (_f, game, values) in gameoptions.DEFAULTS.items()}}
 
 

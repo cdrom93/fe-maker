@@ -90,6 +90,40 @@ TEMP_BONUS_MACROS = """
 #define SET_TEMP_BONUSES_FEM(aUnit, v) ((aUnit)->_u3A = (v), (aUnit)->_u3B = (v) >> 8, (aUnit)->_u47 = (v) >> 16)
 static inline int TempStatFem(int value) { return value < 0 ? 0 : value; } /* a malus stops at 0 */
 
+/* How a drink meets the bonus already there (game option tempBonusRule): 0 the strongest wins (a bonus meeting a
+   malus adds up with it), 1 they add up, 2 the last one replaces it. */
+#define TEMP_BONUS_RULE_FEM 0
+
+static inline int CombineTempBonusFem(int bonus, int value)
+{
+#if TEMP_BONUS_RULE_FEM == 1
+    bonus += value;
+#elif TEMP_BONUS_RULE_FEM == 2
+    bonus = value;
+#else
+    if ((bonus >= 0) != (value >= 0))
+        bonus += value;
+    else if (value > 0 ? value > bonus : value < bonus)
+        bonus = value;
+#endif
+    return bonus < -8 ? -8 : bonus > 7 ? 7 : bonus;
+}
+
+/* The unit's counters once an item giving `values` (4 signed bits per stat, on the stats of `mask`) is drunk */
+static inline u32 TempBonusesAfterFem(struct Unit* unit, u32 mask, u32 values)
+{
+    u32 bonuses = TEMP_BONUSES_FEM(unit);
+    int n;
+
+    for (n = 0; n < 6; n++) {
+        if ((mask >> (4 * n)) & 15) {
+            int bonus = CombineTempBonusFem(TEMP_BONUS_FEM(unit, n), (int) ((((values >> (4 * n)) & 15) ^ 8)) - 8);
+            bonuses = (bonuses & ~(15u << (4 * n))) | ((u32) (bonus & 15) << (4 * n));
+        }
+    }
+    return bonuses;
+}
+
 """
 # the suspend save has no room for them: up to 10 units' bonuses per suspend slot go in the save memory's unused
 # bytes (SaveBlocks._pad_, 0x73A4-0x7400, 46 bytes per slot), after the save time that ties them to their save
@@ -2417,6 +2451,17 @@ class DecompData:
             "            SET_TEMP_BONUSES_FEM(unit, bonuses);\n        }\n")])
         patch("src/bmio.c", [("            unit->barrierDuration = 0;\n",
                               "            unit->barrierDuration = 0;\n            SET_TEMP_BONUSES_FEM(unit, 0);\n")])
+        # the status screen shows a malus too: "-N" in gray, the bar down to the total (the game shows bonuses only)
+        patch("src/fontgrp.c", [("    if (number == 0)\n        return;\n\n",
+                                  "    if (number == 0)\n        return;\n\n"
+                                  "    if (number < 0) { /* FE Maker: a malus */\n"
+                                  "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
+                                  "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
+                                  "        return;\n    }\n\n")])
+        patch("src/statscreen.c", [("    DrawStatBarGfx(0x401 + num*6, 6,\n",
+                                    "    if (diff < 0) { /* FE Maker: a malus, the bar shows the total */\n"
+                                    "        base = total;\n        diff = 0;\n    }\n\n"
+                                    "    DrawStatBarGfx(0x401 + num*6, 6,\n")])
         patch("src/bmsave.c", [
             ("void WriteSuspendSave(int slot)\n{", TEMP_BONUS_SAVE.lstrip("\n") + "void WriteSuspendSave(int slot)\n{"),
             ("    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n",
@@ -2455,10 +2500,9 @@ class DecompData:
                 # Water is refused at 7)
                 mask = sum(15 << (4 * TEMP_STATS[stat]) for stat in bonuses)
                 values = sum((value & 15) << (4 * TEMP_STATS[stat]) for stat, value in bonuses.items())
-                usable = " || ".join(f"TEMP_BONUS_FEM(unit, {TEMP_STATS[stat]}) {'<' if value > 0 else '>'} {value}"
-                                     for stat, value in bonuses.items())
-                own("src/bmitemuse.c", "s8 CanUnitUseItem(", f"    case {new_id}:\n        return {usable};\n\n")
-                effect = f"SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~{mask:#x}) | {values:#x});"
+                own("src/bmitemuse.c", "s8 CanUnitUseItem(", f"    case {new_id}:\n        return "
+                    f"TempBonusesAfterFem(unit, {mask:#x}, {values:#x}) != TEMP_BONUSES_FEM(unit);\n\n")
+                effect = f"SET_TEMP_BONUSES_FEM(drinker, TempBonusesAfterFem(drinker, {mask:#x}, {values:#x}));"
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}: {{\n"
                 "            struct Unit* drinker = GetUnit(gActionData.subjectIndex);\n\n"

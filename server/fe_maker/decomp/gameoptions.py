@@ -49,8 +49,14 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
-                 "rules": ("actAfterTalk", "casualMode")}
-SWITCHES = tuple(key for keys in SWITCH_GROUPS.values() for key in keys)
+                 "rules": ("actAfterTalk", "casualMode"),
+                 "items": ("tempBonusRule",)}
+# Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
+# the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).
+CHOICES: dict[str, tuple[str, ...]] = {"tempBonusRule": ("strongest", "add", "replace")}
+SWITCHES = tuple(key for keys in SWITCH_GROUPS.values() for key in keys if key not in CHOICES)
+_TEMP_RULE = "#define TEMP_BONUS_RULE_FEM 0\n"
+TEMP_RULE_FILE = "include/bmunit.h"
 
 _INIT_RE = re.compile(r"void InitPlayConfig\(int isDifficult, s8 unk\)\s*\{.*?\n\}", re.DOTALL)
 # FEBuilder "Omission of 1-second wait when displaying chapter titles": the title can be skipped at once.
@@ -343,6 +349,9 @@ def validate(options: dict) -> str | None:
         elif key in SWITCHES:
             if not isinstance(value, bool):
                 return "badGameOption"
+        elif key in CHOICES:
+            if value not in CHOICES[key]:
+                return "badGameOption"
         else:
             return "unknownGameOption"
     return None
@@ -378,6 +387,9 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
 
     if any(key in options and options[key] != DEFAULTS[key][1] for key in DEFAULTS):
         files[CONFIG_FILE] = with_defaults(current(CONFIG_FILE), {k: v for k, v in options.items() if k in DEFAULTS})
+    rule = CHOICES["tempBonusRule"].index(options.get("tempBonusRule", "strongest"))
+    if rule and _TEMP_RULE in files.get(TEMP_RULE_FILE, ""):   # only when a Pure Water copy uses the bonuses
+        files[TEMP_RULE_FILE] = files[TEMP_RULE_FILE].replace(_TEMP_RULE, f"#define TEMP_BONUS_RULE_FEM {rule}\n", 1)
     if options.get("stationaryRange"):
         files[RANGE_DISPLAY_FILE] = _replace(current(RANGE_DISPLAY_FILE), _RANGE, _RANGE_STATIONARY, RANGE_DISPLAY_FILE)
     if options.get("dangerZone"):
