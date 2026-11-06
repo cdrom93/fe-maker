@@ -64,7 +64,8 @@
     ScreenTint: 'ev.tintHint', ScreenNormal: 'ev.tintHint', COUNTER_SET: 'ev.counterHint', COUNTER_INC: 'ev.counterHint',
     COUNTER_DEC: 'ev.counterHint', COUNTER_CHECK: 'ev.counterHint',
   }
-  const WEATHERS = ['FINE', 'CLOUDS', 'RAIN', 'SNOW', 'SNOWSTORM', 'SANDSTORM', 'FLAMES', 'NIGHT'].map((w) => `WEATHER_${w}`)
+  /** WEATHER_NIGHT, an unfinished blue backdrop (ticket 163), is offered only where a command already has it. */
+  const WEATHERS = ['FINE', 'CLOUDS', 'RAIN', 'SNOW', 'SNOWSTORM', 'SANDSTORM', 'FLAMES'].map((w) => `WEATHER_${w}`)
   /** AI of the event command CHAI: action + movement, in the event slot 1. */
   const aiValue = (action: number, move: number) => `0x${(move << 8 | action).toString(16)}`
   const aiLabel = (v: string) => {
@@ -674,7 +675,7 @@
                     </select>
                   {:else if a.kind === 'weather'}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
-                      {#if !WEATHERS.includes(v)}<option value={v}>{v}</option>{/if}
+                      {#if !WEATHERS.includes(v)}<option value={v}>{v.startsWith('WEATHER_') ? t(`weather.${v.replace('WEATHER_', '').toLowerCase()}`) : v}</option>{/if}
                       {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w.replace('WEATHER_', '').toLowerCase()}`)}</option>{/each}
                     </select>
                   {:else if a.kind === 'ai'}

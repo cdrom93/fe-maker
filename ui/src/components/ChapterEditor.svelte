@@ -41,7 +41,9 @@
 
   const CELL = 32 // 16 px tiles shown at x2
   const ITEM_SLOTS = 4
-  const WEATHERS = ['fine', 'clouds', 'rain', 'snow', 'snowstorm', 'sandstorm', 'flames', 'night']
+  /** 'night' (the game's WEATHER_NIGHT) is an unfinished blue backdrop that flickers on other screens (ticket 163):
+   *  offered only to a chapter that already has it. */
+  const WEATHERS = ['fine', 'clouds', 'rain', 'snow', 'snowstorm', 'sandstorm', 'flames']
   const LAST_BATTLE_BG_SET = 0x14
   const GROUP_SPRITES = 10
   const SHOWN_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']
@@ -987,7 +989,7 @@
               <label class="small setting">
                 {t('chapter.weather')}
                 <select value={weather} onchange={(e) => setLook('weather', (e.target as HTMLSelectElement).value)}>
-                  {#each WEATHERS as w (w)}<option value={w}>{t(`weather.${w}`)}</option>{/each}
+                  {#each weather === 'night' ? [...WEATHERS, 'night'] : WEATHERS as w (w)}<option value={w}>{t(`weather.${w}`)}</option>{/each}
                 </select>
               </label>
               <Help text={t('chapter.weatherHint')} />

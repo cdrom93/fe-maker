@@ -1451,3 +1451,26 @@ def test_weapon_sheet_in_a_battle(tmp_path):
         unit = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
                     and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
         assert game.read(unit, 0x30) & 0xF == 1
+
+
+def test_hp_bars_hide_under_a_portrait(tmp_path):
+    """Ticket 161: HP bars and talk bubbles stood over the portraits (same object layer): hidden while a face shows.
+    On the prologue: the bench's blank chapter shows no unit icons."""
+    project = Project.create(tmp_path / "faces", "Faces")
+    project.set_game_options({"hpBars": True, "talkBubbles": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(60)
+        seth = next(i for i, u in enumerate(game.units()) if u["character"] == 2)
+        game.write(game.address("gUnitArrayBlue") + seth * UNIT_SIZE, 5, offset=0x13)
+        game.run(30)
+        game.screenshot().save(tmp_path / "bar.png")
+        taken = {(u["x"], u["y"]) for army in ("Blue", "Red", "Green") for u in game.units(army)}
+        game.move_cursor(*next((x, y) for y in range(10) for x in range(15) if (x, y) not in taken))
+        game.press("A", wait=30)
+        game.press("UP", wait=15)
+        game.press("UP", wait=15)
+        game.press("A", wait=120)      # Suspend: a portrait asks whether to quit
+        game.screenshot().save(tmp_path / "face.png")
+        print("screenshots:", tmp_path)

@@ -1616,7 +1616,7 @@
   "weather.snowstorm": "Snowstorm",
   "weather.sandstorm": "Sandstorm",
   "weather.flames": "Flames",
-  "weather.night": "Night",
+  "weather.night": "Blue backdrop (unfinished, flickers)",
   "chapter.battleBg": "Battle background",
   "chapter.battleBgDefault": "Default",
   "chapter.battleBgSet": "Set {n}",

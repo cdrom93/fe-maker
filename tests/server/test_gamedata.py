@@ -351,3 +351,16 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
     assert "SET_TEMP_BONUSES_FEM(unit, 0);" in out["src/bmio.c"]
     assert "WriteTempBonusesFem(slot);" in out["src/bmsave.c"]
     assert "ReadTempBonusesFem(slot + gSuspendSaveIdOffset);" in out["src/bmsave.c"]
+
+
+def test_a_usable_item_keeps_its_stat_bonuses_on_use(decomp_dir):
+    """Ticket 162: a usable item (not a booster) given stat bonuses adds them for good when used."""
+    d = DecompData(decomp_dir)
+    out = {"src/bmusemind.c": "void ActionStaffDoorChestUseItem(ProcPtr proc) {\n    int itemId = 0;\n\n"
+                              "    switch (itemId) {\n        case ITEM_VULNERARY:\n            break;\n    }\n}\n"}
+    d.item_use_bonuses = ["ITEM_NEW_CE"]
+    d._with_use_bonuses(out)
+    code = out["src/bmusemind.c"]
+    assert code.index("static void ApplyUseStatBonusesFem(") < code.index("void ActionStaffDoorChestUseItem(")
+    assert "    switch (itemId) {\n        case ITEM_NEW_CE:\n            ApplyUseStatBonusesFem(" in code
+    assert "case ITEM_VULNERARY:" in code
