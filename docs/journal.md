@@ -180,3 +180,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : ticket 165 : écrans de montée de niveau (combat et carte) dans l'ordre PV, For, Mag, Tech / Vit, Chance, Déf, Rés ; vérifié en jeu (combat).
 - 06/11/2026 : ticket 166 : option « Croissances sur la fiche (Select) » (`statusGrowths`, nouvelle catégorie « Fiches des unités ») ; ticket 167 : la colonne lumineuse est un bout de route (porte de village du jeu de tuiles Fields), pas un bug ; vérifié en jeu.
 - 06/11/2026 : nettoyage de la doc (cahier : copies d'objets résumées, séparation force / magie faite, #165 et #166 en phase 6 ; guide : options et objets ajoutés ; détails des playtests de CLAUDE.md vers l'architecture) ; option des croissances dans sa catégorie Fiches des unités.
+- 06/11/2026 : test des options retirées sur la décomp fictive (la CI n'a pas la vraie).

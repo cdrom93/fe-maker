@@ -84,9 +84,9 @@ def test_a_cleared_chapter_starts_with_no_boss(tmp_path, decomp_dir, monkeypatch
     assert api._project_objective(objective, 2)["boss"] == "CHARACTER_BAZBA"
 
 
-def test_an_option_removed_since_does_not_block_the_others(tmp_path):
+def test_an_option_removed_since_does_not_block_the_others(tmp_path, decomp_dir):
     """A project kept an option of an older version (magicRankPoints, reverted): ticking another one still saves."""
-    project = Project.create(tmp_path / "p", "P")
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
     project.meta["gameOptions"] = {"hpBars": True, "magicRankPoints": True}
     assert project.game_options == {"hpBars": True}
     project.set_game_options({**project.game_options, "strMagSplit": True})
