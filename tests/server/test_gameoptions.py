@@ -92,3 +92,14 @@ def test_bars_and_bubble_tiles_wait_for_the_end_of_a_battle_animation():
         pytest.skip("no decomp")
     text = gameoptions.apply(source.parents[1], {"hpBars": True, "talkBubbles": True}, {})[gameoptions.MAP_UI_FILE]
     assert text.count("if (IsBattleDeamonActive())\n        return;") == 2
+
+
+def test_growths_on_the_status_screen_colour_the_stat_names():
+    """Ticket 166: Select shows the growths; each name takes its growth's colour (two palettes loaded with the screen)."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.STATUS_FILE).is_file():
+        pytest.skip("no decomp")
+    text = gameoptions.apply(root, {"statusGrowths": True}, {})[gameoptions.STATUS_FILE]
+    assert "ApplyPalettes(sGrowthColorsFem[0], STATSCREEN_BGPAL_GROWTHS_FEM, 2);" in text
+    assert text.index("ColorStatLabelsFem();") < text.index("// displaying mov stat value")
+    assert "PutGrowthLabelFem(STATSCREEN_TEXT_BWL, y, MSG_4E9, 9);" in text

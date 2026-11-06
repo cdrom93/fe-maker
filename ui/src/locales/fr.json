@@ -1525,7 +1525,7 @@
   "options.stationaryRange": "Pas de zone pour les unités immobiles",
   "options.stationaryRangeHint": "Un ennemi qui ne bouge pas montre seulement ce qu'il peut frapper.",
   "options.statusGrowths": "Croissances sur la fiche (Select)",
-  "options.statusGrowthsHint": "Sur la première page de la fiche d'une unité, Select montre ses taux de croissance à la place de ses caractéristiques.",
+  "options.statusGrowthsHint": "Sur la première page de la fiche d'une unité, Select montre ses taux de croissance à la place de ses caractéristiques ; le nom de chaque caractéristique des unités du joueur prend la couleur de sa croissance, du rouge (faible) au vert (forte).",
   "flow.add.button": "Ajouter un chapitre après celui-ci",
   "flow.add.title": "Titre",
   "flow.add.width": "Largeur",

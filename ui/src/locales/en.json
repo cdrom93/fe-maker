@@ -1525,7 +1525,7 @@
   "options.stationaryRange": "No range for units that never move",
   "options.stationaryRangeHint": "An enemy that stays shows only what it can strike.",
   "options.statusGrowths": "Growths on the status screen (Select)",
-  "options.statusGrowthsHint": "On the first page of a unit's status screen, Select shows its growth rates in place of its stats.",
+  "options.statusGrowthsHint": "On the first page of a unit's status screen, Select shows its growth rates in place of its stats; the name of each stat of player units takes the colour of its growth, from red (low) to green (high).",
   "flow.add.button": "Add a chapter after this one",
   "flow.add.title": "Title",
   "flow.add.width": "Width",

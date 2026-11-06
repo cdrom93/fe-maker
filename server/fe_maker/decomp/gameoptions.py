@@ -419,6 +419,61 @@ static int GetStatGrowthFem(struct Unit* unit, int num)
     return -1;
 }
 
+/* FE Maker (ticket 166): a stat's name coloured by its growth rate, for player units, with the colours and steps of the
+   MSS Display Growths options (Skill System, through FEBuilderGBA): 2 palettes of 5 colours, green to red */
+#define STATSCREEN_BGPAL_GROWTHS_FEM 8 /* 8 and 9, free on this screen */
+static const u16 sGrowthColorsFem[2][16] = {
+    { 0x0000, 0x266A, 0x0B27, 0x0D63, 0x266A, 0x3710, 0x0D63, 0x266A, 0x3355, 0x0D63, 0x266A, 0x47B9, 0x0D63,
+      0x266A, 0x3BFD, 0x0CE8 },
+    { 0x0000, 0x4196, 0x4B9F, 0x106A, 0x3133, 0x2EBF, 0x106A, 0x3133, 0x321F, 0x106A, 0x3133, 0x317F, 0x106A,
+      0x3133, 0x211F, 0x106A },
+};
+static const u8 sGrowthStepsFem[] = { 20, 30, 40, 45, 50, 60, 70, 80, 90, 100 };
+
+static void PutGrowthLabelFem(int textId, int y, int msg, int num)
+{
+    struct Text* text = &gStatScreen.text[textId];
+    u16* tm = gUiTmScratchA + TILEMAP_INDEX(1, y);
+    int growth = GetStatGrowthFem(gStatScreen.unit, num);
+    int step = 0, color, i;
+
+    ClearText(text); /* drawn in gold already: a glyph drawn over another mixes their pixels */
+    if (UNIT_FACTION(gStatScreen.unit) != FACTION_BLUE || growth < 0) {
+        PutDrawText(text, tm, TEXT_COLOR_SYSTEM_GOLD, 0, 0, GetStringFromIndex(msg));
+        return;
+    }
+    while (step < 10 && growth >= sGrowthStepsFem[step])
+        step++;
+    if (step == 10) { /* 100 % and more: the game's own green */
+        PutDrawText(text, tm, TEXT_COLOR_SYSTEM_GREEN, 0, 0, GetStringFromIndex(msg));
+        return;
+    }
+    color = 9 - step; /* 0 green (90 %) to 9 red (under 20 %): palette 8 + color / 5, its color % 5-th group */
+    PutDrawText(text, tm, color % 5, 0, 0, GetStringFromIndex(msg));
+    for (i = 0; i < text->tile_width; i++) {
+        tm[i] = (tm[i] & 0xFFF) | ((STATSCREEN_BGPAL_GROWTHS_FEM + color / 5) << 12);
+        tm[i + 0x20] = (tm[i + 0x20] & 0xFFF) | ((STATSCREEN_BGPAL_GROWTHS_FEM + color / 5) << 12);
+    }
+}
+
+static void ColorStatLabelsFem(void)
+{
+    int y = 3;
+
+#ifdef UNIT_MAG_FEM
+    PutGrowthLabelFem(STATSCREEN_TEXT_POWLABEL, 1, MSG_4FE, 0);
+    PutGrowthLabelFem(STATSCREEN_TEXT_UNUSUED, 3, MSG_4FF, 8);
+    y = 5;
+#else
+    PutGrowthLabelFem(STATSCREEN_TEXT_POWLABEL, 1, UnitHasMagicRank(gStatScreen.unit) ? MSG_4FF : MSG_4FE, 0);
+#endif
+    PutGrowthLabelFem(STATSCREEN_TEXT_SKLLABEL, y, gMid_Skl, 1);
+    PutGrowthLabelFem(STATSCREEN_TEXT_SPDLABEL, y + 2, gMid_Spd, 2);
+    PutGrowthLabelFem(STATSCREEN_TEXT_LCKLABEL, y + 4, gMid_Lck, 3);
+    PutGrowthLabelFem(STATSCREEN_TEXT_DEFLABEL, y + 6, gMid_Def, 4);
+    PutGrowthLabelFem(STATSCREEN_TEXT_RESLABEL, y + 8, gMid_Res, 5);
+}
+
 """ + _STATUS_BAR + """    int growth = gStatScreen.growthsFem ? GetStatGrowthFem(gStatScreen.unit, num) : -1;
 
     if (growth >= 0) { /* FE Maker: the growth rate (one tile right, where the bonus goes: 100 % fits), its bar up to 100 % */
@@ -432,7 +487,7 @@ static int GetStatGrowthFem(struct Unit* unit, int num)
 """
 _STATUS_BWL = ("void DisplayBwl(void)\n{\n"
                "    struct UnitUsageStats* stats = GetPidStats(gStatScreen.unit->pCharacterData->number);\n")
-_STATUS_BWL_GROWTHS = _STATUS_BWL + """
+_STATUS_BWL_GROWTHS = "static void PutGrowthLabelFem(int textId, int y, int msg, int num);\n\n" + _STATUS_BWL + """
     if (gStatScreen.growthsFem) { /* FE Maker (ticket 166): HP's growth in place of this line, below Res */
 #ifdef UNIT_MAG_FEM
         int y = 15;
@@ -440,12 +495,15 @@ _STATUS_BWL_GROWTHS = _STATUS_BWL + """
         int y = 13;
 #endif
         ClearText(&gStatScreen.text[STATSCREEN_TEXT_BWL]);
-        PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_BWL], gUiTmScratchA + TILEMAP_INDEX(1, y),
-            TEXT_COLOR_SYSTEM_GOLD, 0, 0, GetStringFromIndex(MSG_4E9)); // HP
+        PutGrowthLabelFem(STATSCREEN_TEXT_BWL, y, MSG_4E9, 9); // HP
         DrawStatWithBar(9, 5, y, 0, 0, 0);
         return;
     }
 """
+_STATUS_PALETTE = "    ApplyPalette(Pal_StatscreenEquipmentText, STATSCREEN_BGPAL_EQUIPMENT_LABEL);\n"
+_STATUS_PALETTE_GROWTHS = _STATUS_PALETTE + "    ApplyPalettes(sGrowthColorsFem[0], STATSCREEN_BGPAL_GROWTHS_FEM, 2);\n"
+_STATUS_LABELS = "    // displaying mov stat value\n"   # DisplayPage0, after the left column
+_STATUS_LABELS_GROWTHS = "    ColorStatLabelsFem(); /* FE Maker (ticket 166) */\n\n" + _STATUS_LABELS
 _STATUS_KEYS = "    else if (gKeyStatusPtr->newKeys & R_BUTTON)\n    {\n"
 _STATUS_KEYS_GROWTHS = """    else if ((gKeyStatusPtr->newKeys & SELECT_BUTTON) && (gStatScreen.page == STATSCREEN_PAGE_0))
     {
@@ -524,7 +582,8 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[STATUS_HEADER] = _replace(current(STATUS_HEADER), _STATUS_FIELD, _STATUS_FIELD_GROWTHS, STATUS_HEADER)
         source = current(STATUS_FILE)
         for old, new in ((_STATUS_OPEN, _STATUS_OPEN_GROWTHS), (_STATUS_BAR, _STATUS_BAR_GROWTHS),
-                         (_STATUS_BWL, _STATUS_BWL_GROWTHS), (_STATUS_KEYS, _STATUS_KEYS_GROWTHS)):
+                         (_STATUS_BWL, _STATUS_BWL_GROWTHS), (_STATUS_KEYS, _STATUS_KEYS_GROWTHS),
+                         (_STATUS_PALETTE, _STATUS_PALETTE_GROWTHS), (_STATUS_LABELS, _STATUS_LABELS_GROWTHS)):
             source = _replace(source, old, new, STATUS_FILE)
         files[STATUS_FILE] = source
     if options.get("noSupportAnimations"):

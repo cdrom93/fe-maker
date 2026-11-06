@@ -16,6 +16,7 @@ piège dans sa section.
 - Fiche d'unité, page 1 : la ligne combats / victoires / défaites (`DisplayBwl`, ligne 14) n'apparaît qu'après une première partie finie ; une ligne de plus dans la colonne de gauche (Mag, 06/11) la recouvrait sans que les tests sans fenêtre le voient. `heredoc` du terminal : il abîme les antislashs (`
 ` du code C) ; écrire ces scripts dans un fichier.
 - Un remplacement de texte dans la décomp prend la première occurrence : `gStatScreen.inTransition = FALSE;` est d'abord dans `PageSlide_OnEnd`, pas dans `StartStatScreen` (#166, 06/11 : le réglage se remettait à zéro à chaque page) ; choisir une ancre unique (vérifier avec `grep -c`).
+- Redessiner un texte du jeu dans une autre couleur : `PutDrawText` n'efface pas le `Text`, les pixels du nouveau texte se mêlent (OU binaire) à ceux de l'ancien et donnent des teintes fausses (souvent le contour). Appeler `ClearText` avant (ticket 166, noms des stats colorés).
 
 ## Données du jeu (personnages, classes, objets, textes)
 
