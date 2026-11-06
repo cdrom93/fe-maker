@@ -119,7 +119,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord.
 4. **Paquet sans Node** : prêt (`tools/make_release.py`, `release.yml` sur tag, pas encore lancé). La décomp se télécharge au premier lancement, au commit fixé.
 5. **Image Docker sur ghcr.io** : prête. Elle est privée comme le dépôt : à rendre publique avec lui, sinon FE Maker la recompile.
 6. **Premier lancement guidé** : prêt (`checks.py`).
-7. **Retours des testeurs** : prêt (« Envoyer sur GitHub »). Un relais sans compte (ticket 75) a été écarté pour l'instant ; l'utilisateur imagine autre chose.
+7. **Retours des testeurs** : prêt (« Envoyer sur GitHub »). **Prévu (choix de l'utilisateur, 06/11)** : le bouton Ticket envoie sans compte, par un relais (Cloudflare Worker gratuit qui garde le jeton, limites de taille et de débit), dans un dépôt GitHub privé dédié (issues + captures) ; chaque testeur ne voit que ses tickets et leur statut (code secret par ticket) ; mode admin dans FE Maker (jeton GitHub de l'utilisateur dans ses réglages) pour tout voir, répondre, fermer ; `python -m fe_maker.tickets` lit ces issues ; projet joint seulement sur une case décochée par défaut ; ses propres tickets passent aussi par là (un seul circuit) ; pas de Discord ni d'autre point d'entrée. À lui : compte Cloudflare, dépôt privé, jeton.
 8. **Docs** : prêtes (guide FR/EN, limites connues, CHANGELOG). Passage d'une version à l'autre fait (`migrations.py`).
 9. **À faire, décisions de l'utilisateur** : dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (avec `[AI]` dans le titre).
 
