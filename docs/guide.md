@@ -53,6 +53,7 @@ Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » 
 - Une épée, une lance ou une hache qui frappe à distance demande une animation qui a le mouvement « Attaque à distance » : la plupart des haches du jeu ne l'ont pas. Le filtre « Frappe à distance » de la bibliothèque en trouve dans le FE-Repo.
 - Musique : démo seulement, un MIDI pour la phase du joueur d'un chapitre.
 - Carte du monde : on peut seulement la désactiver.
+- Compétences : 3 au plus par fiche personnage ou classe ; leurs noms et descriptions sont en anglais dans le jeu.
 - Couleurs du portrait : le résultat est approché, à retoucher au besoin ; une animation importée ne protège pas sa monture.
 - Pinceaux de terrain : les raccords sont calculés d'après les tuiles du jeu ; les routes sont le point faible, et le terrain autour du trait peut changer un peu.
 - « Terminer le jeu ici » ramène à l'écran titre ; le menu propose ensuite de reprendre le dernier chapitre.

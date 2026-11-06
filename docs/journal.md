@@ -195,3 +195,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : retours des testeurs, schéma choisi par l'utilisateur (relais Cloudflare vers un dépôt GitHub privé, mode admin, projet joint sur case à cocher, pas de Discord) noté au cahier, section 4, étape 7.
 - 06/11/2026 : alpha, choix de l'utilisateur : musique avant la sortie, test avec quelques personnes choisies avant l'annonce, cartes Trello à reprendre dans les tickets.
 - 06/11/2026 : alpha, ajouts de l'utilisateur au plan : compilation sans Docker sous Windows (étude de faisabilité d'abord), vidéo de démonstration, hack témoin à partager sur FEU.
+- 06/11/2026 : nettoyage de la doc (cahier : plan de l'alpha en liste, validations de l'utilisateur reportées — éditeur de carte, commandes d'évènements, scènes de zone et de souvenir —, compétences en lots ; limite des compétences dans les guides).

@@ -53,6 +53,7 @@ The **Ticket** button in the header notes a problem; "Send to GitHub" opens a fi
 - A sword, lance or axe that strikes at range needs an animation with the "Ranged attack" movement: most of the game's axes have none. The library's "Strikes at range" filter finds some in FE-Repo.
 - Music: a demo only, one MIDI for a chapter's player phase.
 - World map: it can only be turned off.
+- Skills: up to 3 per character or class sheet; their names and descriptions are in English in the game.
 - Portrait colours: the result is approximate, touch it up if needed; an imported animation does not protect its mount.
 - Terrain brushes: the joins are worked out from the game's tiles; roads are the weak point, and the ground around a stroke may change a little.
 - "End the game here" goes back to the title screen; the menu then offers to resume the last chapter.
