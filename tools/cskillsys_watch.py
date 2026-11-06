@@ -25,6 +25,8 @@ FOLLOWED = (
     "Kernel/Wizardry/Core/UnitStatusGetter/source/",
     "Kernel/Wizardry/Core/BattleSys/Source/PreBattleCalc.c",
     "Kernel/Wizardry/Core/BattleSys/Source/BattleOrder.c",
+    "Kernel/Wizardry/Misc/SkillEffects/BattleDamage/",
+    "Kernel/Wizardry/Misc/SkillEffects/Misc/SkillActRate.c",
     "Contents/Texts/Source/texts/",
     "Contents/Gfx/Sources/SkillIcon/",
 )

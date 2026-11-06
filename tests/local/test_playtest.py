@@ -1666,3 +1666,37 @@ def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
         assert not attributes[1] & (retaliate | followup)
         assert attributes[2] & followup                   # Desperation: the lord again at once
         assert (hits[3] >> 19) & 0x10                     # BATTLE_HIT_INFO_END after them: no counter
+
+
+def test_luna_and_sol_trigger_on_each_hit(tmp_path):
+    """Skills lot 2: with 100 Skill, Luna and Sol trigger on every hit: the lord wounds a soldier whose defense would
+    stop its blows (shown as the game's Pierce), and heals what it deals (as Nosferatu)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "procs", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=5, crit=0)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Luna", "Sol"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 100, 0x15)      # Skill 100: always triggers
+        game.write(attacker, 5, 0x13)        # 5 HP: room to heal
+        base = game.address("gUnitArrayRed")
+        foe = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
+                   and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
+        game.write(foe, 30, 0x17)            # Defense 30: no damage without Luna
+        foe_hp = game.read(foe, 0x13)
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.read(foe, 0x13) < foe_hp and game.phase() == "player", seconds=60, step=20)
+        game.run(120)
+        hit = game.read("gBattleHitArray", 0, width=32)
+        print("hit", hex(hit), "foe hp", foe_hp, "->", game.read(foe, 0x13), "lord hp", game.read(attacker, 0x13))
+        assert hit & (1 << 16) and hit & (1 << 8)   # BATTLE_HIT_ATTR_PIERCE (Luna), _HPSTEAL (Sol)
+        dealt = foe_hp - game.read(foe, 0x13)
+        assert dealt > 0 and game.read(attacker, 0x13) == min(16, 5 + dealt)

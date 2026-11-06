@@ -60,3 +60,18 @@ def test_skills_match_the_decomp(monkeypatch):
     status = files["src/statscreen.c"]
     assert "DisplaySkillsFem();" in status and "sHelpInfo_SkillFem3" in status
     assert "static const u16 sSkillIconFem[SKILL_COUNT_FEM + 1] = { 0, 224, 225," in status
+
+
+def test_triggered_skills_go_into_each_hit(monkeypatch):
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna", "Sol", "Colossus"]}]
+    classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["Pavise"]}]
+    used = skills.used(characters, classes, False)
+    files = skills.apply(DECOMP, {}, characters, classes, {"label": 1, **{s.id: 2 for s in used}}, False)
+    battle = files["src/bmbattle.c"]
+    assert "ApplyHitSkillsFem(attacker, defender, &attack, &defense);\n\n    gBattleStats.damage = attack - defense;" in battle
+    assert "SkillProcFem(defender, SKILL_FEM_Pavise)" in battle and "gBattleStats.damage *= 3;" in battle
+    assert "|| (sHitDrainFem && gBattleStats.damage > 0)) { /* FE Maker: Sol, Aether */" in battle
+    assert battle.index("static void ApplyHitSkillsFem") < battle.index("void BattleGenerateHitAttributes(")

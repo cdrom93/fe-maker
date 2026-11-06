@@ -46,7 +46,9 @@ class Skill:
     stat: int = -1        # stat skills: 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res, 5 Lck, 6 Mag
     value: int = 0
     defiant: bool = False  # stat skills: only under 25 % of HP
-    code: str = ""        # battle skills: C run in ComputeBattleUnitStats (attacker, defender)
+    code: str = ""        # battle skills: C run in ComputeBattleUnitStats (attacker, defender); proc skills: C run on a
+    # hit before its damage (attacker, defender, magic, *attack, *defense)
+    after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
     game: str = ""        # game skills: the C condition on `unit`
 
 
@@ -91,6 +93,32 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Vantage", "order", "Vantage", "Vantage:[NL]When unit is defender while[NL]their HP is < 50%, attack first."),
     Skill("Desperation", "order", "Desperation",
           "Desperation:[NL]When unit attacks with HP < 50%,[NL]its follow-up comes at once."),
+    # lot 2: skills that trigger on a hit, Skill % of the time (C-SkillSys, SkillEffects/BattleDamage/*Skills.c)
+    Skill("Luna", "proc", "Luna", "Luna:[NL]Negates enemy defense.[NL](Skill % activation).",
+          code="if (!magic && SkillProcFem(attacker, SKILL_FEM_Luna)) {\n"
+               "            *defense = 0;\n            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PIERCE;\n        }"),
+    Skill("Corona", "proc", "Corona", "Corona:[NL]Negates enemy resistance.[NL](Skill % activation).",
+          code="if (magic && SkillProcFem(attacker, SKILL_FEM_Corona)) {\n"
+               "            *defense = 0;\n            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PIERCE;\n        }"),
+    Skill("Sol", "proc", "Sol", "Sol:[NL]Restores damage dealt as HP.[NL](Skill % activation).",
+          code="if (SkillProcFem(attacker, SKILL_FEM_Sol))\n            sHitDrainFem = TRUE;"),
+    Skill("Aether", "proc", "Aether", "Aether:[NL]Negates 80% of enemy defenses[NL]and absorbs HP (Skill %).",
+          code="if (SkillProcFem(attacker, SKILL_FEM_Aether)) {\n"
+               "            *defense -= *defense * 80 / 100;\n            sHitDrainFem = TRUE;\n        }"),
+    Skill("Ignis", "proc", "Ignis", "Ignis:[NL]Adds DEF/2 (RES/2 with magic)[NL]to attack (Skill % activation).",
+          code="if (SkillProcFem(attacker, SKILL_FEM_Ignis))\n"
+               "            *attack += (magic ? attacker->unit.res : attacker->unit.def) / 2;"),
+    Skill("Colossus", "proc", "Colossus", "Colossus:[NL]Damage +200%.[NL](Skill % activation).",
+          after="if (!(gBattleHitIterator->attributes & (BATTLE_HIT_ATTR_CRIT | BATTLE_HIT_ATTR_SILENCER))"
+                " && SkillProcFem(attacker, SKILL_FEM_Colossus)) {\n"
+                "            gBattleStats.damage *= 3;\n"
+                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_CRIT;\n        }"),
+    Skill("Pavise", "proc", "Pavise", "Pavise:[NL]Nullifies a physical attack.[NL](Skill % activation).",
+          code="if (!magic && SkillProcFem(defender, SKILL_FEM_Pavise))\n"
+               "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
+    Skill("Aegis", "proc", "Aegis", "Aegis:[NL]Nullifies a magic attack.[NL](Skill % activation).",
+          code="if (magic && SkillProcFem(defender, SKILL_FEM_Aegis))\n"
+               "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
 )
 
 # The game's class abilities, shown as skills: their engine stays the game's (texts written for FE8's own rules).
@@ -288,6 +316,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     battle = _replace(battle, end, end.replace("}\n", "    ApplyBattleSkillsFem(attacker, defender);\n}\n"), rel)
     if any(s.kind == "order" for s in skills):
         battle = _battle_order(battle, numbers, rel)
+    if any(s.kind == "proc" for s in skills):
+        battle = _hit_skills(battle, [s for s in skills if s.kind == "proc"], rel)
     files[rel] = battle
 
     # icons: after the game's, their lookup table in free RAM
@@ -313,6 +343,63 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, numbers, texts, base))
     return files
+
+
+DRAIN_FLAG = "0x02028D80"   # one byte after the icon table, in the same free RAM: Sol or Aether triggered on this hit
+
+
+def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
+    """Skills that trigger on a hit, Skill % of the time (C-SkillSys's CheckBattleSkillActivate, never in the forecast):
+    before the damage (defense, attack, Pavise and Aegis as the game's Great Shield, Luna and Corona as its Pierce),
+    after the critical roll (Colossus, shown as a critical hit), and the HP drain of Sol and Aether, as Nosferatu's."""
+    before = "".join(f"    {{\n        {s.code}\n    }}\n" for s in procs if s.code)
+    after = "".join(f"    {{\n        {s.after}\n    }}\n" for s in procs if s.after)
+    battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", f"""\
+/* FE Maker: skills that trigger on a hit (C-SkillSys: SkillActRate.c, SkillEffects/BattleDamage) */
+#define sHitDrainFem (*(vu8*) {DRAIN_FLAG})
+
+static int SkillProcFem(struct BattleUnit* unit, int skill)
+{{
+    if (gBattleStats.config & BATTLE_CONFIG_SIMULATE)
+        return FALSE;
+    if (!SkillTesterFem(&unit->unit, skill))
+        return FALSE;
+    return BattleRoll2RN(unit->unit.skl, FALSE);
+}}
+
+static void ApplyHitSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender, short* attack, short* defense)
+{{
+    int magic = attacker->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE);
+
+{before}    (void) magic; (void) attack; (void) defense;
+}}
+
+static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUnit* defender)
+{{
+{after}    (void) defender;
+}}
+
+/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */
+""", rel)
+    battle = _replace(battle, "    gBattleStats.damage = 0;\n\n    BattleCheckSureShot(attacker);\n",
+                      "    gBattleStats.damage = 0;\n    sHitDrainFem = FALSE;\n\n    BattleCheckSureShot(attacker);\n", rel)
+    battle = _replace(battle, "        defense = 0;\n\n    gBattleStats.damage = attack - defense;\n",
+                      "        defense = 0;\n\n    ApplyHitSkillsFem(attacker, defender, &attack, &defense);\n\n"
+                      "    gBattleStats.damage = attack - defense;\n", rel)
+    cap = ("    if (gBattleStats.damage > BATTLE_MAX_DAMAGE)\n        gBattleStats.damage = BATTLE_MAX_DAMAGE;\n\n"
+           "    if (gBattleStats.damage < 0)\n        gBattleStats.damage = 0;\n\n    BattleCheckPetrify(")
+    battle = _replace(battle, cap, "    ApplyHitSkillsAfterFem(attacker, defender);\n\n" + cap, rel)
+    drain = ("        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN) {\n"
+             "            if (attacker->unit.maxHP < (attacker->unit.curHP + gBattleStats.damage))\n"
+             "                attacker->unit.curHP = attacker->unit.maxHP;\n"
+             "            else\n"
+             "                attacker->unit.curHP += gBattleStats.damage;\n\n"
+             "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_HPSTEAL;\n"
+             "        }\n")
+    return _replace(battle, drain, drain.replace(
+        "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN) {\n",
+        "        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN\n"
+        "            || (sHitDrainFem && gBattleStats.damage > 0)) { /* FE Maker: Sol, Aether */\n"), rel)
 
 
 def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
