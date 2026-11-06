@@ -126,8 +126,22 @@
     ITEM_STAFF_HEAL: 10, ITEM_STAFF_PHYSIC: 10, ITEM_STAFF_FORTIFY: 10, ITEM_STAFF_MEND: 20, ITEM_STAFF_RECOVER: 80,
     ITEM_VULNERARY: 10, ITEM_VULNERARY_2: 10, ITEM_ELIXIR: 80, ITEM_PUREWATER: 7,
   }
-  /** The stat a Pure Water copy raises for a few turns (server: gamedata.TEMP_STATS; Resistance is the game's own). */
-  const TEMP_STATS = ['res', 'pow', 'skl', 'spd', 'def', 'lck']
+  /** A Pure Water copy's bonuses or maluses, fading by 1 each turn (server: gamedata.temp_bonuses, ticket 164). Before
+   *  ticket 164 a copy raised one stat (effectStat, effectAmount); without either, the game's +7 Resistance. */
+  const TEMP_STATS = ['pow', 'skl', 'spd', 'def', 'res', 'lck']
+  function tempBonuses(i: Item): Record<string, number> {
+    if (i.tempBonuses) return i.tempBonuses
+    if (i.effectStat && i.effectStat !== 'res') return { [i.effectStat]: Math.min(i.effectAmount ?? 7, 7) }
+    return { res: Math.min(i.effectAmount ?? 7, 7) }
+  }
+  function setTempBonus(stat: string, value: number) {
+    edit((i) => {
+      const { [stat]: _old, ...others } = tempBonuses(i)
+      i.tempBonuses = value ? { ...others, [stat]: value } : others
+      delete i.effectStat
+      delete i.effectAmount
+    })
+  }
   const amountOf = $derived(it?.model ? GAME_AMOUNTS[it.actsLike ?? it.model] : undefined)
 
   async function addWeapon() {
@@ -213,22 +227,19 @@
               </select>
             </label>
             {#if amountOf !== undefined}
-              {@const water = (it.actsLike ?? it.model) === 'ITEM_PUREWATER'}
-              {#if water}
-                <label>
-                  <span>{t('item.tempStat')}</span>
-                  <select value={it.effectStat ?? 'res'} onchange={(e) => {
-                    const v = (e.target as HTMLSelectElement).value
-                    edit((i) => { if (v === 'res') delete i.effectStat; else i.effectStat = v })
-                  }}>
-                    {#each TEMP_STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
-                  </select>
-                </label>
+              {#if (it.actsLike ?? it.model) === 'ITEM_PUREWATER'}
+                <p class="small">{t('item.tempBonuses')} <Help text={t('item.tempBonusesHint')} /></p>
+                <div class="row">
+                  {#each TEMP_STATS as stat (stat)}
+                    <NumberField label={t(`stat.${stat}`)} value={tempBonuses(it)[stat] ?? 0} min={-8} max={7}
+                                 onchange={(v) => setTempBonus(stat, v)} />
+                  {/each}
+                </div>
+              {:else}
+                <NumberField label={t('item.amountHeal')} value={it.effectAmount ?? amountOf} min={1} max={80}
+                             onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
+                <Help text={t('item.amountHealHint')} />
               {/if}
-              <NumberField label={t(water ? 'item.amountBarrier' : 'item.amountHeal')} value={it.effectAmount ?? amountOf}
-                           min={1} max={water ? ((it.effectStat ?? 'res') === 'res' ? 7 : 15) : 80}
-                           onchange={(v) => edit((i) => { if (v === amountOf) delete i.effectAmount; else i.effectAmount = v })} />
-              <Help text={t(water ? 'item.amountBarrierHint' : 'item.amountHealHint')} />
             {/if}
           {:else if copiable}
             <p class="small">

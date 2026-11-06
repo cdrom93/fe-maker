@@ -1386,7 +1386,7 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     tonic = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"]})
     tonic.update(name="Tonique", effectAmount=4, effectStat="spd")
     force = decomp.new_item("ITEM_PUREWATER", {i["id"] for i in items} | {balm["id"], water["id"], tonic["id"]})
-    force.update(name="Force", effectAmount=5, effectStat="pow")
+    force.update(name="Force", tempBonuses={"pow": 5, "def": -2})   # ticket 164: several stats, a malus
     project.save("items", [*items, balm, water, tonic, force])
     chapters = project.load("chapters")
     for unit, item in zip(chapters["unitGroups"]["UnitDef_Event_PrologueAlly"], (balm, water, tonic)):
@@ -1395,7 +1395,7 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
     project.save("chapters", chapters)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
 
-    def bonuses(unit):   # 4 bits per stat: Strength, Skill, Speed, Defense, Luck
+    def bonuses(unit):   # 4 signed bits per stat: Str, Skl, Spd, Def, Res, Lck
         return game.read(unit, 0x3A) | game.read(unit, 0x3B) << 8 | game.read(unit, 0x47) << 16
 
     with Game(out.rom_path, out.map_path) as game:
@@ -1412,10 +1412,10 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path):
         assert game.wait_until(lambda: game.turn() == 2 and game.read(second, 0x31) >> 4 == 2, seconds=120, step=30)
         assert bonuses(third) == 0x300
         _bench_use_item(game, third, slot=1)
-        assert bonuses(third) == 0x305   # Strength +5 beside Speed +3
+        assert bonuses(third) == 0xE305   # Strength +5, Defense -2 beside Speed +3
         _bench_suspend_and_resume(game, (second, third))
         _bench_units(game, turn=2)
-        assert bonuses(third) == 0x305 and game.read(second, 0x31) >> 4 == 2
+        assert bonuses(third) == 0xE305 and game.read(second, 0x31) >> 4 == 2
 
 
 def test_weapon_sheet_in_a_battle(tmp_path):

@@ -168,3 +168,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 05/11/2026 : cahier, « Agrandir les tables » : les places possibles dans la mémoire de sauvegarde (zone libre, cartes bonus, arène en lien, une partie en moins, Expanded Modular Save).
 - 05/11/2026 : #162, les bonus de stats d'un objet à utiliser (pas un booster) sont gardés à l'usage (`_with_use_bonuses`), vérifié en jeu ; #161, barres de PV et bulles cachées quand un portrait est affiché (pas encore vérifié en jeu).
 - 06/11/2026 : #161 vérifié en jeu (barres cachées sous un portrait, sur le prologue) ; #163, la « nuit » est un fond bleu inachevé du jeu : renommée et plus proposée ; test serveur de #162.
+- 06/11/2026 : #164, bonus temporaires sur plusieurs stats à la fois et malus (-8 à +7, `tempBonuses`), vérifiés en jeu avec sauvegarde de mi-chapitre ; l'ancien format à une stat reste lu.

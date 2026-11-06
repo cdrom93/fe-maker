@@ -79,15 +79,16 @@ HEAL_ITEMS = {"ITEM_STAFF_HEAL", "ITEM_STAFF_PHYSIC", "ITEM_STAFF_FORTIFY", "ITE
               "ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 DRINK_HEAL_ITEMS = {"ITEM_VULNERARY", "ITEM_VULNERARY_2", "ITEM_ELIXIR"}
 AMOUNT_ITEMS = HEAL_ITEMS | {"ITEM_PUREWATER"}
-# a temporary bonus dropping each turn, on another stat than Pure Water's Resistance: its 4 bits in the unit's spare
-# bytes (_u3A, _u3B, _u47 read as one number, TEMP_BONUSES_FEM), so every stat can have one at once
-TEMP_STATS = {"pow": 0, "skl": 1, "spd": 2, "def": 3, "lck": 4}
-TEMP_BONUS_MAX = 15
+# temporary bonuses or maluses that fade by 1 each turn (Pure Water copies, tickets 144 and 164): a signed 4-bit counter
+# per stat (-8 to +7) in the unit's spare bytes (_u3A, _u3B, _u47 read as one number, TEMP_BONUSES_FEM)
+TEMP_STATS = {"pow": 0, "skl": 1, "spd": 2, "def": 3, "res": 4, "lck": 5}
+TEMP_BONUS_MIN, TEMP_BONUS_MAX = -8, 7
 TEMP_BONUS_MACROS = """
-/* FE Maker: temporary stat bonuses (Pure Water copies), 4 bits per stat in the spare bytes, see TEMP_STATS */
+/* FE Maker: temporary stat bonuses (Pure Water copies), a signed 4-bit counter per stat in the spare bytes */
 #define TEMP_BONUSES_FEM(aUnit) ((aUnit)->_u3A | (aUnit)->_u3B << 8 | (aUnit)->_u47 << 16)
-#define TEMP_BONUS_FEM(aUnit, n) ((TEMP_BONUSES_FEM(aUnit) >> (4 * (n))) & 15)
+#define TEMP_BONUS_FEM(aUnit, n) ((int) ((((TEMP_BONUSES_FEM(aUnit) >> (4 * (n))) & 15) ^ 8)) - 8)
 #define SET_TEMP_BONUSES_FEM(aUnit, v) ((aUnit)->_u3A = (v), (aUnit)->_u3B = (v) >> 8, (aUnit)->_u47 = (v) >> 16)
+static inline int TempStatFem(int value) { return value < 0 ? 0 : value; } /* a malus stops at 0 */
 
 """
 # the suspend save has no room for them: up to 10 units' bonuses per suspend slot go in the save memory's unused
@@ -350,6 +351,19 @@ def _rank_value(value: str | int) -> int:
     return RANK_VALUES[value] if isinstance(value, str) else int(value)
 
 
+def temp_bonuses(item: dict) -> dict[str, int] | None:
+    """A Pure Water copy's bonuses fading each turn (stat -> -8..+7, ticket 164), None when it keeps the game's +7
+    Resistance. Before ticket 164 a copy raised one stat: effectStat with effectAmount."""
+    if "tempBonuses" in item:
+        bonuses = item["tempBonuses"] or {}
+    elif item.get("effectStat") and item["effectStat"] != "res":
+        bonuses = {item["effectStat"]: item.get("effectAmount") or 7}
+    else:
+        return None
+    return {stat: max(TEMP_BONUS_MIN, min(TEMP_BONUS_MAX, int(value)))
+            for stat, value in bonuses.items() if stat in TEMP_STATS and value}
+
+
 class DecompData:
     """The decomp files FE Maker reads and writes, loaded from a decomp checkout."""
 
@@ -394,7 +408,7 @@ class DecompData:
         self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
         self.item_amounts: dict[str, int] = {}   # items the project adds -> HP they heal, or Pure Water's barrier
         self.item_use_bonuses: list[str] = []   # usable items, not boosters, given stat bonuses: kept on use
-        self.item_temp_stats: dict[str, str] = {}   # Pure Water copies raising another stat than Resistance
+        self.item_temp_bonuses: dict[str, dict[str, int]] = {}   # Pure Water copies: stat -> bonus fading each turn
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
@@ -2365,9 +2379,9 @@ class DecompData:
             if text != original:
                 out[rel] = text
         for new_id, model in news:
-            if new_id in self.item_amounts or new_id in self.item_temp_stats:
+            if new_id in self.item_amounts or new_id in self.item_temp_bonuses:
                 self._own_item_amount(out, new_id, model, self.item_amounts.get(new_id, 7))
-        if any(model == "ITEM_PUREWATER" for new_id, model in news if new_id in self.item_temp_stats):
+        if any(model == "ITEM_PUREWATER" for new_id, model in news if new_id in self.item_temp_bonuses):
             self._with_temporary_bonus(out)
 
     def _with_temporary_bonus(self, out: dict[str, str | bytes]) -> None:
@@ -2385,19 +2399,21 @@ class DecompData:
 
         patch("include/bmunit.h", [("\n#endif // GUARD_BM_UNIT_H", TEMP_BONUS_MACROS + "#endif // GUARD_BM_UNIT_H")])
         getters = []
-        for name, stat in (("Power", "pow"), ("Skill", "skl"), ("Speed", "spd"), ("Defense", "def"), ("Luck", "lck")):
+        for name, stat in (("Power", "pow"), ("Skill", "skl"), ("Speed", "spd"), ("Defense", "def"),
+                           ("Resistance", "res"), ("Luck", "lck")):
             start = f"inline int GetUnit{name}(struct Unit* unit) {{"
             text = out.get("src/bmunit.c") or self._read("src/bmunit.c")
             at = text.index(start)
             body = text[at:text.index("\n}\n", at)]
             getters.append((body, re.sub(r"(\n    return )([^;]+);",
-                                         rf"\1\2 + TEMP_BONUS_FEM(unit, {TEMP_STATS[stat]});", body)))
+                                         rf"\1TempStatFem(\2 + TEMP_BONUS_FEM(unit, {TEMP_STATS[stat]}));", body)))
         patch("src/bmunit.c", [*getters, (
             "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n",
             "        if (unit->barrierDuration != 0)\n            unit->barrierDuration--;\n\n"
             "        if (TEMP_BONUSES_FEM(unit) != 0) {\n            u32 bonuses = 0;\n            int n;\n\n"
-            "            for (n = 0; n < 5; n++)\n                if (TEMP_BONUS_FEM(unit, n) != 0)\n"
-            "                    bonuses |= (TEMP_BONUS_FEM(unit, n) - 1) << (4 * n);\n\n"
+            "            for (n = 0; n < 6; n++) {\n                int bonus = TEMP_BONUS_FEM(unit, n);\n\n"
+            "                bonus += bonus > 0 ? -1 : bonus < 0 ? 1 : 0;\n"
+            "                bonuses |= (bonus & 15) << (4 * n);\n            }\n\n"
             "            SET_TEMP_BONUSES_FEM(unit, bonuses);\n        }\n")])
         patch("src/bmio.c", [("            unit->barrierDuration = 0;\n",
                               "            unit->barrierDuration = 0;\n            SET_TEMP_BONUSES_FEM(unit, 0);\n")])
@@ -2428,19 +2444,21 @@ class DecompData:
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}:\n            ExecVulneraryItem(proc, {amount});\n            break;\n")
         if model == "ITEM_PUREWATER":
-            stat = TEMP_STATS.get(self.item_temp_stats.get(new_id, "res"))
-            if stat is None:
+            bonuses = self.item_temp_bonuses.get(new_id)
+            if not bonuses:
                 bonus = min(amount, 7)
                 own("src/bmitemuse.c", "s8 CanUnitUseItem(",
                     f"    case {new_id}:\n        return unit->barrierDuration < {bonus};\n\n")
                 effect = f"drinker->barrierDuration = {bonus};"
             else:
-                # a drink while the bonus is lower raises it back, like the game's Pure Water (refused at 7)
-                bonus, mask = min(amount, TEMP_BONUS_MAX), 15 << (4 * stat)
-                own("src/bmitemuse.c", "s8 CanUnitUseItem(",
-                    f"    case {new_id}:\n        return TEMP_BONUS_FEM(unit, {stat}) < {bonus};\n\n")
-                effect = (f"SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~{mask:#x}) | "
-                          f"{bonus << (4 * stat):#x});")
+                # each drink sets the counters back to the item's values; refused once they all are (the game's Pure
+                # Water is refused at 7)
+                mask = sum(15 << (4 * TEMP_STATS[stat]) for stat in bonuses)
+                values = sum((value & 15) << (4 * TEMP_STATS[stat]) for stat, value in bonuses.items())
+                usable = " || ".join(f"TEMP_BONUS_FEM(unit, {TEMP_STATS[stat]}) {'<' if value > 0 else '>'} {value}"
+                                     for stat, value in bonuses.items())
+                own("src/bmitemuse.c", "s8 CanUnitUseItem(", f"    case {new_id}:\n        return {usable};\n\n")
+                effect = f"SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~{mask:#x}) | {values:#x});"
             own("src/bmusemind.c", "void ActionStaffDoorChestUseItem(",
                 f"        case {new_id}: {{\n"
                 "            struct Unit* drinker = GetUnit(gActionData.subjectIndex);\n\n"
@@ -2458,10 +2476,13 @@ class DecompData:
                 entry = entries[it["id"]] = self._add_item(it["id"], it.get("model"))
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("actsLike"):
                 self.item_acts_like[it["id"]] = it["actsLike"]   # another item's effect (ticket 144)
-            if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectStat") and it["effectStat"] != "res":
-                self.item_temp_stats[it["id"]] = it["effectStat"]
             if it["id"].startswith(NEW_ITEM_PREFIX) and it.get("effectAmount"):
                 self.item_amounts[it["id"]] = int(it["effectAmount"])
+            if it["id"].startswith(NEW_ITEM_PREFIX) and (bonuses := temp_bonuses(it)) is not None:
+                if list(bonuses) == ["res"] and bonuses["res"] > 0:
+                    self.item_amounts[it["id"]] = bonuses["res"]   # the game's own Resistance bonus (barrierDuration)
+                elif bonuses:
+                    self.item_temp_bonuses[it["id"]] = bonuses
             if entry is None:
                 raise GameDataError(f"Unknown item {it['id']}")
             f = entry.fields

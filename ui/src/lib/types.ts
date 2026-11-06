@@ -42,6 +42,7 @@ export interface Item {
   /** items the project adds: HP healed, or Pure Water's Resistance, when not the game's amount */
   effectAmount?: number
   effectStat?: string
+  tempBonuses?: Record<string, number>
   weaponType: string
   might: number
   hit: number

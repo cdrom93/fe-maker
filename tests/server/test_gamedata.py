@@ -339,13 +339,14 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
                            "        case ITEM_PUREWATER: case ITEM_NEW_CE:\n            ExecPureWater(proc);\n"
                            "            break;\n    }\n}\n",
     }
-    d.item_temp_stats["ITEM_NEW_CE"] = "spd"
-    d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_PUREWATER", 12)
+    d.item_temp_bonuses["ITEM_NEW_CE"] = {"spd": 6, "def": -3}
+    d._own_item_amount(out, "ITEM_NEW_CE", "ITEM_PUREWATER", 7)
     d._with_temporary_bonus(out)
-    assert "SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~0xf00) | 0xc00);" in out["src/bmusemind.c"]
-    assert "case ITEM_NEW_CE:\n        return TEMP_BONUS_FEM(unit, 2) < 12;" in out["src/bmitemuse.c"]
-    assert "return unit->spd + TEMP_BONUS_FEM(unit, 2);" in out["src/bmunit.c"]
-    assert "return unit->res;" in out["src/bmunit.c"]
+    assert "SET_TEMP_BONUSES_FEM(drinker, (TEMP_BONUSES_FEM(drinker) & ~0xff00) | 0xd600);" in out["src/bmusemind.c"]
+    usable = "case ITEM_NEW_CE:\n        return TEMP_BONUS_FEM(unit, 2) < 6 || TEMP_BONUS_FEM(unit, 3) > -3;"
+    assert usable in out["src/bmitemuse.c"]
+    assert "return TempStatFem(unit->spd + TEMP_BONUS_FEM(unit, 2));" in out["src/bmunit.c"]
+    assert "return TempStatFem(unit->res + TEMP_BONUS_FEM(unit, 4));" in out["src/bmunit.c"]
     assert "#define TEMP_BONUS_FEM" in out["include/bmunit.h"]
     assert "SET_TEMP_BONUSES_FEM(unit, bonuses);" in out["src/bmunit.c"]
     assert "SET_TEMP_BONUSES_FEM(unit, 0);" in out["src/bmio.c"]
@@ -364,3 +365,12 @@ def test_a_usable_item_keeps_its_stat_bonuses_on_use(decomp_dir):
     assert code.index("static void ApplyUseStatBonusesFem(") < code.index("void ActionStaffDoorChestUseItem(")
     assert "    switch (itemId) {\n        case ITEM_NEW_CE:\n            ApplyUseStatBonusesFem(" in code
     assert "case ITEM_VULNERARY:" in code
+
+
+def test_temp_bonuses_of_a_pure_water_copy():
+    """Ticket 164: several stats at once, maluses, clamped to -8..+7; the earlier one-stat fields still read."""
+    from fe_maker.decomp.gamedata import temp_bonuses
+
+    assert temp_bonuses({"tempBonuses": {"pow": 9, "spd": -12, "lck": 0, "hp": 3}}) == {"pow": 7, "spd": -8}
+    assert temp_bonuses({"effectStat": "lck", "effectAmount": 12}) == {"lck": 7}
+    assert temp_bonuses({"effectAmount": 3}) is None
