@@ -4,6 +4,7 @@
   import Help from './Help.svelte'
   import { api } from '../lib/api'
   import { projectView } from '../lib/appContext.svelte'
+  import { magicSplit } from '../lib/magic.svelte'
   import { t } from '../lib/i18n.svelte'
   import ProjectScope from './ProjectScope.svelte'
 
@@ -44,6 +45,7 @@
     error = ''
     try {
       data = await api.setGameOptions({ ...data.options, [key]: value })
+      magicSplit.on = !!data.options.strMagSplit
     } catch (e) {
       error = String(e)
     } finally {

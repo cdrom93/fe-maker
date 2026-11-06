@@ -17,6 +17,7 @@
   import Mention from './Mention.svelte'
   import ReservedWeapons from './ReservedWeapons.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
+  import { classMagic, statLabel, withMagic } from '../lib/magic.svelte'
 
   let {
     list,
@@ -29,7 +30,12 @@
 
   const STATS: ClassStatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
-  const PROMO = ['hp', 'pow', 'skl', 'spd', 'def', 'res'] as const
+  /** the table's columns, with Magic after Strength when it is apart (game option strMagSplit) */
+  const COLUMNS = $derived(withMagic(GROWTHS))
+  type Row = 'bases' | 'maxes' | 'growths' | 'promotionGains'
+  /** a figure of the table; Magic's has a default when the project gives none (lib/magic) */
+  const figure = (row: Row, s: string) => (s === 'mag' ? classMagic(cl)[row] : (cl[row] as Record<string, number>)[s])
+  const setFigure = (row: Row, s: string, v: number) => edit((c) => ((c[row] as Record<string, number>)[s] = v))
   const GENDER_SIGN = { male: '♂', female: '♀' } as const
 
   let selected = $state(0)
@@ -238,15 +244,15 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th></th>{#each GROWTHS as s (s)}<th>{t(`stat.${s}`)}</th>{/each}<th>{t('stat.con')}</th></tr>
+              <tr><th></th>{#each COLUMNS as s (s)}<th>{statLabel(s)}</th>{/each}<th>{t('stat.con')}</th></tr>
             </thead>
             <tbody>
               <tr>
                 <th>{t('class.bases')}</th>
-                {#each GROWTHS as s (s)}
+                {#each COLUMNS as s (s)}
                   <td>
                     {#if s === 'lck'}<span class="muted">—</span>{:else}
-                      <NumberField compact label="" value={cl.bases[s]} min={0} max={127} problem={problemFor(`bases.${s}`)} onchange={(v) => edit((c) => (c.bases[s as ClassStatKey] = v))} />
+                      <NumberField compact label="" value={figure('bases', s)} min={0} max={127} problem={problemFor(`bases.${s}`)} onchange={(v) => setFigure('bases', s, v)} />
                     {/if}
                   </td>
                 {/each}
@@ -254,10 +260,10 @@
               </tr>
               <tr>
                 <th>{t('field.max')}</th>
-                {#each GROWTHS as s (s)}
+                {#each COLUMNS as s (s)}
                   <td>
                     {#if s === 'lck'}<span class="muted">30</span>{:else}
-                      <NumberField compact label="" value={cl.maxes[s]} min={0} max={127} problem={problemFor(`maxes.${s}`)} onchange={(v) => edit((c) => (c.maxes[s as ClassStatKey] = v))} />
+                      <NumberField compact label="" value={figure('maxes', s)} min={0} max={127} problem={problemFor(`maxes.${s}`)} onchange={(v) => setFigure('maxes', s, v)} />
                     {/if}
                   </td>
                 {/each}
@@ -265,17 +271,18 @@
               </tr>
               <tr>
                 <th>{t('class.growths')}</th>
-                {#each GROWTHS as s (s)}
-                  <td><NumberField compact label="" value={cl.growths[s]} min={0} max={127} problem={problemFor(`growths.${s}`)} onchange={(v) => edit((c) => (c.growths[s] = v))} /></td>
+                {#each COLUMNS as s (s)}
+                  <td><NumberField compact label="" value={figure('growths', s)} min={0} max={127} problem={problemFor(`growths.${s}`)} onchange={(v) => setFigure('growths', s, v)} /></td>
                 {/each}
                 <td></td>
               </tr>
               <tr>
                 <th>{t('class.promotionGains')}</th>
-                {#each GROWTHS as s (s)}
+                {#each COLUMNS as s (s)}
                   <td>
                     {#if s === 'lck'}<span class="muted">—</span>{:else}
-                      <NumberField compact label="" value={cl.promotionGains[s as (typeof PROMO)[number]]} min={0} max={255} problem={problemFor(`promotionGains.${s}`)} onchange={(v) => edit((c) => (c.promotionGains[s as (typeof PROMO)[number]] = v))} />
+                      <NumberField compact label="" value={figure('promotionGains', s)} min={0} max={255} problem={problemFor(`promotionGains.${s}`)}
+                                   onchange={(v) => setFigure('promotionGains', s, v)} />
                     {/if}
                   </td>
                 {/each}

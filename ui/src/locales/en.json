@@ -91,6 +91,8 @@
   "field.none": "—",
   "stat.hp": "HP",
   "stat.pow": "Str/Mag",
+  "stat.str": "Str",
+  "stat.mag": "Mag",
   "stat.skl": "Skl",
   "stat.spd": "Spd",
   "stat.def": "Def",

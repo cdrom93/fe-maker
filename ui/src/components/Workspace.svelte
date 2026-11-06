@@ -3,6 +3,7 @@
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api, type DataKind } from '../lib/api'
   import { projectView } from '../lib/appContext.svelte'
+  import { magicSplit } from '../lib/magic.svelte'
   import { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { type Focus, type NavKind, provideNavigator } from '../lib/navigation.svelte'
@@ -25,6 +26,7 @@
 
   $effect(() => {
     projectView.showOriginal = project.meta.showOriginal !== false
+    magicSplit.on = !!(project.meta.gameOptions as Record<string, unknown> | undefined)?.strMagSplit
   })
   $effect(() => {
     document.documentElement.classList.toggle('hide-original', !projectView.showOriginal)

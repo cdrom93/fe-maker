@@ -1154,14 +1154,16 @@ class UnitStatsIn(BaseModel):
 def unit_stats(body: UnitStatsIn):
     """Stats of a unit entering a chapter, as the game computes them (decomp/averagestats.py)."""
     project = state.require_project()
-    cls = next((c for c in project.load("classes") if c["id"] == body.classId), None)
+    classes = {c["id"]: c for c in project.load("classes")}
+    cls = classes.get(body.classId)
     if cls is None:
         raise HTTPException(404, f"Unknown class {body.classId}")
     character = next((c for c in project.load("characters") if c["id"] == body.character), None)
     by_id = {i["id"]: i for i in project.load("items")}
     return {
         "stats": averagestats.average_stats(character, cls, body.level, body.autolevel, body.side,
-                                            state.get_decomp().character_number(body.character)),
+                                            state.get_decomp().character_number(body.character),
+                                            classes if project.game_options.get("strMagSplit") else None),
         "ranks": validation.unit_ranks(character, cls, [by_id[i] for i in body.items if i in by_id], body.autolevel),
     }
 

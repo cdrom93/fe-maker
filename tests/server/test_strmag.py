@@ -35,3 +35,16 @@ def test_the_split_matches_the_decomp():
     assert files["src/bmbattle.c"].count("ApplyPromotionMagicFem(unit, promotedClass->number);") == 2
     assert "[0x01] = { 0, " in files["src/bmunit.c"] and "WriteMagicFem(slot, UNIT_SAVE_AMOUNT_BLUE);" in files["src/bmsave.c"]
     assert "sym_iwram.txt" not in files   # no temporary bonuses: their spare bytes stay
+
+
+def test_average_stats_with_magic():
+    """The chapter panel's stats: Magic beside Strength when the option is on, as the game computes it."""
+    from fe_maker.decomp import averagestats
+    mage = {"id": "CLASS_MAGE", "bases": {"pow": 1}, "growths": {"pow": 40}, "maxes": {"pow": 20},
+            "promotionGains": {}, "weaponRanks": {"anima": 1}, "abilities": []}
+    sage = {**mage, "id": "CLASS_SAGE", "bases": {"pow": 1, "mag": 5}, "maxes": {"pow": 20, "mag": 9}}
+    hero = {"class": "CLASS_MAGE", "level": 1, "bases": {"pow": 2, "mag": 4}, "growths": {"pow": 10, "mag": 100}}
+    classes = {"CLASS_MAGE": mage, "CLASS_SAGE": sage}
+    assert "mag" not in averagestats.average_stats(hero, mage, 3, True, "player", 1)
+    assert averagestats.average_stats(hero, mage, 3, True, "player", 1, classes)["mag"] == 1 + 4 + 2
+    assert averagestats.average_stats(hero, sage, 3, True, "player", 1, classes)["mag"] == 9   # the class's maximum

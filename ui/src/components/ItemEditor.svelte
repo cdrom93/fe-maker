@@ -7,6 +7,7 @@
   import FeRepoBrowser from './FeRepoBrowser.svelte'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
+  import { statLabel, withMagic } from '../lib/magic.svelte'
   import type { Character, ClassView, Item, ItemIcons, Problem, Reference } from '../lib/types'
   import NumberField from './NumberField.svelte'
   import GenderSign from './GenderSign.svelte'
@@ -72,7 +73,8 @@
   const PROPERTIES = ['magicSword', 'brave', 'uncounterable', 'reverseTriangle', 'negateDefense', 'unbreakable', 'unsellable',
                       'noRepair', 'negateFlying', 'negateCrit']
   const MELEE_TYPES = ['sword', 'lance', 'axe']
-  const BONUS_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'mov', 'con']
+  /** with Magic after Strength when it is apart (game option strMagSplit) */
+  const BONUS_STATS = $derived(withMagic(['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'mov', 'con']))
   const EFFECTS = ['poison', 'drain', 'halve', 'devil', 'petrify']
   const isWeapon = $derived(!!it && !['staff', 'item', 'dance'].includes(it.weaponType))
   const magicChoice = $derived(isWeapon && !MAGIC_TYPES.includes(it.weaponType))
@@ -231,7 +233,7 @@
                 <p class="small">{t('item.tempBonuses')} <Help text={t('item.tempBonusesHint')} /></p>
                 <div class="row">
                   {#each TEMP_STATS as stat (stat)}
-                    <NumberField label={t(`stat.${stat}`)} value={tempBonuses(it)[stat] ?? 0} min={-8} max={7}
+                    <NumberField label={statLabel(stat)} value={tempBonuses(it)[stat] ?? 0} min={-8} max={7}
                                  onchange={(v) => setTempBonus(stat, v)} />
                   {/each}
                 </div>
@@ -314,7 +316,7 @@
         <summary>{t('item.bonuses')} <Help text={t('item.bonusesHint')} /></summary>
         <div class="grid">
           {#each BONUS_STATS as stat (stat)}
-            <NumberField label={t(`stat.${stat}`)} value={it.statBonuses?.[stat] ?? 0} min={-128} max={127} problem={problemFor(`statBonuses.${stat}`)}
+            <NumberField label={statLabel(stat)} value={it.statBonuses?.[stat] ?? 0} min={-128} max={127} problem={problemFor(`statBonuses.${stat}`)}
                          onchange={(v) => setBonus(stat, v)} />
           {/each}
         </div>

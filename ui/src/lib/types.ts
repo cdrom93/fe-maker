@@ -19,8 +19,8 @@ export interface Character {
   class: string
   level: number
   portraitId: number
-  bases: Record<StatKey, number>
-  growths: Record<Exclude<StatKey, 'con'>, number>
+  bases: Record<StatKey, number> & { mag?: number }   // mag: with strMagSplit (lib/magic.svelte.ts)
+  growths: Record<Exclude<StatKey, 'con'>, number> & { mag?: number }
   weaponRanks: Record<string, string | number>
   affinity: string | null
   abilities: string[]
@@ -93,11 +93,11 @@ export interface ClassData {
   name: string
   /** classes the project adds (CLASS_NEW_xx): the game's class they copy (sprites, animations) */
   model?: string
-  bases: Record<ClassStatKey, number>
+  bases: Record<ClassStatKey, number> & { mag?: number }
   mov: number
-  maxes: Record<ClassStatKey, number>
-  growths: Record<Exclude<StatKey, 'con'>, number>
-  promotionGains: Record<Exclude<ClassStatKey, 'con'>, number>
+  maxes: Record<ClassStatKey, number> & { mag?: number }
+  growths: Record<Exclude<StatKey, 'con'>, number> & { mag?: number }
+  promotionGains: Record<Exclude<ClassStatKey, 'con'>, number> & { mag?: number }
   relativePower: number
   weaponRanks: Record<string, string | number>
   abilities: string[]

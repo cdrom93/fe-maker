@@ -17,6 +17,7 @@
   import FacePicker from './FacePicker.svelte'
   import AffinityPicker from './AffinityPicker.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
+  import { characterMagic, classMagic, statLabel, withMagic } from '../lib/magic.svelte'
 
   let {
     list,
@@ -31,8 +32,12 @@
     onproblems: (p: Problem[]) => void
   } = $props()
 
-  const STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
-  const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
+  const ALL_STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
+  const ALL_GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
+  /** with Magic after Strength when it is apart (game option strMagSplit) */
+  const STATS = $derived(withMagic(ALL_STATS))
+  const GROWTHS = $derived(withMagic(ALL_GROWTHS))
+  type Stat = StatKey | 'mag'
   const LUCK_CAP = 30 // fixed by the engine, not per class
   /** who opens the convoy, and who can seize, in the game (server: convoy.DEFAULT_OPENERS, seize.DEFAULT_SEIZERS) */
   const CONVOY_OPENERS = ['CHARACTER_EIRIKA', 'CHARACTER_EPHRAIM']
@@ -108,20 +113,28 @@
 
   /** What the character has on average: `averageLevel` in their class, then, after each promotion, the level chosen in the new one
    * (as ApplyUnitPromotion: gains, then the new class's limits; constitution comes with the class). */
-  function average(s: StatKey): { value: number; capped: boolean } {
+  /** Magic's figures come from lib/magic (a default when the project gives none). */
+  const personal = (s: Stat) => (s === 'mag' ? characterMagic(ch, cls).bases : ch.bases[s])
+  const growthOf = (s: Stat) => (s === 'mag' ? characterMagic(ch, cls).growths : s === 'con' ? 0 : ch.growths[s])
+  const classBase = (s: Stat, c?: ClassView) => (s === 'mag' ? classMagic(c).bases : (c?.bases[s as ClassStatKey] ?? 0))
+  const classMax = (s: Stat, c?: ClassView) => (s === 'mag' ? (c ? classMagic(c).maxes : undefined) : c?.maxes[s as ClassStatKey])
+  const classGain = (s: Stat, c: ClassView) => (s === 'mag' ? classMagic(c).promotionGains
+    : c.promotionGains[s as Exclude<ClassStatKey, 'con'>])
+
+  function average(s: Stat): { value: number; capped: boolean } {
     let capped = false
     const within = (value: number, c?: ClassView) => {
-      const limit = s === 'lck' ? LUCK_CAP : c?.maxes[s as ClassStatKey]
+      const limit = s === 'lck' ? LUCK_CAP : classMax(s, c)
       capped = limit !== undefined && value >= limit
       return Math.min(value, limit ?? value)
     }
-    const growth = s === 'con' ? 0 : ch.growths[s]
-    const start = ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)
+    const growth = growthOf(s)
+    const start = personal(s) + classBase(s, cls)
     let value = within(start + (growth * Math.max(0, reached(averageLevel, cls) - ch.level)) / 100, cls)
     for (const { to, level } of steps) {
       if (!to) break
       if (s === 'con') value = ch.bases.con + to.bases.con
-      else if (s !== 'lck') value += to.promotionGains[s]
+      else if (s !== 'lck') value += classGain(s, to)
       value = within(value + (growth * Math.max(0, level - 1)) / 100, to)
     }
     return { value: Number(value.toFixed(1)), capped }
@@ -134,7 +147,7 @@
       if (gender) c.abilities = [...c.abilities.filter((a) => a !== 'female'), ...(gender === 'female' ? ['female'] : [])]
     })
   }
-  const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + ch.growths[s], 0) : 0)
+  const growthSum = $derived(ch ? GROWTHS.reduce((sum, s) => sum + growthOf(s), 0) : 0)
   let colorsOpen = $state(false)
 
   function setColors(classId: string, lines: string[][] | null | undefined, kept?: string[][]) {
@@ -230,31 +243,31 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th></th>{#each STATS as s (s)}<th>{t(`stat.${s}`)}</th>{/each}<th>{t('field.mov')}</th></tr>
+              <tr><th></th>{#each STATS as s (s)}<th>{statLabel(s)}</th>{/each}<th>{t('field.mov')}</th></tr>
             </thead>
             <tbody>
               <tr>
                 <th>{t('field.personal')}</th>
                 {#each STATS as s (s)}
                   <td>
-                    <NumberField compact label="" value={ch.bases[s]} min={-128} max={127} problem={problemFor(`bases.${s}`)} onchange={(v) => edit((c) => (c.bases[s] = v))} />
+                    <NumberField compact label="" value={personal(s)} min={-128} max={127} problem={problemFor(`bases.${s}`)} onchange={(v) => edit((c) => (c.bases[s] = v))} />
                   </td>
                 {/each}
                 <td></td>
               </tr>
               <tr class="muted">
                 <th>{t('field.classBase')}</th>
-                {#each STATS as s (s)}<td>{cls?.bases[s as ClassStatKey] ?? 0}</td>{/each}
+                {#each STATS as s (s)}<td>{classBase(s, cls)}</td>{/each}
                 <td>{cls?.mov ?? '?'}</td>
               </tr>
               <tr class="total">
                 <th>{t('field.total')}</th>
-                {#each STATS as s (s)}<td>{ch.bases[s] + (cls?.bases[s as ClassStatKey] ?? 0)}</td>{/each}
+                {#each STATS as s (s)}<td>{personal(s) + classBase(s, cls)}</td>{/each}
                 <td>{cls?.mov ?? '?'}</td>
               </tr>
               <tr class="muted">
                 <th>{t('field.max')}{finalClass === cls ? '' : ` · ${finalClass?.name}`}</th>
-                {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (finalClass?.maxes[s as ClassStatKey] ?? '?')}</td>{/each}
+                {#each STATS as s (s)}<td>{s === 'lck' ? LUCK_CAP : (classMax(s, finalClass) ?? '?')}</td>{/each}
                 <td></td>
               </tr>
               <tr class="average">
@@ -290,7 +303,7 @@
         <summary>{t('field.growths')}</summary>
         <div class="grid">
           {#each GROWTHS as s (s)}
-            <NumberField label={t(`stat.${s}`)} value={ch.growths[s]} min={0} max={255} problem={problemFor(`growths.${s}`)} onchange={(v) => edit((c) => (c.growths[s] = v))} />
+            <NumberField label={statLabel(s)} value={growthOf(s)} min={0} max={255} problem={problemFor(`growths.${s}`)} onchange={(v) => edit((c) => (c.growths[s] = v))} />
           {/each}
         </div>
         <p class="small muted">{t('field.growthSum', { n: growthSum })}</p>

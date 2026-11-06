@@ -91,6 +91,8 @@
   "field.none": "—",
   "stat.hp": "PV",
   "stat.pow": "For/Mag",
+  "stat.str": "For",
+  "stat.mag": "Mag",
   "stat.skl": "Tech",
   "stat.spd": "Vit",
   "stat.def": "Déf",

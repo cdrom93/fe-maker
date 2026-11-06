@@ -52,7 +52,9 @@ Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option d
 - Objets : un bonus de magie (`statBonuses.mag`) pour les armes équipées, les fortifiants et les objets à utiliser ; l'arène attaque avec la magie pour une arme magique.
 - Vérifié en jeu (`tests/local`, `test_magic_split_from_strength`) : attaque au tome = puissance + magie + bonus du tome ; fiche d'unité ; montée de niveau en combat (+1 en magie) ; magie gardée après une sauvegarde de mi-chapitre ; bonus temporaires (`test_copies_heal_and_protect_their_own_amount`, avec et sans l'option).
 
-Reste : liste des unités (colonne Mag), bonus temporaires sur la magie, fiches personnage, classe et objet de FE Maker, aperçu du combat dans FE Maker ; montée de niveau sur la carte pas vue en jeu.
+- FE Maker : avec l'option, colonne « Mag » après « For » (renommée) dans les fiches personnage (base, croissance, moyenne), classe (base, maximum, croissance, gain de promotion), objet (bonus) et dans les stats d'une unité du chapitre ; sans valeur saisie, la valeur par défaut du moteur s'affiche.
+
+Reste : liste des unités (colonne Mag), bonus temporaires sur la magie, aperçu du combat dans FE Maker ; montée de niveau sur la carte pas vue en jeu.
 
 ## Ce qu'il faut changer dans la décomp
 

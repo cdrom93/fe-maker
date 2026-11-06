@@ -6,6 +6,7 @@
   import { api } from '../lib/api'
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
+  import { statLabel } from '../lib/magic.svelte'
   import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import { AI_PRESETS } from '../lib/ai'
@@ -417,7 +418,7 @@
       const v = c.args?.[k] ?? ''
       if (a.kind === 'character') return [charName(v)]
       if (a.kind === 'item') return [itemName(v)]
-      if (a.kind === 'stat') return [t(`stat.${v}`)]
+      if (a.kind === 'stat') return [statLabel(v)]
       if (a.kind === 'chapter') return [chapterTitle(v)]
       if (a.kind === 'amount') return [Number(v) > 0 ? `+${Number(v)}` : v]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
@@ -685,7 +686,7 @@
                     </select>
                   {:else if a.kind === 'stat'}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
-                      {#each STATS as stat (stat)}<option value={stat}>{t(`stat.${stat}`)}</option>{/each}
+                      {#each STATS as stat (stat)}<option value={stat}>{statLabel(stat)}</option>{/each}
                     </select>
                   {:else if a.kind === 'character' && (v.startsWith('CHARACTER_') || !v)}
                     <span class="inline">

@@ -9,6 +9,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { followFocus, useNavigator } from '../lib/navigation.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
+  import { statLabel, withMagic } from '../lib/magic.svelte'
   import type { ChapterInfo, ChapterUnits, ChaptersData, Character, ClassView, DialogueScene, Item, LevelBonus, MapUnit, MapsData, NewGroup, Objective, ObjectiveEdit, Problem, UnitGroup } from '../lib/types'
   import AiPanel from './AiPanel.svelte'
   import GenderSign from './GenderSign.svelte'
@@ -46,7 +47,7 @@
   const WEATHERS = ['fine', 'clouds', 'rain', 'snow', 'snowstorm', 'sandstorm', 'flames']
   const LAST_BATTLE_BG_SET = 0x14
   const GROUP_SPRITES = 10
-  const SHOWN_STATS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']
+  const SHOWN_STATS = $derived(withMagic(['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck']))   // Magic: strMagSplit
   // The game's weapon type icons follow the item icons, in the weapon type order (0x70 + type, src/statscreen.c).
   const WTYPE_ICON = 0x70
   const RANK_TYPES = ['sword', 'lance', 'axe', 'bow', 'staff', 'anima', 'light', 'dark']
@@ -416,7 +417,7 @@
     const shown = danger ? groups.flatMap((g) => unitsOf(g.name)).filter((u) => u.side === 'enemy') : unit ? [unit] : []
     return JSON.stringify(shown.map((u) => ({ classId: effectiveClass(u), x: u.endX, y: u.endY, items: u.items,
                                               ai: u.side === 'enemy' && Array.isArray(u.ai) ? u.ai : undefined,
-                                              mag: !danger && unitStats ? unitStats.pow : 0 })))
+                                              mag: !danger && unitStats ? (unitStats.mag ?? unitStats.pow) : 0 })))
   })
   $effect(() => {
     const body = JSON.parse(asked)
@@ -911,7 +912,7 @@
             {#if unitStats}
               <h3>{t(unit.autolevel ? 'chapter.statsAverage' : 'chapter.stats')} <Help text={t('chapter.statsHint')} /></h3>
               <div class="unit-stats">
-                {#each SHOWN_STATS as s (s)}<span><span class="muted tiny">{t(`stat.${s}`)}</span> {unitStats[s]}</span>{/each}
+                {#each SHOWN_STATS as s (s)}<span><span class="muted tiny">{statLabel(s)}</span> {unitStats[s]}</span>{/each}
               </div>
               {#if Object.keys(unitRanks).length}
                 <!-- Weapon ranks, raised by the autolevel to what the items need (ticket 157) -->
