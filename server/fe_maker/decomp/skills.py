@@ -675,7 +675,115 @@ void StartSkillNameFem(struct Anim* anim)
     proc->skill = skill;
     proc->right = right;
 }}
+
+/* Battles on the map: the icon beside the info box for 30 frames (Huichelaar's SPD_Map, Skill System, CC0) */
+#include "mapanim.h"
+
+#define SKILL_ICON_MAP_TIME_FEM 30
+
+struct SkillIconMapProcFem {{
+    PROC_HEADER;
+    u8 skill;
+    u8 left;
+    u8 timer;
+    u8 x;
+    u8 y;
+}};
+
+static void SkillIconMapClearFem(struct SkillIconMapProcFem* proc)
+{{
+    int l = proc->left ? -1 : 1, m = proc->left, i, j;
+
+    for (i = 0; i < 2; i++)
+        for (j = 0; j < 3; j++)
+            gBG0TilemapBuffer[(proc->y + i + 1) * 0x20 + (proc->x + (10 + m + j) * l)] = 0;
+    BG_EnableSyncByMask(BG0_SYNC_BIT);
+}}
+
+static void SkillIconMapInitFem(struct SkillIconMapProcFem* proc)
+{{
+    CpuFastCopy(item_icon_tiles + sSkillIconFem[proc->skill] * 0x80, (void*) 0x6000C00, 0x80);
+    ApplyPalettes(item_icon_palette[0], 4, 1);
+    proc->timer = 0;
+}}
+
+/* the icon opens over 2 frames, stays, closes */
+static void SkillIconMapLoopFem(struct SkillIconMapProcFem* proc)
+{{
+    int i, j, k, offset, l = proc->left ? -1 : 1, m = proc->left;
+
+    proc->timer++;
+    SkillIconMapClearFem(proc);
+    if (proc->timer >= SKILL_ICON_MAP_TIME_FEM + 3) {{
+        Proc_Break(proc);
+        return;
+    }}
+    if (proc->timer == 1 || proc->timer - SKILL_ICON_MAP_TIME_FEM == 2)
+        offset = 0;
+    else if (proc->timer == 2 || proc->timer - SKILL_ICON_MAP_TIME_FEM == 1)
+        offset = 1;
+    else
+        offset = 2;
+    k = offset ? 2 : 1;
+    for (i = 0; i < k; i++)
+        for (j = 0; j < 2; j++)
+            gBG0TilemapBuffer[(proc->y + j + 1) * 0x20 + proc->x + l * (10 + m - i + offset)] = j * 2 - i * l + 0x4061 - m;
+}}
+
+static const struct ProcCmd ProcScr_SkillIconMapFem[] = {{
+    PROC_NAME("SkillIconMapFem"),
+    PROC_SET_END_CB(SkillIconMapClearFem),
+    PROC_END_DUPLICATES,
+    PROC_YIELD,
+    PROC_CALL(SkillIconMapInitFem),
+    PROC_REPEAT(SkillIconMapLoopFem),
+    PROC_END,
+}};
+
+/* Before each round of a map battle: the hit attacker's triggered skill, else the defender's, else the game's */
+void StartSkillIconMapFem(ProcPtr parent)
+{{
+    struct BattleHit* hit = gManimSt.pCurrentRound;
+    struct MAInfoFrameProc* box = Proc_Find(ProcScr_MapBattleInfoBox);
+    struct SkillIconMapProcFem* proc;
+    int round = hit - gBattleHitArray;
+    int target = !!(hit->info & BATTLE_HIT_INFO_RETALIATION);   /* the hit's attacker: 0 the actor, 1 the target */
+    int owner = target, skill;
+
+    if (box == NULL || round < 0 || round >= BATTLE_HIT_MAX)
+        return;
+    skill = sSkillShownFem[round * 2 + owner];
+    if (skill == 0) {{
+        owner = !target;
+        skill = sSkillShownFem[round * 2 + owner];
+    }}
+    if (skill == 0) {{
+        owner = target;
+        if (hit->attributes & BATTLE_HIT_ATTR_SURESHOT)
+            skill = {game["SURE_SHOT"]};
+        else if (hit->attributes & BATTLE_HIT_ATTR_PIERCE)
+            skill = {game["PIERCE"]};
+        else if (hit->attributes & BATTLE_HIT_ATTR_GREATSHLD) {{
+            skill = {game["GREAT_SHIELD"]};
+            owner = !target;
+        }}
+    }}
+    if (skill == 0 || skill > SKILL_COUNT_FEM)
+        return;
+    proc = Proc_Start(ProcScr_SkillIconMapFem, parent);
+    proc->skill = skill;
+    proc->left = owner;   /* the actor's skill on the right, the target's on the left */
+    proc->x = box->x;
+    proc->y = box->y;
+}}
 '''
+    rel = "src/mapanim.c"
+    out[rel] = _replace(_read(files, decomp_dir, rel),
+                        "    MapAnim_AdvanceBattleRound();\n    gManimSt.specialProcScr",
+                        "    StartSkillIconMapFem(proc); /* FE Maker: skills.py, in bmbattle.c */\n"
+                        "    MapAnim_AdvanceBattleRound();\n    gManimSt.specialProcScr", rel)
+    out[rel] = _replace(out[rel], "void MapAnim_AdvanceBattleRound(void)\n{",
+                        "void StartSkillIconMapFem(ProcPtr parent);\n\nvoid MapAnim_AdvanceBattleRound(void)\n{", rel)
     rel = "src/banim-main.c"
     main = _replace(_read(files, decomp_dir, rel), "void BattleAIS_ExecCommands(void)\n{",
                     "void StartSkillNameFem(struct Anim* anim); /* FE Maker: skills.py, in bmbattle.c */\n\n"

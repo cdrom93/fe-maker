@@ -1761,3 +1761,30 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
         print("screenshots:", tmp_path)
         assert game.read(0x02028D90)         # a round was shown
         assert game.read("gAnimRoundData", 2, width=16) & 0x800   # ANIM_ROUND_SURE_SHOT on Seth's side (right)
+
+
+def test_triggered_skill_icon_in_map_battle(tmp_path):
+    """Skills lot 2: without battle animations, a triggered skill's icon shows beside the map battle box (Huichelaar's
+    SPD_Map, Skill System): Seth, with Sol and 100 Skill, attacks in the prologue with animations off."""
+    project = Project.create(tmp_path / "skillmap", "SkillMap")
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        base = game.address("gUnitArrayBlue")
+        seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
+                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
+        game.write(seth, 100, 0x15)          # Skill 100: Sol always triggers
+        config = game.read("gPlaySt", 0x42)
+        game.write("gPlaySt", (config & ~0x06) | 0x02, 0x42)   # config.animationType = OFF
+        _seth_attacks(game)
+
+        def icon_shown():
+            return any(0x4060 <= game.read("gBG0TilemapBuffer", 2 * k, width=16) <= 0x4063 for k in range(32 * 20))
+        assert game.wait_until(icon_shown, seconds=20, step=2)
+        game.run(6)
+        game.screenshot().convert("RGB").save(tmp_path / "map.png")
+        print("screenshot:", tmp_path / "map.png")
