@@ -1503,6 +1503,7 @@
   "options.group.start": "Start",
   "options.group.speed": "Speed",
   "options.group.map": "On the map",
+  "options.group.screens": "Unit screens",
   "options.group.rules": "Rules",
   "options.group.items": "Items",
   "options.tempBonusRule": "Stacking Pure Waters",

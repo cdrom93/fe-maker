@@ -48,7 +48,8 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 }
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
-                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange", "statusGrowths"),
+                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
+                 "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit"),
                  "items": ("tempBonusRule",)}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how

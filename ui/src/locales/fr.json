@@ -1503,6 +1503,7 @@
   "options.group.start": "Démarrage",
   "options.group.speed": "Vitesse",
   "options.group.map": "Sur la carte",
+  "options.group.screens": "Fiches des unités",
   "options.group.rules": "Règles",
   "options.group.items": "Objets",
   "options.tempBonusRule": "Eaux bénites qui se cumulent",

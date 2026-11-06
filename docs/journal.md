@@ -178,4 +178,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : une option du jeu retirée depuis (magicRankPoints) restée dans un projet bloquait l'enregistrement des options (`unknownGameOption`) : ignorée à la lecture.
 - 06/11/2026 : séparation force / magie (#27) : colonne Mag dans la liste des unités (à la place de l'affinité), bonus temporaires sur la magie (7e compteur), ligne combats/victoires/défaites de la fiche d'unité descendue sous Rés (son retour) ; vérifié en jeu.
 - 06/11/2026 : ticket 165 : écrans de montée de niveau (combat et carte) dans l'ordre PV, For, Mag, Tech / Vit, Chance, Déf, Rés ; vérifié en jeu (combat).
-- 06/11/2026 : ticket 166 : option « Croissances sur la fiche (Select) » (`statusGrowths`, catégorie Carte) ; ticket 167 : la colonne lumineuse est un bout de route (porte de village du jeu de tuiles Fields), pas un bug ; vérifié en jeu.
+- 06/11/2026 : ticket 166 : option « Croissances sur la fiche (Select) » (`statusGrowths`, nouvelle catégorie « Fiches des unités ») ; ticket 167 : la colonne lumineuse est un bout de route (porte de village du jeu de tuiles Fields), pas un bug ; vérifié en jeu.
