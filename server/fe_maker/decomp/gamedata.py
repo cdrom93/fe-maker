@@ -245,7 +245,7 @@ ITEM_PROPERTIES = {
 WEAPON_EFFECTS = {"WPN_EFFECT_POISON": "poison", "WPN_EFFECT_HPDRAIN": "drain", "WPN_EFFECT_HPHALVE": "halve",
                   "WPN_EFFECT_DEVIL": "devil", "WPN_EFFECT_PETRIFY": "petrify"}
 WEAPON_EFFECTS_REV = {v: k for k, v in WEAPON_EFFECTS.items()}
-ITEM_BONUS_STATS = ("hp", "pow", "skl", "spd", "def", "res", "lck", "mov", "con")
+ITEM_BONUS_STATS = ("hp", "pow", "skl", "spd", "def", "res", "lck", "mov", "con", "mag")   # mag: with strMagSplit
 NEW_BONUS_PREFIX = "ItemBonus_FEM_"
 RANKABLE_TYPES = ["sword", "lance", "axe", "bow", "staff", "anima", "light", "dark"]
 
@@ -441,6 +441,7 @@ class DecompData:
         self.new_characters: dict[str, int] = {}   # characters the project adds -> their number
         self.item_acts_like: dict[str, str] = {}   # items the project adds -> the game's item whose effect they have
         self.item_amounts: dict[str, int] = {}   # items the project adds -> HP they heal, or Pure Water's barrier
+        self.magic_split = False   # game option strMagSplit: items may give Magic (strmag.py)
         self.item_use_bonuses: list[str] = []   # usable items, not boosters, given stat bonuses: kept on use
         self.item_temp_bonuses: dict[str, dict[str, int]] = {}   # Pure Water copies: stat -> bonus fading each turn
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
@@ -2602,7 +2603,8 @@ class DecompData:
         """The stat bonuses the project sets, written above the item table that points to them."""
         table = "CONST_DATA struct ItemData gItemData[]"
         rows = "".join(f"CONST_DATA struct ItemStatBonuses {name} = {{\n"
-                       + "".join(f"\t.{stat}Bonus = {bonus[stat]},\n" for stat in ITEM_BONUS_STATS if stat in bonus) + "};\n\n"
+                       + "".join(f"\t.{stat}Bonus = {bonus[stat]},\n" for stat in ITEM_BONUS_STATS
+                               if stat in bonus and (stat != "mag" or self.magic_split)) + "};\n\n"
                        for name, bonus in self.item_bonuses.items() if name.startswith(NEW_BONUS_PREFIX))
         if rows:
             out[ITEMS_FILE] = out[ITEMS_FILE].replace(table, rows + table, 1)

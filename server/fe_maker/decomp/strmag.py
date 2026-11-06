@@ -109,7 +109,10 @@ TEMP_TABLE = ("extern u32 gTempBonusesFem[0xC0];\n"
 TEMP_TABLE_SET = "#define SET_TEMP_BONUSES_FEM(aUnit, v) (gTempBonusesFem[(u8) (aUnit)->index] = (v) & 0xFFFFFF)\n"
 
 UNIT_FUNCTIONS = """int GetUnitMagicFem(struct Unit* unit) {
-    return UNIT_MAG_FEM(unit);
+    int item = GetUnitEquippedWeapon(unit);
+    const struct ItemStatBonuses* bonuses = item ? GetItemStatBonuses(item) : NULL;
+
+    return UNIT_MAG_FEM(unit) + (bonuses ? bonuses->magBonus : 0);
 }
 
 /* FE Maker: Magic gained when the unit becomes class classId, up to that class's maximum */
@@ -159,16 +162,41 @@ static void WriteMagicFem(int slot, int count)
     WriteAndVerifySramFast(buf, MAG_SAVE_FEM(slot), sizeof(buf));
 }
 
+/* A save without its Magic bytes (made before the option): Magic estimated from the data, as an average level up */
+static void EstimateMagicFem(struct Unit* unit)
+{
+    const struct CharacterData* character = unit->pCharacterData;
+    int levels = unit->level - character->baseLevel;
+    int mag = (s8) gCharacterMagFem[character->number][0] + gClassMagFem[character->defaultClass][0];
+
+    if (unit->pClassData->number != character->defaultClass) {
+        mag += gClassMagFem[unit->pClassData->number][3];
+        levels = unit->level - 1 + 20 - character->baseLevel;
+    }
+    if (levels > 0)
+        mag += levels * gCharacterMagFem[character->number][1] / 100;
+    if (mag > UNIT_MAG_MAX_FEM(unit))
+        mag = UNIT_MAG_MAX_FEM(unit);
+    UNIT_MAG_FEM(unit) = mag < 0 ? 0 : mag;
+}
+
 static void ReadMagicFem(int slot, int count)
 {
     u8 buf[4 + MAG_SAVE_UNITS_FEM];
-    int i;
+    int i, known;
 
     ReadSramFast(MAG_SAVE_FEM(slot), buf, sizeof(buf));
-    if ((buf[0] | buf[1] << 8 | buf[2] << 16 | (u32) buf[3] << 24) != gPlaySt.time_saved)
-        return;
-    for (i = 0; i < count; i++)
-        MagSavedUnitFem(i)->_u3A = buf[4 + i];
+    known = (buf[0] | buf[1] << 8 | buf[2] << 16 | (u32) buf[3] << 24) == gPlaySt.time_saved;
+    for (i = 0; i < count; i++) {
+        struct Unit* unit = MagSavedUnitFem(i);
+
+        if (!unit->pCharacterData)
+            continue;
+        if (known)
+            unit->_u3A = buf[4 + i];
+        else
+            EstimateMagicFem(unit);
+    }
 }
 
 static void CopyMagicFem(int src, int dest)
@@ -194,6 +222,92 @@ def _patch(files: dict, decomp_dir: Path, rel: str, pairs: list[tuple[str, str]]
 def _getter_body(text: str, name: str) -> str:
     start = text.index(f"inline int GetUnit{name}(struct Unit* unit) {{")
     return text[start:text.index("\n}\n", start) + 3]
+
+
+def _status_screen(files: dict, decomp_dir: Path) -> None:
+    """Page 1 of the status screen: Str, then a new Mag line, Skl to Res one line lower (rows 1 to 13 of the left
+    column, as the Skill System does); its own bar (number 8) and its R help between Str and Skl."""
+    rel = "src/statscreen.c"
+    text = files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
+    for row in (11, 9, 7, 5, 3):   # labels of Skl to Res, from the bottom
+        old = f"gUiTmScratchA + TILEMAP_INDEX(1, {row}),"
+        new = f"gUiTmScratchA + TILEMAP_INDEX(1, {row + 2}),"
+        if old not in text:
+            raise StrMagError("Strength/Magic split: src/statscreen.c does not match (labels)")
+        text = text.replace(old, new, 1)
+    for num, row in ((5, 11), (4, 9), (3, 7), (2, 5), (1, 3)):
+        old = f"    DrawStatWithBar({num}, 5, {row},\n"
+        if old not in text:
+            raise StrMagError("Strength/Magic split: src/statscreen.c does not match (bars)")
+        text = text.replace(old, f"    DrawStatWithBar({num}, 5, {row + 2},\n", 1)
+    label_start = text.index("    // Displaying str/mag label\n")
+    label_end = text.index("    // displaying str/mag stat value\n")
+    text = text[:label_start] + (
+        "    /* FE Maker: Str and Mag, each its own line (ticket 27) */\n"
+        "    PutDrawText(\n        &gStatScreen.text[STATSCREEN_TEXT_POWLABEL],\n"
+        "        gUiTmScratchA + TILEMAP_INDEX(1, 1),\n        TEXT_COLOR_SYSTEM_GOLD, 0, 0,\n"
+        "        GetStringFromIndex(MSG_4FE)); // Str\n\n"
+        "    PutDrawText(\n        &gStatScreen.text[STATSCREEN_TEXT_UNUSUED],\n"
+        "        gUiTmScratchA + TILEMAP_INDEX(1, 3),\n        TEXT_COLOR_SYSTEM_GOLD, 0, 0,\n"
+        "        GetStringFromIndex(MSG_4FF)); // Mag\n\n"
+        "    DrawStatWithBar(8, 5, 3,\n        UNIT_MAG_FEM(gStatScreen.unit),\n"
+        "        GetUnitMagicFem(gStatScreen.unit),\n        UNIT_MAG_MAX_FEM(gStatScreen.unit));\n\n"
+    ) + text[label_end:]
+    # R help: Str always Strength's text, Magic's below it, the rest one line lower
+    pairs = [
+        ("    102, 24, MSG_546, NULL, HbPopulate_SSPower,\n", "    102, 24, MSG_546, NULL, NULL,\n"),
+        ("    NULL, &sHelpInfo_Ss0Skl, &sHelpInfo_Char, &sHelpInfo_Ss0Mov,\n",
+         "    NULL, &sHelpInfo_Ss0MagFem, &sHelpInfo_Char, &sHelpInfo_Ss0Mov,\n"),
+        ("DECL_INFO gHelpInfo_Ss0Pow =\n", "extern DECL_INFO sHelpInfo_Ss0MagFem;\n\nDECL_INFO gHelpInfo_Ss0Pow =\n"),
+        ("DECL_INFO sHelpInfo_Ss0Skl =\n{\n    &gHelpInfo_Ss0Pow,",
+         "/* FE Maker: Magic (ticket 27) */\nDECL_INFO sHelpInfo_Ss0MagFem =\n{\n"
+         "    &gHelpInfo_Ss0Pow, &sHelpInfo_Ss0Skl, &sHelpInfo_Char, &sHelpInfo_Ss0Con,\n    102, 40, MSG_547,\n};\n\n"
+         "DECL_INFO sHelpInfo_Ss0Skl =\n{\n    &sHelpInfo_Ss0MagFem,"),
+        ("    105, 40, MSG_548,\n", "    105, 56, MSG_548,\n"),
+        ("    102, 56, MSG_549,\n", "    102, 72, MSG_549,\n"),
+        ("    102, 72, MSG_54A,\n", "    102, 88, MSG_54A,\n"),
+        ("    102, 88, MSG_54B,\n", "    102, 104, MSG_54B,\n"),
+        ("    102, 104, MSG_54C,\n", "    102, 120, MSG_54C,\n"),
+    ]
+    for old, new in pairs:
+        if old not in text:
+            raise StrMagError(f"Strength/Magic split: src/statscreen.c does not match ({old.strip()})")
+        text = text.replace(old, new, 1)
+    files[rel] = text
+
+
+def _level_up_screens(files: dict, decomp_dir: Path) -> None:
+    """The level up boxes (battle, map, a booster used in the prep screen) have 8 lines: Con, which levels do not
+    raise, gives its line to Mag (as in the Skill System); Str is always Str."""
+    def patch(rel: str, pairs: list[tuple[str, str]], every: bool = False) -> None:
+        text = files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
+        for old, new in pairs:
+            if old not in text:
+                raise StrMagError(f"Strength/Magic split: {rel} does not match ({old.strip()})")
+            text = text.replace(old, new) if every else text.replace(old, new, 1)
+        files[rel] = text
+
+    patch("src/banim-ekrlvup.c", [
+        ("    &gMid_Res,\n    &gMid_Con\n", "    &gMid_Res,\n    &gMid_Mag\n"),
+        ("    &gMid_Hp,\n    &gMid_Mag,\n", "    &gMid_Hp,\n    &gMid_Str,\n"),
+        ("unit->pClassData->baseCon + unit->pCharacterData->baseCon + bunit2->changeCon;",
+         "UNIT_MAG_FEM(unit) + bunit2->changeMagFem;"),
+        ("bunit->unit.pClassData->baseCon + bunit->unit.pCharacterData->baseCon;", "UNIT_MAG_FEM(&bunit->unit);")],
+        every=True)
+    patch("src/banim-ekrlvup.c", [
+        ("[EKRLVUP_STAT_CON] = unit->pClassData->baseCon + unit->pCharacterData->baseCon;",
+         "[EKRLVUP_STAT_CON] = UNIT_MAG_FEM(unit);")], every=True)
+    patch("src/mapanim_lvupfx.c", [
+        ("        return gManimSt.actor[actor_id].bu->changeCon;\n",
+         "        return gManimSt.actor[actor_id].bu->changeMagFem;\n"),
+        ("            return UNIT_CON_BASE(unit);\n", "            return UNIT_MAG_FEM(unit);\n"),
+        ("        .msg = { &gMid_Str, &gMid_Mag },\n", "        .msg = { &gMid_Str, &gMid_Str },\n"),
+        ("        .msg = { &gMid_Con, &gMid_Con },\n", "        .msg = { &gMid_Mag, &gMid_Mag },\n")])
+    patch("src/prep_itemusemind.c", [
+        ("    proc->status_pre[EKRLVUP_STAT_CON] = UNIT_CON(parent->unit);\n",
+         "    proc->status_pre[EKRLVUP_STAT_CON] = GetUnitMagicFem(parent->unit);\n"),
+        ("    proc->status_pst[EKRLVUP_STAT_CON] = UNIT_CON(parent->unit);\n",
+         "    proc->status_pst[EKRLVUP_STAT_CON] = GetUnitMagicFem(parent->unit);\n")])
 
 
 def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[dict]) -> dict:
@@ -228,8 +342,23 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     iwram = "sym_iwram.txt"
     iwram_end = ". = ALIGN(4); *libc.a:sbrkr.o(COMMON);"
     if temp_table:
-        patch(iwram, [(iwram_end, iwram_end + "\n\n/* FE Maker: temporary bonuses by unit number (ticket 27) */\n"
-                       ". = ALIGN(4); gTempBonusesFem = .;\n. = . + 0x300;")])
+        patch(iwram, [(iwram_end, iwram_end + "\n\n/* FE Maker: temporary bonuses by unit number, and by place in the"
+                       " unit stack of the prep screen's sort (ticket 27) */\n"
+                       ". = ALIGN(4); gTempBonusesFem = .;\n. = . + 0x300;\n"
+                       ". = ALIGN(4); gTempStackFem = .;\n. = . + 0x100;")])
+        # the prep screen sorts the army through a stack of copies: the bonuses follow each unit to its new number
+        patch("src/bmusort.c", [
+            ('#include "variables.h"\n', '#include "variables.h"\n\nextern u32 gTempStackFem[0x40];\n'),
+            ("    CopyUnit(unit, sUnitStackTop);\n    sUnitStackTop->index = sUnitStackSize;\n",
+             "    CopyUnit(unit, sUnitStackTop);\n    gTempStackFem[sUnitStackSize & 0x3F] = TEMP_BONUSES_FEM(unit);\n"
+             "    sUnitStackTop->index = sUnitStackSize;\n")])
+        stack_load = ("    CpuCopy16(sUnitStackBase, gUnitArrayBlue, (void*)sUnitStackTop - (void*)sUnitStackBase);\n")
+        sort = text("src/bmusort.c")
+        if sort.count(stack_load) != 2:
+            raise StrMagError("Strength/Magic split: src/bmusort.c does not match (unit stack)")
+        files["src/bmusort.c"] = sort.replace(stack_load, stack_load + (
+            "    for (i = 1; i < sUnitStackSize; ++i)\n"
+            "        SET_TEMP_BONUSES_FEM(&gUnitArrayBlue[i - 1], gTempStackFem[i & 0x3F]);\n"))
 
     # the unit: data, loading, automatic levels, caps, copies
     bmunit = text("src/bmunit.c")
@@ -319,6 +448,27 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                                  "    return ((GetItemAttributes(item) & IA_MAGIC)\n"
                                  "        ? GetUnitMagicFem(unit) : GetUnitPower(unit)) + GetItemMight(item);\n")])
     patch("src/cp_staff.c", [("    score += GetUnitPower(unit);\n", "    score += GetUnitMagicFem(unit);\n")])
+
+    _status_screen(files, decomp_dir)
+    _level_up_screens(files, decomp_dir)
+
+    # items: a Magic bonus beside the others (weapons while equipped, boosters and usable items for good)
+    patch("include/bmitem.h", [("    /* 08 */ s8 conBonus;\n};\n",
+                                "    /* 08 */ s8 conBonus;\n    /* 09 */ s8 magBonus; /* FE Maker (ticket 27) */\n};\n")])
+    patch("src/bmusemind.c", [("    unit->conBonus += statBonuses->conBonus;\n",
+                               "    unit->conBonus += statBonuses->conBonus;\n"
+                               "    UNIT_MAG_FEM(unit) += statBonuses->magBonus;\n")])
+    if "    unit->conBonus += bonuses->conBonus;\n" in text("src/bmusemind.c"):   # ticket 162's usable items
+        patch("src/bmusemind.c", [("    unit->conBonus += bonuses->conBonus;\n",
+                                   "    unit->conBonus += bonuses->conBonus;\n    UNIT_MAG_FEM(unit) += bonuses->magBonus;\n")])
+    # the arena: each side's attack with the stat of its weapon
+    patch("src/bmarena.c", [
+        ("    gBattleActor.battleAttack = GetUnitPower(gArenaState.playerUnit) + 5;\n",
+         "    gBattleActor.battleAttack = (gArenaState.playerIsMagic\n"
+         "        ? GetUnitMagicFem(gArenaState.playerUnit) : GetUnitPower(gArenaState.playerUnit)) + 5;\n"),
+        ("    gBattleTarget.battleAttack = GetUnitPower(gArenaState.opponentUnit) + 5;\n",
+         "    gBattleTarget.battleAttack = (gArenaState.opponentIsMagic\n"
+         "        ? GetUnitMagicFem(gArenaState.opponentUnit) : GetUnitPower(gArenaState.opponentUnit)) + 5;\n")])
 
     # saves
     game_write = ("    for (i = 0; i < UNIT_SAVE_AMOUNT_BLUE; i++)\n"

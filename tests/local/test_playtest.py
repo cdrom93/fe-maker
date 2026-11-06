@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "server"))
@@ -1522,20 +1523,41 @@ def test_magic_split_from_strength(tmp_path):
     hero["class"] = "CLASS_MAGE_F"
     hero["weaponRanks"] = {}
     hero["bases"].update(pow=1, mag=9, skl=20)
+    hero["growths"].update(mag=100)      # a sure Magic gain at the level up
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_ANIMA_FIRE")["statBonuses"] = {"mag": 3}   # a Magic bonus while equipped
+    project.save("items", items)
     out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
     with Game(out.rom_path, out.map_path) as game:
         attacker, idle = _bench_units(game)
         magic = game.read(attacker, 0x3A, signed=True)
         strength = game.read(attacker, 0x14, signed=True)
         assert magic >= 9 and magic != strength
+        game.move_cursor(game.read(attacker, 0x10), game.read(attacker, 0x11))
+        game.press("R", wait=120)          # the status screen: Str, then Mag (with the tome's +3)
+        game.screenshot().save(tmp_path / "status.png")
+        print("status screen:", tmp_path / "status.png")
+        game.press("B", wait=90)
+        magic += 3
+        game.write(attacker, 99, 0x09)     # one more experience point: a level up after the battle
         _bench_attack(game, attacker)
+        shots = []
+        for _ in range(60):               # the level up screen, among these
+            game.run(20)
+            shots.append(game.screenshot())
+        sheet = Image.new("RGB", (240 * 6, 160 * 10))
+        for index, shot in enumerate(shots):
+            sheet.paste(shot, (240 * (index % 6), 160 * (index // 6)))
+        sheet.save(tmp_path / "battle.png")
+        print("battle and level up:", tmp_path / "battle.png")
         assert game.wait_until(lambda: game.phase() == "player" and game.read("gBattleActor", 0x5A, width=16), seconds=60)
         game.run(120)
         attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
         print("magic", magic, "strength", strength, "attack", attack)
-        assert attack == 5 + magic                     # Fire's might + Magic
-        magic = game.read(attacker, 0x3A, signed=True)   # a level up may have raised it
+        assert attack == 5 + magic                     # Fire's might + Magic (with the tome's bonus)
+        assert game.read(attacker, 0x3A, signed=True) == magic - 3 + 1   # the level up's Magic
+        magic = game.read(attacker, 0x3A, signed=True)
         _bench_suspend_and_resume(game, [attacker, idle])
         assert game.read(attacker, 0x3A, signed=True) == magic

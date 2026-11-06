@@ -44,13 +44,15 @@ Plan : écrire la séparation directement dans les fonctions de la décomp (comm
 
 Choix faits en écrivant le moteur (`server/fe_maker/decomp/strmag.py`, option du jeu `strMagSplit`) :
 
-- La magie est dans l'octet 0x3A de l'unité, comme dans le Skill System : elle suit l'unité dans toutes les copies du jeu (unités de combat, recrutement, tri de l'équipe aux préparatifs). Une table par numéro d'unité aurait été perdue à ces copies. Les bonus temporaires du #164, qui occupaient cet octet, passent alors dans une table par numéro d'unité en IWRAM (ils ne durent que quelques tours ; le tri de l'équipe peut les effacer).
+- La magie est dans l'octet 0x3A de l'unité, comme dans le Skill System : elle suit l'unité dans toutes les copies du jeu (unités de combat, recrutement, tri de l'équipe aux préparatifs). Une table par numéro d'unité aurait été perdue à ces copies. Les bonus temporaires du #164, qui occupaient cet octet, passent alors dans une table par numéro d'unité en IWRAM ; le tri de l'équipe aux préparatifs les garde (ils suivent les unités dans une pile pendant le tri).
 - Données : une table par classe (base, croissance, maximum, gain de promotion) et par personnage (base, croissance) dans `bmunit.c`, écrites depuis les valeurs « mag » du projet. Sans valeur : une classe qui a un rang de bâton, d'anima, de lumière ou de ténèbres prend les chiffres de sa force, les autres partent de 0 (croissance 5 % pour les génériques) ; un personnage d'une classe magique prend sa force, les autres 0 (croissance : le quart de celle de la force).
 - Combat : la magie compte quand l'arme a `IA_MAGIC` (tomes) ou `IA_MAGICDAMAGE` (épées magiques à distance, qui gardent leur moitié) ; la force sinon. Bâtons : soins, précision et portée avec la magie. IA : dégâts estimés des tomes avec la magie.
-- Sauvegardes : les unités sauvegardées n'ont pas un bit libre ; la magie de chaque emplacement va dans la zone des cartes bonus de la mémoire de sauvegarde (voir `docs/audit-decomp.md`), avec l'heure de la sauvegarde pour la reconnaître. Une sauvegarde faite avant l'option relit une magie à 0.
-- Vérifié en jeu (`tests/local`, `test_magic_split_from_strength`) : attaque au tome = puissance + magie ; magie gardée après une sauvegarde de mi-chapitre.
+- Sauvegardes : les unités sauvegardées n'ont pas un bit libre ; la magie de chaque emplacement va dans la zone des cartes bonus de la mémoire de sauvegarde (voir `docs/audit-decomp.md`), avec l'heure de la sauvegarde pour la reconnaître. Une sauvegarde faite avant l'option (sans ces octets) estime la magie depuis les données : base du personnage et de sa classe, gain de promotion, croissance moyenne pour les niveaux gagnés.
+- Écrans : fiche d'unité (ligne « Mag » sous « Str », avec le bonus de l'arme équipée), montées de niveau en combat et sur la carte (9e ligne).
+- Objets : un bonus de magie (`statBonuses.mag`) pour les armes équipées, les fortifiants et les objets à utiliser ; l'arène attaque avec la magie pour une arme magique.
+- Vérifié en jeu (`tests/local`, `test_magic_split_from_strength`) : attaque au tome = puissance + magie + bonus du tome ; fiche d'unité ; montée de niveau en combat (+1 en magie) ; magie gardée après une sauvegarde de mi-chapitre ; bonus temporaires (`test_copies_heal_and_protect_their_own_amount`, avec et sans l'option).
 
-Reste, dans l'ordre : écrans (fiche d'unité, montée de niveau en combat et sur la carte, liste des unités), objets (bonus de magie des armes, fortifiants, bonus temporaires sur la magie), arène, fiches personnage et classe de FE Maker (colonnes Mag), aperçu du combat dans FE Maker.
+Reste : liste des unités (colonne Mag), bonus temporaires sur la magie, fiches personnage, classe et objet de FE Maker, aperçu du combat dans FE Maker ; montée de niveau sur la carte pas vue en jeu.
 
 ## Ce qu'il faut changer dans la décomp
 

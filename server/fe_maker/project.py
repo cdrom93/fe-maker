@@ -239,6 +239,7 @@ class Project:
         """Write the decomp files changed by this project into build/overlay."""
         decomp_dir = decomp_dir or self.decomp_dir
         data = DecompData(decomp_dir)
+        data.magic_split = bool(self.game_options.get("strMagSplit"))
         data.apply_classes(self.load("classes"))
         data.apply_characters(self.load("characters"))
         data.apply_items(self.load("items"))
