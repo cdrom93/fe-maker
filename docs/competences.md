@@ -67,7 +67,24 @@ Plus tard :
 - les compétences d'objets et d'armes ;
 - l'import de ses propres icônes.
 
-## Questions ouvertes
+## Choix de l'utilisateur (06/11/2026)
 
-- Les capacités de classe du jeu (Perce, Grand bouclier, Coup sûr, Silence, Tueur, Vol, Canto) : faut-il les montrer comme des compétences, avec leurs icônes, ou les laisser dans les capacités de la fiche classe ?
-- La place des icônes sur la fiche : il faut les ajuster à la colonne de droite de la page 1 (sous « Cond »), qui a peu de place quand force et magie sont séparées.
+- **Capacités de classe du jeu** : Perce, Grand bouclier, Coup sûr, Silence, Tueur, Vol et Canto sont montrées comme des compétences, avec leurs icônes, sur la fiche de l'unité et dans FE Maker.
+- **Présentation sur la fiche** : celle du Skill System (MSS), d'après sa capture.
+  - Colonne de droite de la page 1, le mot « Skills » centré, les icônes en dessous.
+  - Chez nous, sous « Cond » : rangées 13 et 15, libres même avec force et magie séparées.
+
+## Suivre le C-SkillSys et ses auteurs
+
+- **Licence** :
+  - Le code repris reste sous MIT. Cette licence demande de garder son texte avec toute copie : on le met dans `licenses/cskillsys-MIT.txt` dès le premier code copié.
+  - FE Maker, en GPL-3.0, peut inclure du code MIT.
+- **Commit d'origine** : chaque compétence portée note le commit et le fichier du C-SkillSys d'où elle vient.
+- **Mises à jour** :
+  - Un outil (`tools/cskillsys_watch.py`, à écrire) liste ce qui a changé en amont depuis ce commit dans les fichiers repris.
+  - On reporte les corrections à la main, compétence par compétence.
+  - Rien n'est suivi automatiquement : le portage est une copie adaptée, pas une dépendance.
+- **Participation des auteurs** :
+  - Le dépôt public accepte leurs contributions, qui deviennent GPL-3.0 dans FE Maker (leur propre dépôt reste MIT).
+  - Dans l'autre sens, on peut leur rendre nos adaptations à la décomp sous MIT, s'ils veulent une version du C-SkillSys pour la décomp. laqieer, remercié par le C-SkillSys, travaille déjà sur la décomp dans son fork de FEBuilder.
+  - À faire avant l'annonce de l'alpha, par l'utilisateur : prévenir Mokha et les contributeurs du portage, leur montrer les crédits et proposer de participer.

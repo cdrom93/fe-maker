@@ -183,3 +183,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : test des options retirées sur la décomp fictive (la CI n'a pas la vraie).
 - 06/11/2026 : ticket 166 : nom de chaque stat coloré selon sa croissance (unités du joueur, sur les deux vues de la fiche), couleurs et paliers du MSS du Skill System (deux palettes en 8 et 9), vérifié en jeu ; crédits complétés (Skill System et MSS, Vision Quest, deux patchs FEBuilder de montée de niveau).
 - 06/11/2026 : compétences : portage du C-SkillSys dans la décomp décidé avec l'utilisateur ; plan en 4 lots (`docs/competences.md`) ; règle des crédits renforcée (CLAUDE.md : tout emprunt crédité avec ses auteurs).
+- 06/11/2026 : compétences : choix de l'utilisateur (capacités de classe montrées comme compétences, présentation du MSS sur la fiche) ; suivi du C-SkillSys et place de ses auteurs (licence MIT gardée, commit d'origine par compétence, outil de suivi à écrire).
