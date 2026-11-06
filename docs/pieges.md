@@ -43,6 +43,7 @@ piège dans sa section.
 ## Cartes
 
 - Les tuiles de sprites 0x12-0x7F des premières lignes sont aux particules de la météo : les barres de PV et les bulles sont en 0x340-0x37F, libres pendant la carte (#142). Le prologue cache les icônes de la carte (`EVFLAG_HIDE_BLINKING_ICON`) : tester les barres sur un autre chapitre.
+- Pendant une animation de combat, le combattant de droite a son image en tuiles de sprites 0x300-0x3FF, et la boîte d'une réplique de combat recharge les graphismes d'interface (`Talk_OnInit` → `LoadObjUIGfx`) : ce qu'on y ajoute ne doit rien écrire tant que `IsBattleDeamonActive()` (#161, taches sous l'adversaire).
 - Pinceaux de terrain : les paires de tuiles vues sur les 18 cartes d'un jeu de tuiles sont trop rares pour raccorder quoi que ce soit (2 à 7 voisines par tuile, aucune tuile de mer ne touche l'herbe la plus courante) : `autotile.py` compare aussi les matières des bords, lues dans les pixels. Le type de terrain ne dit pas tout : beaucoup de routes du jeu sont en terrain plaine.
 
 - Map tileset PNGs are inverted grayscale (index = 15 − v/17); map palettes: 5 normal then 5 fog palettes.

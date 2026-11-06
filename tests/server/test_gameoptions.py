@@ -82,3 +82,13 @@ def test_the_danger_zone_is_written_with_the_other_range_option():
     text = files[gameoptions.RANGE_DISPLAY_FILE]
     assert "Select shows the enemies' range" in text and "movement AI 3" in text
     assert "if (gActiveUnit && (gActiveUnit->state & US_HAS_MOVED))" in text
+
+
+def test_bars_and_bubble_tiles_wait_for_the_end_of_a_battle_animation():
+    """Ticket 161: a battle quote's talk reloads the object UI graphics while the right fighter's sheet sits on the
+    bars' and bubble's tiles."""
+    source = Path(__file__).parents[2] / "decomp" / gameoptions.MAP_UI_FILE
+    if not source.is_file():
+        pytest.skip("no decomp")
+    text = gameoptions.apply(source.parents[1], {"hpBars": True, "talkBubbles": True}, {})[gameoptions.MAP_UI_FILE]
+    assert text.count("if (IsBattleDeamonActive())\n        return;") == 2

@@ -165,9 +165,14 @@ def _menu_line(label: int, on_help: int) -> str:
 # 16 x 8 pictures in free object tiles (rows 0 and 1, from column 0x12), drawn at each load of the map's object
 # graphics; colors of the first object palette. Under the windows (object layer 2, as the units), ticket 114.
 _OBJ_UI_LOAD = "void LoadObjUIGfx(void) {\n"
-_OBJ_UI_LOAD_BARS = """/* FE Maker: the HP bars' tiles */
+_OBJ_UI_LOAD_BARS = """int IsBattleDeamonActive(void);
+
+/* FE Maker: the HP bars' tiles */
 static void FemLoadHpBars(void) {
     int length, x;
+
+    if (IsBattleDeamonActive())
+        return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
 
     for (length = 1; length <= 11; ++length) {
         u32 fill[2] = { 0, 0 };
@@ -226,6 +231,8 @@ _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
 # A yellow bubble over the units the selected one can talk to, to recruit them or not, or support with (ticket 113, as
 # in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. HP bars and bubble sit in object tiles
 # 0x340-0x37F, which nothing uses on the map (ticket 142: the weathers' particles take 0x12-0x7F of the first rows).
+# A battle animation puts its right fighter's sheet on 0x300-0x3FF, and its talks (battle quotes) reload the object UI
+# graphics: the tiles are not written while one runs (ticket 161).
 # Colors of the first object palette: # border, y yellow, d dark.
 _BUBBLE = ("...########.....", "..#yyyyyyyy#....", ".#yyyyyyyyyy#...", ".#yydyydyydy#...",
            ".#yyyyyyyyyy#...", "..#yyyyyyyy#....", "...####yy###....", ".....#yy#.......",
@@ -249,8 +256,13 @@ _OBJ_UI_LOAD_BUBBLE = """/* FE Maker: the talk bubble's tiles */
 static const u32 sFemBubble[4][8] = {
 """ + _bubble_tiles() + """};
 
+int IsBattleDeamonActive(void);
+
 static void FemLoadBubble(void) {
     int tile, y;
+
+    if (IsBattleDeamonActive())
+        return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
 
     for (tile = 0; tile < 4; ++tile)
         for (y = 0; y < 8; ++y)
