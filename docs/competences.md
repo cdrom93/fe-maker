@@ -85,6 +85,11 @@ Plus tard :
 - **Présentation sur la fiche** : celle du Skill System (MSS), d'après sa capture.
   - Colonne de droite de la page 1, le mot « Skills » centré, les icônes en dessous.
   - Chez nous, sous « Cond » : rangées 13 et 15, libres même avec force et magie séparées.
+- **Ticket 171 (06/11), 6 compétences sur la page 1**, d'après sa capture (hack de l'arène de Mangs, base MSS ; la page 1 « Page1WithLeadership » du C-SkillSys, `Kernel/Wizardry/Core/StatScreen/DrawUnitPage/PlanB`, en est proche mais met les compétences sur une autre page). Ses choix :
+  - colonne de gauche : For, Mag, Tec, Vit, Cha, Déf, Rés, puis Dépl. (rangée 15 ; 13 sans la séparation force / magie) ;
+  - colonne de droite : Con, Aid, Cond, Talk (avec qui l'unité peut parler, lu comme le C-SkillSys le fait pour `gStatScreenStExpa.talkee`), Affin, puis « Skills » et 2 rangées de 3 icônes, sans cadre ; Trv (unité portée) quitte la page ;
+  - aide R sur les 6 icônes.
+  - À faire (après le 06/11 à 16 h 40, quota).
 
 ## Suivre le C-SkillSys et ses auteurs
 
