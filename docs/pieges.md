@@ -97,3 +97,4 @@ piège dans sa section.
 - Svelte 5 : une prop `x={a.b}` n'est pas mémorisée : un `$effect` qui lit `x` repart dès que `a` change, même si `a.b` est identique (la bibliothèque d'animations se vidait). Passer par `$derived(x)`.
 - Un `<img>` masqué par `onerror` le reste quand sa source change : une classe ajoutée demande son sprite avant d'être enregistrée ; utiliser l'id du modèle.
 - `FE_MAKER_HOME` ne déplace pas le dossier des projets : `POST /api/projects` crée dans le vrai `FE Maker Projects` de l'utilisateur. En test, passer un chemin explicite, ou ouvrir un projet du dossier de test.
+- Une option du jeu retirée (fonction annulée) peut rester dans le `fe-maker.json` d'un projet : l'interface renvoie toutes les options à chaque case cochée, et la validation refusait tout (`unknownGameOption`, 06/11). `Project.game_options` ignore désormais les clés inconnues.

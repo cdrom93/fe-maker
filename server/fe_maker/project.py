@@ -205,8 +205,9 @@ class Project:
     @property
     def game_options(self) -> dict:
         """Options of the built game the project changes (decomp/gameoptions.py): defaults of a new save's options,
-        comfort changes."""
-        return dict(self.meta.get("gameOptions", {}))
+        comfort changes. An option FE Maker no longer has (an older version's, removed since) is left out."""
+        known = (*gameoptions.SWITCHES, *gameoptions.DEFAULTS, *gameoptions.CHOICES)
+        return {k: v for k, v in self.meta.get("gameOptions", {}).items() if k in known}
 
     def set_game_options(self, options: dict) -> None:
         problem = gameoptions.validate(options)

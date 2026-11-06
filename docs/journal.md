@@ -175,3 +175,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 06/11/2026 : séparation force / magie (#27) : fiche d'unité, montées de niveau, bonus de magie des objets, arène, magie estimée pour une sauvegarde plus ancienne, bonus temporaires gardés au tri des préparatifs ; vérifié en jeu.
 - 06/11/2026 : séparation force / magie (#27) : colonne « Mag » dans les fiches personnage, classe, objet et les stats d'unité du chapitre quand l'option est active.
 - 06/11/2026 : séparation force / magie (#27) cochée d'office dans tout nouveau projet créé depuis FE Maker.
+- 06/11/2026 : une option du jeu retirée depuis (magicRankPoints) restée dans un projet bloquait l'enregistrement des options (`unknownGameOption`) : ignorée à la lecture.
