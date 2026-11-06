@@ -89,7 +89,7 @@ Plus tard :
   - colonne de gauche : For, Mag, Tec, Vit, Cha, Déf, Rés, puis Dépl. (rangée 15 ; 13 sans la séparation force / magie) ;
   - colonne de droite, comme la capture (son choix revu le 06/11) : Con, Aid, Cond, Lead, Talk (avec qui l'unité peut parler, lu comme le C-SkillSys le fait pour `gStatScreenStExpa.talkee`), puis « Skills » et 2 rangées de 3 icônes, sans cadre ; Trv (unité portée) quitte la page ;
   - Affin : son icône passe à droite du nom (panneau de gauche), comme sur la capture ; aujourd'hui elle est dans la colonne de droite ;
-  - Lead : « -- » tant qu'il n'y a pas de commandement dans le moteur (étoiles du C-SkillSys, `GetUnitLeaderShip`, plus tard si voulu) ;
+  - Lead : « -- » par défaut ; le commandement (étoiles du C-SkillSys, `GetUnitLeaderShip` : une valeur par personnage et son bonus en combat) viendra en option du jeu, dans une catégorie (sa demande du 06/11), après la page ;
   - aide R sur les 6 icônes.
   - À faire (après le 06/11 à 16 h 40, quota).
 
