@@ -217,7 +217,7 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
-    assert {"id": "Canto", "kind": "game", "magic": False} in skills.catalogue()
+    assert {"id": "Canto", "kind": "map", "magic": False} in skills.catalogue()   # ticket 26: by what it does
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Canto"], "learnedSkills": [{"skill": "Steal", "level": 5}]}]
     used = skills.used(characters, [], False)
     files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)

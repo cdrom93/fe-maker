@@ -2021,7 +2021,7 @@
   "skill.kind.weapon": "Selon l'arme",
   "skill.kind.foe": "Selon l'adversaire",
   "skill.kind.situation": "Distance, terrain et tours",
-  "skill.filterKind": "Ne montrer que cette catégorie (cliquer à nouveau pour tout montrer)",
+  "skill.allKinds": "Toutes",
   "skill.search": "Rechercher (nom, effet, catégorie)…",
   "skill.Adept": "Adept",
   "skill.AdeptHint": "Un coup de plus à chaque assaut quand l'unité a tous ses PV.",

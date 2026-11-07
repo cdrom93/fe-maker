@@ -577,7 +577,7 @@ def catalogue() -> list[dict]:
     """What FE Maker offers on the sheets (names and descriptions are UI strings: skill.<id>, skill.<id>Hint); Magic
     skills only with the Strength / Magic split."""
     return ([{"id": s.id, "kind": s.category, "magic": s.id in MAGIC_SKILLS} for s in CATALOGUE]
-            + [{"id": sid, "kind": "game", "magic": False} for sid in ASSIGNABLE])
+            + [{"id": sid, "kind": ASSIGNABLE_GROUP[sid], "magic": False} for sid in ASSIGNABLE])
 
 
 # The game skills in FE Maker's words: the abilities (gamedata.ABILITIES) or the classes that give them
@@ -595,6 +595,8 @@ GAME_CHARACTERS = {"Supply": ["CHARACTER_EIRIKA", "CHARACTER_EPHRAIM"]}   # the 
 # (AI included) with UNIT_CATTRIBUTES, which then adds SkillAttributesFem (docs/competences.md)
 ASSIGNABLE = {"Canto": "CA_CANTO", "Steal": "CA_STEAL", "LockTouch": "CA_THIEF", "Crit": "CA_CRITBONUS",
               "Lethality": "CA_ASSASSIN"}
+# their category in the skill picker: that of what they do (ticket 26), not a "game abilities" one
+ASSIGNABLE_GROUP = {"Canto": "map", "Steal": "menu", "LockTouch": "menu", "Crit": "hit", "Lethality": "hit"}
 
 
 def given(characters: list[dict], classes: list[dict], extra=()) -> set[str]:
@@ -1657,8 +1659,11 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
         HideUnitSprite(gActiveUnit);
         return;
     }
-""", """    if (TryGaleforceFem())
+""", """    if (TryGaleforceFem()) {
         RefreshUnitSprites();
+        EndAllMus();
+        StartStatusHealEffect(gActiveUnit, proc);   /* its flash and sound, as C-SkillSys */
+    }
     else if (TryMakeCantoUnit(proc))
     {
         HideUnitSprite(gActiveUnit);
@@ -1669,6 +1674,8 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
 /* FE Maker: Galeforce (C-SkillSys's Tsuzuku.c): after a battle won, the unit acts again, once a turn (every time) */
 #define sGaleforceUsedFem ((vu8*) {GALEFORCE_USED})
 #define sGaleforceTurnFem (*(vu16*) ({GALEFORCE_USED} + 8))
+
+void StartStatusHealEffect(struct Unit* unit, ProcPtr proc);   /* bmusailment.c */
 
 static bool TryGaleforceFem(void)
 {{

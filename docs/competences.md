@@ -117,7 +117,9 @@ Plus tard :
 ## Choix de l'utilisateur (06/11/2026)
 
 - **Galeforce (ticket 23, 07/11)** : se déclenche à chaque fois (une fois par tour) dès que l'unité achève un ennemi ; le C-SkillSys le tire à Technique %.
-- **Liste de choix (ticket 22, 07/11)** : plus large, l'effet de chaque compétence écrit sous son nom, une pastille par catégorie pour filtrer.
+- **Choix d'une compétence (ticket 22, 07/11)** : une fenêtre (comme les autres boîtes de dialogue), les catégories à gauche, l'icône, le nom et l'effet de chaque compétence à droite ; pas de liste déroulante.
+- **Capacités du jeu (ticket 26, 07/11)** : rangées dans la catégorie de ce qu'elles font (Canto sur la carte, Vol et Talents de voleur dans les commandes, Bonus de critique et Létalité dans précision et critique).
+- **Galeforce** : l'effet de soin de statut du jeu (éclair et son) quand l'unité rejoue, comme le C-SkillSys.
 
 - **Noms en anglais (07/11)** : pour l'instant, les compétences gardent leur nom anglais (celui du C-SkillSys) aussi dans l'interface en français ; seules leurs descriptions sont traduites. Pas de traduction en jeu non plus pour le moment.
 

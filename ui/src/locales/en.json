@@ -2021,7 +2021,7 @@
   "skill.kind.weapon": "By weapon",
   "skill.kind.foe": "By foe",
   "skill.kind.situation": "Range, terrain and turns",
-  "skill.filterKind": "Show this category only (click again to show all)",
+  "skill.allKinds": "All",
   "skill.search": "Search (name, effect, category)…",
   "skill.Adept": "Adept",
   "skill.AdeptHint": "One more hit in each attack while the unit has full HP.",
