@@ -70,6 +70,13 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
    - commandes d'évènement pour donner ou retirer une compétence ;
    - parchemins ;
    - sauvegarde dans la zone libre de la mémoire (`SRAM_OFFSET_XMAP`, voir `docs/audit-decomp.md`).
+   - **Plan (07/11/2026)**, étudié sur le C-SkillSys (`SkillSys/kernel/LearnSkill.c` : un bit par personnage et par compétence, sauvegardé avec la partie ; puis un écran d'équipement en préparation, mis à plus tard) :
+     1. Liste apprise par personnage : 4 compétences au plus (numéros du projet), actives d'office (pas d'équipement), en plus de celles de sa fiche et de sa classe. En mémoire vive : 0x40 personnages × 4 octets à 0x02028800, dans le tampon de débogage libre (avant la table des icônes). Remise à zéro en nouvelle partie. `SkillTesterFem`, la fiche (page 1) et l'aide R la lisent.
+     2. Sauvegarde : comme la magie (`strmag.py`), dans la zone des cartes bonus, à +0x480 : par emplacement (3 parties, 2 sauvegardes de mi-chapitre), l'heure de la sauvegarde puis la table (0x104 octets ; 5 × 0x104 = 0x514, jusqu'à +0x994 sur 0xC00). Une sauvegarde sans table (faite avant) : liste vide.
+     3. Apprentissage par niveau : sur la fiche personnage et la fiche classe, « apprend X au niveau N » (comme les listes du C-SkillSys `SkillTable-person.c` / `-job.c`), au moment de la montée de niveau, avec le nom affiché. 5e compétence apprise : la plus ancienne est oubliée (le C-SkillSys garde tout, mais il a l'écran d'équipement).
+     4. Commandes d'évènement « Donner une compétence » / « Retirer une compétence » (un personnage, une compétence).
+     5. Parchemins : plus tard, avec les objets à effet.
+     - Joueur seulement (comme le C-SkillSys : un ennemi n'apprend rien) ; vérifié par playtest (sauvegarde, rechargement, montée de niveau).
 4. **Compétences de carte et de menu** : Canto, Renewal, Galeforce, Steal, Dance…, et l'IA qui en tient compte.
 
 Plus tard :
