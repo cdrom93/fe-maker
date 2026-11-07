@@ -201,3 +201,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : projet `test` compilé en natif et par Docker : même ROM ; Docker Desktop réparé (dossier `docker-secrets-engine` mis de côté, socket périmé) ; guide, README et CHANGELOG sans Docker sous Windows ; workflow `Toolchain` lancé.
 - 07/11/2026 : release `toolchain-1` publiée par le workflow (chemins absolus corrigés) ; l'archive de GitHub installée et compilée de zéro : ROM d'origine identique en 8 min 13.
 - 07/11/2026 : avant la mise en public, historique réécrit (e-mail anonyme de GitHub, citations et mentions personnelles retirées, ligne de l'annonce reformulée).
+- 07/11/2026 : #171 fait : page 1 de la fiche comme le Skill System (Dépl. sous Rés., colonne de droite Con, Aid, Cond, Lead, Talk, « Skills » et 2 rangées de 3 icônes, affinité à côté du nom, aide R refaite) ; playtest.

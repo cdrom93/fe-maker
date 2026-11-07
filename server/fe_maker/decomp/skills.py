@@ -8,8 +8,9 @@ original ROM; its effects are written in C on the decomp's names, so they are ta
   gCharacterSkillsFem and gClassSkillsFem; SkillTesterFem(unit, n) tests them. Only the skills the project uses are
   compiled, numbered from 1.
 - The game's own class abilities (Canto, Steal, Pierce...) are shown as skills too (GAME_SKILLS), their engine untouched.
-- Status screen, page 1: "Skills" and up to 4 icons below Cond, in the place of the battles / wins / losses line
-  (layout of the Skill System's MSS, the user's choice); R shows each skill's text.
+- Status screen, page 1 (ticket 171, layout of the Skill System's MSS, the user's choice): Str to Res then Mov on
+  the left; Con, Aid, Cond, Lead, Talk, "Skills" and 2 rows of 3 icons on the right; the affinity beside the
+  name; R shows each skill's text.
 - Icons: C-SkillSys's (Contents/Gfx/Sources/SkillIcon, already in the game's icon palette), downloaded once and cached,
   never in this repository; they follow the game's 224 icons, whose lookup table moves to free RAM (ICON_TABLE).
 - In-game texts: C-SkillSys's (Contents/Texts/Source/texts), its name on the first line.
@@ -17,6 +18,7 @@ original ROM; its effects are written in C on the decomp's names, so they are ta
 
 from __future__ import annotations
 
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -34,7 +36,7 @@ SS_COMMIT = "aefb81278ae814ecc53175f79813bc099dae0346"
 BOX_URL = (f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}"
            "/EngineHacks/SkillSystem/Internals/Graphics/ProcDisplayTiles.png")
 MAX_PER_SHEET = 3
-MAX_SHOWN = 4
+MAX_SHOWN = 6   # page 1: 2 rows of 3 icons (ticket 171)
 MAX_SKILLS = 63           # icons after the game's 224, in the 0x120 entries of the moved lookup table
 
 
@@ -163,6 +165,8 @@ GAME_SKILLS: tuple[Skill, ...] = (
 
 BY_ID = {s.id: s for s in CATALOGUE + GAME_SKILLS}
 LABEL = "Skills"
+# page 1 (ticket 171): the labels of Talk and Lead, the help of Lead (Talk's is the game's, MSG_56A)
+PAGE_TEXTS = ("Talk", "Lead", "Leadership. No effect[LF]\nfor now.")
 MAGIC_SKILLS = frozenset(s.id for s in CATALOGUE if s.stat == 6)
 
 
@@ -239,9 +243,12 @@ def _download(url: str, path: Path) -> Path:
 # --- texts --------------------------------------------------------------------------------------------------------
 
 def add_texts(data, skills: list[Skill]) -> dict[str, int]:
-    """The in-game texts (DecompData.add_texts, before its files are written): "Skills", then each skill's help."""
-    numbers = data.add_texts(LABEL, *(s.text.replace("[NL]", "[LF]\n") for s in skills))
-    return {"label": numbers[0], **{s.id: n for s, n in zip(skills, numbers[1:])}}
+    """The in-game texts (DecompData.add_texts, before its files are written): "Skills", page 1's labels, then each
+    skill's help."""
+    numbers = data.add_texts(LABEL, *PAGE_TEXTS, *(s.text.replace("[NL]", "[LF]\n") for s in skills))
+    skill_numbers = numbers[1 + len(PAGE_TEXTS):]
+    return {"label": numbers[0], "talk": numbers[1], "lead": numbers[2], "leadHelp": numbers[3],
+            **{s.id: n for s, n in zip(skills, skill_numbers)}}
 
 
 # --- C ------------------------------------------------------------------------------------------------------------
@@ -380,7 +387,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                     "CpuFill16(0, DrawnIconLookupTable, ICON_TABLE_SIZE_FEM * sizeof(struct IconStruct));", rel)
     files[rel] = icon
 
-    files.update(_status_screen(decomp_dir, files, skills, numbers, texts, base))
+    files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     return files
 
 
@@ -859,10 +866,15 @@ def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
 """ + battle[end:]
 
 
-def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], numbers: dict[str, int], texts: dict[str, int],
-                   base: int) -> dict:
-    """Page 1: "Skills" and the icons below Cond (rows 13 and 15, where the battles / wins / losses line was), R help."""
+def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], texts: dict[str, int], base: int,
+                   magic_split: bool) -> dict:
+    """Page 1 laid out as the Skill System's MSS (ticket 171, docs/competences.md).
+
+    Left: Str (Mag) Skl Spd Lck Def Res, then Mov. Right: Con, Aid, Cond, Lead ("---" for now), Talk (who the unit can
+    talk to, as C-SkillSys's GetTalkee), "Skills" and 2 rows of 3 icons. The affinity icon goes beside the name; Trv and
+    the battles / wins / losses line leave the page. R help: rebuilt for the whole page."""
     out = {}
+    mov_row = 15 if magic_split else 13
     rel = "include/statscreen.h"
     header = _read(files, decomp_dir, rel)
     out[rel] = _replace(header, "    STATSCREEN_TEXT_BWL, // 34\n",
@@ -872,16 +884,65 @@ def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], numbers: 
     text = _replace(text, "    { gStatScreen.text + STATSCREEN_TEXT_BWL,        16 },\n",
                     "    { gStatScreen.text + STATSCREEN_TEXT_BWL,        16 },\n"
                     "    { gStatScreen.text + STATSCREEN_TEXT_SKILLS_FEM, 4 },\n", rel)
-    # the battles / wins / losses line gives its place (the growth rates' HP line, before it, stays)
+    # the battles / wins / losses line leaves (the growth rates' HP line, before it, stays: it takes Mov's row)
     text = _replace(text, "\n    if (!stats)\n        return;\n",
-                    "\n    return; /* FE Maker: the skills take this line's place */\n\n    if (!stats)\n        return;\n", rel)
+                    "\n    return; /* FE Maker: page 1 has no room for this line (ticket 171) */\n\n"
+                    "    if (!stats)\n        return;\n", rel)
+
+    # labels: Mov to the left column, the right column one row up, Lead and Talk in Trv's and Affin's texts
+    labels = {"MOVLABEL": (1, mov_row, "&gMid_Mov"), "CONLABEL": (9, 1, "&gMid_Con"), "AIDLABEL": (9, 3, "&gMid_Aid"),
+              "STATUS": (9, 5, "&gMid_Cnd"), "AFFINLABEL": (9, 7, "&sMidLeadFem"),
+              "RESCUENAME": (9, 9, "&sMidTalkFem")}
+    for name, (x, y, mid) in labels.items():
+        pattern = re.compile(rf"    \{{ gStatScreen\.text \+ STATSCREEN_TEXT_{name}, +"
+                             r"gUiTmScratchA \+ TILEMAP_INDEX\(\d+, \d+\), +TEXT_COLOR_SYSTEM_GOLD, 0, &gMid_\w+ \},\n")
+        line = (f"    {{ gStatScreen.text + STATSCREEN_TEXT_{name}, gUiTmScratchA + TILEMAP_INDEX({x}, {y}), "
+                f"TEXT_COLOR_SYSTEM_GOLD, 0, {mid} }},\n")
+        text, count = pattern.subn(line, text, count=1)
+        if not count:
+            raise SkillError(f"Skills: {rel} does not match (label {name})")
+    text = _replace(text, "struct SSTextDispInfo const sPage0TextInfo[] =\n", (
+        "/* FE Maker (ticket 171): page 1's Lead and Talk */\n"
+        f"static const u32 sMidLeadFem = {texts['lead']};\nstatic const u32 sMidTalkFem = {texts['talk']};\n\n"
+        "struct SSTextDispInfo const sPage0TextInfo[] =\n"), rel)
+
+    # values
+    growths = "#ifdef STATSCREEN_BGPAL_GROWTHS_FEM\n    if (!gStatScreen.growthsFem) /* HP's growth takes this row */\n#endif\n"
+    pairs = [
+        ("    DrawStatWithBar(6, 13, 1,\n", growths + f"    DrawStatWithBar(6, 5, {mov_row},\n"),
+        ("    DrawStatWithBar(7, 13, 3,\n", "    DrawStatWithBar(7, 13, 1,\n"),
+        ("gUiTmScratchA + TILEMAP_INDEX(13, 5), TEXT_COLOR_SYSTEM_BLUE,",
+         "gUiTmScratchA + TILEMAP_INDEX(13, 3), TEXT_COLOR_SYSTEM_BLUE,"),
+        ("    DrawIcon(gUiTmScratchA + TILEMAP_INDEX(14, 5),\n", "    DrawIcon(gUiTmScratchA + TILEMAP_INDEX(14, 3),\n"),
+        ("    Text_InsertDrawString(\n        &gStatScreen.text[STATSCREEN_TEXT_RESCUENAME],\n"
+         "        24, TEXT_COLOR_SYSTEM_BLUE,\n        GetUnitRescueName(gStatScreen.unit));\n",
+         "    DisplayLeadTalkFem(); /* FE Maker (ticket 171): in the place of Trv */\n"),
+        ("                gUiTmScratchA + TILEMAP_INDEX(16, 11),\n", "                gUiTmScratchA + TILEMAP_INDEX(16, 5),\n"),
+        ("    DrawIcon(\n        gUiTmScratchA + TILEMAP_INDEX(12, 9),\n        GetUnitAffinityIcon(gStatScreen.unit),\n"
+         "        OAM2_PAL(STATSCREEN_BGPAL_EXTICONS));\n",
+         "    /* FE Maker (ticket 171): the affinity icon is beside the name */\n"),
+        # the affinity beside the name (the name is centred in 6 tiles of its 7: the 7th is free)
+        ("        TEXT_COLOR_SYSTEM_WHITE, namexoff, 0, namestr);\n",
+         "        TEXT_COLOR_SYSTEM_WHITE, namexoff, 0, namestr);\n\n"
+         "    /* FE Maker (ticket 171): the affinity beside the name */\n"
+         "    DrawIcon(gBG0TilemapBuffer + TILEMAP_INDEX(9, 10), GetUnitAffinityIcon(gStatScreen.unit),\n"
+         "        OAM2_PAL(STATSCREEN_BGPAL_EXTICONS));\n"),
+    ]
+    for old, new in pairs:
+        text = _replace(text, old, new, rel)
+
     game = [s for s in skills if s.kind == "game"]
     icons = ", ".join(str(base + i) for i in range(len(skills)))
     descs = ", ".join(str(texts[s.id]) for s in skills)
     game_lines = "".join(f"    if ({s.game})\n        list[count++] = SKILL_FEM_{s.id};\n" for s in game)
+    size = 2 * MAX_PER_SHEET + len(game)
     helpers = f"""#include "constants/characters.h"
+#include "chapterdata.h"
+#include "event.h"
+#include "eventinfo.h"
+#include "eventscript.h"
 
-/* FE Maker: skills on page 1 (docs/competences.md; layout of the Skill System's MSS) */
+/* FE Maker: skills on page 1 (docs/competences.md; layout of the Skill System's MSS, ticket 171) */
 static const u16 sSkillIconFem[SKILL_COUNT_FEM + 1] = {{ 0, {icons} }};
 static const u16 sSkillTextFem[SKILL_COUNT_FEM + 1] = {{ 0, {descs} }};
 
@@ -902,22 +963,68 @@ static int GetUnitSkillListFem(struct Unit* unit, u8* list)
 
 static void DisplaySkillsFem(void)
 {{
-    u8 list[{2 * MAX_PER_SHEET + len(game)}];
+    u8 list[{size}];
     int i, count = GetUnitSkillListFem(gStatScreen.unit, list);
     const char* label = GetStringFromIndex({texts["label"]});
 
     if (count == 0)
         return;
     ClearText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM]);
-    PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM], gUiTmScratchA + TILEMAP_INDEX(11, 13),
+    PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM], gUiTmScratchA + TILEMAP_INDEX(11, 11),
         TEXT_COLOR_SYSTEM_GOLD, GetStringTextCenteredPos(32, label), 0, label);
     for (i = 0; i < count && i < {MAX_SHOWN}; i++)
-        DrawIcon(gUiTmScratchA + TILEMAP_INDEX(9 + i * 2, 15), sSkillIconFem[list[i]], 0x4000);
+        DrawIcon(gUiTmScratchA + TILEMAP_INDEX(10 + (i % 3) * 2, 13 + (i / 3) * 2), sSkillIconFem[list[i]], 0x4000);
+}}
+
+/* Talk: who the unit can talk to now, a talk event of the chapter first, then a support (C-SkillSys's GetTalkee,
+   Kernel/Wizardry/Core/StatScreen/DrawUnitPage/Source/Util.c) */
+int EvCheck03_CHAR(struct EventInfo* info);
+extern struct EventListCmdInfo CONST_DATA gEventListCmdInfoTable[];
+
+static bool UnitOnMapFem(struct Unit* unit)
+{{
+    return unit && unit->pCharacterData && !(unit->state & (US_HIDDEN | US_UNAVAILABLE));
+}}
+
+static int GetTalkeeFem(struct Unit* unit)
+{{
+    const EventListScr* list = GetChapterEventDataPointer(gPlaySt.chapterIndex)->characterBasedEvents;
+    struct EventInfo info;
+    int i, cmd;
+
+    for (; list && (cmd = list[0] & 0xFFFF) != EVT_LIST_CMD_END; list += gEventListCmdInfoTable[cmd].length)
+    {{
+        if (cmd != EVT_LIST_CMD_CHAR || CheckFlag(list[0] >> 16))
+            continue;
+        info.listScript = list;
+        info.pidA = UNIT_CHAR_ID(unit);
+        info.pidB = ((const u8*) list)[9];
+        if (EvCheck03_CHAR(&info) && UnitOnMapFem(GetUnitFromCharId(info.pidB)))
+            return info.pidB;
+    }}
+    for (i = 0; i < GetUnitSupporterCount(unit); i++)
+    {{
+        struct Unit* other = GetUnitSupporterUnit(unit, i);
+
+        if (UnitOnMapFem(other) && CanUnitSupportNow(unit, i))
+            return UNIT_CHAR_ID(other);
+    }}
+    return 0;
+}}
+
+static void DisplayLeadTalkFem(void)
+{{
+    int talkee = GetTalkeeFem(gStatScreen.unit);
+
+    Text_InsertDrawString(&gStatScreen.text[STATSCREEN_TEXT_AFFINLABEL], 24, TEXT_COLOR_SYSTEM_BLUE,
+        GetStringFromIndex(MSG_536)); /* Lead: none yet */
+    Text_InsertDrawString(&gStatScreen.text[STATSCREEN_TEXT_RESCUENAME], 24, TEXT_COLOR_SYSTEM_BLUE,
+        GetStringFromIndex(talkee ? UNIT_NAME_ID(GetUnitFromCharId(talkee)) : MSG_536));
 }}
 
 static void HbPopulate_SkillFem(struct HelpBoxProc* proc)
 {{
-    u8 list[{2 * MAX_PER_SHEET + len(game)}];
+    u8 list[{size}];
 
     GetUnitSkillListFem(gStatScreen.unit, list);
     proc->msgId = sSkillTextFem[list[proc->info->msgId]];
@@ -925,7 +1032,7 @@ static void HbPopulate_SkillFem(struct HelpBoxProc* proc)
 
 static void HbRedirect_SkillFem(struct HelpBoxProc* proc)
 {{
-    u8 list[{2 * MAX_PER_SHEET + len(game)}];
+    u8 list[{size}];
 
     if (proc->info->msgId < GetUnitSkillListFem(gStatScreen.unit, list))
         return;
@@ -938,19 +1045,64 @@ static void HbRedirect_SkillFem(struct HelpBoxProc* proc)
 """
     text = _replace(text, "void DisplayPage0(void)\n{", helpers + "void DisplayPage0(void)\n{", rel)
     text = _replace(text, "    DisplayBwl();\n}\n", "    DisplayBwl();\n    DisplaySkillsFem();\n}\n", rel)
-    entries = "".join(
-        f"DECL_INFO sHelpInfo_SkillFem{i} =\n{{\n    &sHelpInfo_Ss0Status, NULL, "
-        f"{'&sHelpInfo_SkillFem' + str(i - 1) if i else '&sHelpInfo_Ss0Res'}, "
-        f"{'&sHelpInfo_SkillFem' + str(i + 1) if i < MAX_SHOWN - 1 else 'NULL'},\n"
-        f"    {168 + 16 * i}, 136, {i}, HbRedirect_SkillFem, HbPopulate_SkillFem,\n}};\n\n" for i in range(MAX_SHOWN))
-    status = ("DECL_INFO sHelpInfo_Ss0Status =\n{\n    &sHelpInfo_Ss0Affinity, NULL, &sHelpInfo_Ss0Res, NULL,\n"
-              "    166, 104, 0, NULL, HbPopulate_SSStatus,\n};\n")
-    text = _replace(text, "DECL_INFO sHelpInfo_Ss0Res =\n", "".join(
-        f"extern DECL_INFO sHelpInfo_SkillFem{i};\n" for i in range(MAX_SHOWN)) + "\nDECL_INFO sHelpInfo_Ss0Res =\n", rel)
-    text = _replace(text, status, (
-        status.replace("&sHelpInfo_Ss0Affinity, NULL,", "&sHelpInfo_Ss0Affinity, &sHelpInfo_SkillFem0,") + "\n" + entries),
-        rel)
-    text = _replace(text, "    &sHelpInfo_Ss0Def, NULL, &sHelpInfo_Class, &sHelpInfo_Ss0Status,\n",
-                    "    &sHelpInfo_Ss0Def, &sHelpInfo_SkillFem0, &sHelpInfo_Class, &sHelpInfo_Ss0Status,\n", rel)
-    out[rel] = text
+
+    # R help of the whole page, rebuilt
+    start = text.index("DECL_INFO gHelpInfo_Ss0Pow =\n")
+    end = text.index("// Stat Screen Page 1 (Items & battle stats) (Ss1)")
+    text = text[:start] + _help_entries(magic_split) + text[end:]
+    text = _replace(text, "    NULL, &sHelpInfo_Class, NULL, &sHelpInfo_Ss0Lck,\n    24, 80,",
+                    "    NULL, &sHelpInfo_Class, NULL, &sHelpInfo_Ss0Affinity,\n    24, 80,", rel)
+    text = text.replace("DECL_INFO sHelpInfo_Char =\n", "extern DECL_INFO sHelpInfo_Ss0LeadFem;\n" + "".join(
+        f"extern DECL_INFO sHelpInfo_SkillFem{i};\n" for i in range(MAX_SHOWN)) + "\nDECL_INFO sHelpInfo_Char =\n", 1)
+    out[rel] = text.replace("sHelpInfo_Ss0LeadFem_MSG", str(texts["leadHelp"]))
     return out
+
+
+def _help_entries(magic_split: bool) -> str:
+    """Page 1's R help boxes (ticket 171): up, down, left, right, x, y, message, redirect, populate."""
+    left = [("gHelpInfo_Ss0Pow", 102, "MSG_546", "NULL, NULL" if magic_split else "NULL, HbPopulate_SSPower")]
+    if magic_split:
+        left.append(("sHelpInfo_Ss0MagFem", 102, "MSG_547", ""))
+    left += [("sHelpInfo_Ss0Skl", 105, "MSG_548", ""), ("sHelpInfo_Ss0Spd", 102, "MSG_549", ""),
+             ("sHelpInfo_Ss0Lck", 102, "MSG_54A", ""), ("sHelpInfo_Ss0Def", 102, "MSG_54B", ""),
+             ("sHelpInfo_Ss0Res", 102, "MSG_54C", ""), ("sHelpInfo_Ss0Mov", 102, "MSG_54D", "")]
+    right = [("sHelpInfo_Ss0Con", "MSG_54E", ""), ("sHelpInfo_Ss0Aid", "MSG_54F", ""),
+             ("sHelpInfo_Ss0Status", "0", "NULL, HbPopulate_SSStatus"), ("sHelpInfo_Ss0LeadFem", "sHelpInfo_Ss0LeadFem_MSG", ""),
+             ("sHelpInfo_Ss0Traveler", "MSG_56A", "")]   # Talk keeps Trv's name (the header declares it)
+    skill_rows = (120, 136)
+    by_y_right = {24 + 16 * j: name for j, (name, _, _) in enumerate(right)}
+    by_y_right[104] = by_y_right[120] = "sHelpInfo_SkillFem0"
+    by_y_right[136] = "sHelpInfo_SkillFem3"
+
+    def ref(name):
+        return f"&{name}" if name else "NULL"
+
+    def left_at(y):   # the left column's entry on that row, or the last one
+        return left[min(len(left), (y - 24) // 16 + 1) - 1][0]
+
+    def entry(name, up, down, lft, rgt, x, y, msg, extra):
+        tail = f", {extra}" if extra else ""
+        return (f"DECL_INFO {name} =\n{{\n    {ref(up)}, {ref(down)}, {ref(lft)}, {ref(rgt)},\n"
+                f"    {x}, {y}, {msg}{tail},\n}};\n\n")
+
+    out = ["/* FE Maker (ticket 171): page 1 as the Skill System's MSS */\n"]
+    for i, (name, x, msg, extra) in enumerate(left):
+        y = 24 + 16 * i
+        out.append(entry(name, left[i - 1][0] if i else None, left[i + 1][0] if i + 1 < len(left) else None,
+                         "sHelpInfo_Char" if y < 104 else "sHelpInfo_Class", by_y_right.get(y), x, y, msg, extra))
+    for j, (name, msg, extra) in enumerate(right):
+        y = 24 + 16 * j
+        out.append(entry(name, right[j - 1][0] if j else None,
+                         right[j + 1][0] if j + 1 < len(right) else "sHelpInfo_SkillFem0",
+                         left_at(y), None, 166, y, msg, extra))
+    for k in range(MAX_SHOWN):
+        row, col = divmod(k, 3)
+        y = skill_rows[row]
+        out.append(entry(
+            f"sHelpInfo_SkillFem{k}", right[-1][0] if row == 0 else f"sHelpInfo_SkillFem{k - 3}",
+            f"sHelpInfo_SkillFem{k + 3}" if row == 0 else None,
+            left_at(y) if col == 0 else f"sHelpInfo_SkillFem{k - 1}", f"sHelpInfo_SkillFem{k + 1}" if col < 2 else None,
+            174 + 16 * col, y, k, "HbRedirect_SkillFem, HbPopulate_SkillFem"))
+    out.append(entry("sHelpInfo_Ss0Affinity", None, "sHelpInfo_Class", "sHelpInfo_Char", "sHelpInfo_Ss0Lck",
+                     72, 80, "MSG_551", ""))
+    return "".join(out)

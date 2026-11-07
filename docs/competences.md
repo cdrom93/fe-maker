@@ -91,7 +91,7 @@ Plus tard :
   - Affin : son icône passe à droite du nom (panneau de gauche), comme sur la capture ; aujourd'hui elle est dans la colonne de droite ;
   - Lead : « -- » par défaut ; le commandement (étoiles du C-SkillSys, `GetUnitLeaderShip` : une valeur par personnage et son bonus en combat) viendra en option du jeu, dans une catégorie (sa demande du 06/11), après la page ;
   - aide R sur les 6 icônes.
-  - À faire (après le 06/11 à 16 h 40, quota).
+  - **État (07/11/2026)** : fait, vérifié par playtest (`tests/local`, fiche et aide R sur la 4e compétence). Talk repris du `GetTalkee` du C-SkillSys (`DrawUnitPage/Source/Util.c`) : évènement de dialogue du chapitre, puis soutien possible ; Lead affiche « --- » (texte d'aide : pas d'effet pour l'instant). En mode croissances (Select, #166), la ligne des PV prend la place de Dépl. À valider par l'utilisateur en jeu ; Talk pas vu en jeu sur un vrai dialogue.
 
 ## Suivre le C-SkillSys et ses auteurs
 

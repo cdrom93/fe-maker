@@ -1583,7 +1583,7 @@ def test_magic_split_from_strength(tmp_path):
 
 def test_skills_in_battle_and_on_the_status_screen(tmp_path):
     """Skills lot 1 (docs/competences.md): a character's Str+2 and Darting Blow, its class's Def+2, counted in battle;
-    the status screen shows "Skills" and their icons below Cond, R shows a skill's text."""
+    the status screen shows "Skills" and their icons in the right column (ticket 171), R shows a skill's text."""
     place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
     project = _bench(tmp_path, "skills", [["ITEM_SWORD_IRON"], []], enemy_at=place)
     project.set_game_options({**project.game_options, "strMagSplit": True, "skills": True})
@@ -1607,7 +1607,7 @@ def test_skills_in_battle_and_on_the_status_screen(tmp_path):
         game.press("R", wait=120)
         game.screenshot().save(tmp_path / "status.png")
         print("status screen:", tmp_path / "status.png")
-        for key in ("R", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT"):   # Res, then the 2nd skill
+        for key in ("R", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT"):   # Mov, then the 4th skill
             game.press(key, wait=20)
         game.run(120)                   # the help box writes its text letter by letter
         game.screenshot().save(tmp_path / "help.png")

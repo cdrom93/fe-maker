@@ -5,6 +5,7 @@ import pytest
 from fe_maker.decomp import skills
 
 DECOMP = Path(__file__).parents[2] / "decomp"
+PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52}   # page 1 texts (ticket 171)
 
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
@@ -32,8 +33,8 @@ def test_texts_go_on_lines_of_the_game():
 
     data = Data()
     numbers = skills.add_texts(data, [skills.BY_ID["Wrath"]])
-    assert numbers == {"label": 100, "Wrath": 101}
-    assert data.bodies == ("Skills", "Wrath:[LF]\nIf current HP is < 50%[LF]\nof max, +20 Crit Rate.")
+    assert numbers == {"label": 100, "talk": 101, "lead": 102, "leadHelp": 103, "Wrath": 104}
+    assert data.bodies == ("Skills", *skills.PAGE_TEXTS, "Wrath:[LF]\nIf current HP is < 50%[LF]\nof max, +20 Crit Rate.")
 
 
 def test_skills_match_the_decomp(monkeypatch):
@@ -44,7 +45,7 @@ def test_skills_match_the_decomp(monkeypatch):
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["StrBonus", "Vantage", "DefiantSpd"]}]
     classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["BlowDarting"]}]
     used = skills.used(characters, classes, False)
-    texts = {"label": 1, **{s.id: 2 + k for k, s in enumerate(used)}}
+    texts = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, **{s.id: 2 + k for k, s in enumerate(used)}}
     files = skills.apply(DECOMP, {}, characters, classes, texts, False)
     unit = files["src/bmunit.c"]
     assert "    [0x01] = { 1, 4, 2 }," in unit   # StrBonus, Vantage, DefiantSpd: numbered in catalogue order
@@ -61,6 +62,12 @@ def test_skills_match_the_decomp(monkeypatch):
     status = files["src/statscreen.c"]
     assert "DisplaySkillsFem();" in status and "sHelpInfo_SkillFem3" in status
     assert "static const u16 sSkillIconFem[SKILL_COUNT_FEM + 1] = { 0, 224, 225," in status
+    # ticket 171: Mov below Res (row 13 without the split), Con at the top of the right column, Lead and Talk
+    assert "STATSCREEN_TEXT_MOVLABEL, gUiTmScratchA + TILEMAP_INDEX(1, 13)," in status
+    assert "    DrawStatWithBar(6, 5, 13,\n" in status and "    DrawStatWithBar(7, 13, 1,\n" in status
+    assert "static const u32 sMidLeadFem = 51;" in status and "DisplayLeadTalkFem();" in status
+    assert "sHelpInfo_SkillFem5 =" in status and "    166, 72, 52,\n" in status   # Lead's help
+    assert "TILEMAP_INDEX(12, 9)" not in status   # the affinity icon left the right column
 
 
 def test_triggered_skills_go_into_each_hit(monkeypatch):
@@ -71,7 +78,7 @@ def test_triggered_skills_go_into_each_hit(monkeypatch):
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna", "Sol", "Colossus"]}]
     classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["Pavise"]}]
     used = skills.used(characters, classes, False)
-    files = skills.apply(DECOMP, {}, characters, classes, {"label": 1, **{s.id: 2 for s in used}}, False)
+    files = skills.apply(DECOMP, {}, characters, classes, {**PAGE, **{s.id: 2 for s in used}}, False)
     battle = files["src/bmbattle.c"]
     assert "ApplyHitSkillsFem(attacker, defender, &attack, &defense);\n\n    gBattleStats.damage = attack - defense;" in battle
     assert "SkillProcFem(defender, SKILL_FEM_Pavise)" in battle and "gBattleStats.damage *= 3;" in battle
@@ -86,7 +93,7 @@ def test_adept_and_astra_add_hits_within_the_games_six(monkeypatch):
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Adept", "Astra"]}]
     used = skills.used(characters, [], False)
-    battle = skills.apply(DECOMP, {}, characters, [], {"label": 1, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
     assert "result += HitCountSkillsFem(attacker);" in battle and "SKILL_FEM_Astra, unit->unit.spd)" in battle
     assert "i < count && gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX - 1;" in battle
     assert "    sAstraFem = FALSE;\n" in battle and "gBattleStats.damage /= 2;" in battle
@@ -101,7 +108,7 @@ def test_triggered_skill_name_shown_in_battle(monkeypatch):
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna"]}]
     used = skills.used(characters, [], False)
-    files = skills.apply(DECOMP, {}, characters, [], {"label": 1, **{s.id: 2 for s in used}}, False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
     assert "sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2 + (unit == &gBattleTarget)] = skill;" in files[
         "src/bmbattle.c"]
     assert "void StartSkillNameFem(struct Anim* anim)\n" in files["src/bmbattle.c"]
