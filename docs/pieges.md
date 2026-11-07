@@ -109,3 +109,5 @@ piège dans sa section.
 - Un `<img>` masqué par `onerror` le reste quand sa source change : une classe ajoutée demande son sprite avant d'être enregistrée ; utiliser l'id du modèle.
 - `FE_MAKER_HOME` ne déplace pas le dossier des projets : `POST /api/projects` crée dans le vrai `FE Maker Projects` de l'utilisateur. En test, passer un chemin explicite, ou ouvrir un projet du dossier de test.
 - Une option du jeu retirée (fonction annulée) peut rester dans le `fe-maker.json` d'un projet : l'interface renvoie toutes les options à chaque case cochée, et la validation refusait tout (`unknownGameOption`, 06/11). `Project.game_options` ignore désormais les clés inconnues.
+- Python sous Windows : le magasin de certificats peut contenir un certificat expiré (« certificate has expired » vers le relais des tickets). Les appels HTTPS passent par `ferepo._ssl_context()` (certifi).
+- Relais des tickets : une erreur GitHub ne se voit que dans les journaux du Worker (`npx.cmd wrangler@4 tail`) ; un 401 « Bad credentials » = valeur du secret `GITHUB_TOKEN` fausse (jeton régénéré entre-temps), à remettre avec `secret put`.

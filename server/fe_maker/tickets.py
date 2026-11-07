@@ -64,7 +64,9 @@ def relay_call(path: str, data: dict | None = None, secret: str = "") -> dict:
     body = json.dumps(data).encode() if data is not None else None
     request = urllib.request.Request(url + path, data=body, headers=headers, method="POST" if body else "GET")
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        from .ferepo import _ssl_context  # certifi's certificates: Windows' store can hold an expired one
+
+        with urllib.request.urlopen(request, timeout=60, context=_ssl_context()) as response:
             return json.loads(response.read() or b"{}")
     except urllib.error.HTTPError as e:
         try:

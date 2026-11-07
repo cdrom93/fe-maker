@@ -31,6 +31,7 @@ export default {
       return await route(request, env, ctx)
     } catch (e) {
       if (e instanceof Refusal) return json({ error: e.code }, e.status)
+      console.error(String(e))   // the Worker's logs (dashboard, `wrangler tail`): which GitHub call failed
       return json({ error: 'relayError' }, 502)
     }
   },
@@ -124,7 +125,7 @@ async function github(env, method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   })
   if (response.status === 404) throw new Refusal('notFound', 404)
-  if (!response.ok) throw new Error(`GitHub ${method} ${path}: ${response.status}`)
+  if (!response.ok) throw new Error(`GitHub ${method} ${path}: ${response.status} ${(await response.text()).slice(0, 300)}`)
   return response.status === 204 ? null : response.json()
 }
 
