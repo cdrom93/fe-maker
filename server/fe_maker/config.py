@@ -106,11 +106,6 @@ class Settings:
             raise
         tmp.replace(self.rom_path)
 
-    def forget_recent(self, project_dir: Path) -> None:
-        p = str(project_dir.resolve())
-        self.recent_projects = [r for r in self.recent_projects if r != p]
-        self.save()
-
     def add_recent(self, project_dir: Path) -> None:
         p = str(project_dir.resolve())
         self.recent_projects = [p] + [r for r in self.recent_projects if r != p][:9]

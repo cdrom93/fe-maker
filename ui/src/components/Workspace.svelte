@@ -57,7 +57,8 @@
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
-  let showIdentity = $state(false)
+  /** ticket 174: the Rename and Save as dialogs */
+  let identity = $state<'rename' | 'saveAs' | null>(null)
   let start = $state('map')
   let focus = $state<Focus | null>(null)
 
@@ -270,9 +271,12 @@
       back()
       return
     }
-    if (showKeys || !(e.ctrlKey || e.metaKey)) return
+    if (showKeys || identity || !(e.ctrlKey || e.metaKey)) return
     const key = e.key.toLowerCase()
-    if (key === 'z' && !e.shiftKey) {
+    if (key === 's') {
+      e.preventDefault()   // the browser's own "save the page"
+      flushAll()
+    } else if (key === 'z' && !e.shiftKey) {
       e.preventDefault()
       active?.undo()
     } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
@@ -313,8 +317,11 @@
     <details class="menu" bind:this={projectMenu}>
       <summary>{t('ws.project')}</summary>
       <div class="menu-items">
+        <button onclick={() => fromMenu(flushAll)} title="Ctrl+S">{t('ws.save')}</button>
+        <button onclick={() => fromMenu(async () => { await flushAll(); identity = 'saveAs' })}>{t('ws.saveAs')}</button>
+        <button onclick={() => fromMenu(() => (identity = 'rename'))}>{t('ws.rename')}</button>
+        <button onclick={() => fromMenu(() => api.revealProject())}>{t('ws.openFolder')}</button>
         <button onclick={() => fromMenu(() => startBuild(false))} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
-        <button onclick={() => fromMenu(() => (showIdentity = true))}>{t('ws.projectIdentity')}</button>
         <button onclick={() => fromMenu(() => (showKeys = true))}>{t('keys.title')}</button>
         <button onclick={() => fromMenu(close)}>{t('ws.close')}</button>
       </div>
@@ -387,8 +394,8 @@
   {/if}
 {/if}
 
-{#if showIdentity}
-  <ProjectIdentityDialog {project} onClose={() => (showIdentity = false)} onSaved={onRenamed} />
+{#if identity}
+  <ProjectIdentityDialog {project} mode={identity} onClose={() => (identity = null)} onSaved={onRenamed} />
 {/if}
 {#if showKeys}
   <KeysDialog onClose={() => (showKeys = false)} />

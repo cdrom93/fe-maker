@@ -60,9 +60,9 @@ export const api = {
     request<{ colours: string[] }>('GET', `/api/classes/${classId}/portrait-colors?portrait=${portrait}&line=${line}`),
   battleColors: (character: string, classId: string) => request<BattleColors>('GET', `/api/characters/${character}/battle-colors/${classId}`),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
-  /** rename the open project, and move its folder when `folder` is another one (ticket 174) */
-  setProjectIdentity: (identity: { name: string; author: string; folder: string }) =>
-    request<ProjectInfo>('PUT', '/api/project/identity', identity),
+  /** ticket 174: rename the open project; save it as a copy in another folder (the copy is opened) */
+  renameProject: (identity: { name: string; author: string }) => request<ProjectInfo>('PUT', '/api/project/identity', identity),
+  saveProjectAs: (folder: string, name: string) => request<ProjectInfo>('POST', '/api/project/save-as', { folder, name }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),

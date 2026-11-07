@@ -57,6 +57,7 @@
 <header bind:clientHeight={headerHeight}>
   <div class="brand">
     <strong>FE Maker</strong>
+    {#if status?.version}<span class="version" title={t('app.version')}>{status.version}</span>{/if}
     <span class="muted">{t('app.tagline')}</span>
   </div>
   <!-- The open project's actions (Workspace.svelte moves them here, ticket 145) -->
@@ -111,6 +112,7 @@
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand strong { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
   .brand .muted { color: var(--header-muted); }
+  .brand .version { color: var(--header-muted); font-size: 0.75rem; }
   #header-actions { margin-left: auto; margin-right: 1.25rem; }
   .tools { display: flex; gap: 0.75rem; align-items: center; }
   .tools button { background: transparent; color: var(--header-text); border-color: #ffffff33; }

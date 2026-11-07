@@ -275,42 +275,50 @@ def open_project(body: OpenProjectIn):
         raise HTTPException(400, e.code or str(e))
 
 
-class ProjectIdentityIn(BaseModel):
+class ProjectRenameIn(BaseModel):
     name: str
     author: str = ""
-    folder: str = ""   # empty: where it is
 
 
 @app.put("/api/project/identity")
-def set_project_identity(body: ProjectIdentityIn):
-    """Rename the open project, and move its folder elsewhere when asked (ticket 174)."""
+def rename_project(body: ProjectRenameIn):
+    """Rename the open project (ticket 174): its name and author, its folder stays."""
     project = state.require_project()
     if not body.name.strip():
         raise HTTPException(400, "nameEmpty")
-    folder = Path(body.folder.strip()).expanduser() if body.folder.strip() else project.root
-    if not folder.is_absolute():
-        raise HTTPException(400, "project.folderNotAbsolute")
-    if folder.resolve() != project.root.resolve():
-        if folder.exists() and (not folder.is_dir() or any(folder.iterdir())):
-            raise HTTPException(400, "project.folderNotEmpty")
-        if folder.resolve().is_relative_to(project.root.resolve()):
-            raise HTTPException(400, "project.folderInside")
-        if not state.build_lock.acquire(blocking=False):
-            raise HTTPException(409, "buildRunning")
-        try:
-            old = project.root
-            if folder.exists():
-                folder.rmdir()   # empty: the move recreates it
-            folder.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(old), str(folder))
-            state.settings.forget_recent(old)
-            project = Project(folder)
-        except OSError as e:
-            raise HTTPException(400, f"project.moveFailed:{e}") from e
-        finally:
-            state.build_lock.release()
     project.set_identity(body.name.strip(), body.author.strip())
     return _open(project)
+
+
+class SaveAsIn(BaseModel):
+    folder: str
+    name: str = ""   # the copy's name, else the project's
+
+
+SAVE_AS_SKIPPED = ("build", "backups")   # remade by the next build; old versions stay with the original
+
+
+@app.post("/api/project/save-as")
+def save_project_as(body: SaveAsIn):
+    """Save as (ticket 174): copy the project to a new or empty folder and open the copy; the original stays."""
+    project = state.require_project()
+    folder = Path(body.folder.strip()).expanduser()
+    if not body.folder.strip() or not folder.is_absolute():
+        raise HTTPException(400, "project.folderNotAbsolute")
+    if folder.exists() and (not folder.is_dir() or any(folder.iterdir())):
+        raise HTTPException(400, "project.folderNotEmpty")
+    if folder.resolve().is_relative_to(project.root.resolve()):
+        raise HTTPException(400, "project.folderInside")
+    try:
+        if folder.exists():
+            folder.rmdir()   # empty: copytree makes it again
+        shutil.copytree(project.root, folder, ignore=lambda d, names: [n for n in names if Path(d) == project.root
+                                                                            and n in SAVE_AS_SKIPPED])
+        copy = Project(folder)
+    except (OSError, ProjectError) as e:
+        raise HTTPException(400, f"project.copyFailed:{e}") from e
+    copy.set_identity(body.name.strip() or project.name, str(project.meta.get("author", "")))
+    return _open(copy)
 
 
 @app.post("/api/project/reveal")

@@ -120,6 +120,15 @@ def sort_tickets(tickets: list[dict]) -> list[dict]:
     return sorted(tickets, key=lambda t: (t["status"] != "open", PRIORITY_RANK.get(t["priority"], 1), t["createdAt"]))
 
 
+def _github_number(ticket: dict) -> None:
+    """A ticket sent to the relay goes by its number on GitHub (ticket 185), the same for the tester and the admin;
+    its first number stays as localNumber, which numbers the next tickets written here."""
+    remote = ticket.get("remote")
+    if remote and ticket["number"] != remote["number"]:
+        ticket.setdefault("localNumber", ticket["number"])
+        ticket["number"] = remote["number"]
+
+
 def _image_names(ticket: dict) -> list[str]:
     return ticket["images"] + [name for comment in ticket["comments"] for name in comment["images"]]
 
@@ -143,6 +152,7 @@ class TicketStore:
         tickets = json.loads(self.file.read_text(encoding="utf-8"))
         for ticket in tickets:
             ticket.setdefault("comments", [])   # tickets written before comments existed
+            _github_number(ticket)
         return tickets
 
     def _write(self, tickets: list[dict]) -> None:
@@ -164,7 +174,7 @@ class TicketStore:
             raise TicketError("badValue")
         with self._lock:
             tickets = self._read()
-            number = max((t["number"] for t in tickets), default=0) + 1
+            number = max((t.get("localNumber", t["number"]) for t in tickets), default=0) + 1
             ticket_id = uuid.uuid4().hex[:8]
             ticket = {
                 "id": ticket_id,
@@ -304,6 +314,7 @@ class TicketStore:
         def sent(t: dict) -> None:
             t.pop("sendError", None)
             t["remote"] = {"number": answer["number"], "secret": answer["secret"], "sentAt": _now()}
+            _github_number(t)
         return self._set(ticket_id, sent)
 
     def sync(self) -> list[dict]:

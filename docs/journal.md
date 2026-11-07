@@ -217,3 +217,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : panneau des tickets plus compact (bascule Mes tickets / Testeurs sur la ligne du titre, type et priorité sur une ligne) ; idée d'un créateur d'animations notée au cahier (section 8).
 - 07/11/2026 : compétences, lot 4 point 3 : Repositionnement, Bousculade et Échange (code commun avec Pivot) ; 11 cartes de la liste FE Maker de son Trello reprises en tickets.
 - 07/11/2026 : ticket 174 : nom, auteur et dossier du projet (menu Projet, « Nom et dossier… », déplacement du dossier, bouton pour l'ouvrir ; dossier facultatif à la création).
+- 07/11/2026 : ticket 174 refait à la manière d'une appli classique (menu Projet : Enregistrer / Ctrl+S, Enregistrer sous… qui copie et ouvre la copie, Renommer…, Ouvrir le dossier) ; ticket 185 : un ticket envoyé prend son numéro GitHub (localNumber garde l'ancien) ; ticket 19 : version affichée dans l'en-tête.

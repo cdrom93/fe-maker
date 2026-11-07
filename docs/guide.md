@@ -41,7 +41,7 @@ Dans un chapitre, un **évènement** est un moment du jeu : son déclencheur dit
 
 Un petit **i** à côté d'un titre ou d'une option donne son explication : survolez-le.
 
-**▶ Tester** compile et lance le jeu dans mGBA. Le menu **Projet** contient **Exporter le patch**, qui donne le `.ups` à partager.
+**▶ Tester** compile et lance le jeu dans mGBA. Le menu **Projet** contient **Exporter le patch**, qui donne le `.ups` à partager. Tout s'enregistre au fur et à mesure (Ctrl+S force l'enregistrement) ; le même menu propose aussi **Enregistrer sous…** (une copie dans un autre dossier), **Renommer…** et **Ouvrir le dossier du projet**.
 
 Le bouton **Ticket** de l'en-tête signale un problème ou propose une idée : le ticket part aux développeurs de FE Maker, sans compte à créer, avec vos captures (et votre projet si vous cochez « Joindre le projet »). Leurs réponses s'affichent sous le ticket. Sans connexion, il reste noté sur votre PC et « Renvoyer » le renvoie plus tard.
 

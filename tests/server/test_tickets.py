@@ -93,6 +93,8 @@ def test_tickets_go_to_the_relay_and_come_back_with_replies(tmp_path, monkeypatc
     monkeypatch.setattr(tickets, "relay_call", relay)
     sent = store.send(ticket["id"], project=b"zip")
     assert sent["remote"]["number"] == 12 and "sendError" not in sent
+    # ticket 185: it now goes by its GitHub number; the next ticket written here follows the local ones
+    assert (sent["number"], sent["localNumber"]) == (12, 1) and store.create("Next")["number"] == 2
     path, data, _ = calls[0]
     assert data["body"] == "Broken map" and data["context"] == {"tab": "Maps"} and data["version"]
     assert data["images"][0].startswith("data:image/png;base64,") and data["project"] == {"data": "emlw"}
@@ -100,8 +102,8 @@ def test_tickets_go_to_the_relay_and_come_back_with_replies(tmp_path, monkeypatc
     with_comment = store.add_comment(ticket["id"], "More")
     store.send_comment(ticket["id"], with_comment["comments"][-1]["id"])
     assert calls[-1][0] == "/v1/tickets/12/comments" and calls[-1][2] == "s" * 32
-    assert store.list()[0]["comments"][-1]["sent"] is True
-    synced = store.sync()[0]
+    assert next(x for x in store.list() if x["id"] == ticket["id"])["comments"][-1]["sent"] is True
+    synced = next(x for x in store.sync() if x["id"] == ticket["id"])
     assert synced["status"] == "done" and synced["replies"] == [{"body": "Fixed.", "createdAt": "2026-11-07T12:00:00Z"}]
 
 
