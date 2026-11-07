@@ -1,0 +1,9 @@
+{
+  "name": "fe-maker-tickets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/relay.test.mjs",
+    "deploy": "npx wrangler@4 deploy"
+  }
+}

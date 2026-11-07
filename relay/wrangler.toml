@@ -1,0 +1,9 @@
+# FE Maker's ticket relay (relay/README.md). Deploy: `npx wrangler deploy` from this folder.
+# The GitHub token is the Worker's secret GITHUB_TOKEN (set once on the dashboard or `npx wrangler secret put
+# GITHUB_TOKEN`): it never goes in this file.
+name = "fe-maker-tickets"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+FEEDBACK_REPO = "cdrom93/fe-maker-feedback"

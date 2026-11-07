@@ -33,3 +33,4 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - run: node --test ../relay/test/relay.test.mjs   # the ticket relay (relay/)
