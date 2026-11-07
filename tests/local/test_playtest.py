@@ -1674,6 +1674,12 @@ def test_skill_learned_at_a_level_up(tmp_path):
         assert game.wait_until(lambda: game.read(attacker, 0x8) == level + 1, seconds=30, step=10)
         print("level", level, "->", game.read(attacker, 0x8), "learned", [game.read(table + k) for k in range(4)])
         assert level < 5 and game.read(table) == used.index("StrBonus") + 1
+        # then the popup "<lord> learned Str+2." with its icon: its instructions are written in free RAM
+        inst = int(skills.LEARNED_NAME, 16) + 0x20
+        assert game.wait_until(lambda: game.read(inst) == 0x0C, seconds=20, step=5)
+        game.run(30)
+        game.screenshot().save(tmp_path / "learned.png")
+        print("screenshot:", tmp_path / "learned.png")
 
 
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):

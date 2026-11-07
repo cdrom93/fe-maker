@@ -205,3 +205,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : #169 fait : option « Dégâts et soins affichés » (catégorie En combat), AnimNumber du C-SkillSys porté (`battlenumbers.py`) ; « -18 » vu par playtest ; le drain de Sol avec une arme physique ne s'anime pas (pas de « +n »).
 - 07/11/2026 : compétences, lot 3 : plan écrit ; compétences apprises par personnage (4, table en mémoire libre, sauvegardées comme la magie) ; playtest en combat.
 - 07/11/2026 : compétences, lot 3 fini : apprentissage par niveau (fiches personnage et classe, après montée de niveau et promotion ; playtest) et commandes d'évènement « Donner / Retirer une compétence ».
+- 07/11/2026 : compétences : message « X learned Y. » avec l'icône quand une unité apprend une compétence (après combat, bâton, danse, arène ; playtest).

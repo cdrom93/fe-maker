@@ -328,7 +328,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         f"#define LEARNED_MAX_FEM {LEARNED_MAX}\n#define LEARNED_CHARACTERS_FEM 0x{LEARNED_CHARACTERS:X}\n"
         f"#define LEARNED_SKILLS_FEM ((u8 (*)[LEARNED_MAX_FEM]) {LEARNED_TABLE})\n"
         "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
-        "void LearnLevelSkillsFem(struct Unit* unit);\n"
+        "void LearnLevelSkillsFem(struct Unit* unit);\nvoid LearnedPopupsClearFem(void);\n"
+        "void LearnedPopupsFem(void* proc);\n"
         + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in sorted({s.stat for s in skills if s.kind == "stat"}))
         +
         "\n#endif // GUARD_BM_UNIT_H"), rel)
@@ -424,7 +425,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
-                          _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers))
+                          _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
+                          texts, base))
     return files
 
 
@@ -903,11 +905,17 @@ def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
 """ + battle[end:]
 
 
+LEARNED_POPUPS = "0x02028DA0"   # after the shown skills, same free RAM: count, then (unit index, skill) x 4
+LEARNED_NAME = "0x02028DB0"     # the popup's skill name (0x20 bytes), then its 11 instructions (0x58): up to 0x02028E28
+
+
 def _learned(decomp_dir: Path, files: dict, char_learn: str, class_learn: str, skills: list[Skill],
-             numbers: dict[str, int]) -> dict:
+             numbers: dict[str, int], texts: dict[str, int], base: int) -> dict:
     """Learned skills (batch 3): LearnSkillFem / ForgetSkillFem in bmunit.c, the table cleared for a new game, and
     saved per save slot like Magic (after its blocks): the save time, then the table."""
     out = {}
+    icons = ", ".join(str(base + i) for i in range(len(skills)))
+    descs = ", ".join(str(texts[s.id]) for s in skills)
     rel = "src/bmunit.c"
     out[rel] = _read(files, decomp_dir, rel) + """
 /* FE Maker: learned skills (batch 3, docs/competences.md; C-SkillSys's LearnSkill.c): 4 per character, the oldest
@@ -959,16 +967,96 @@ static const u8 sClassLearnFem[0x100][{LEARN_PER_SHEET}][2] = {{
 {class_learn}
 }};
 
+static void LearnShownFem(struct Unit* unit, int skill);
+
 void LearnLevelSkillsFem(struct Unit* unit)
 {{
     int i;
 
     for (i = 0; i < {LEARN_PER_SHEET}; i++) {{
         if (sCharacterLearnFem[unit->pCharacterData->number][i][0] == unit->level)
-            LearnSkillFem(unit, sCharacterLearnFem[unit->pCharacterData->number][i][1]);
+            LearnShownFem(unit, sCharacterLearnFem[unit->pCharacterData->number][i][1]);
         if (sClassLearnFem[unit->pClassData->number][i][0] == unit->level)
-            LearnSkillFem(unit, sClassLearnFem[unit->pClassData->number][i][1]);
+            LearnShownFem(unit, sClassLearnFem[unit->pClassData->number][i][1]);
     }}
+}}
+
+/* The skills learned in a battle, shown after it in a popup ("Eirika learned Luna."), with their icon */
+#include "popup.h"
+#include "proc.h"
+#include "fontgrp.h"
+#include "functions.h"
+
+#define sLearnedCountFem (*(vu8*) {LEARNED_POPUPS})
+#define sLearnedQueueFem ((vu8*) {LEARNED_POPUPS} + 2)
+#define sLearnedNameFem ((char*) {LEARNED_NAME})
+#define sLearnedInstFem ((struct PopupInstruction*) ({LEARNED_NAME} + 0x20))
+
+static const u16 sLearnedIconFem[SKILL_COUNT_FEM + 1] = {{ 0, {icons} }};
+static const u16 sLearnedTextFem[SKILL_COUNT_FEM + 1] = {{ 0, {descs} }};
+static const char sLearnedWordFem[] = " learned ";
+static const char sLearnedDotFem[] = ".";
+
+void LearnedPopupsClearFem(void)
+{{
+    sLearnedCountFem = 0;
+}}
+
+static void LearnShownFem(struct Unit* unit, int skill)
+{{
+    if (SkillTesterFem(unit, skill))
+        return;
+    LearnSkillFem(unit, skill);
+    if (SkillTesterFem(unit, skill) && sLearnedCountFem < 4) {{
+        sLearnedQueueFem[2 * sLearnedCountFem] = unit->index;
+        sLearnedQueueFem[2 * sLearnedCountFem + 1] = skill;
+        sLearnedCountFem++;
+    }}
+}}
+
+static void LearnedInstFem(int i, int opcode, u32 data)
+{{
+    sLearnedInstFem[i].opcode = opcode;
+    sLearnedInstFem[i].data = data;
+}}
+
+/* PROC_REPEAT: one popup per learned skill (each blocks the proc), then on */
+void LearnedPopupsFem(ProcPtr proc)
+{{
+    const char* str;
+    int i, skill;
+
+    if (sLearnedCountFem == 0 || sLearnedCountFem > 4) {{
+        sLearnedCountFem = 0;
+        Proc_Break(proc);
+        return;
+    }}
+    skill = sLearnedQueueFem[1];
+    SetPopupUnit(GetUnit(sLearnedQueueFem[0]));
+    for (i = 1; i < sLearnedCountFem; i++) {{
+        sLearnedQueueFem[2 * i - 2] = sLearnedQueueFem[2 * i];
+        sLearnedQueueFem[2 * i - 1] = sLearnedQueueFem[2 * i + 1];
+    }}
+    sLearnedCountFem--;
+    if (skill <= 0 || skill > SKILL_COUNT_FEM)
+        return;
+    str = GetStringFromIndex(sLearnedTextFem[skill]);
+    for (i = 0; str[i] && str[i] != ':' && i < 0x1F; i++)   /* the help text up to its colon */
+        sLearnedNameFem[i] = str[i];
+    sLearnedNameFem[i] = 0;
+    SetPopupItem(0x1000 + sLearnedIconFem[skill]);   /* the icon: see POPUP_OP_WTYPE_ICON in popup.c */
+    LearnedInstFem(0, POPUP_OP_SOUND, 0x5A);
+    LearnedInstFem(1, POPUP_OP_COLOR, TEXT_COLOR_SYSTEM_BLUE);
+    LearnedInstFem(2, POPUP_OP_UNIT_NAME, 0);
+    LearnedInstFem(3, POPUP_OP_COLOR, TEXT_COLOR_SYSTEM_WHITE);
+    LearnedInstFem(4, POPUP_OP_STR, (u32) sLearnedWordFem);
+    LearnedInstFem(5, POPUP_OP_WTYPE_ICON, 0);
+    LearnedInstFem(6, POPUP_OP_COLOR, TEXT_COLOR_SYSTEM_BLUE);
+    LearnedInstFem(7, POPUP_OP_STR, (u32) sLearnedNameFem);
+    LearnedInstFem(8, POPUP_OP_COLOR, TEXT_COLOR_SYSTEM_WHITE);
+    LearnedInstFem(9, POPUP_OP_STR, (u32) sLearnedDotFem);
+    LearnedInstFem(10, POPUP_OP_END, 0);
+    NewPopup_Simple(sLearnedInstFem, 0x60, 0x0, proc);
 }}
 """
     rel = "src/bmbattle.c"
@@ -979,7 +1067,35 @@ void LearnLevelSkillsFem(struct Unit* unit)
     promotion = "    unit->level = 1;\n    unit->exp   = 0;\n"
     if battle.count(promotion) != 2:
         raise SkillError(f"Skills: {rel} does not match this version of the decomp (promotions)")
-    out[rel] = battle.replace(promotion, promotion + "    LearnLevelSkillsFem(unit); /* FE Maker: learned at promotion */\n")
+    battle = battle.replace(promotion, promotion + "    LearnLevelSkillsFem(unit); /* FE Maker: learned at promotion */\n")
+    battle = _replace(battle, "void BattleApplyGameStateUpdates(void) {\n",
+                      "void BattleApplyGameStateUpdates(void) {\n    LearnedPopupsClearFem(); /* FE Maker */\n", rel)
+    battle = _replace(battle, "    PROC_CALL(UpdateActorFromBattle),\n    PROC_END\n",
+                      "    PROC_CALL(LearnedPopupsClearFem),\n    PROC_CALL(UpdateActorFromBattle),\n"
+                      "    PROC_REPEAT(LearnedPopupsFem), /* FE Maker: skills learned */\n    PROC_END\n", rel)
+    out[rel] = battle
+    rel = "src/bmmind.c"
+    mind = _read(files, decomp_dir, rel)
+    mind = _replace(mind, "PROC_LABEL(1),\n    PROC_CALL_2(BATTLE_HandleItemDrop),\n",
+                    "PROC_LABEL(1),\n    PROC_REPEAT(LearnedPopupsFem), /* FE Maker: skills learned */\n"
+                    "    PROC_CALL_2(BATTLE_HandleItemDrop),\n", rel)
+    out[rel] = mind
+    rel = "src/popup.c"
+    out[rel] = _replace(_read(files, decomp_dir, rel), """        case POPUP_OP_WTYPE_ICON:
+            proc->iconX = len;
+            proc->iconId = gPopupItem + 0x70;
+            LoadIconPalette(1, proc->iconPalId);
+""", """        case POPUP_OP_WTYPE_ICON:
+            proc->iconX = len;
+            if (gPopupItem >= 0x1000) { /* FE Maker: a skill's icon (0x1000 + its icon), item palette */
+                proc->iconId = gPopupItem - 0x1000;
+                LoadIconPalette(0, proc->iconPalId);
+                len += 0x10;
+                break;
+            }
+            proc->iconId = gPopupItem + 0x70;
+            LoadIconPalette(1, proc->iconPalId);
+""", rel)
     out[rel] += """
 /* Batch 3: events give or take a skill: slot 1 the character, slot 2 the skill, slot 3 1 to give, 0 to take */
 #include "event.h"
