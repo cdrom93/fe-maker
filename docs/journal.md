@@ -237,3 +237,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : ticket 27 (menu des commandes de déplacement aligné et élargi, glissement des unités sur la carte).
 - 07/11/2026 : ticket 28 (Lock Touch ouvre sans clé, commande Crocheter), ticket 23 (Bourrasque remise à zéro au début du chapitre).
 - 07/11/2026 : ticket 29 (modifications en direct pendant un test) noté au cahier, section 4.
+- 07/11/2026 : ticket 30 (durée des compilations) noté au cahier, section 4.
