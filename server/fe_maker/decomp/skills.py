@@ -1079,7 +1079,13 @@ void LearnedPopupsFem(ProcPtr proc)
     mind = _replace(mind, "PROC_LABEL(1),\n    PROC_CALL_2(BATTLE_HandleItemDrop),\n",
                     "PROC_LABEL(1),\n    PROC_REPEAT(LearnedPopupsFem), /* FE Maker: skills learned */\n"
                     "    PROC_CALL_2(BATTLE_HandleItemDrop),\n", rel)
-    out[rel] = mind
+    out[rel] = _replace(mind, "PROC_LABEL(1),\n    PROC_CALL(BATTLE_HandleArenaDeathsMaybe),\n",
+                        "PROC_LABEL(1),\n    PROC_REPEAT(LearnedPopupsFem), /* FE Maker: skills learned in the arena */\n"
+                        "    PROC_CALL(BATTLE_HandleArenaDeathsMaybe),\n", rel)
+    rel = "src/uiarena.c"
+    out[rel] = _replace(_read(files, decomp_dir, rel), "    UpdateUnitFromBattle(gArenaState.playerUnit, &gBattleActor);\n",
+                        "    LearnedPopupsClearFem(); /* FE Maker */\n"
+                        "    UpdateUnitFromBattle(gArenaState.playerUnit, &gBattleActor);\n", rel)
     rel = "src/popup.c"
     out[rel] = _replace(_read(files, decomp_dir, rel), """        case POPUP_OP_WTYPE_ICON:
             proc->iconX = len;
