@@ -275,6 +275,55 @@ def open_project(body: OpenProjectIn):
         raise HTTPException(400, e.code or str(e))
 
 
+class ProjectIdentityIn(BaseModel):
+    name: str
+    author: str = ""
+    folder: str = ""   # empty: where it is
+
+
+@app.put("/api/project/identity")
+def set_project_identity(body: ProjectIdentityIn):
+    """Rename the open project, and move its folder elsewhere when asked (ticket 174)."""
+    project = state.require_project()
+    if not body.name.strip():
+        raise HTTPException(400, "nameEmpty")
+    folder = Path(body.folder.strip()).expanduser() if body.folder.strip() else project.root
+    if not folder.is_absolute():
+        raise HTTPException(400, "project.folderNotAbsolute")
+    if folder.resolve() != project.root.resolve():
+        if folder.exists() and (not folder.is_dir() or any(folder.iterdir())):
+            raise HTTPException(400, "project.folderNotEmpty")
+        if folder.resolve().is_relative_to(project.root.resolve()):
+            raise HTTPException(400, "project.folderInside")
+        if not state.build_lock.acquire(blocking=False):
+            raise HTTPException(409, "buildRunning")
+        try:
+            old = project.root
+            if folder.exists():
+                folder.rmdir()   # empty: the move recreates it
+            folder.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old), str(folder))
+            state.settings.forget_recent(old)
+            project = Project(folder)
+        except OSError as e:
+            raise HTTPException(400, f"project.moveFailed:{e}") from e
+        finally:
+            state.build_lock.release()
+    project.set_identity(body.name.strip(), body.author.strip())
+    return _open(project)
+
+
+@app.post("/api/project/reveal")
+def reveal_project():
+    """Open the project's folder in the file explorer (FE Maker runs on the user's own computer)."""
+    root = state.require_project().root
+    if os.name == "nt":
+        os.startfile(root)  # noqa: S606
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(root)])
+    return {"ok": True}
+
+
 @app.post("/api/projects/close")
 def close_project():
     state.project = None

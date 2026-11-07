@@ -169,6 +169,12 @@ class Project:
         """The actions going back to the original game are shown (a project remade from scratch hides them)."""
         return bool(self.meta.get("showOriginal", True))
 
+    def set_identity(self, name: str, author: str) -> None:
+        """The project's name and author (ticket 174): shown in FE Maker and written in the hack's CREDITS.txt."""
+        self.meta["name"] = name
+        self.meta["author"] = author
+        (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
     def set_show_original(self, show: bool) -> None:
         self.meta["showOriginal"] = show
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")

@@ -53,12 +53,16 @@ export const api = {
     form.append('file', file)
     return request<Status>('POST', '/api/rom', form)
   },
-  createProject: (name: string, author: string, blank?: { characters: boolean; title: string; hero: string }) =>
-    request<ProjectInfo>('POST', '/api/projects', { name, author, blank }),
+  createProject: (name: string, author: string, blank?: { characters: boolean; title: string; hero: string }, folder = '') =>
+    request<ProjectInfo>('POST', '/api/projects', { name, author, blank, folder: folder.trim() || null }),
+  revealProject: () => request<{ ok: boolean }>('POST', '/api/project/reveal'),
   portraitColors: (classId: string, portrait: number, line: number) =>
     request<{ colours: string[] }>('GET', `/api/classes/${classId}/portrait-colors?portrait=${portrait}&line=${line}`),
   battleColors: (character: string, classId: string) => request<BattleColors>('GET', `/api/characters/${character}/battle-colors/${classId}`),
   openProject: (path: string) => request<ProjectInfo>('POST', '/api/projects/open', { path }),
+  /** rename the open project, and move its folder when `folder` is another one (ticket 174) */
+  setProjectIdentity: (identity: { name: string; author: string; folder: string }) =>
+    request<ProjectInfo>('PUT', '/api/project/identity', identity),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   checks: () => request<Check[]>('GET', '/api/checks'),
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),

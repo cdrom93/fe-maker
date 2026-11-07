@@ -91,7 +91,7 @@
   {:else if !status.project}
     <Home {status} onOpened={refresh} />
   {:else}
-    <Workspace project={status.project} onClosed={refresh} />
+    <Workspace project={status.project} onClosed={refresh} onRenamed={refresh} />
   {/if}
 </main>
 

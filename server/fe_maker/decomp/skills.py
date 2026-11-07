@@ -146,6 +146,10 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Renewal", "map", "Renewal", "Renewal:[NL]Restores 30% of max HP[NL]at the start of each turn."),
     # batch 4, unit menu commands (_menu_skills): C-SkillSys's MenuSkills/HerosMovement
     Skill("Pivot", "menu", "Pivot", "Pivot:[NL]Unit can move to the other[NL]side of an adjacent ally.", menu="Pivot"),
+    Skill("Reposition", "menu", "Reposition", "Reposition:[NL]Moves an adjacent ally to[NL]the other side of the unit.",
+          menu="Reposition"),
+    Skill("Shove", "menu", "Shove", "Shove:[NL]Pushes an adjacent ally[NL]one tile away.", menu="Shove"),
+    Skill("Swap", "menu", "Swap", "Swap:[NL]Unit switches places with[NL]an adjacent ally.", menu="Swap"),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn.[NL](Skill % activation)"),
 )
@@ -879,79 +883,167 @@ void StartSkillIconMapFem(ProcPtr parent)
     return out
 
 
+MENU_SKILL = "0x02028E3C"   # free RAM after Galeforce's: the menu command whose targets are being listed
+
+# The unit menu's moving commands (C-SkillSys's HerosMovement): for a target ally at (tx, ty) next to the unit at
+# (ux, uy), the unit that moves (`unit` the ally, else the active unit) and where to: (x, y). Swap moves both.
+MOVES = {
+    "Pivot": ("gSubjectUnit", "2 * tx - ux", "2 * ty - uy"),
+    "Reposition": ("unit", "2 * ux - tx", "2 * uy - ty"),
+    "Shove": ("unit", "2 * tx - ux", "2 * ty - uy"),
+    "Swap": ("unit", "ux", "uy"),
+}
+
+
 def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: dict[str, int]) -> dict:
-    """Batch 4, commands of the unit menu (before Rescue), each only when the project uses it. Pivot (C-SkillSys's
-    HerosMovement/Pivot.c): the unit goes to the other side of an adjacent ally; it moves there as after a move, then
-    waits."""
-    if "Pivot" not in numbers:
+    """Batch 4, commands of the unit menu (before Rescue), each only when the project uses it (C-SkillSys's
+    HerosMovement: Pivot.c, Reposition.c, Shove.c, Swap.c): Pivot (to the other side of an adjacent ally),
+    Reposition (the ally to the other side of the unit), Shove (the ally one tile further), Swap (the unit and the
+    ally switch places). The units go there at once, without a sliding animation; then the unit waits."""
+    used = [sid for sid in MOVES if sid in numbers]
+    if not used:
         return {}
     out = {}
     rel = "src/menu_def.c"
     out[rel] = _replace(_read(files, decomp_dir, rel), "CONST_DATA struct MenuItemDef gUnitActionMenuItems[] = {\n", (
-        "u8 PivotUsabilityFem(const struct MenuItemDef* def, int number); /* FE Maker: skills */\n"
-        "u8 PivotEffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem);\n\n"
-        "CONST_DATA struct MenuItemDef gUnitActionMenuItems[] = {\n"), rel)
-    out[rel] = _replace(out[rel], "    {\"　救出\", 0x689,", (
-        f"    {{\"　Pivot\", {texts['menu:Pivot']}, {texts['Pivot']}, 0, 0x6A, PivotUsabilityFem, 0, PivotEffectFem, 0, 0, 0}},"
-        " // FE Maker: Pivot\n    {\"　救出\", 0x689,"), rel)
+        "".join(f"u8 {sid}UsabilityFem(const struct MenuItemDef* def, int number); /* FE Maker: skills */\n"
+                f"u8 {sid}EffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem);\n" for sid in used)
+        + "\nCONST_DATA struct MenuItemDef gUnitActionMenuItems[] = {\n"), rel)
+    entries = "".join(
+        f"    {{\"　{BY_ID[sid].menu}\", {texts['menu:' + sid]}, {texts[sid]}, 0, {0x6A + i}, {sid}UsabilityFem, 0, "
+        f"{sid}EffectFem, 0, 0, 0}}, // FE Maker: {sid}\n" for i, sid in enumerate(used))
+    out[rel] = _replace(out[rel], "    {\"　救出\", 0x689,", entries + "    {\"　救出\", 0x689,", rel)
+    cases = "".join(f"""\
+        case SKILL_FEM_{sid}:
+            mover = {mover};
+            x = {x};
+            y = {y};
+            break;
+""" for sid, (mover, x, y) in MOVES.items() if sid in used)
+    commands = "".join(f"""
+u8 {sid}UsabilityFem(const struct MenuItemDef* def, int number)
+{{
+    return MoveSkillUsabilityFem(SKILL_FEM_{sid});
+}}
+
+u8 {sid}EffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
+{{
+    return MoveSkillEffectFem(SKILL_FEM_{sid});
+}}
+""" for sid in used)
     rel = "src/bmmenu.c"
-    out[rel] = _read(files, decomp_dir, rel) + """
-/* FE Maker, skills batch 4: Pivot (C-SkillSys, HerosMovement/Pivot.c): to the other side of an adjacent ally */
+    out[rel] = _read(files, decomp_dir, rel) + f"""
+/* FE Maker, skills batch 4: the unit menu's moving commands (C-SkillSys, HerosMovement: Pivot.c, Reposition.c,
+   Shove.c, Swap.c) */
+#define sMoveSkillFem (*(vu8*) {MENU_SKILL})
 s8 CanUnitCrossTerrain(struct Unit* unit, int terrain);
 void ForEachAdjacentUnit(int x, int y, void(*func)(struct Unit* unit));
 s8 AreUnitsAllied(int left, int right);
+void RefreshUnitSprites(void);
 
-static void TryAddPivotTargetFem(struct Unit* unit)
-{
-    int x = 2 * unit->xPos - gSubjectUnit->xPos;
-    int y = 2 * unit->yPos - gSubjectUnit->yPos;
+/* Where the command sends the unit that moves (FALSE: nowhere it can stand) */
+static int MoveSkillDestinationFem(struct Unit* unit, int ux, int uy, struct Unit** moverOut, int* xOut, int* yOut)
+{{
+    int tx = unit->xPos;
+    int ty = unit->yPos;
+    struct Unit* mover = unit;
+    int x = ux;
+    int y = uy;
+
+    switch (sMoveSkillFem)
+    {{
+{cases}    }}
+    if (x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y)
+        return FALSE;
+    if (gBmMapUnit[y][x] != 0 && !(x == ux && y == uy))
+        return FALSE;
+    if (!CanUnitCrossTerrain(mover, gBmMapTerrain[y][x]))
+        return FALSE;
+    if (mover == unit && x == ux && y == uy && !CanUnitCrossTerrain(gSubjectUnit, gBmMapTerrain[ty][tx]))
+        return FALSE;   /* Swap: the unit must stand on the ally's tile too */
+    *moverOut = mover;
+    *xOut = x;
+    *yOut = y;
+    return TRUE;
+}}
+
+static void TryAddMoveSkillTargetFem(struct Unit* unit)
+{{
+    struct Unit* mover;
+    int x, y;
 
     if (!AreUnitsAllied(gSubjectUnit->index, unit->index) || unit->state & (US_HIDDEN | US_DEAD | US_RESCUED))
         return;
-    if (x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y || gBmMapUnit[y][x] != 0)
-        return;
-    if (!CanUnitCrossTerrain(gSubjectUnit, gBmMapTerrain[y][x]))
-        return;
-    AddTarget(unit->xPos, unit->yPos, unit->index, 0);
-}
+    if (MoveSkillDestinationFem(unit, gSubjectUnit->xPos, gSubjectUnit->yPos, &mover, &x, &y))
+        AddTarget(unit->xPos, unit->yPos, unit->index, 0);
+}}
 
-static void MakePivotTargetListFem(struct Unit* unit)
-{
+static void MakeMoveSkillTargetListFem(struct Unit* unit, int skill)
+{{
+    sMoveSkillFem = skill;
     gSubjectUnit = unit;
     BmMapFill(gBmMapRange, 0);
     InitTargets(unit->xPos, unit->yPos);
-    ForEachAdjacentUnit(unit->xPos, unit->yPos, TryAddPivotTargetFem);
-}
+    ForEachAdjacentUnit(unit->xPos, unit->yPos, TryAddMoveSkillTargetFem);
+}}
 
-u8 PivotUsabilityFem(const struct MenuItemDef* def, int number)
-{
-    if (gActiveUnit->state & (US_HAS_MOVED | US_IN_BALLISTA | US_RESCUING) || !SkillTesterFem(gActiveUnit, SKILL_FEM_Pivot))
+static u8 MoveSkillUsabilityFem(int skill)
+{{
+    if (gActiveUnit->state & (US_HAS_MOVED | US_IN_BALLISTA | US_RESCUING) || !SkillTesterFem(gActiveUnit, skill))
         return MENU_NOTSHOWN;
-    MakePivotTargetListFem(gActiveUnit);
+    MakeMoveSkillTargetListFem(gActiveUnit, skill);
     return GetSelectTargetCount() ? MENU_ENABLED : MENU_NOTSHOWN;
-}
+}}
 
-static u8 PivotSelectFem(ProcPtr proc, struct SelectTarget* target)
-{
-    gActionData.xMove = 2 * target->x - gActiveUnit->xPos;
-    gActionData.yMove = 2 * target->y - gActiveUnit->yPos;
+/* The units go to their new tiles at once; the active unit through the action (it "moves" there, then waits) */
+static u8 MoveSkillSelectFem(ProcPtr proc, struct SelectTarget* target)
+{{
+    struct Unit* unit = GetUnit(target->uid);
+    struct Unit* mover;
+    int ux = gActiveUnit->xPos;
+    int uy = gActiveUnit->yPos;
+    int x, y;
+
+    gActionData.xMove = ux;
+    gActionData.yMove = uy;
     gActionData.unitActionType = UNIT_ACTION_WAIT;
+    gSubjectUnit = gActiveUnit;
+    if (MoveSkillDestinationFem(unit, ux, uy, &mover, &x, &y))
+    {{
+        if (mover == gActiveUnit)
+        {{
+            gActionData.xMove = x;
+            gActionData.yMove = y;
+        }}
+        else
+        {{
+            if (x == ux && y == uy)   /* Swap */
+            {{
+                gActionData.xMove = unit->xPos;
+                gActionData.yMove = unit->yPos;
+            }}
+            unit->xPos = x;
+            unit->yPos = y;
+            RefreshEntityBmMaps();
+            RefreshUnitSprites();
+        }}
+    }}
     return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A | MENU_ACT_CLEAR;
-}
+}}
 
-static const struct SelectInfo sSelectInfoPivotFem = {
+static const struct SelectInfo sSelectInfoMoveSkillFem = {{
     .onEnd = MISMATCHED_SIGNATURE(ClearBg0Bg1),
-    .onSelect = PivotSelectFem,
+    .onSelect = MoveSkillSelectFem,
     .onCancel = GenericSelection_BackToUM,
-};
+}};
 
-u8 PivotEffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
-{
-    MakePivotTargetListFem(gActiveUnit);
-    NewTargetSelection(&sSelectInfoPivotFem);
+static u8 MoveSkillEffectFem(int skill)
+{{
+    MakeMoveSkillTargetListFem(gActiveUnit, skill);
+    NewTargetSelection(&sSelectInfoMoveSkillFem);
     return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A;
-}
-"""
+}}
+{commands}"""
     return out
 
 

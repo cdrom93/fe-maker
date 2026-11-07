@@ -1758,6 +1758,45 @@ def test_pivot_command(tmp_path):
         assert (game.read(lord, 0x10), game.read(lord, 0x11)) == (4, 2)
 
 
+def test_reposition_shove_and_swap_commands(tmp_path):
+    """Skills batch 4: the unit menu's Reposition, Shove and Swap (in this order, before Rescue), on the lord at (2, 2)
+    and the ally at (3, 2), one game each."""
+    project = _bench(tmp_path, "moves", [["ITEM_SWORD_IRON"], []])
+    chapters = project.load("chapters")
+    friend = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][1]
+    friend.update(x=3, y=2, endX=3, endY=2)
+    project.save("chapters", chapters)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Reposition", "Shove", "Swap"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    expected = {0: ((2, 2), (1, 2)), 1: ((2, 2), (4, 2)), 2: ((3, 2), (2, 2))}   # command: lord's, ally's tiles
+    for command, (lord_at, friend_at) in expected.items():
+        with Game(out.rom_path, out.map_path) as game:
+            assert game.wait_until(lambda: game.chapter() == 0 and game.phase() == "player" and game.units())
+            game.run(120)
+            base = game.address("gUnitArrayBlue")
+            at = {(game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)): base + n * UNIT_SIZE
+                  for n in range(62) if game.read(base + n * UNIT_SIZE, 0)}
+            lord, ally = at[(2, 2)], at[(3, 2)]
+            game.move_cursor(2, 2)
+            game.press("A")
+            game.press("A", wait=60)       # stays: the unit menu
+            if command == 0:
+                game.screenshot().save(tmp_path / "menu.png")
+            for _ in range(command):
+                game.press("DOWN", wait=10)
+            game.press("A", wait=30)       # the command
+            game.press("A", wait=30)       # the ally
+            game.run(120)
+            game.screenshot().save(tmp_path / f"after{command}.png")
+            print("menu:", tmp_path / "menu.png", "after:", tmp_path / f"after{command}.png")
+            assert (game.read(lord, 0x10), game.read(lord, 0x11)) == lord_at
+            assert (game.read(ally, 0x10), game.read(ally, 0x11)) == friend_at
+
+
 def test_renewal_and_galeforce_on_the_map(tmp_path):
     """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (Skill 100: sure) lets it
     act again after its battle won."""

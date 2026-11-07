@@ -91,3 +91,31 @@ def test_an_option_removed_since_does_not_block_the_others(tmp_path, decomp_dir)
     assert project.game_options == {"hpBars": True}
     project.set_game_options({**project.game_options, "strMagSplit": True})
     assert project.game_options == {"hpBars": True, "strMagSplit": True}
+
+
+def test_a_project_is_renamed_and_moved(tmp_path, decomp_dir, monkeypatch):
+    """Ticket 174: the project's name and author change in place; a new folder moves it there (empty or new only)."""
+    import pytest
+    from fastapi import HTTPException
+
+    from fe_maker import api
+    from fe_maker.config import Settings
+
+    project = Project.create(tmp_path / "old", "Old", decomp_dir=decomp_dir)
+    project.decomp_dir = decomp_dir
+    monkeypatch.setattr(api.state, "project", project)
+    monkeypatch.setattr(api.state, "settings", Settings())
+    monkeypatch.setattr(Settings, "save", lambda self: None)
+    monkeypatch.setattr(api, "Project", lambda root: Project(root, decomp_dir))
+    info = api.set_project_identity(api.ProjectIdentityIn(name="New name", author="Me"))
+    assert info["name"] == "New name" and info["meta"]["author"] == "Me" and info["path"] == str(tmp_path / "old")
+    (tmp_path / "full").mkdir()
+    (tmp_path / "full" / "x.txt").write_text("x")
+    with pytest.raises(HTTPException, match="folderNotEmpty"):
+        api.set_project_identity(api.ProjectIdentityIn(name="New name", folder=str(tmp_path / "full")))
+    with pytest.raises(HTTPException, match="folderInside"):
+        api.set_project_identity(api.ProjectIdentityIn(name="New name", folder=str(tmp_path / "old" / "sub")))
+    info = api.set_project_identity(api.ProjectIdentityIn(name="New name", author="Me", folder=str(tmp_path / "a" / "moved")))
+    assert info["path"] == str(tmp_path / "a" / "moved") and not (tmp_path / "old").exists()
+    assert (tmp_path / "a" / "moved" / "fe-maker.json").is_file()
+    assert api.state.settings.recent_projects == [str((tmp_path / "a" / "moved").resolve())]

@@ -11,6 +11,8 @@
   let author = $state('')
   /** a blank project (ticket 66): what it drops; weapons and classes stay */
   let blank = $state(false)
+  /** where it goes (ticket 174): empty, a new folder named after it in the projects folder */
+  let folder = $state('')
   let path = $state('')
   let busy = $state(false)
   let error = $state('')
@@ -36,7 +38,7 @@
         // storage unavailable: the project opens on its first tab
       }
     }
-    run(() => api.createProject(name, author, blank ? { characters: true, title: t('home.blankTitle'), hero: t('home.blankHero') } : undefined))
+    run(() => api.createProject(name, author, blank ? { characters: true, title: t('home.blankTitle'), hero: t('home.blankHero') } : undefined, folder))
   }
 </script>
 
@@ -47,6 +49,7 @@
     <form onsubmit={(e) => { e.preventDefault(); create() }}>
       <label>{t('home.name')}<input bind:value={name} required maxlength="60" /></label>
       <label>{t('home.author')}<input bind:value={author} maxlength="60" /></label>
+      <label>{t('home.folder')}<input bind:value={folder} placeholder={status.defaultProjectsDir} /></label>
       <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')} <Help text={t('home.blankHint')} /></label>
       <button class="primary" disabled={busy || !name.trim()}>{t('home.create')}</button>
       <p class="muted hint">{t('home.createHint', { dir: status.defaultProjectsDir })}</p>

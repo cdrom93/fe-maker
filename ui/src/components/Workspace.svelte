@@ -19,11 +19,12 @@
   import ItemEditor from './ItemEditor.svelte'
   import GameOptions from './GameOptions.svelte'
   import KeysDialog from './KeysDialog.svelte'
+  import ProjectIdentityDialog from './ProjectIdentityDialog.svelte'
   import MapEditor from './MapEditor.svelte'
   import AddChapter from './AddChapter.svelte'
   import Mention from './Mention.svelte'
 
-  let { project, onClosed }: { project: ProjectInfo; onClosed: () => void } = $props()
+  let { project, onClosed, onRenamed }: { project: ProjectInfo; onClosed: () => void; onRenamed: () => void } = $props()
 
   $effect(() => {
     projectView.showOriginal = project.meta.showOriginal !== false
@@ -56,6 +57,7 @@
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
   let showKeys = $state(false)
+  let showIdentity = $state(false)
   let start = $state('map')
   let focus = $state<Focus | null>(null)
 
@@ -312,6 +314,7 @@
       <summary>{t('ws.project')}</summary>
       <div class="menu-items">
         <button onclick={() => fromMenu(() => startBuild(false))} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
+        <button onclick={() => fromMenu(() => (showIdentity = true))}>{t('ws.projectIdentity')}</button>
         <button onclick={() => fromMenu(() => (showKeys = true))}>{t('keys.title')}</button>
         <button onclick={() => fromMenu(close)}>{t('ws.close')}</button>
       </div>
@@ -384,6 +387,9 @@
   {/if}
 {/if}
 
+{#if showIdentity}
+  <ProjectIdentityDialog {project} onClose={() => (showIdentity = false)} onSaved={onRenamed} />
+{/if}
 {#if showKeys}
   <KeysDialog onClose={() => (showKeys = false)} />
 {/if}
