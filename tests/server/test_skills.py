@@ -229,3 +229,8 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
     plain = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna"]}]
     files = skills.apply(DECOMP, {}, plain, [], {**PAGE, **{s.id: 2 for s in skills.used(plain, [], False)}}, False)
     assert "SkillAttributesFem" not in files["include/bmunit.h"]
+    assert "src/bmmenu.c" not in files or "SKILL_FEM_LockTouch" not in files["src/bmmenu.c"]
+    # ticket 28: Lock Touch also gives the Rogue's Pick command (doors and chests without keys)
+    picker = [{"id": "CHARACTER_EIRIKA", "skills": ["LockTouch"]}]
+    files = skills.apply(DECOMP, {}, picker, [], {**PAGE, **{s.id: 2 for s in skills.used(picker, [], False)}}, False)
+    assert "!= CLASS_ROGUE && !SkillTesterFem(gActiveUnit, SKILL_FEM_LockTouch))" in files["src/bmmenu.c"]

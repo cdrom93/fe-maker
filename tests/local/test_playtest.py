@@ -1983,7 +1983,9 @@ def test_renewal_and_galeforce_on_the_map(tmp_path):
         game.write(attacker, 0, 0x15)             # Skill 0: Galeforce triggers all the same
         _bench_attack(game, attacker)
         assert game.wait_until(lambda: not game.units("Red"), seconds=60, step=10)
-        game.run(120)
+        for n in range(8):                         # the flash, then gone (ticket 23)
+            game.run(30)
+            game.screenshot().save(tmp_path / f"galeforce{n}.png")
         state = game.read(attacker, 0xC, width=32)
         game.screenshot().save(tmp_path / "galeforce.png")
         print("state", hex(state), "screenshot:", tmp_path / "galeforce.png")

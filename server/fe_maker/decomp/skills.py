@@ -823,6 +823,13 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                  + "".join(f"    if (SkillTesterFem(unit, SKILL_FEM_{sid}))\n        attributes |= {ASSIGNABLE[sid]};\n"
                            for sid in abilities)
                  + "    return attributes;\n}\n")
+    if "LockTouch" in abilities:   # ticket 28: the Rogue's Pick command too (C-SkillSys's Pick.c), no key needed
+        rel_menu = "src/bmmenu.c"
+        files[rel_menu] = _replace(_read(files, decomp_dir, rel_menu),
+                                   "    if (gActiveUnit->pClassData->number != CLASS_ROGUE) {",
+                                   "    if (gActiveUnit->pClassData->number != CLASS_ROGUE"
+                                   " && !SkillTesterFem(gActiveUnit, SKILL_FEM_LockTouch)) { /* FE Maker: Lock Touch */",
+                                   rel_menu)
     for k, name in GETTERS.items():   # only the stats a skill raises: their getter adds the bonus to the game's value
         if not bonuses[k]:
             continue
@@ -1790,6 +1797,11 @@ static bool TryGaleforceFem(void)
 void PlayerPhase_FinishAction(ProcPtr proc)
 """, rel)
     out[rel] = text
+    if "Galeforce" in numbers:   # ticket 23: a chapter (re)started from its turn 1 forgets the turn's uses
+        rel = "src/bmio.c"
+        out[rel] = _replace(_read(files, decomp_dir, rel), "    gPlaySt.chapterTurnNumber = 0;\n", (
+            "    gPlaySt.chapterTurnNumber = 0;\n"
+            f"    *(vu16*) ({GALEFORCE_USED} + 8) = 0xFFFF; /* FE Maker: Galeforce's turn, none yet */\n"), rel)
     return out
 
 
