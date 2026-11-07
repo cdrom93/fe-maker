@@ -1727,6 +1727,37 @@ def test_canto_plus_moves_after_a_battle(tmp_path):
         assert state & 0x40 and not state & 0x2   # cantoing, not grayed
 
 
+def test_pivot_command(tmp_path):
+    """Skills batch 4: Pivot, a command of the unit menu: the lord goes to the other side of the ally next to it."""
+    project = _bench(tmp_path, "pivot", [["ITEM_SWORD_IRON"], []])
+    chapters = project.load("chapters")
+    friend = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][1]
+    friend.update(x=3, y=2, endX=3, endY=2)          # right of the lord (2, 2)
+    project.save("chapters", chapters)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Pivot"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.phase() == "player" and game.units())
+        game.run(120)
+        base = game.address("gUnitArrayBlue")
+        lord = next(base + n * UNIT_SIZE for n in range(62)
+                    if (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == (2, 2))
+        game.move_cursor(2, 2)
+        game.press("A")
+        game.press("A", wait=60)       # stays: the unit menu
+        game.screenshot().save(tmp_path / "menu.png")
+        game.press("A", wait=30)       # Pivot, the first command
+        game.press("A", wait=30)       # the ally
+        game.run(120)
+        game.screenshot().save(tmp_path / "pivot.png")
+        print("menu:", tmp_path / "menu.png", "after:", tmp_path / "pivot.png")
+        assert (game.read(lord, 0x10), game.read(lord, 0x11)) == (4, 2)
+
+
 def test_renewal_and_galeforce_on_the_map(tmp_path):
     """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (Skill 100: sure) lets it
     act again after its battle won."""

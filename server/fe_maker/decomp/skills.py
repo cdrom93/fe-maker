@@ -64,6 +64,7 @@ class Skill:
     # hit before its damage (attacker, defender, magic, *attack, *defense)
     after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
     game: str = ""        # game skills: the C condition on `unit`
+    menu: str = ""        # menu skills: the command's name in the unit menu
 
 
 def _stat(sid, icon, stat, value, defiant, text):
@@ -143,6 +144,8 @@ CATALOGUE: tuple[Skill, ...] = (
     # batch 4, on the map (_map_skills): C-SkillSys's PostActionSkills/Canto.c, PrePhaseSkills/PrePhaseHeal.c, Tsuzuku.c
     Skill("CantoPlus", "map", "CantoPlus", "Canto+:[NL]Unit can move again after[NL]any action, combat included."),
     Skill("Renewal", "map", "Renewal", "Renewal:[NL]Restores 30% of max HP[NL]at the start of each turn."),
+    # batch 4, unit menu commands (_menu_skills): C-SkillSys's MenuSkills/HerosMovement
+    Skill("Pivot", "menu", "Pivot", "Pivot:[NL]Unit can move to the other[NL]side of an adjacent ally.", menu="Pivot"),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn.[NL](Skill % activation)"),
 )
@@ -276,10 +279,14 @@ def _download(url: str, path: Path) -> Path:
 def add_texts(data, skills: list[Skill]) -> dict[str, int]:
     """The in-game texts (DecompData.add_texts, before its files are written): "Skills", page 1's labels, then each
     skill's help."""
-    numbers = data.add_texts(LABEL, *PAGE_TEXTS, *(s.text.replace("[NL]", "[LF]\n") for s in skills))
-    skill_numbers = numbers[1 + len(PAGE_TEXTS):]
+    menus = [s for s in skills if s.menu]
+    numbers = data.add_texts(LABEL, *PAGE_TEXTS, *(s.text.replace("[NL]", "[LF]\n") for s in skills),
+                             *(s.menu for s in menus))
+    skill_numbers = numbers[1 + len(PAGE_TEXTS):1 + len(PAGE_TEXTS) + len(skills)]
+    menu_numbers = numbers[1 + len(PAGE_TEXTS) + len(skills):]
     return {"label": numbers[0], "talk": numbers[1], "lead": numbers[2], "leadHelp": numbers[3],
-            "leadValue": numbers[4], **{s.id: n for s, n in zip(skills, skill_numbers)}}
+            "leadValue": numbers[4], **{s.id: n for s, n in zip(skills, skill_numbers)},
+            **{f"menu:{s.id}": n for s, n in zip(menus, menu_numbers)}}
 
 
 # --- C ------------------------------------------------------------------------------------------------------------
@@ -455,6 +462,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     files.update(_map_skills(decomp_dir, files, numbers))
+    files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
                           texts, base))
@@ -868,6 +876,82 @@ void StartSkillIconMapFem(ProcPtr parent)
     out[rel] = _replace(main, "                case 0x07:\n",
                         "                case 0x07:\n                    if (GetAISLayerId(anim) == 0)\n"
                         "                        StartSkillNameFem(anim); /* FE Maker */\n", rel)
+    return out
+
+
+def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: dict[str, int]) -> dict:
+    """Batch 4, commands of the unit menu (before Rescue), each only when the project uses it. Pivot (C-SkillSys's
+    HerosMovement/Pivot.c): the unit goes to the other side of an adjacent ally; it moves there as after a move, then
+    waits."""
+    if "Pivot" not in numbers:
+        return {}
+    out = {}
+    rel = "src/menu_def.c"
+    out[rel] = _replace(_read(files, decomp_dir, rel), "CONST_DATA struct MenuItemDef gUnitActionMenuItems[] = {\n", (
+        "u8 PivotUsabilityFem(const struct MenuItemDef* def, int number); /* FE Maker: skills */\n"
+        "u8 PivotEffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem);\n\n"
+        "CONST_DATA struct MenuItemDef gUnitActionMenuItems[] = {\n"), rel)
+    out[rel] = _replace(out[rel], "    {\"　救出\", 0x689,", (
+        f"    {{\"　Pivot\", {texts['menu:Pivot']}, {texts['Pivot']}, 0, 0x6A, PivotUsabilityFem, 0, PivotEffectFem, 0, 0, 0}},"
+        " // FE Maker: Pivot\n    {\"　救出\", 0x689,"), rel)
+    rel = "src/bmmenu.c"
+    out[rel] = _read(files, decomp_dir, rel) + """
+/* FE Maker, skills batch 4: Pivot (C-SkillSys, HerosMovement/Pivot.c): to the other side of an adjacent ally */
+s8 CanUnitCrossTerrain(struct Unit* unit, int terrain);
+void ForEachAdjacentUnit(int x, int y, void(*func)(struct Unit* unit));
+s8 AreUnitsAllied(int left, int right);
+
+static void TryAddPivotTargetFem(struct Unit* unit)
+{
+    int x = 2 * unit->xPos - gSubjectUnit->xPos;
+    int y = 2 * unit->yPos - gSubjectUnit->yPos;
+
+    if (!AreUnitsAllied(gSubjectUnit->index, unit->index) || unit->state & (US_HIDDEN | US_DEAD | US_RESCUED))
+        return;
+    if (x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y || gBmMapUnit[y][x] != 0)
+        return;
+    if (!CanUnitCrossTerrain(gSubjectUnit, gBmMapTerrain[y][x]))
+        return;
+    AddTarget(unit->xPos, unit->yPos, unit->index, 0);
+}
+
+static void MakePivotTargetListFem(struct Unit* unit)
+{
+    gSubjectUnit = unit;
+    BmMapFill(gBmMapRange, 0);
+    InitTargets(unit->xPos, unit->yPos);
+    ForEachAdjacentUnit(unit->xPos, unit->yPos, TryAddPivotTargetFem);
+}
+
+u8 PivotUsabilityFem(const struct MenuItemDef* def, int number)
+{
+    if (gActiveUnit->state & (US_HAS_MOVED | US_IN_BALLISTA | US_RESCUING) || !SkillTesterFem(gActiveUnit, SKILL_FEM_Pivot))
+        return MENU_NOTSHOWN;
+    MakePivotTargetListFem(gActiveUnit);
+    return GetSelectTargetCount() ? MENU_ENABLED : MENU_NOTSHOWN;
+}
+
+static u8 PivotSelectFem(ProcPtr proc, struct SelectTarget* target)
+{
+    gActionData.xMove = 2 * target->x - gActiveUnit->xPos;
+    gActionData.yMove = 2 * target->y - gActiveUnit->yPos;
+    gActionData.unitActionType = UNIT_ACTION_WAIT;
+    return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A | MENU_ACT_CLEAR;
+}
+
+static const struct SelectInfo sSelectInfoPivotFem = {
+    .onEnd = MISMATCHED_SIGNATURE(ClearBg0Bg1),
+    .onSelect = PivotSelectFem,
+    .onCancel = GenericSelection_BackToUM,
+};
+
+u8 PivotEffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
+{
+    MakePivotTargetListFem(gActiveUnit);
+    NewTargetSelection(&sSelectInfoPivotFem);
+    return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A;
+}
+"""
     return out
 
 
