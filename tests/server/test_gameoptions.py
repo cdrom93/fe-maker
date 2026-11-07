@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 17
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 20
 
 
 def test_a_unit_acts_after_a_talk():
@@ -121,3 +121,19 @@ def test_battle_numbers_hook_the_hp_bars(monkeypatch):
     assert "NewEfxAnimNumberFem(anim, -gBattleHitArray[anim->nextRoundId - 1].hpChange);" in files[battlenumbers.FLASH_FILE]
     assert '.incbin "graphics/banim/anim_number_fem.4bpp"' in files[battlenumbers.DATA_FILE]
     assert files[battlenumbers.IMAGE] == b"\x89PNG"
+
+
+def test_dead_items_heal_preview_and_battle_speed():
+    """Tickets 8, 6 and 7: a fallen unit's items to the convoy (not with casual mode), the staff's healing shown in the
+    target's window, L held runs the battle animation's update twice."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.UNIT_FILE).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"deadItemsToConvoy": True, "healPreview": True, "holdLBattleSpeed": True}, {})
+    unit = files[gameoptions.UNIT_FILE]
+    assert '#include "bmcontainer.h"\n' in unit and "AddItemToConvoy(unit->items[i]);" in unit
+    assert "RefreshUnitHealPreviewWindowFem(GetUnit(target->uid));" in files[gameoptions.HEAL_SELECT_FILE]
+    assert "gActiveUnit->items[gActionData.itemSlotIndex]" in files[gameoptions.INFO_WINDOW_FILE]
+    assert "heldKeys & L_BUTTON" in files[gameoptions.BATTLE_ANIM_FILE]
+    casual = gameoptions.apply(root, {"deadItemsToConvoy": True, "casualMode": True}, {})
+    assert "AddItemToConvoy" not in casual[gameoptions.UNIT_FILE]

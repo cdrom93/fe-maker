@@ -2026,3 +2026,70 @@ def test_triggered_skill_icon_in_map_battle(tmp_path):
         game.run(6)
         game.screenshot().convert("RGB").save(tmp_path / "map.png")
         print("screenshot:", tmp_path / "map.png")
+
+
+def test_heal_preview_battle_speed_and_fallen_items(tmp_path):
+    """Ticket 6: choosing a staff's target shows its HP before and after (screenshot). Ticket 7: an enemy phase's battle
+    with L held takes clearly less time than without. Ticket 8: a fallen unit's items go to the convoy."""
+    project = _bench(tmp_path, "comfort", [["ITEM_STAFF_HEAL"], ["ITEM_VULNERARY", "ITEM_ELIXIR"], []], enemy_at=(9, 2))
+    project.set_game_options({"healPreview": True, "holdLBattleSpeed": True, "deadItemsToConvoy": True})
+    characters = project.load("characters")
+    healer_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    healer = next(c for c in characters if c["id"] == healer_id)
+    healer.update(**{"class": "CLASS_PRIEST", "weaponRanks": {**dict.fromkeys(healer["weaponRanks"], 0), "staff": 31}})
+    project.save("characters", characters)
+    chapters = project.load("chapters")
+    chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["class"] = "CLASS_PRIEST"
+    for group, units in chapters["unitGroups"].items():
+        for unit in units:
+            if unit.get("side") == "enemy":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+
+    def end_turn(keys=()):
+        game.move_cursor(14, 2)
+        game.press("A", wait=30)
+        game.press("UP", wait=15)      # End
+        game.press("A", wait=30)
+        start = game.frame
+        while game.phase() == "player" and game.frame - start < 600:
+            game.run(10, keys)
+        start = game.frame
+        while game.phase() != "player" and game.frame - start < 3600:
+            game.run(10, keys)
+        game.run(60)
+        return game.frame - start
+
+    with Game(out.rom_path, out.map_path) as game:
+        priest, victim, wounded = _bench_units(game)
+        game.write(wounded, 3, 0x13)                       # 3 HP left
+        for offset, value in ((0x12, 60), (0x13, 60), (0x17, 5)):   # it survives two enemy phases
+            game.write(victim, value, offset)
+        game.move_cursor(2, 2)
+        game.press("A", wait=30)
+        game.move_cursor(2, 6)
+        game.press("A", wait=60)                           # moves next to the wounded unit
+        game.press("A", wait=30)                           # Staff
+        game.press("A", wait=60)                           # Heal: the target's window
+        game.screenshot().save(tmp_path / "heal.png")
+        print("heal preview:", tmp_path / "heal.png")
+        game.press("A", wait=30)
+        assert game.wait_until(lambda: game.read(wounded, 0x13) > 3, seconds=20)
+        game.run(120)
+        slow = end_turn()
+        fast = end_turn(["L"])
+        print("enemy phase without L:", slow, "with L:", fast)
+        assert fast < 0.85 * slow
+        items = [game.read(victim, 0x1E + 2 * k, width=16) for k in range(2)]
+        game.write(victim, 1, 0x13)                        # 1 HP, no Defense, no Speed, no Luck: it falls
+        for offset in (0x16, 0x17, 0x19):
+            game.write(victim, 0, offset)
+        for _ in range(4):
+            if game.read(victim, 0x0C, width=32) & 1 << 2:  # US_DEAD
+                break
+            end_turn(["L"])
+        assert game.read(victim, 0x0C, width=32) & 1 << 2
+        convoy = [game.read("gConvoyItemArray", 2 * k, width=16) for k in range(100)]
+        assert all(item in convoy for item in items)
+        assert not any(game.read(victim, 0x1E + 2 * k, width=16) for k in range(5))

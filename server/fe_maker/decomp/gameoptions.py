@@ -48,12 +48,12 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
-                 "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
-                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
+                 "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
+                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
-                 "items": ("tempBonusRule",)}
+                 "items": ("tempBonusRule", "deadItemsToConvoy")}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
 # the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).
 CHOICES: dict[str, tuple[str, ...]] = {"tempBonusRule": ("strongest", "add", "replace")}
@@ -354,6 +354,66 @@ _DEATH_CLEANUP_CASUAL = "            unit->state = unit->state &~ US_DEAD; /* FE
 _DEATH_SUPPORTS = "            unit->state |= US_DEAD | US_HIDDEN;\n            InitUnitsupports(unit);\n"
 _DEATH_SUPPORTS_CASUAL = "            unit->state |= US_DEAD | US_HIDDEN; /* FE Maker: casual mode, supports stay */\n"
 
+# Ticket 8: a fallen player unit's items go to the convoy, as far as it has room (FE Maker's own code). Not with casual
+# mode, where the unit comes back with its items.
+_UNIT_INCLUDES = '#include "bmmind.h"\n'
+_UNIT_INCLUDES_CONVOY = _UNIT_INCLUDES + '#include "bmcontainer.h"\n'
+_DEATH_ELSE = "        if (UNIT_IS_PHANTOM(unit))\n            unit->pCharacterData = NULL;\n        else {\n"
+_DEATH_ELSE_CONVOY = _DEATH_ELSE + """            /* FE Maker: the fallen unit's items go to the convoy (ticket 8) */
+            int i;
+
+            for (i = 0; i < UNIT_ITEM_COUNT && unit->items[i]; i++)
+                if (GetConvoyItemCount() < CONVOY_ITEM_COUNT)
+                    AddItemToConvoy(unit->items[i]);
+            for (i = 0; i < UNIT_ITEM_COUNT; i++)
+                unit->items[i] = 0;
+
+"""
+
+# Ticket 7: holding L plays battle animations twice as fast, like FEBuilder's "SpeedUpAnims" (Circles) and
+# "FastBattleAnimation" (7743): the battle's frame update runs twice per frame.
+BATTLE_ANIM_FILE = "src/banim-ekrbattle.c"
+_BATTLE_FRAME = "    if (gEkrDebugUnk1 == 0)\n        MainUpdateEkrBattle();\n"
+_BATTLE_FRAME_FAST = """    if (gEkrDebugUnk1 == 0) {
+        MainUpdateEkrBattle();
+        /* FE Maker: holding L plays the battle twice as fast (ticket 7) */
+        if ((gKeyStatusPtr->heldKeys & L_BUTTON) && gEkrBattleEndFlag == 0)
+            MainUpdateEkrBattle();
+    }
+"""
+
+# Ticket 6: choosing a staff's target shows "HP now -> HP after" in the target's window, the second number green when
+# it reaches max HP, after FEBuilder's "Show Heal Amount" (Tequila); here with the staff chosen (not the first item)
+# and through GetUnitItemHealAmount, so FE Maker's healing rules count.
+INFO_WINDOW_FILE = "src/unitinfowindow.c"
+HEAL_SELECT_FILE = "src/bmmenu.c"
+_HP_WINDOW = "//! FE8U = 0x08034FFC\nvoid StartUnitHpStatusInfoWindow(ProcPtr parent) {\n"
+_HP_WINDOW_HEAL = """#include "bmmind.h"
+
+/* FE Maker (ticket 6): the target's HP before and after the staff's healing */
+void RefreshUnitHealPreviewWindowFem(struct Unit* unit) {
+    int x = GetUnitInfoWindowX(unit, 10);
+    struct UnitInfoWindowProc* proc = UnitInfoWindow_DrawBase(0, unit, x, 0, 10, 1);
+    struct Text* text = proc->lines + 0;
+    int hp = GetUnitCurrentHp(unit);
+    int max = GetUnitMaxHp(unit);
+    int healed = hp + GetUnitItemHealAmount(gActiveUnit, gActiveUnit->items[gActionData.itemSlotIndex]);
+
+    ClearText(text);
+    Text_InsertDrawString(text, 0, 3, GetStringFromIndex(0x4E9)); // HP
+    Text_InsertDrawNumberOrBlank(text, 28, 2, hp);
+    Text_InsertDrawString(text, 36, 3, "->");
+    Text_InsertDrawNumberOrBlank(text, 56, healed >= max ? 4 : 2, healed >= max ? max : healed);
+    PutText(text, gBG0TilemapBuffer + TILEMAP_INDEX(x + 1, 3));
+}
+
+""" + _HP_WINDOW
+_HEAL_SWITCH = ("u8 HealMapSelect_SwitchIn(ProcPtr proc, struct SelectTarget* target) {\n\n"
+                "    ChangeActiveUnitFacing(target->x, target->y);\n\n"
+                "    RefreshUnitHpInfoWindow(GetUnit(target->uid));\n")
+_HEAL_SWITCH_PREVIEW = ("void RefreshUnitHealPreviewWindowFem(struct Unit* unit);\n\n"
+                        + _HEAL_SWITCH.replace("RefreshUnitHpInfoWindow", "RefreshUnitHealPreviewWindowFem"))
+
 
 def validate(options: dict) -> str | None:
     """Problem code for the options, else None."""
@@ -562,6 +622,8 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[CHAPTER_INTRO_FILE] = _replace(current(CHAPTER_INTRO_FILE), _TITLE_WAIT, _TITLE_QUICK, CHAPTER_INTRO_FILE)
     if options.get("holdAToSpeedUp"):
         files[MOVE_SPEED_FILE] = _replace(current(MOVE_SPEED_FILE), _HOLD_A, _HOLD_A_ALWAYS, MOVE_SPEED_FILE)
+    if options.get("holdLBattleSpeed"):
+        files[BATTLE_ANIM_FILE] = _replace(current(BATTLE_ANIM_FILE), _BATTLE_FRAME, _BATTLE_FRAME_FAST, BATTLE_ANIM_FILE)
     if options.get("quickExpBar"):
         source = _replace(current(EXP_BAR_FILE), _EXP_WAIT, _EXP_WAIT_QUICK, EXP_BAR_FILE)
         files[EXP_BAR_FILE] = _replace(source, _EXP_END, _EXP_END_QUICK, EXP_BAR_FILE)
@@ -572,10 +634,16 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
     if options.get("casualMode"):
         files[CONFIG_FILE] = _replace(current(CONFIG_FILE), _DEATH_CLEANUP, _DEATH_CLEANUP_CASUAL, CONFIG_FILE)
         files[UNIT_FILE] = _replace(current(UNIT_FILE), _DEATH_SUPPORTS, _DEATH_SUPPORTS_CASUAL, UNIT_FILE)
+    if options.get("deadItemsToConvoy") and not options.get("casualMode"):
+        source = _replace(current(UNIT_FILE), _UNIT_INCLUDES, _UNIT_INCLUDES_CONVOY, UNIT_FILE)
+        files[UNIT_FILE] = _replace(source, _DEATH_ELSE, _DEATH_ELSE_CONVOY, UNIT_FILE)
     if options.get("hpBars"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BARS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BARS, MAP_SPRITES_FILE)
+    if options.get("healPreview"):
+        files[INFO_WINDOW_FILE] = _replace(current(INFO_WINDOW_FILE), _HP_WINDOW, _HP_WINDOW_HEAL, INFO_WINDOW_FILE)
+        files[HEAL_SELECT_FILE] = _replace(current(HEAL_SELECT_FILE), _HEAL_SWITCH, _HEAL_SWITCH_PREVIEW, HEAL_SELECT_FILE)
     if options.get("battleNumbers"):
         files = battlenumbers.apply(decomp_dir, files)
     if options.get("talkBubbles"):
