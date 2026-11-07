@@ -7,6 +7,7 @@
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { statLabel } from '../lib/magic.svelte'
+  import { loadSkills, offeredSkills, skillsOption } from '../lib/skills.svelte'
   import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import { AI_PRESETS } from '../lib/ai'
@@ -55,7 +56,7 @@
     NoFade: '⏹️', ENDA: '⏹️',
     CHECK_ALIVE: '❓', CHECK_EXISTS: '❓', CHECK_DEPLOYED: '❓', CHECK_EVENTID: '❓', CHECK_TURNS: '❓', CHECK_HARD: '❓',
     CHECK_MODE: '❓', CHECK_ENEMIES: '❓', CHECK_MONEY: '❓', CHECK_ACTIVE: '❓', CHECK_AT: '❓', SVAL: '🔢',
-    GiveItem: '🎁', ChangeStat: '💪', MNC2: '🚪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
+    GiveItem: '🎁', ChangeStat: '💪', GiveSkill: '✨', RemoveSkill: '🚫', MNC2: '🚪', LABEL: '🏷️', GOTO: '↪️', BEQ: '🔀', BNE: '🔀', BGE: '🔀', BGT: '🔀', BLE: '🔀', BLT: '🔀', CALL: '📞',
     TILECHANGE: '🧱', TILEREVERT: '🧱', WEA1: '🌦️', VCWF: '🌫️', SOUN: '🔔', WARP_IN: '✨', WARP_OUT: '✨', CUSE: '⚔️',
     REMU: '👋', REVEAL: '👥', SetHP: '❤️', SetAI: '🧠', ScreenTint: '🎨', ScreenNormal: '🎨',
     COUNTER_SET: '🔢', COUNTER_INC: '🔢', COUNTER_DEC: '🔢', COUNTER_CHECK: '❓',
@@ -272,7 +273,7 @@
       song: reference?.songs.find((s) => s !== 'SONG_NONE') ?? '0', background: reference?.backgrounds[0] ?? '0',
       message: '0x0', character: first, group: groups[0] ?? '0', x: '0', y: '0', frames: '60', flag: 'EVFLAG_TMP(20)',
       number: '0', speed: '0', raw: '0', label: `0x${nextLabel().toString(16)}`, script: reference?.scripts[0] ?? '0',
-      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1',
+      slot: op === 'SVAL' ? 'EVT_SLOT_1' : 'EVT_SLOT_C', item: reference?.items[0]?.id ?? '0', stat: 'pow', amount: '1', skill: offeredSkills()[0]?.id ?? 'StrBonus',
       chapter: `0x${(chapter + 1).toString(16)}`,
       weather: 'WEATHER_RAIN', ai: aiValue(0, 0), mapChange: '1', percent: op === 'ScreenTint' ? '60' : '100', counter: '0',
     }
@@ -334,7 +335,7 @@
     if (remembering) added[0].args = [flag]
     // what a condition on someone holds is usually for them
     const about = inCondition ? commands.slice(0, at).reverse().find((c) => c.op === 'CHECK_ALIVE')?.args?.[0] : undefined
-    if ((adding === 'GiveItem' || adding === 'ChangeStat') && about) added[0].args![0] = about
+    if (['GiveItem', 'ChangeStat', 'GiveSkill', 'RemoveSkill'].includes(adding) && about) added[0].args![0] = about
     const spec = reference?.commands[op] ?? []
     const messageArg = CONDITIONS.includes(op) ? -1 : spec.findIndex((a) => a.kind === 'message')
     let message: NewQuote | undefined
@@ -419,6 +420,7 @@
       if (a.kind === 'character') return [charName(v)]
       if (a.kind === 'item') return [itemName(v)]
       if (a.kind === 'stat') return [statLabel(v)]
+      if (a.kind === 'skill') return [t(`skill.${v}`)]
       if (a.kind === 'chapter') return [chapterTitle(v)]
       if (a.kind === 'amount') return [Number(v) > 0 ? `+${Number(v)}` : v]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
@@ -506,8 +508,9 @@
     && labels.get(labelNumber(commands[s.end].args?.[0] ?? '')) === s.end + 1
   const inCondition = $derived(selected !== null && (BRANCHES.includes(commands[selected]?.op) || depths[selected] > 0))
   // The simple view leaves out what only the detailed view explains.
-  const offered = $derived((reference?.addable ?? []).filter((op) => advanced
-    || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || ['CALL', 'ENUT', 'ENUF'].includes(op))))
+  $effect(() => { loadSkills() })
+  const offered = $derived((reference?.addable ?? []).filter((op) => (skillsOption.on || !op.endsWith('Skill')) && (advanced
+    || !(TECHNICAL.has(op) || BRANCHES.includes(op) || op.startsWith('CHECK_') || ['CALL', 'ENUT', 'ENUF'].includes(op)))))
   const conditions = $derived(advanced ? CONDITIONS : CONDITIONS.filter((c) => c !== 'if:flag'))
 
   // Dragging a line of the simple view (ticket 119): what it takes along, and where it would land.
@@ -687,6 +690,11 @@
                   {:else if a.kind === 'stat'}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
                       {#each STATS as stat (stat)}<option value={stat}>{statLabel(stat)}</option>{/each}
+                    </select>
+                  {:else if a.kind === 'skill'}
+                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                      {#if !offeredSkills().some((s) => s.id === v)}<option value={v}>{v}</option>{/if}
+                      {#each offeredSkills() as s (s.id)}<option value={s.id}>{t(`skill.${s.id}`)}</option>{/each}
                     </select>
                   {:else if a.kind === 'character' && (v.startsWith('CHARACTER_') || !v)}
                     <span class="inline">

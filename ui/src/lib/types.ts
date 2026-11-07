@@ -26,6 +26,8 @@ export interface Character {
   abilities: string[]
   /** skills (game option skills, lib/skills.svelte.ts) */
   skills?: string[]
+  /** skills batch 3: learned at a level (a class's level 1: at the promotion into it) */
+  learnedSkills?: { skill: string; level: number }[]
   /** opens the convoy, with the units next to them (missing in older projects: Eirika and Ephraim) */
   convoyAccess?: boolean
   /** can seize (missing in older projects: Eirika and Ephraim, by route; server: seize.py) */
@@ -105,6 +107,8 @@ export interface ClassData {
   abilities: string[]
   /** skills (game option skills, lib/skills.svelte.ts) */
   skills?: string[]
+  /** skills batch 3: learned at a level (a class's level 1: at the promotion into it) */
+  learnedSkills?: { skill: string; level: number }[]
   promotions: string[]
   movement: string | null
   terrainBonus: string | null

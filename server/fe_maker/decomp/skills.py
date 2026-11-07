@@ -40,6 +40,7 @@ MAX_SHOWN = 6   # page 1: 2 rows of 3 icons (ticket 171)
 # learned skills (batch 3, docs/competences.md): 4 per character, in the free debug buffer before ICON_TABLE;
 # saved like Magic (strmag.SAVE) in the bonus-map zone of the save memory, after Magic and the temporary bonuses
 LEARNED_MAX = 4
+LEARN_PER_SHEET = 4   # "learns X at level N" entries per character or class sheet
 LEARNED_CHARACTERS = 0x40
 LEARNED_TABLE = "0x02028800"
 LEARNED_SAVE = 0x480
@@ -198,9 +199,16 @@ def game_catalogue() -> list[dict]:
              "characters": GAME_CHARACTERS.get(s.id, [])} for s in GAME_SKILLS]
 
 
-def used(characters: list[dict], classes: list[dict], magic_split: bool) -> list[Skill]:
-    """The project's skills in catalogue order, then every game skill (numbers 1 to N)."""
+def event_skills(sources) -> set[str]:
+    """The skills the chapters' events give or take (GiveSkill / RemoveSkill, rendered as SKILL_FEM_<id>)."""
+    return {m for source in sources for m in re.findall(r"SKILL_FEM_(\w+)\)", source)}
+
+
+def used(characters: list[dict], classes: list[dict], magic_split: bool, extra=()) -> list[Skill]:
+    """The project's skills in catalogue order, then every game skill (numbers 1 to N); `extra`: event_skills."""
     ids = {sid for record in [*characters, *classes] for sid in record.get("skills") or []}
+    ids |= {entry.get("skill") for record in [*characters, *classes] for entry in record.get("learnedSkills") or []}
+    ids |= set(extra)
     chosen = [s for s in CATALOGUE if s.id in ids and (magic_split or s.id not in MAGIC_SKILLS)]
     return (chosen + list(GAME_SKILLS))[:MAX_SKILLS]
 
@@ -287,10 +295,24 @@ def _table(decomp_dir: Path, records: list[dict], numbers: dict[str, int], heade
     return "\n".join(row for _, row in sorted(rows.items()))
 
 
+def _learn_table(decomp_dir: Path, records: list[dict], numbers: dict[str, int], header: str, new_prefix: str) -> str:
+    """Batch 3: one row per entry whose sheet learns skills by level: { level, skill } pairs."""
+    constants = strmag._numbers(decomp_dir, header)
+    rows = {}
+    for record in records:
+        n = strmag._number(record.get("id", ""), constants, new_prefix)
+        pairs = [(int(e.get("level") or 0), numbers[e["skill"]]) for e in record.get("learnedSkills") or []
+                 if e.get("skill") in numbers and 0 < int(e.get("level") or 0) <= 40][:LEARN_PER_SHEET]
+        if n is not None and 0 <= n < 0x100 and pairs:
+            cells = ", ".join(f"{{ {lv}, {sk} }}" for lv, sk in pairs + [(0, 0)] * (LEARN_PER_SHEET - len(pairs)))
+            rows[n] = f"    [0x{n:02X}] = {{ {cells} }},"
+    return "\n".join(row for _, row in sorted(rows.items()))
+
+
 def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[dict], texts: dict[str, int],
-          magic_split: bool) -> dict:
-    """The skills into the overlay `files` (after strmag.apply). `texts`: add_texts's numbers."""
-    skills = used(characters, classes, magic_split)
+          magic_split: bool, extra=()) -> dict:
+    """The skills into the overlay `files` (after strmag.apply). `texts`: add_texts's numbers; `extra`: event_skills."""
+    skills = used(characters, classes, magic_split, extra)
     numbers = {s.id: i + 1 for i, s in enumerate(skills)}
     defines = "".join(f"#define SKILL_FEM_{s.id} {numbers[s.id]}\n" for s in skills)
 
@@ -306,6 +328,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         f"#define LEARNED_MAX_FEM {LEARNED_MAX}\n#define LEARNED_CHARACTERS_FEM 0x{LEARNED_CHARACTERS:X}\n"
         f"#define LEARNED_SKILLS_FEM ((u8 (*)[LEARNED_MAX_FEM]) {LEARNED_TABLE})\n"
         "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
+        "void LearnLevelSkillsFem(struct Unit* unit);\n"
         + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in sorted({s.stat for s in skills if s.kind == "stat"}))
         +
         "\n#endif // GUARD_BM_UNIT_H"), rel)
@@ -400,7 +423,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files[rel] = icon
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
-    files.update(_learned(decomp_dir, files))
+    files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
+                          _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers))
     return files
 
 
@@ -879,7 +903,8 @@ def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
 """ + battle[end:]
 
 
-def _learned(decomp_dir: Path, files: dict) -> dict:
+def _learned(decomp_dir: Path, files: dict, char_learn: str, class_learn: str, skills: list[Skill],
+             numbers: dict[str, int]) -> dict:
     """Learned skills (batch 3): LearnSkillFem / ForgetSkillFem in bmunit.c, the table cleared for a new game, and
     saved per save slot like Magic (after its blocks): the save time, then the table."""
     out = {}
@@ -923,6 +948,58 @@ void ForgetSkillFem(struct Unit* unit, int skill)
         }
 }
 """
+    out[rel] += f"""
+/* Batch 3: "learns X at level N" of the character and class sheets (as C-SkillSys's SkillTable-person.c / -job.c),
+   at a level up and at a promotion (level 1 of the new class) */
+static const u8 sCharacterLearnFem[0x100][{LEARN_PER_SHEET}][2] = {{
+{char_learn}
+}};
+
+static const u8 sClassLearnFem[0x100][{LEARN_PER_SHEET}][2] = {{
+{class_learn}
+}};
+
+void LearnLevelSkillsFem(struct Unit* unit)
+{{
+    int i;
+
+    for (i = 0; i < {LEARN_PER_SHEET}; i++) {{
+        if (sCharacterLearnFem[unit->pCharacterData->number][i][0] == unit->level)
+            LearnSkillFem(unit, sCharacterLearnFem[unit->pCharacterData->number][i][1]);
+        if (sClassLearnFem[unit->pClassData->number][i][0] == unit->level)
+            LearnSkillFem(unit, sClassLearnFem[unit->pClassData->number][i][1]);
+    }}
+}}
+"""
+    rel = "src/bmbattle.c"
+    battle = _read(files, decomp_dir, rel)
+    battle = _replace(battle, "    unit->level = bu->unit.level;\n",
+                      "    if (bu->unit.level != unit->level) { /* FE Maker: skills learned at this level */\n"
+                      "        unit->level = bu->unit.level;\n        LearnLevelSkillsFem(unit);\n    }\n", rel)
+    promotion = "    unit->level = 1;\n    unit->exp   = 0;\n"
+    if battle.count(promotion) != 2:
+        raise SkillError(f"Skills: {rel} does not match this version of the decomp (promotions)")
+    out[rel] = battle.replace(promotion, promotion + "    LearnLevelSkillsFem(unit); /* FE Maker: learned at promotion */\n")
+    out[rel] += """
+/* Batch 3: events give or take a skill: slot 1 the character, slot 2 the skill, slot 3 1 to give, 0 to take */
+#include "event.h"
+
+void FemSkillEvent(void)
+{
+    struct Unit* unit = GetUnitStructFromEventParameter(gEventSlots[1]);
+
+    if (!unit)
+        return;
+    if (gEventSlots[3])
+        LearnSkillFem(unit, gEventSlots[2]);
+    else
+        ForgetSkillFem(unit, gEventSlots[2]);
+}
+"""
+    rel = "include/eventscript.h"
+    out[rel] = _read(files, decomp_dir, rel).rstrip("\n") + (
+        "\n\n/* FE Maker: skills for the events' GiveSkill / RemoveSkill */\n#define SKILLS_FEM_EVENTS 1\n"
+        + "".join(f"#define SKILL_FEM_{s.id} {numbers[s.id]}\n" for s in skills) + "void FemSkillEvent(void);\n")
     rel = "src/bmio.c"
     out[rel] = _replace(_read(files, decomp_dir, rel), "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n",
                         "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n"

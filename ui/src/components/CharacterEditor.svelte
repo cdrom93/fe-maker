@@ -348,7 +348,8 @@
 
       {#if skillsOption.on}
         <SkillsPanel skills={ch.skills ?? []} fromClass={cls?.skills ?? []} abilities={[...(ch.abilities ?? []), ...(cls?.abilities ?? [])]}
-          classId={cls?.id} characterId={ch.id} onchange={(skills) => edit((c) => (c.skills = skills))} />
+          classId={cls?.id} characterId={ch.id} onchange={(skills) => edit((c) => (c.skills = skills))}
+          learned={ch.learnedSkills ?? []} onlearnedchange={(l) => edit((c) => (c.learnedSkills = l))} />
       {/if}
 
       {#if isNew(ch.id)}

@@ -204,3 +204,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : #171 fait : page 1 de la fiche comme le Skill System (Dépl. sous Rés., colonne de droite Con, Aid, Cond, Lead, Talk, « Skills » et 2 rangées de 3 icônes, affinité à côté du nom, aide R refaite) ; playtest.
 - 07/11/2026 : #169 fait : option « Dégâts et soins affichés » (catégorie En combat), AnimNumber du C-SkillSys porté (`battlenumbers.py`) ; « -18 » vu par playtest ; le drain de Sol avec une arme physique ne s'anime pas (pas de « +n »).
 - 07/11/2026 : compétences, lot 3 : plan écrit ; compétences apprises par personnage (4, table en mémoire libre, sauvegardées comme la magie) ; playtest en combat.
+- 07/11/2026 : compétences, lot 3 fini : apprentissage par niveau (fiches personnage et classe, après montée de niveau et promotion ; playtest) et commandes d'évènement « Donner / Retirer une compétence ».

@@ -1647,6 +1647,35 @@ def test_learned_skill_counts_in_battle(tmp_path):
         assert game.read(game.address("gBattleActor"), 0x14) == pow_ + 2
 
 
+def test_skill_learned_at_a_level_up(tmp_path):
+    """Skills batch 3: the lord's sheet learns Str+2 at level 2; with 99 experience, one battle levels it up and the
+    skill goes into its learned list."""
+    from fe_maker.decomp import skills
+
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "learnlevel", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    lord = next(c for c in characters if c["id"] == lord_id)
+    lord["learnedSkills"] = [{"skill": "StrBonus", "level": n} for n in (2, 3, 4, 5)]   # whatever its level (1 to 4)
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    used = [s.id for s in skills.used(characters, project.load("classes"), False)]
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        level = game.read(attacker, 0x8)
+        number = game.read(game.read(attacker, width=32), 4)
+        table = int(skills.LEARNED_TABLE, 16) + number * skills.LEARNED_MAX
+        assert game.read(table) == 0
+        game.write(attacker, 99, 0x9)        # experience 99: the next hit levels up
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.read(attacker, 0x8) == level + 1, seconds=30, step=10)
+        print("level", level, "->", game.read(attacker, 0x8), "learned", [game.read(table + k) for k in range(4)])
+        assert level < 5 and game.read(table) == used.index("StrBonus") + 1
+
+
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
     strikes first, then the lord twice in a row (its follow-up before any counter)."""

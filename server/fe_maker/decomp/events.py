@@ -112,6 +112,9 @@ COMMANDS: dict[str, list[tuple[str, str]]] = {
     "GiveItem": [("character", "character"), ("item", "item")],   # the editor's: written as two commands (render_command)
     "MNC2": [("chapter", "chapter")],
     "ChangeStat": [("character", "character"), ("stat", "stat"), ("amount", "amount")],   # the editor's too (unitstats.py)
+    # skills batch 3 (the editor's): written as slots + ASMC(FemSkillEvent) (skills.py), only with the skills option
+    "GiveSkill": [("character", "character"), ("skill", "skill")],
+    "RemoveSkill": [("character", "character"), ("skill", "skill")],
     **{op: [("label", "label"), ("left", "slot"), ("right", "slot")] for op in ("BEQ", "BNE", "BGE", "BGT", "BLE", "BLT")},
 }
 # Commands the editor offers to add (the others can only be kept, moved or removed).
@@ -121,7 +124,8 @@ ADDABLE = ("Text", "Text_BG", "MUSC", "LOAD1", "ENUN", "MOVE", "CAMERA_CAHR", "C
            "GiveItem", "ChangeStat", "MNC2", "CHECK_MONEY", "CHECK_ACTIVE",
            "SVAL", "BEQ", "BNE", "BGE", "BLT", "LABEL", "GOTO", "CALL",
            "TILECHANGE", "TILEREVERT", "WEA1", "VCWF", "SOUN", "WARP_IN", "WARP_OUT", "CUSN", "CUSE", "KILL", "REMU", "REVEAL",
-           "SetHP", "SetAI", "ScreenTint", "ScreenNormal", "COUNTER_SET", "COUNTER_INC", "COUNTER_DEC")
+           "SetHP", "SetAI", "ScreenTint", "ScreenNormal", "COUNTER_SET", "COUNTER_INC", "COUNTER_DEC",
+           "GiveSkill", "RemoveSkill")
 # Weather change during a chapter (EV_CMD_CHANGEWEATHER has no macro in the decomp).
 MACROS_FILE = "include/EAstdlib.h"
 WEATHER_MACRO = "#define WEA1(weather) _EvtArg0(EV_CMD_CHANGEWEATHER, 2, 0, (weather)),\n"
@@ -230,6 +234,10 @@ def render_command(c: dict) -> str:
         character, stat, amount = c["args"]
         return (f"SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, {unitstats.STATS.index(stat)})\n"
                 f"    SVAL(EVT_SLOT_3, {int(amount)})\n    ASMC({unitstats.FUNCTION})")
+    if c.get("op") in ("GiveSkill", "RemoveSkill"):
+        character, skill = c["args"]
+        return (f"#ifdef SKILLS_FEM_EVENTS\n    SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, SKILL_FEM_{skill})\n"
+                f"    SVAL(EVT_SLOT_3, {1 if c['op'] == 'GiveSkill' else 0})\n    ASMC(FemSkillEvent)\n#endif")
     if "args" in c:
         return f"{c['op']}({', '.join(str(a) for a in c['args'])})"
     return c["op"]
@@ -285,7 +293,8 @@ def validate_command(c: dict) -> str | None:
     patterns = {"slot": _SLOT_RE, "label": _LABEL_RE, "script": re.compile(f"{_IDENT_RE.pattern}|{_LABEL_RE.pattern}"),
                 "stat": re.compile("|".join(unitstats.STATS)), "amount": re.compile(r"[+-]?\d{1,2}"),
                 "weather": re.compile(r"WEATHER_[A-Z]+"), "ai": _LABEL_RE, "mapChange": re.compile(r"\d{1,3}"),
-                "percent": re.compile(r"\d{1,3}"), "counter": re.compile(r"[0-7]")}
+                "percent": re.compile(r"\d{1,3}"), "counter": re.compile(r"[0-7]"),
+                "skill": re.compile(r"[A-Za-z][A-Za-z0-9]*")}
     if any(kind in patterns and not patterns[kind].fullmatch(str(a).strip()) for (_n, kind), a in zip(spec, args or [])):
         return "badArguments"
     return None

@@ -337,7 +337,8 @@
       <AbilitiesPanel abilities={cl.abilities} fromClass={[]} fixed={cl.gender ? { female: cl.gender === 'female' } : {}} onchange={(abilities) => edit((c) => (c.abilities = abilities))} />
 
       {#if skillsOption.on}
-        <SkillsPanel skills={cl.skills ?? []} abilities={cl.abilities} classId={cl.id} onchange={(skills) => edit((c) => (c.skills = skills))} />
+        <SkillsPanel skills={cl.skills ?? []} abilities={cl.abilities} classId={cl.id} onchange={(skills) => edit((c) => (c.skills = skills))}
+          learned={cl.learnedSkills ?? []} onlearnedchange={(l) => edit((c) => (c.learnedSkills = l))} isClass />
       {/if}
 
       {#if mine.length}

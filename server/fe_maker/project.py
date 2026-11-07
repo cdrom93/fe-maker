@@ -260,8 +260,10 @@ class Project:
             menu_texts = data.add_texts(gameoptions.MENU_TEXTS["label"], gameoptions.MENU_TEXTS["help"])
         magic_split = bool(self.game_options.get("strMagSplit"))
         skill_texts = {}
+        event_skills = skills.event_skills(data.event_sources.values())
         if self.game_options.get("skills"):
-            skill_texts = skills.add_texts(data, skills.used(self.load("characters"), self.load("classes"), magic_split))
+            skill_texts = skills.add_texts(data, skills.used(self.load("characters"), self.load("classes"), magic_split,
+                                                             event_skills))
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
@@ -269,7 +271,8 @@ class Project:
         if self.game_options.get("strMagSplit"):
             files = strmag.apply(decomp_dir, files, self.load("characters"), self.load("classes"))
         if self.game_options.get("skills"):
-            files = skills.apply(decomp_dir, files, self.load("characters"), self.load("classes"), skill_texts, magic_split)
+            files = skills.apply(decomp_dir, files, self.load("characters"), self.load("classes"), skill_texts, magic_split,
+                                 event_skills)
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:

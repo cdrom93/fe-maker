@@ -115,3 +115,14 @@ def test_triggered_skill_name_shown_in_battle(monkeypatch):
     assert "StartSkillNameFem(anim); /* FE Maker */" in files["src/banim-main.c"]
     assert "0x06013400, 0x380);" in files["src/banim-ekrgauge.c"]
     assert files["graphics/item_icon/skill_box_fem.png"] == b"\x89PNG"
+
+
+def test_event_skill_commands_render_and_count_as_used():
+    from fe_maker.decomp.events import render_command
+
+    text = render_command({"op": "GiveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]})
+    assert "SVAL(EVT_SLOT_2, SKILL_FEM_Luna)" in text and "SVAL(EVT_SLOT_3, 1)" in text
+    assert "ASMC(FemSkillEvent)" in text and text.startswith("#ifdef SKILLS_FEM_EVENTS")
+    assert "SVAL(EVT_SLOT_3, 0)" in render_command({"op": "RemoveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]})
+    assert skills.event_skills([text]) == {"Luna"}
+    assert "Luna" in [s.id for s in skills.used([], [], False, {"Luna"})]

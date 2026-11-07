@@ -77,7 +77,7 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
      4. Commandes d'évènement « Donner une compétence » / « Retirer une compétence » (un personnage, une compétence).
      5. Parchemins : plus tard, avec les objets à effet.
      - Joueur seulement (comme le C-SkillSys : un ennemi n'apprend rien) ; vérifié par playtest (sauvegarde, rechargement, montée de niveau).
-     - **État (07/11/2026)** : points 1 et 2 faits (`LearnSkillFem` / `ForgetSkillFem` dans `bmunit.c`, table remise à zéro par `InitPlayConfig`, écrite et relue aux 4 endroits où le jeu sauve ses unités, copiée avec une partie) ; playtest : une compétence écrite dans la table compte en combat. Sauvegarde et rechargement pas encore vus en jeu. Restent les points 3 et 4 (rien n'appelle encore `LearnSkillFem`).
+     - **État (07/11/2026)** : points 1 et 2 faits (`LearnSkillFem` / `ForgetSkillFem` dans `bmunit.c`, table remise à zéro par `InitPlayConfig`, écrite et relue aux 4 endroits où le jeu sauve ses unités, copiée avec une partie) ; playtest : une compétence écrite dans la table compte en combat. Sauvegarde et rechargement pas encore vus en jeu. Points 3 et 4 faits le 07/11 : `LearnLevelSkillsFem` après chaque montée de niveau et promotion (fiches personnage et classe, « Apprises par niveau », 4 au plus) ; commandes d'évènement « Donner / Retirer une compétence » (`FemSkillEvent`, emplacements 1 à 3 + ASMC). Playtest : Str+2 appris au passage au niveau 2. Pas fait : le nom de la compétence affiché à l'apprentissage ; commandes d'évènement pas vues en jeu.
 4. **Compétences de carte et de menu** : Canto, Renewal, Galeforce, Steal, Dance…, et l'IA qui en tient compte.
 
 Plus tard :
