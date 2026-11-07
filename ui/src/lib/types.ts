@@ -636,6 +636,12 @@ export interface Ticket {
   comments: TicketComment[]
   createdAt: string
   updatedAt: string
+  /** sent to the ticket relay: the issue's number (its secret stays on the server) */
+  remote?: { number: number; sentAt: string }
+  /** why the relay did not get it (ticket.error.<code>) */
+  sendError?: string
+  /** the admin's replies, read back from the relay */
+  replies?: { body: string; createdAt: string }[]
 }
 
 /** A reply that completes a ticket. */
@@ -644,6 +650,8 @@ export interface TicketComment {
   body: string
   images: string[]
   createdAt: string
+  /** false: the relay did not get it */
+  sent?: boolean
 }
 
 export interface TicketIn {
@@ -653,6 +661,7 @@ export interface TicketIn {
   context: Record<string, string>
   /** screenshots as data URLs */
   images: string[]
+  attachProject?: boolean
 }
 
 /** Options of "Test" builds only (never in the exported patch). */

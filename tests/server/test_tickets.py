@@ -69,3 +69,52 @@ def test_rejects_bad_input(tmp_path):
     with pytest.raises(TicketError):
         store.update(ticket["id"], {"status": "nope"})
     assert store.image_path("../tickets.json") is None
+
+
+def test_tickets_go_to_the_relay_and_come_back_with_replies(tmp_path, monkeypatch):
+    from fe_maker import tickets
+
+    calls = []
+
+    def relay(path, data=None, secret=""):
+        calls.append((path, data, secret))
+        if path == "/v1/tickets":
+            return {"number": 12, "secret": "s" * 32}
+        if path == "/v1/tickets/12":
+            return {"number": 12, "state": "done", "comments": [
+                {"from": "admin", "body": "Fixed.", "createdAt": "2026-11-07T12:00:00Z"},
+                {"from": "tester", "body": "Mine", "createdAt": "2026-11-07T12:01:00Z"}]}
+        return {"ok": True}
+
+    store = TicketStore(tmp_path)
+    ticket = store.create("Broken map", context={"tab": "Maps"}, images=[_png_data_url()])
+    # the relay is off: the ticket stays here, with its error
+    assert store.send(ticket["id"])["sendError"] == "relayOff"
+    monkeypatch.setattr(tickets, "relay_call", relay)
+    sent = store.send(ticket["id"], project=b"zip")
+    assert sent["remote"]["number"] == 12 and "sendError" not in sent
+    path, data, _ = calls[0]
+    assert data["body"] == "Broken map" and data["context"] == {"tab": "Maps"} and data["version"]
+    assert data["images"][0].startswith("data:image/png;base64,") and data["project"] == {"data": "emlw"}
+    assert store.send(ticket["id"]) == sent and len(calls) == 1      # never sent twice
+    with_comment = store.add_comment(ticket["id"], "More")
+    store.send_comment(ticket["id"], with_comment["comments"][-1]["id"])
+    assert calls[-1][0] == "/v1/tickets/12/comments" and calls[-1][2] == "s" * 32
+    assert store.list()[0]["comments"][-1]["sent"] is True
+    synced = store.sync()[0]
+    assert synced["status"] == "done" and synced["replies"] == [{"body": "Fixed.", "createdAt": "2026-11-07T12:00:00Z"}]
+
+
+def test_project_joined_without_its_builds(tmp_path):
+    import zipfile
+    from io import BytesIO
+
+    from fe_maker.tickets import project_zip
+
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "characters.json").write_text("[]")
+    (tmp_path / "fe-maker.json").write_text("{}")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "game.gba").write_bytes(b"rom")
+    names = zipfile.ZipFile(BytesIO(project_zip(tmp_path))).namelist()
+    assert sorted(names) == ["data/characters.json", "fe-maker.json"]

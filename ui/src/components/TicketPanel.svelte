@@ -4,6 +4,7 @@
   import { appContext } from '../lib/appContext.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
   import type { Ticket, TicketKind, TicketPriority } from '../lib/types'
+  import Help from './Help.svelte'
 
   /** Side column to write feedback tickets while using the app: new ticket on top, open tickets below. */
   let { onClose, onChanged }: { onClose: () => void; onChanged: (openCount: number) => void } = $props()
@@ -17,10 +18,11 @@
   let body = $state('')
   let images = $state<string[]>([])
   let error = $state('')
-  const ISSUES_REPO = 'cdrom93/fe-maker'
-  let version = $state('')
-  api.status().then((s) => (version = s.version)).catch(() => {})
-  let sent = $state<number | null>(null)
+  let hasProject = $state(false)
+  api.status().then((s) => (hasProject = !!s.project)).catch(() => {})
+  let attachProject = $state(false)
+  /** the last ticket written: sent to the relay, or kept here with the reason */
+  let sent = $state<Ticket | null>(null)
   let sending = $state(false)
   let tickets = $state<Ticket[]>([])
   let showClosed = $state(false)
@@ -43,21 +45,33 @@
   onMount(async () => {
     await load()
     textarea?.focus()
+    // the replies and states of the tickets sent, read back from the relay
+    api.syncTickets().then(show).catch(() => {})
   })
 
-  /** A GitHub issue filled in from a ticket, in the user's browser: they read it and send it, or not (alpha, step 7). */
-  function issueUrl(tk: Ticket): string {
-    const lines = [tk.body, '', ...Object.entries(tk.context).map(([k, v]) => `- ${k}: ${v}`), `- FE Maker: ${version}`]
-    for (const comment of tk.comments) lines.push('', '---', comment.body)
-    const pictures = tk.images.length + tk.comments.reduce((n, comment) => n + comment.images.length, 0)
-    if (pictures) lines.push('', t('ticket.issueImages', { n: pictures }))
-    const query = new URLSearchParams({ title: `[${tk.kind}] ${tk.body.split('\n')[0].slice(0, 70)}`, body: lines.join('\n').slice(0, 6000) })
-    return `https://github.com/${ISSUES_REPO}/issues/new?${query}`
+  function show(list: Ticket[]) {
+    tickets = list
+    onChanged(list.filter((x) => x.status === 'open').length)
+  }
+
+  const reason = (code: string) => {
+    const text = t(`ticket.error.${code}`)
+    return text === `ticket.error.${code}` ? code : text
+  }
+
+  let resending = $state<string | null>(null)
+  async function resend(id: string) {
+    resending = id
+    try {
+      await api.sendTicket(id, false)
+      await load()
+    } finally {
+      resending = null
+    }
   }
 
   async function load() {
-    tickets = await api.tickets()
-    onChanged(tickets.filter((x) => x.status === 'open').length)
+    show(await api.tickets())
   }
 
   function readImage(file: File, add = (src: string) => { images = [...images, src] }, fail = (message: string) => { error = message }) {
@@ -112,12 +126,12 @@
     error = ''
     sending = true
     try {
-      const ticket = await api.createTicket({ body, kind, priority, context: $state.snapshot(context), images })
-      sent = ticket.number
+      sent = await api.createTicket({ body, kind, priority, context: $state.snapshot(context), images, attachProject })
       body = ''
       images = []
       kind = 'bug'
       priority = 'normal'
+      attachProject = false
       await load()
       await tick()
       textarea?.focus()
@@ -190,8 +204,12 @@
     </div>
     <p class="muted small">{t('ticket.pasteHint')}</p>
     {#if contextText}<p class="muted small">{t('ticket.context')} : {contextText}</p>{/if}
+    {#if hasProject}
+      <label class="check"><input type="checkbox" bind:checked={attachProject} /> {t('ticket.attachProject')} <Help text={t('ticket.attachProjectHint')} /></label>
+    {/if}
     {#if error}<p class="bad small">{error}</p>{/if}
-    {#if sent !== null}<p class="good small">{t('ticket.sent', { n: sent })}</p>{/if}
+    {#if sent?.remote}<p class="good small">{t('ticket.sent', { n: sent.number })}</p>
+    {:else if sent}<p class="bad small">{t('ticket.notSent', { n: sent.number, reason: reason(sent.sendError ?? '') })}</p>{/if}
     <button class="primary" onclick={send} disabled={!body.trim() || sending}>{t('ticket.send')}</button>
   </section>
 
@@ -211,6 +229,8 @@
               {t(`ticket.priority.${tk.priority}`)}
             </button>
             {#if tk.status !== 'open'}<span class="tag">{t(`ticket.status.${tk.status}`)}</span>{/if}
+            {#if tk.remote}<span class="tag" title={t('ticket.sentHint')}>{t('ticket.sentTag')}</span>
+            {:else}<span class="tag bad" title={reason(tk.sendError ?? '')}>{t('ticket.notSentTag')}</span>{/if}
             <span class="muted tiny">{date(tk.createdAt)}</span>
           </div>
           {#if editing?.id === tk.id}
@@ -232,6 +252,12 @@
               {/each}
             </div>
           {/if}
+          {#each tk.replies ?? [] as answer, i (i)}
+            <div class="comment answer">
+              <div class="meta"><strong class="tiny">{t('ticket.replyFrom')}</strong><span class="muted tiny">{date(answer.createdAt)}</span></div>
+              <p class="comment-body">{answer.body}</p>
+            </div>
+          {/each}
           {#each tk.comments as comment (comment.id)}
             <div class="comment">
               <div class="meta">
@@ -286,7 +312,9 @@
               {#if reply?.id !== tk.id}
                 <button onclick={() => (reply = { id: tk.id, body: '', images: [], error: '' })}>{t('ticket.reply')}</button>
               {/if}
-              <a class="issue" href={issueUrl(tk)} target="_blank" rel="noreferrer" title={t('ticket.issueHint')}>{t('ticket.issue')}</a>
+              {#if !tk.remote}
+                <button disabled={resending === tk.id} onclick={() => resend(tk.id)}>{t('ticket.resend')}</button>
+              {/if}
               <button onclick={() => update(tk.id, { status: 'done' })}>{t('ticket.markDone')}</button>
               <button onclick={() => update(tk.id, { status: 'cancelled' })}>{t('ticket.markCancelled')}</button>
             {:else}
@@ -306,7 +334,6 @@
 </aside>
 
 <style>
-  .issue { font-size: 0.8rem; align-self: center; }
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;
     display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; box-sizing: border-box;
@@ -349,6 +376,7 @@
   .tag { font-size: 0.72rem; padding: 0.05rem 0.4rem; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); }
   button.tag { line-height: 1.4; }
   .body { text-align: left; white-space: pre-wrap; border: none; background: none; padding: 0; font: inherit; font-size: 0.88rem; color: var(--text); cursor: text; }
+  .answer { border-left-color: var(--accent); }
   .comment { display: flex; flex-direction: column; gap: 0.2rem; padding-left: 0.6rem; border-left: 2px solid var(--border); }
   .comment-body { white-space: pre-wrap; font-size: 0.88rem; }
   .reply { display: flex; flex-direction: column; gap: 0.4rem; }

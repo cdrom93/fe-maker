@@ -90,7 +90,7 @@ from .decomp.gamedata import (
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import ANIMATIONS_DIR, DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
 from .rom import InvalidRomError
-from .tickets import TicketError, TicketStore
+from .tickets import TicketError, TicketStore, project_zip
 
 LANGUAGES = ("fr", "en")  # ui/src/locales (es.json and it.json are set aside for a later version)
 
@@ -2365,11 +2365,43 @@ class TicketIn(BaseModel):
     priority: str = "normal"
     context: dict = {}
     images: list[str] = []  # data URLs
+    send: bool = True       # to the ticket relay (tickets.py)
+    attachProject: bool = False
 
 
 @app.get("/api/tickets")
 def list_tickets():
     return tickets.list()
+
+
+@app.post("/api/tickets/sync")
+def sync_tickets():
+    """The replies and states of the tickets sent to the relay."""
+    return tickets.sync()
+
+
+class TicketSendIn(BaseModel):
+    attachProject: bool = False
+
+
+def _send_ticket(ticket_id: str, attach_project: bool) -> dict:
+    project = None
+    if attach_project and state.project:
+        try:
+            project = project_zip(state.project.root)
+        except TicketError as e:
+            error = str(e)
+            return tickets._set(ticket_id, lambda t: t.update(sendError=error))
+    return tickets.send(ticket_id, project)
+
+
+@app.post("/api/tickets/{ticket_id}/send")
+def send_ticket(ticket_id: str, body: TicketSendIn):
+    """Sends a ticket the relay did not get (again)."""
+    try:
+        return _send_ticket(ticket_id, body.attachProject)
+    except KeyError:
+        raise HTTPException(404)
 
 
 @app.post("/api/tickets")
@@ -2378,9 +2410,10 @@ def create_ticket(body: TicketIn):
     if state.project:
         context.setdefault("project", state.project.meta.get("name", ""))
     try:
-        return tickets.create(body.body, body.kind, body.priority, context, body.images)
+        ticket = tickets.create(body.body, body.kind, body.priority, context, body.images)
     except TicketError as e:
         raise HTTPException(400, str(e))
+    return _send_ticket(ticket["id"], body.attachProject) if body.send else ticket
 
 
 @app.patch("/api/tickets/{ticket_id}")
@@ -2401,7 +2434,9 @@ class TicketCommentIn(BaseModel):
 @app.post("/api/tickets/{ticket_id}/comments")
 def add_ticket_comment(ticket_id: str, body: TicketCommentIn):
     try:
-        return tickets.add_comment(ticket_id, body.body, body.images)
+        ticket = tickets.add_comment(ticket_id, body.body, body.images)
+        tickets.send_comment(ticket_id, ticket["comments"][-1]["id"])
+        return next(t for t in tickets.list() if t["id"] == ticket_id)
     except KeyError:
         raise HTTPException(404)
     except TicketError as e:

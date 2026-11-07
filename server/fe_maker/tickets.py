@@ -2,6 +2,11 @@
 
 Stored per user, outside the repository: <config dir>/tickets/tickets.json and images/.
 List the open ones with:  python -m fe_maker.tickets  [--all]
+
+Each ticket is also sent to the ticket relay (relay/, a Cloudflare Worker) which writes it in the private feedback
+repository: no GitHub account needed. The relay answers with the issue's number and a secret code, kept here: with
+it, sync() reads back the ticket's state and the admin's replies. A ticket the relay did not get stays here, marked
+with its error, to be sent again.
 """
 
 from __future__ import annotations
@@ -10,12 +15,17 @@ import argparse
 import base64
 import binascii
 import json
+import os
 import re
 import subprocess
 import sys
 import threading
+import urllib.error
+import urllib.request
 import uuid
+import zipfile
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
 from .config import config_dir
@@ -27,10 +37,58 @@ STATUSES = ("open", "done", "cancelled")
 PRIORITY_RANK = {p: i for i, p in enumerate(PRIORITIES)}
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+RELAY_URL = "https://fe-maker-tickets.fe-maker.workers.dev"
+RELAY_MAX_IMAGES = 4                     # the relay's limits (relay/src/index.js)
+RELAY_MAX_PROJECT = 10 * 1024 * 1024
+PROJECT_PARTS = ("fe-maker.json", "CREDITS.txt", "data", "assets")   # not build/ nor backups/
 
 
 class TicketError(Exception):
     pass
+
+
+def relay_url() -> str | None:
+    """The relay, or None when sending is off (FE_MAKER_RELAY=off; another URL for a test relay)."""
+    url = os.environ.get("FE_MAKER_RELAY", RELAY_URL)
+    return None if url == "off" else url.rstrip("/")
+
+
+def relay_call(path: str, data: dict | None = None, secret: str = "") -> dict:
+    """One call to the relay (POST with `data`, else GET). Raises TicketError with the relay's code."""
+    url = relay_url()
+    if url is None:
+        raise TicketError("relayOff")
+    headers = {"Content-Type": "application/json", "User-Agent": f"FE-Maker/{app_version()}"}
+    if secret:
+        headers["X-Ticket-Secret"] = secret
+    body = json.dumps(data).encode() if data is not None else None
+    request = urllib.request.Request(url + path, data=body, headers=headers, method="POST" if body else "GET")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            code = json.loads(e.read() or b"{}").get("error") or "relayError"
+        except ValueError:
+            code = "relayError"
+        raise TicketError(code) from None
+    except (OSError, ValueError):
+        raise TicketError("relayUnreachable") from None
+
+
+def project_zip(project_dir: Path) -> bytes:
+    """The project to join to a ticket: its settings, data and assets (not its builds nor backups)."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+        for part in PROJECT_PARTS:
+            path = project_dir / part
+            files = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file()) if path.is_dir() else []
+            for file in files:
+                archive.write(file, file.relative_to(project_dir).as_posix())
+    data = out.getvalue()
+    if len(data) > RELAY_MAX_PROJECT:
+        raise TicketError("projectTooBig")
+    return data
 
 
 def tickets_dir() -> Path:
@@ -202,6 +260,86 @@ class TicketStore:
             for name in _image_names(ticket):
                 (self.images_dir / name).unlink(missing_ok=True)
             self._write([t for t in tickets if t["id"] != ticket_id])
+
+    def _image_url(self, name: str) -> str:
+        ext = name.rsplit(".", 1)[1]
+        kind = next(k for k, v in IMAGE_TYPES.items() if v == ext)
+        return f"data:{kind};base64," + base64.b64encode((self.images_dir / name).read_bytes()).decode()
+
+    def _set(self, ticket_id: str, change) -> dict:
+        with self._lock:
+            tickets = self._read()
+            ticket = next((t for t in tickets if t["id"] == ticket_id), None)
+            if ticket is None:
+                raise KeyError(ticket_id)
+            change(ticket)
+            self._write(tickets)
+            return ticket
+
+    def send(self, ticket_id: str, project: bytes | None = None) -> dict:
+        """Sends the ticket to the relay (again, after a failure): it keeps the issue's number and secret, or the
+        error. A ticket already sent is not sent twice."""
+        with self._lock:
+            ticket = next((t for t in self._read() if t["id"] == ticket_id), None)
+        if ticket is None:
+            raise KeyError(ticket_id)
+        if ticket.get("remote"):
+            return ticket
+        data = {"body": ticket["body"], "kind": ticket["kind"], "priority": ticket["priority"],
+                "context": {k: v for k, v in ticket["context"].items() if k != "version"},
+                "version": ticket["context"].get("version", app_version()),
+                "images": [self._image_url(name) for name in ticket["images"][:RELAY_MAX_IMAGES]]}
+        if project is not None:
+            data["project"] = {"data": base64.b64encode(project).decode()}
+        try:
+            answer = relay_call("/v1/tickets", data)
+        except TicketError as e:
+            error = str(e)
+            return self._set(ticket_id, lambda t: t.update(sendError=error))
+
+        def sent(t: dict) -> None:
+            t.pop("sendError", None)
+            t["remote"] = {"number": answer["number"], "secret": answer["secret"], "sentAt": _now()}
+        return self._set(ticket_id, sent)
+
+    def sync(self) -> list[dict]:
+        """The admin's replies and the state of the tickets sent and still open (closed on GitHub: done here)."""
+        with self._lock:
+            sent = [t for t in self._read() if t.get("remote") and t["status"] == "open"]
+        for ticket in sent:
+            try:
+                remote = relay_call(f"/v1/tickets/{ticket['remote']['number']}", secret=ticket["remote"]["secret"])
+            except TicketError:
+                continue
+
+            def update(t: dict, remote=remote) -> None:
+                t["replies"] = [{"body": c["body"], "createdAt": c["createdAt"]}
+                                for c in remote.get("comments", []) if c.get("from") == "admin"]
+                if remote.get("state") in ("done", "cancelled"):
+                    t["status"] = remote["state"]
+                    t["updatedAt"] = _now()
+            self._set(ticket["id"], update)
+        return self.list()
+
+    def send_comment(self, ticket_id: str, comment_id: str) -> None:
+        """A reply written here, to the relay when its ticket was sent (else it stays here only)."""
+        with self._lock:
+            ticket = next((t for t in self._read() if t["id"] == ticket_id), None)
+        comment = next((c for c in ticket["comments"] if c["id"] == comment_id), None) if ticket else None
+        if not ticket or not ticket.get("remote") or comment is None:
+            return
+        data = {"body": comment["body"], "images": [self._image_url(name) for name in comment["images"][:RELAY_MAX_IMAGES]]}
+        try:
+            relay_call(f"/v1/tickets/{ticket['remote']['number']}/comments", data, ticket["remote"]["secret"])
+            sent = True
+        except TicketError:
+            sent = False
+
+        def mark(t: dict) -> None:
+            for c in t["comments"]:
+                if c["id"] == comment_id:
+                    c["sent"] = sent
+        self._set(ticket_id, mark)
 
     def image_path(self, name: str) -> Path | None:
         if not re.fullmatch(r"[0-9a-f]{8}-\d+\.(png|jpg|webp|gif)", name):

@@ -219,6 +219,9 @@ export const api = {
   addTicketComment: (id: string, comment: { body: string; images: string[] }) =>
     request<Ticket>('POST', `/api/tickets/${id}/comments`, comment),
   deleteTicketComment: (id: string, commentId: string) => request<Ticket>('DELETE', `/api/tickets/${id}/comments/${commentId}`),
+  /** the ticket relay (tickets.py): send again, read back the replies and states */
+  sendTicket: (id: string, attachProject: boolean) => request<Ticket>('POST', `/api/tickets/${id}/send`, { attachProject }),
+  syncTickets: () => request<Ticket[]>('POST', '/api/tickets/sync'),
 }
 
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
