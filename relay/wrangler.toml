@@ -7,3 +7,6 @@ compatibility_date = "2026-10-01"
 
 [vars]
 FEEDBACK_REPO = "cdrom93/fe-maker-feedback"
+
+[observability]
+enabled = true   # the Worker's logs on the dashboard
