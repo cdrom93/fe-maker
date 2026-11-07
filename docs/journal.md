@@ -232,3 +232,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : tickets 22 (liste de choix des compétences : effet visible, filtres par catégorie) et 23 (Galeforce à chaque fois, une fois par tour ; playtest avec Technique 0).
 - 07/11/2026 : compétences, lot 8 (Inori, Sturdy, statuts infligés, Armsthrift, Corrosion, Pickup ; playtest) ; nom d'Astra à chacun de ses coups (ticket 25).
 - 07/11/2026 : tickets 22 (choix d'une compétence dans une fenêtre), 23 (éclair et son de Galeforce), 26 (capacités du jeu rangées par effet).
+- 07/11/2026 : brouillon des retours au C-SkillSys (`docs/retours-cskillsys.md`, 5 écarts code / description), gardé jusqu'à la fin de l'adaptation.

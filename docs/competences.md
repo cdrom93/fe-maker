@@ -116,6 +116,7 @@ Plus tard :
 
 ## Choix de l'utilisateur (06/11/2026)
 
+- **Retours au C-SkillSys (07/11)** : chaque écart entre le code du C-SkillSys et sa description, trouvé pendant un lot, va dans `docs/retours-cskillsys.md` (le brouillon du ticket, en anglais) ; rien n'est envoyé avant la fin de l'adaptation, puis un ticket et un correctif par écart évident, sur son accord.
 - **Galeforce (ticket 23, 07/11)** : se déclenche à chaque fois (une fois par tour) dès que l'unité achève un ennemi ; le C-SkillSys le tire à Technique %.
 - **Choix d'une compétence (ticket 22, 07/11)** : une fenêtre (comme les autres boîtes de dialogue), les catégories à gauche, l'icône, le nom et l'effet de chaque compétence à droite ; pas de liste déroulante.
 - **Capacités du jeu (ticket 26, 07/11)** : rangées dans la catégorie de ce qu'elles font (Canto sur la carte, Vol et Talents de voleur dans les commandes, Bonus de critique et Létalité dans précision et critique).
