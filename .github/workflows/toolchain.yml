@@ -1,0 +1,63 @@
+# The Windows toolchain of the native build (docs/sans-docker.md), published as the release toolchain-<version>
+# that FE Maker downloads on first launch (server/fe_maker/native, TOOLCHAIN_VERSION). Run by hand after a change of
+# tools/build_toolchain.py or of a version below; bump TOOLCHAIN_VERSION in native/__init__.py with it.
+# The GPL programs' sources are attached to the same release.
+name: Toolchain
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "TOOLCHAIN_VERSION of server/fe_maker/native/__init__.py"
+        required: true
+
+env:
+  W64DEVKIT: "2.11.0"
+  ARM: "14.3.rel1"
+  AGBCC_COMMIT: da598c1d918402c42c0c0d7128ba14567f3175e9
+  ZLIB: "1.3.1"
+  LIBPNG: "1.6.47"
+
+jobs:
+  toolchain:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download the sources and programs
+        run: |
+          mkdir -p dl src sources
+          curl -sSLo dl/w64devkit.7z.exe "https://github.com/skeeto/w64devkit/releases/download/v$W64DEVKIT/w64devkit-x64-$W64DEVKIT.7z.exe"
+          curl -sSLo sources/w64devkit-$W64DEVKIT-source.tar "https://github.com/skeeto/w64devkit/releases/download/v$W64DEVKIT/source.tar"
+          curl -sSLo dl/arm.zip "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM/binrel/arm-gnu-toolchain-$ARM-mingw-w64-x86_64-arm-none-eabi.zip"
+          curl -sSLo sources/arm-gnu-toolchain-src-snapshot-$ARM.tar.xz "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM/srcrel/arm-gnu-toolchain-src-snapshot-$ARM.tar.xz"
+          curl -sSLo dl/zlib.tar.gz "https://github.com/madler/zlib/releases/download/v$ZLIB/zlib-$ZLIB.tar.gz"
+          curl -sSLo dl/libpng.tar.gz "https://github.com/pnggroup/libpng/archive/refs/tags/v$LIBPNG.tar.gz"
+          ./dl/w64devkit.7z.exe -y -o"$(cygpath -w "$PWD/src")"
+          python -c "import zipfile; zipfile.ZipFile('dl/arm.zip').extractall('src/arm')"
+          tar xzf dl/zlib.tar.gz -C src && tar xzf dl/libpng.tar.gz -C src
+          git clone -q https://github.com/pret/agbcc.git src/agbcc
+          git -C src/agbcc checkout -q $AGBCC_COMMIT
+          git -C src/agbcc archive --prefix=agbcc/ -o "$PWD/sources/agbcc-$AGBCC_COMMIT.tar.gz" HEAD
+      - name: Build
+        run: >
+          python tools/build_toolchain.py --w64devkit src/w64devkit --arm src/arm --agbcc src/agbcc
+          --decomp decomp --zlib src/zlib-$ZLIB --libpng src/libpng-$LIBPNG
+          --out "dist/fe-maker-toolchain-win64-${{ inputs.version }}"
+      - name: Publish
+        run: >
+          gh release create "toolchain-${{ inputs.version }}" dist/*.zip sources/*
+          --prerelease --title "Toolchain ${{ inputs.version }}"
+          --notes "Windows toolchain of FE Maker's native build (docs/sans-docker.md). GPL sources attached:
+          w64devkit $W64DEVKIT (make, busybox), Arm GNU Toolchain $ARM (binutils, cpp), agbcc $AGBCC_COMMIT."
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -615,7 +615,7 @@ export type TicketPriority = 'high' | 'normal' | 'low'
 /** Test feedback written from the app (server/fe_maker/tickets.py). */
 /** Something FE Maker needs on this computer (server: checks.py). */
 export interface Check {
-  id: 'rom' | 'decomp' | 'docker' | 'mgba'
+  id: 'rom' | 'decomp' | 'docker' | 'toolchain' | 'firstBuild' | 'mgba'
   ok: boolean
   detail: string
 }

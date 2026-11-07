@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, decompfetch, emulator, ferepo, newchapter, scope, validation
+from . import __version__, decompfetch, emulator, ferepo, native, newchapter, scope, validation
 from .builder import BuildError
 from .checks import run_checks
 from .config import Settings, config_dir, default_projects_dir, find_tiled
@@ -158,6 +158,16 @@ def download_decomp():
     try:
         decompfetch.fetch()
     except decompfetch.DecompFetchError as e:
+        raise HTTPException(502, str(e)) from e
+    return run_checks(state.settings)
+
+
+@app.post("/api/toolchain/download")
+def download_toolchain():
+    """First launch on Windows: the build tools that replace Docker (native/), then the first build starts."""
+    try:
+        native.fetch_toolchain()
+    except native.NativeBuildError as e:
         raise HTTPException(502, str(e)) from e
     return run_checks(state.settings)
 

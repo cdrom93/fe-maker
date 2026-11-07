@@ -61,6 +61,7 @@ def test_a_checkout_has_everything_but_the_rom(monkeypatch, tmp_path):
     from fe_maker.config import Settings
 
     monkeypatch.setattr(checks, "_docker_state", lambda: (False, "stopped"))
+    monkeypatch.setattr(checks, "_windows", lambda: False)
     monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
     found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
     assert not found["rom"]["ok"] and not found["decomp"]["ok"] and found["mgba"]["ok"]
@@ -79,8 +80,30 @@ def test_a_stopped_docker_desktop_is_started(monkeypatch, tmp_path):
     monkeypatch.setattr(checks, "_docker_state", lambda: (False, "stopped"))
     monkeypatch.setattr(checks.subprocess, "Popen", lambda args, **kw: launched.append(args))
     monkeypatch.setattr(checks, "_docker_started_at", None)
+    monkeypatch.setattr(checks, "_windows", lambda: False)
     assert checks.start_docker() and launched == [[str(exe)]]
     found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
     assert found["docker"]["detail"] == "starting"
     monkeypatch.setattr(checks, "_docker_state", lambda: (True, "27.0"))
     assert not checks.start_docker()
+
+
+def test_windows_asks_for_the_toolchain_then_builds_once_in_the_background(monkeypatch, tmp_path):
+    from fe_maker import checks, native
+    from fe_maker.config import Settings
+
+    monkeypatch.setattr(checks, "_windows", lambda: True)
+    monkeypatch.setattr(checks, "_docker_state", lambda: (False, "missing"))
+    monkeypatch.setenv("FE_MAKER_TOOLCHAIN", str(tmp_path / "toolchain"))
+    monkeypatch.delenv("FE_MAKER_BUILDER", raising=False)
+    found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
+    assert found["toolchain"] == {"id": "toolchain", "ok": False, "detail": ""} and "docker" not in found
+    started = []
+    monkeypatch.setattr(native, "toolchain_ready", lambda toolchain=None: True)
+    monkeypatch.setattr(native, "start_warmup", lambda rom, decomp: started.append(rom))
+    monkeypatch.setattr(native, "warmup_state", lambda: "running")
+    settings = Settings(mgba_path="mgba")
+    monkeypatch.setattr(Settings, "has_rom", property(lambda self: True))
+    (tmp_path / "Makefile").write_text("")
+    found = {c["id"]: c for c in checks.run_checks(settings, tmp_path)}
+    assert found["firstBuild"] == {"id": "firstBuild", "ok": False, "detail": "running"} and started

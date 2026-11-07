@@ -1,8 +1,8 @@
-"""Compile the FE8 decomp inside the FE Maker Docker image.
+"""Compile the FE8 decomp: natively on Windows when FE Maker's toolchain is installed (native/), else inside the
+FE Maker Docker image.
 
-The decomp submodule is mounted read-only. Compilation happens in a working
-copy kept in a Docker named volume; project files are applied on top of it
-through an overlay directory.
+The decomp is never modified. Compilation happens in a working copy (a Docker named volume, or a folder of the
+config directory for a native build); project files are applied on top of it through an overlay directory.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import native
 from .paths import DECOMP_DIR, DOCKER_DIR
 from .rom import check_rom
 
@@ -154,6 +155,16 @@ def build(
 
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    if overlay is not None and not overlay.is_dir():
+        raise BuildError(f"Overlay directory not found: {overlay}")
+    if native.available():   # Windows without Docker (docs/sans-docker.md); Docker stays the fallback
+        with build_lock(on_output):
+            try:
+                log = native.build(rom.resolve(), out_dir, DECOMP_DIR, overlay.resolve() if overlay else None, bugfix,
+                                   on_output)
+            except native.NativeBuildError as e:
+                raise BuildError("Build failed:\n" + str(e)) from e
+        return BuildResult(rom_path=out_dir / "fireemblem8.gba", matches_original="fireemblem8.gba: OK" in log, log=log)
     docker = find_docker()
 
     # Separate caches: make does not notice a change of compiler flags.

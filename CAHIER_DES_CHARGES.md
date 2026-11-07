@@ -123,7 +123,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord.
 8. **Docs** : prêtes (guide FR/EN, limites connues, CHANGELOG). Passage d'une version à l'autre fait (`migrations.py`).
 9. **À faire, dans l'ordre choisi le 06/11** (viser une alpha qui donne envie, même incomplète) :
    - **musique** (phase 5) ;
-   - **compilation sans Docker sous Windows** : étude faite le 06/11 (`docs/sans-docker.md`), **faisable** : ROM d'origine reconstruite à l'octet près sous Windows, sans toucher à la décomp ; licences possibles (sources GPL jointes, `jsonproc` sans licence compilé chez l'utilisateur ou réécrit). Reste à coder (chaîne d'outils construite par GitHub Actions, moteur natif dans `builder.py`, Docker en secours), sur décision de l'utilisateur ;
+   - **compilation sans Docker sous Windows** : faite le 07/11 (`docs/sans-docker.md`, `server/fe_maker/native/`), Docker en secours ; ROM d'origine identique ; première compilation 8 min 30, lancée en arrière-plan dès l'installation, ensuite 30 s à 2 min. **Reste** : comparer un projet modifié avec Docker, publier la chaîne (workflow `Toolchain`, dépôt public), guide sans Docker ;
    - **test fermé** avec quelques personnes choisies : FE Maker et les tickets sur d'autres machines ;
    - pour l'annonce : **vidéo de démonstration** de 2-3 min (carte, unités, dialogue, classe et compétence, « Tester ») et **hack témoin** partagé par l'utilisateur sur FEU, qui ne ressemble pas à FE8 ;
    - dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (`[AI]` dans le titre).
@@ -281,7 +281,6 @@ Choix de l'utilisateur :
 
 - [ ] Gel de `0.1.0-alpha`, dépôt public, tag et annonce (section 4, Alpha publique)
 - [ ] Embranchement de routes depuis la page Campagne : conception à faire avec l'utilisateur
-- [ ] Compilation sans Docker sous Windows : faisable (`docs/sans-docker.md`), la coder avant le test fermé ?
 - [ ] Proposer aux mainteneurs de la décomp les corrections des 3 blocs `BUGFIX` cassés
 - [ ] Piste retenue pour la version PC
 - [ ] Passage entre FEBuilder et FE Maker (réflexion du 02/11/2026) : un projet FEBuilder est une ROM modifiée, un projet FE Maker est le code source de la décomp, et un `.ups` ne porte que des octets, pas le sens (personnages, cartes, événements). FEBuilder vers FE Maker : impossible aujourd'hui ; un import qui relit la ROM en suivant ses pointeurs serait faisable pour les tables, les textes, les portraits et les cartes, plus dur pour les événements (désassembleur d'Event Assembler ou de FEBuilder), impossible pour les patchs ASM. FE Maker vers FEBuilder : la ROM produite s'ouvre, mais en aller simple et sans garantie (le code recompilé change de place, FEBuilder lit les tables à des adresses fixes) ; pas testé. Deux `.ups` des deux outils ne se combinent pas. À dire dans l'annonce : FE Maker sert à un nouveau hack, pas à reprendre un hack FEBuilder. À décider : import partiel après l'alpha ? essai d'une ROM FE Maker dans FEBuilder ?

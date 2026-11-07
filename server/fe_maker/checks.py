@@ -10,6 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import native
 from .config import Settings, find_mgba
 from .paths import DECOMP_DIR
 
@@ -56,13 +57,34 @@ def start_docker() -> bool:
     return True
 
 
-def run_checks(settings: Settings, decomp_dir: Path = DECOMP_DIR) -> list[dict]:
+def _windows() -> bool:
+    return os.name == "nt"
+
+
+def _builder_check(settings: Settings, decomp_ok: bool) -> list[dict]:
+    """On Windows, FE Maker's own toolchain (native/, no Docker), then the first build made in the background;
+    Docker elsewhere, or on Windows as long as it is the one installed (a developer's checkout)."""
+    if _windows():
+        if native.toolchain_ready():
+            if settings.has_rom and decomp_ok:
+                native.start_warmup(settings.rom_path, DECOMP_DIR)
+                state = native.warmup_state()
+                return [{"id": "firstBuild", "ok": state == "done", "detail": state or "running"}]
+            return []
+        if os.environ.get("FE_MAKER_BUILDER") == "docker" or _docker_state()[0]:
+            return []
+        return [{"id": "toolchain", "ok": False, "detail": ""}]
     docker_ok, docker_detail = _docker_state()
     if docker_detail == "stopped" and _docker_started_at is not None and time.monotonic() - _docker_started_at < DOCKER_STARTUP:
         docker_detail = "starting"
+    return [{"id": "docker", "ok": docker_ok, "detail": docker_detail}]
+
+
+def run_checks(settings: Settings, decomp_dir: Path = DECOMP_DIR) -> list[dict]:
+    decomp_ok = (decomp_dir / "Makefile").is_file()
     return [
         {"id": "rom", "ok": settings.has_rom, "detail": ""},
-        {"id": "decomp", "ok": (decomp_dir / "Makefile").is_file(), "detail": ""},
-        {"id": "docker", "ok": docker_ok, "detail": docker_detail},
+        {"id": "decomp", "ok": decomp_ok, "detail": ""},
+        *_builder_check(settings, decomp_ok),
         {"id": "mgba", "ok": bool(settings.mgba_path or find_mgba()), "detail": ""},
     ]

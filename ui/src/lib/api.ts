@@ -68,6 +68,7 @@ export const api = {
   chapterReach: (index: number, units: { classId: string; x: number; y: number; items: string[]; ai?: number[]; mag?: number }[]) =>
     request<{ move: [number, number][]; strike: [number, number][]; heal: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
+  downloadToolchain: () => request<Check[]>('POST', '/api/toolchain/download'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
   saveData: (kind: DataKind, records: unknown) =>

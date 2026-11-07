@@ -69,12 +69,24 @@ Le préprocesseur était `cc -E` (gcc MinGW), comme `cc -E` dans Docker : même 
 
 Soit ~65 Mo décompressés (~25 Mo en zip) plus numpy. Les sources GPL exactes (agbcc au commit fixé, binutils et gcc d'Arm, w64devkit) sont jointes à la release qui porte les binaires.
 
-## Conclusion
+## Fait le 07/11/2026 (sur l'accord de l'utilisateur du 06/11)
 
-Faisable, sans toucher à la décomp, avec Docker gardé en secours. Travail estimé pour l'alpha :
+Son souci : 25 min pour la première compilation. Deux réponses :
 
-1. un workflow GitHub Actions (runner Windows) qui construit l'archive de la chaîne d'outils, sources jointes ;
-2. dans `builder.py`, un second moteur « natif » : copie de travail et overlay en Python (à la place de `rsync`), `win.mk` et `sitecustomize.py` fournis par FE Maker, mêmes étapes que `entrypoint.sh` ; Docker seulement si la chaîne native manque ou échoue ;
-3. `checks.py` : télécharger la chaîne au premier lancement (comme la décomp), plus de Docker dans les prérequis ;
-4. préparer la copie de travail une fois au premier lancement (les ~25 min de la première compilation, avec une barre de progression), ou accélérer l'étape des animations ;
-5. tests : `tests/local` compile la décomp intacte par les deux moteurs et compare les ROM.
+- **Plus rapide** : les animations de combat passent de ~15 min à **22 s**. `server/fe_maker/native/banim_link.py` donne la même sortie que `arm_compressing_linker.py` (objet identique à l'octet près, mêmes 1 476 symboles) : il assemble le bloc en mémoire et ne lance `ld` que pour les 201 scripts d'animation, au lieu de relier tout le bloc de 2 Mo à chacune des 1 475 entrées (~10 000 processus). **Compilation complète : 8 min 30** depuis une copie vierge (C : 2 min 30 ; le reste, ~5 000 conversions d'images). Après un petit changement : 30 s ; un projet entier (le projet `test`) : 2 min.
+- **En arrière-plan** : la première compilation part toute seule dès que la ROM, la décomp et les outils sont là (`checks.py`, `native.start_warmup`), depuis la décomp intacte ; l'accueil dit « En préparation » et qu'on peut déjà travailler. Fermée en route, elle reprend où make en était.
+
+Autres résultats :
+
+- `jsonproc` (sans licence) remplacé par `native/jsonproc.py` : les 78 fichiers générés identiques (aux fins de ligne près : le jsonproc compilé sous Windows écrit des CRLF).
+- Le préprocesseur `arm-none-eabi-cpp` d'Arm donne la même ROM que `cc -E` : pas de gcc MinGW dans la chaîne livrée.
+- Le correctif `os.system` par `sh` n'est plus utile : seul l'ancien éditeur de liens des animations s'en servait.
+- **Chaîne d'outils** (`tools/build_toolchain.py`, `.github/workflows/toolchain.yml`) : 63 Mo, **24 Mo en zip**, que des DLL de Windows. Sources GPL jointes à la release `toolchain-1`. numpy ajouté aux dépendances de FE Maker.
+- Compilation par FE Maker lui-même (`builder.build`, moteur natif quand la chaîne est installée, Docker sinon) : ROM d'origine identique.
+
+**Reste** :
+
+1. comparer un projet modifié compilé en natif et par Docker (même ROM attendue) ;
+2. lancer le workflow `Toolchain` sur GitHub : il publie la chaîne, que FE Maker télécharge (le dépôt doit être public, sinon le téléchargement échoue) ;
+3. un test `tests/local` qui compile par les deux moteurs ;
+4. le guide : Docker n'est plus un prérequis sous Windows.

@@ -26,21 +26,21 @@
 
   onMount(() => {
     check()
-    // While Docker Desktop starts (checks.py), look again until it answers.
-    const timer = setInterval(() => { if (!busy && checks.some((c) => c.detail === 'starting')) check() }, 5000)
+    // While Docker Desktop starts or the first build runs (checks.py), look again until it is over.
+    const timer = setInterval(() => { if (!busy && checks.some((c) => c.detail === 'starting' || c.detail === 'running')) check() }, 5000)
     return () => clearInterval(timer)
   })
 </script>
 
 {#if missing.length || error}
   <section class="panel checks">
-    <h2>{t('checks.title')}</h2>
+    <h2>{t(missing.every((c) => c.id === 'firstBuild') && !error ? 'checks.titlePreparing' : 'checks.title')}</h2>
     {#each missing as c (c.id)}
       <div class="check">
         <strong>{t(`checks.${c.id}`)}</strong>
         <span class="muted">{t(`checks.${c.id}.${c.detail || 'missing'}`)}</span>
-        {#if c.id === 'decomp'}
-          <button class="primary" disabled={busy} onclick={() => check(api.downloadDecomp)}>{busy ? t('checks.downloading') : t('checks.download')}</button>
+        {#if c.id === 'decomp' || c.id === 'toolchain'}
+          <button class="primary" disabled={busy} onclick={() => check(c.id === 'decomp' ? api.downloadDecomp : api.downloadToolchain)}>{busy ? t('checks.downloading') : t('checks.download')}</button>
         {:else if LINKS[c.id]}
           <a href={LINKS[c.id]} target="_blank" rel="noreferrer">{t('checks.get')}</a>
         {/if}
