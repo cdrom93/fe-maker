@@ -1702,6 +1702,47 @@ def test_batch_6_hit_crit_and_damage(tmp_path):
         assert damage == max(1, base * 256 // (256 + 256 + 256 * 30 // 70))   # Dragon Skin and Counter Roar add up
 
 
+def test_batch_7_order_of_the_rounds(tmp_path):
+    """Skills batch 7: the attacked soldier's Gale Wings (full HP: it strikes first) and its speed (it doubles), the
+    slower lord's Bold Fighter (it doubles too) and Double Lion (one more hit a round, then 1 HP lost): C-SkillSys's
+    round table gives soldier, lord, soldier, lord."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch7", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=1, crit=0)
+    next(i for i in items if i["id"] == "ITEM_LANCE_IRON").update(weight=0, might=0, hit=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    for units in chapters["unitGroups"].values():
+        for unit in units:
+            if unit.get("character") == "CHARACTER_SOLDIER_83":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord_unit = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    next(c for c in characters if c["id"] == lord_unit["character"])["skills"] = ["BoldFighter", "DoubleLion"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"].update(hp=60, spd=40)
+    soldier["skills"] = ["GaleWings"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        max_hp = game.read(attacker, 0x12)
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor, target = game.address("gBattleActor"), game.address("gBattleTarget")
+        assert game.read(target, 0x5E, width=16, signed=True) >= game.read(actor, 0x5E, width=16, signed=True) + 4
+        hits = [game.read(game.address("gBattleHitArray") + 4 * i, width=32) for i in range(7)]
+        foe = [bool((h >> 19) & 0x8) for h in hits]                     # BATTLE_HIT_INFO_RETALIATION
+        follow = [bool(h & 0x4) for h in hits]                           # BATTLE_HIT_ATTR_FOLLOWUP
+        assert foe[:6] == [True, False, False, True, False, False]
+        assert follow[:6] == [False, False, False, True, True, True]
+        assert (hits[5] >> 19) & 0x10 or (hits[6] >> 19) & 0x10      # BATTLE_HIT_INFO_END
+        assert game.read(actor, 0x13) == max_hp - 1                      # Double Lion
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""

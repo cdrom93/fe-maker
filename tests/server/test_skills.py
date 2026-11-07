@@ -55,7 +55,7 @@ def test_skills_match_the_decomp(monkeypatch):
     assert "GetUnitDefenseBaseFem(unit) +" not in unit   # no Defense skill: its getter stays
     battle = files["src/bmbattle.c"]
     assert "ApplyBattleSkillsFem(attacker, defender);" in battle and "attacker->battleSpeed += 6;" in battle
-    assert "SkillTesterFem(&gBattleTarget.unit, SKILL_FEM_Vantage)" in battle
+    assert "SkillTesterFem(&(t)->unit, SKILL_FEM_Vantage)" in battle and "BattleDoublesFem(a)" in battle
     assert "#define DrawnIconLookupTable ((struct IconStruct*) 0x02028900)" in files["src/icon.c"]
     sheet = files["data/data_item_icon.s"]
     assert sheet.index("item_icon_skill_fem_StrBonus") < sheet.index("item_icon_palette:")
@@ -113,6 +113,28 @@ def test_batch_6_hit_crit_and_damage(monkeypatch):
     assert "SkillTesterFem(&defender->unit, SKILL_FEM_Fortune)" in eff and "battleEffectiveHitRate = 100;" in eff
     assert "gBattleStats.damage = gBattleStats.damage * 4 / 3;" in battle and "*defense /= 2;" in battle
     assert "SkillTesterFem(&defender->unit, SKILL_FEM_DragonSkin)" in battle
+
+
+def test_batch_7_order_of_the_rounds(monkeypatch):
+    """Batch 7: C-SkillSys's round table, its doubling rules for both units, the forecast's x2 for each side."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["RecklessFighter", "Dazzle", "LastWord", "DoubleLion"]},
+                  {"id": "CHARACTER_SETH", "skills": ["Pursuer", "PassionsFlow"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    battle = files["src/bmbattle.c"]
+    assert "{1, 1, 2, 2},\n    {2, 1, 1, 2}\n};" in battle and "config = sBattleUnwindFem[mask];" in battle
+    assert "SkillTesterFem(&(a)->unit, SKILL_FEM_RecklessFighter) && a->hpInitial * 2 > a->unit.maxHP" in battle
+    assert "SkillTesterFem(&(a)->unit, SKILL_FEM_LastWord) && CanFollowUpFem(a) && CanDoubleFem(t, a)" in battle
+    assert "SkillTesterFem(&(a)->unit, SKILL_FEM_Pursuer)" in battle and "static int SupportedFem(" in battle
+    assert "gBattleActor.unit.curHP--;" in battle and "gBattleTarget.canCounter = FALSE;\n    }\n\n    // Target" in battle
+    assert "if (BattleDoublesFem(&gBattleActor)) {\n        *outAttacker" in battle
+    assert "SKILL_FEM_Vantage" not in battle and "SKILL_FEM_GaleWings" not in battle
+    forecast = files["src/bksel.c"]
+    assert "if (BattleDoublesFem(&gBattleActor)) {" in forecast and "if (BattleDoublesFem(&gBattleTarget)) {" in forecast
 
 
 def test_triggered_skills_go_into_each_hit(monkeypatch):

@@ -130,6 +130,40 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Vantage", "order", "Vantage", "Vantage:[NL]When unit is defender while[NL]their HP is < 50%, attack first."),
     Skill("Desperation", "order", "Desperation",
           "Desperation:[NL]When unit attacks with HP < 50%,[NL]its follow-up comes at once."),
+    # lot 7: the order of the rounds (C-SkillSys's BattleOrder.c, _battle_order)
+    Skill("QuickRiposte", "order", "QuickRiposte",
+          "Quick Riposte:[NL]If unit is attacked while their[NL]HP > 50%, they attack twice."),
+    Skill("VengefulFighter", "order", "VengefulFighter",
+          "Vengeful Fighter:[NL]If HP is higher than 50%,[NL]always attack twice when under attack."),
+    Skill("BoldFighter", "order", "BoldFighter",
+          "Bold Fighter:[NL]If HP is higher than 50%,[NL]always attack twice when attacking."),
+    Skill("RecklessFighter", "order", "RecklessFighter",
+          "Reckless Fighter:[NL]If HP is higher than 50%,[NL]both sides always attack twice."),
+    Skill("WaryFighter", "order", "WaryFighter", "Wary Fighter:[NL]Prevents the foe's follow-up[NL]if unit's HP > 50%."),
+    Skill("BidingBlow", "order", "", "Biding Blow:[NL]Attack twice if the enemy[NL]cannot counterattack."),
+    Skill("BrashAssault", "order", "BrashAssault", "Brash Assault:[NL]If foe can counter,[NL]follow-up attack is guaranteed."),
+    Skill("AdvantageChaser", "order", "AdvantageChaser",
+          "Advantage Chaser:[NL]Unit always doubles if they have[NL]Weapon Triangle Advantage."),
+    Skill("PassionsFlow", "order", "PassionsFlow", "Passions Flow:[NL]Unit doubles if currently[NL]gaining support bonuses."),
+    Skill("PridefulWarrior", "order", "PridefulWarrior",
+          "Prideful Warrior:[NL]Unit always attacks last in[NL]the round, but always doubles."),
+    Skill("LastWord", "order", "LastWord", "Last Word:[NL]If the enemy doubles,[NL]this unit doubles."),
+    Skill("GaleWings", "order", "GaleWings", "Gale Wings:[NL]When unit is defender while[NL]their HP is 100%, attack first."),
+    Skill("YngviAscendant", "order", "YngviAscendant",
+          "Yngvi Ascendant:[NL]Follow-up attack cannot be nullified[NL]and occurs immediately if exists."),
+    Skill("Dazzle", "order", "Dazzle", "Dazzle:[NL]Enemy cannot counterattack[NL]this unit."),
+    Skill("Moonlight", "order", "Moonlight", "Moonlight:[NL]This unit cannot double, but[NL]the enemy cannot counterattack."),
+    Skill("Pursuer", "battle", "Pursuer",
+          "Pursuer: If initiating combat,[NL]attack speed +5, attack + 25% of unit[NL]speed, double attack immediately.",
+          code="if (attacker == &gBattleActor) {\n            attacker->battleSpeed += 5;\n"
+               "            attacker->battleAttack += attacker->unit.spd / 4;\n        }", group="order"),
+    Skill("CloseCombat", "battle", "CloseCombat",
+          "Close Combat: +2 damage if at[NL]1 range. Your double attacks[NL]occur before countering.",
+          code="if (gBattleStats.range == 1) attacker->battleAttack += 2;", group="order"),
+    Skill("DoubleLion", "hits", "DoubleLion",
+          "Double Lion:[NL]If unit attacks with full HP,[NL]bestow Brave effect and lose 1 HP.",
+          code="if (unit == &gBattleActor && SkillTesterFem(&unit->unit, SKILL_FEM_DoubleLion)\n"
+               "            && unit->hpInitial == unit->unit.maxHP)\n            more += 1;"),
     # lot 2: skills that trigger on a hit, Skill % of the time (C-SkillSys, SkillEffects/BattleDamage/*Skills.c)
     Skill("Luna", "proc", "Luna", "Luna:[NL]Negates enemy defense.[NL](Skill % activation).",
           code="if (!magic && SkillProcFem(attacker, SKILL_FEM_Luna)) {\n"
@@ -799,8 +833,10 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     marker = "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
     battle = _replace(battle, marker, (
         f"#define sSkillShownFem ((vu8*) {SHOWN_SKILLS})\n#define SKILL_SHOWN_SIZE_FEM 0x{SHOWN_SIZE:X}\n\n" + marker), rel)
-    if any(s.kind == "order" for s in skills):
+    order = any(s.kind == "order" or s.id in ORDER_EXTRA for s in skills)
+    if order:
         battle = _battle_order(battle, numbers, rel)
+        files["src/bksel.c"] = _forecast_order(_read(files, decomp_dir, "src/bksel.c"), "src/bksel.c")
     if any(s.kind in ("proc", "hits") for s in skills):
         battle = _hit_skills(battle, [s for s in skills if s.kind in ("proc", "hits")], rel)
     battle = _replace(battle, "void BattleUnwind(void) {\n    ClearBattleHits();\n",
@@ -1543,69 +1579,200 @@ void PlayerPhase_FinishAction(ProcPtr proc)
     return out
 
 
+# Skills that are not of the "order" kind but need the order code (an order part, or Double Lion's HP loss)
+ORDER_EXTRA = frozenset({"Pursuer", "CloseCombat", "DoubleLion"})
+
+# C-SkillSys's BattleUnwindConfig (Core/BattleSys/Source/data.c): the rounds for each mask (1 vantage, 2 desperation,
+# 4 the actor doubles, 8 the target doubles); 1 the actor's round, 2 the target's
+UNWIND_CONFIG = (
+    (1, 2, 0, 0), (2, 1, 0, 0), (1, 2, 0, 0), (2, 1, 0, 0), (1, 2, 1, 0), (2, 1, 1, 0), (1, 1, 2, 0), (2, 1, 1, 0),
+    (1, 2, 2, 0), (2, 1, 2, 0), (1, 2, 2, 0), (2, 1, 2, 0), (1, 2, 1, 2), (2, 1, 2, 1), (1, 1, 2, 2), (2, 1, 1, 2),
+)
+
+
 def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
-    """Vantage and Desperation (C-SkillSys, BattleOrder.c): the defender strikes first, the attacker's follow-up comes
-    at once."""
+    """The order of the rounds as C-SkillSys's BattleOrder.c (lot 7): Vantage and the like strike first, Desperation
+    and the like follow up at once, skills that double or stop the foe from doubling, Last Word; the game's own
+    follow-up rule otherwise."""
+    def conds(*pairs):
+        found = [f"({code})" for sid, code in pairs if sid in numbers]
+        return " || ".join(found) if found else "FALSE"
+
+    def has(unit, sid):
+        return f"SkillTesterFem(&({unit})->unit, SKILL_FEM_{sid})"
+
+    up = "->hpInitial * 2 > {0}->unit.maxHP"
+    a_up, t_up = "a" + up.format("a"), "t" + up.format("t")
+    despera = conds(
+        ("Desperation", f"{has('a', 'Desperation')} && a->hpInitial * 2 < a->unit.maxHP"),
+        ("CloseCombat", f"{has('a', 'CloseCombat')} && gBattleStats.range == 1"),
+        ("Pursuer", has("a", "Pursuer")),
+        ("YngviAscendant", has("a", "YngviAscendant")))
+    vantage = conds(
+        ("Vantage", f"{has('t', 'Vantage')} && t->hpInitial * 2 < t->unit.maxHP"),
+        ("GaleWings", f"{has('t', 'GaleWings')} && t->hpInitial == t->unit.maxHP"),
+        ("PridefulWarrior", has("a", "PridefulWarrior")))
+    nullify = conds(
+        ("WaryFighter", f"{has('t', 'WaryFighter')} && {t_up}"),
+        ("Moonlight", has("a", "Moonlight")))
+    if "YngviAscendant" in numbers:
+        nullify = f"!{has('a', 'YngviAscendant')} && ({nullify})"
+    reckless = ("RecklessFighter", f"({has('a', 'RecklessFighter')} && {a_up}) || ({has('t', 'RecklessFighter')}"
+                                   f" && {t_up})")
+    chaser = ("AdvantageChaser", f"{has('a', 'AdvantageChaser')} && (a->wTriangleDmgBonus > 0"
+                                 " || a->wTriangleHitBonus > 0)")
+    passion = ("PassionsFlow", f"{has('a', 'PassionsFlow')} && SupportedFem(a)")
+    act = conds(
+        ("BoldFighter", f"{has('a', 'BoldFighter')} && {a_up}"), reckless,
+        ("BidingBlow", f"{has('a', 'BidingBlow')} && (!t->canCounter || !t->weapon)"), chaser,
+        ("PridefulWarrior", has("a", "PridefulWarrior")), passion,
+        ("BrashAssault", f"{has('a', 'BrashAssault')} && t->canCounter && t->weapon"))
+    tar = conds(
+        ("VengefulFighter", f"{has('a', 'VengefulFighter')} && {a_up}"), reckless,
+        ("QuickRiposte", f"{has('a', 'QuickRiposte')} && {a_up}"), chaser, passion)
+    last_word = (f"    if ({has('a', 'LastWord')} && CanFollowUpFem(a) && CanDoubleFem(t, a))\n        return TRUE;\n"
+                 if "LastWord" in numbers else "")
+    supported = """
+static int SupportedFem(struct BattleUnit* bu)
+{
+    struct SupportBonuses bonuses;
+
+    return bu->unit.index && GetUnit(bu->unit.index) && GetUnitSupportBonuses(GetUnit(bu->unit.index), &bonuses);
+}
+""" if "PassionsFlow" in numbers else ""
+    lion = """
+        /* Double Lion (C-SkillSys's PostActionSkills/Hurt.c): the actor loses 1 HP after its attack (no animation) */
+        if (rounds[1] && gBattleActor.weaponBefore && (gBattleStats.config & BATTLE_CONFIG_REAL)
+            && SkillTesterFem(&gBattleActor.unit, SKILL_FEM_DoubleLion)
+            && gBattleActor.hpInitial == gBattleActor.unit.maxHP && gBattleActor.unit.curHP > 1)
+            gBattleActor.unit.curHP--;
+""" if "DoubleLion" in numbers else ""
+    table = ",\n    ".join("{" + ", ".join(map(str, row)) + "}" for row in UNWIND_CONFIG)
+
     start = battle.index("void BattleUnwind(void) {")
     end = battle.index("void BattleGetBattleUnitOrder(", start)
-    vantage = ("SkillTesterFem(&gBattleTarget.unit, SKILL_FEM_Vantage) && gBattleTarget.weapon"
-               " && gBattleTarget.hpInitial * 2 < gBattleTarget.unit.maxHP") if "Vantage" in numbers else "FALSE"
-    desperation = ("SkillTesterFem(&gBattleActor.unit, SKILL_FEM_Desperation)"
-                   " && gBattleActor.hpInitial * 2 < gBattleActor.unit.maxHP") if "Desperation" in numbers else "FALSE"
-    return battle[:start] + f"""void BattleUnwind(void) {{
+    battle = battle[:start] + f"""/* FE Maker: order of the rounds (C-SkillSys's BattleOrder.c, BattleUnwindConfig) */
+static const u8 sBattleUnwindFem[16][4] = {{
+    {table}
+}};
+{supported}
+static int CanFollowUpFem(struct BattleUnit* a)
+{{
+    if (gBattleTarget.battleSpeed > 250 || !a->weapon)
+        return FALSE;
+    if (GetItemWeaponEffect(a->weaponBefore) == WPN_EFFECT_HPHALVE)
+        return FALSE;
+    return GetItemIndex(a->weapon) != ITEM_MONSTER_STONE;
+}}
+
+/* C-SkillSys's CheckCanTwiceAttackOrder */
+static int CanDoubleFem(struct BattleUnit* a, struct BattleUnit* t)
+{{
+    if (!CanFollowUpFem(a))
+        return FALSE;
+    if (a == &gBattleActor) {{
+        if ({nullify})
+            return FALSE;
+        if ({act})
+            return TRUE;
+    }} else if ({tar})
+        return TRUE;
+    return a->battleSpeed - t->battleSpeed >= BATTLE_FOLLOWUP_SPEED_THRESHOLD;
+}}
+
+/* Whether the unit strikes twice (also the forecast's x2) */
+int BattleDoublesFem(struct BattleUnit* a)
+{{
+    struct BattleUnit* t = a == &gBattleActor ? &gBattleTarget : &gBattleActor;
+
+    if (CanDoubleFem(a, t))
+        return TRUE;
+{last_word}    return FALSE;
+}}
+
+void BattleUnwind(void) {{
     ClearBattleHits();
 
-    /* FE Maker: Vantage and Desperation (skills, from C-SkillSys's BattleOrder.c) */
     do {{
-        struct BattleUnit* attacker;
-        struct BattleUnit* defender;
-        int vantage = {vantage};
-        int desperation = {desperation};
-        int followed = FALSE;
+        struct BattleUnit* a = &gBattleActor;
+        struct BattleUnit* t = &gBattleTarget;
+        const u8* config;
+        int mask = 0, i, rounds[3] = {{0, 0, 0}};
 
-        BattleGetBattleUnitOrder(&attacker, &defender);
+        if (a->weapon && ({despera}))
+            mask |= 2;
+        if (t->weapon && ({vantage}))
+            mask |= 1;
+        if (BattleDoublesFem(a))
+            mask |= 4;
+        if (BattleDoublesFem(t))
+            mask |= 8;
+        config = sBattleUnwindFem[mask];
 
         gBattleHitIterator->info |= BATTLE_HIT_INFO_BEGIN;
 
-        if (vantage) {{
-            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_RETALIATE;
-
-            if (BattleGenerateRoundHits(defender, attacker))
-                break;
+        for (i = 0; i < 4 && config[i]; i++) {{
+            if (config[i] == 1) {{
+                if (rounds[1]++)
+                    gBattleHitIterator->attributes = BATTLE_HIT_ATTR_FOLLOWUP;
+                if (BattleGenerateRoundHits(a, t))
+                    break;
+            }} else {{
+                if (rounds[2]++)
+                    gBattleHitIterator->attributes = BATTLE_HIT_ATTR_FOLLOWUP;
+                else
+                    gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_RETALIATE;
+                if (BattleGenerateRoundHits(t, a))
+                    break;
+            }}
         }}
-
-        if (BattleGenerateRoundHits(attacker, defender))
-            break;
-
-        if (desperation && BattleGetFollowUpOrder(&attacker, &defender) && attacker == &gBattleActor) {{
-            gBattleHitIterator->attributes = BATTLE_HIT_ATTR_FOLLOWUP;
-
-            if (BattleGenerateRoundHits(attacker, defender))
-                break;
-
-            followed = TRUE;
-        }}
-
-        BattleGetBattleUnitOrder(&attacker, &defender);
-
-        if (!vantage) {{
-            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_RETALIATE;
-
-            if (BattleGenerateRoundHits(defender, attacker))
-                break;
-        }}
-
-        if (!followed && BattleGetFollowUpOrder(&attacker, &defender)) {{
-            gBattleHitIterator->attributes = BATTLE_HIT_ATTR_FOLLOWUP;
-
-            BattleGenerateRoundHits(attacker, defender);
-        }}
-    }} while (FALSE);
+{lion}    }} while (FALSE);
 
     gBattleHitIterator->info |= BATTLE_HIT_INFO_END;
 }}
 
 """ + battle[end:]
+    start = battle.index("s8 BattleGetFollowUpOrder(")
+    end = battle.index("s8 BattleGenerateRoundHits(", start)
+    battle = battle[:start] + """s8 BattleGetFollowUpOrder(struct BattleUnit** outAttacker, struct BattleUnit** outDefender) {
+    /* FE Maker: the order skills (C-SkillSys's BattleGetFollowUpOrder) */
+    if (BattleDoublesFem(&gBattleActor)) {
+        *outAttacker = &gBattleActor;
+        *outDefender = &gBattleTarget;
+        return TRUE;
+    }
+    if (BattleDoublesFem(&gBattleTarget)) {
+        *outAttacker = &gBattleTarget;
+        *outDefender = &gBattleActor;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+""" + battle[end:]
+    if "Dazzle" in numbers or "Moonlight" in numbers:
+        who = conds(("Dazzle", has("&gBattleActor", "Dazzle")), ("Moonlight", has("&gBattleActor", "Moonlight")))
+        battle = _replace(battle, "    // Target cannot counter if a berserked player unit is attacking another player unit\n",
+                          f"""    /* FE Maker: Dazzle and Moonlight (C-SkillSys's BattleWeapon.c) */
+    if ({who}) {{
+        gBattleTarget.weapon = 0;
+        gBattleTarget.canCounter = FALSE;
+    }}
+
+    // Target cannot counter if a berserked player unit is attacking another player unit
+""", rel)
+    return battle
+
+
+def _forecast_order(text: str, rel: str) -> str:
+    """The forecast's x2 for each side (bksel.c), as both units may double with the order skills."""
+    text = _replace(text, "void InitBattleForecastBattleStats(struct BattleForecastProc * proc)\n",
+                    "int BattleDoublesFem(struct BattleUnit* unit); /* FE Maker: order skills (bmbattle.c) */\n\n"
+                    "void InitBattleForecastBattleStats(struct BattleForecastProc * proc)\n", rel)
+    for side in ("Actor", "Target"):
+        text = _replace(text, f"        if ((followUp != 0) && (buFirst == &gBattle{side})) {{\n",
+                        f"        if (BattleDoublesFem(&gBattle{side})) {{\n", rel)
+    return text
 
 
 LEARNED_POPUPS = "0x02028DA0"   # after the shown skills, same free RAM: count, then (unit index, skill) x 4
