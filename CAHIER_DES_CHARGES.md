@@ -193,6 +193,15 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - Créer un chapitre d'après une fiche du wiki Fire Emblem (ticket 67), pour recréer un chapitre d'un autre jeu.
 - Coûts de déplacement selon la météo (demande du 02/11/2026) : le moteur a trois tables par type de déplacement (normal, pluie, neige et blizzard ; les autres météos prennent la normale), FE Maker ne fait que choisir le type. À faire : éditer ces tables terrain par terrain, puis éventuellement une table propre au sable (code de `GetUnitMovementCost`).
 - Idées de l'utilisateur (02/11/2026), pour plus tard : un système de forge d'armes ; travailler à plusieurs sur un même projet.
+- Idées de l'utilisateur reprises de son Trello (tickets fermés le 07/11/2026, à faire après l'alpha) :
+  - **Forge** (#12) : proposer les forges des jeux officiels (préférées : Fates, Three Houses, Engage) ou les outils pour faire la sienne, de quoi refaire chacune.
+  - **Sous-objectifs** dans les chapitres (#13).
+  - **Défis de partie** (challenge runs, #16).
+  - **Portraits selon la classe** : changer de portrait à la promotion ou selon la classe (#17).
+  - **Récompenses des soutiens** : gagner une compétence, une arme ou des stats pendant une conversation de soutien (#18).
+  - **Soutiens façon FE9** et conversations de base (#9).
+  - **Menu de base** entre les chapitres (#10), avec un hub façon Fates simple (#11, fusionné) : un menu plus agréable, sans être lourd.
+  - **Mode 2 joueurs** (#14) : coopération, compétition ou duel ; par exemple les deux joueurs sur la même carte de survie, un ennemi vaincu chez l'un apparaissant chez l'autre.
 - Idée de l'utilisateur (07/11/2026, ticket 172), peut-être plus tard : un créateur d'animations de combat dans FE Maker (dessiner ou assembler les images, palette de 16 couleurs, script des modes). Référence : le guide de création d'animations https://fe-battle-animations.neocities.org/ (images 248 × 160, palette, modes et commandes du script, erreurs fréquentes) ; ses idées pour l'import sont en phase 5.
 - Idée de l'utilisateur (03/11/2026, #150) : des ennemis génériques tout prêts (classe, niveau, inventaire classique : soldat à la lance de fer, archer, mage…) à glisser-déposer sur la carte d'un chapitre.
 
