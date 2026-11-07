@@ -79,6 +79,11 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
      - Joueur seulement (comme le C-SkillSys : un ennemi n'apprend rien) ; vérifié par playtest (sauvegarde, rechargement, montée de niveau).
      - **État (07/11/2026)** : points 1 et 2 faits (`LearnSkillFem` / `ForgetSkillFem` dans `bmunit.c`, table remise à zéro par `InitPlayConfig`, écrite et relue aux 4 endroits où le jeu sauve ses unités, copiée avec une partie) ; playtest : une compétence écrite dans la table compte en combat. Sauvegarde et rechargement pas encore vus en jeu. Points 3 et 4 faits le 07/11 : `LearnLevelSkillsFem` après chaque montée de niveau et promotion (fiches personnage et classe, « Apprises par niveau », 4 au plus) ; commandes d'évènement « Donner / Retirer une compétence » (`FemSkillEvent`, emplacements 1 à 3 + ASMC). Playtest : Str+2 appris au passage au niveau 2. Pas fait : le nom de la compétence affiché à l'apprentissage ; commandes d'évènement pas vues en jeu.
 4. **Compétences de carte et de menu** : Canto, Renewal, Galeforce, Steal, Dance…, et l'IA qui en tient compte.
+   - **Plan (07/11/2026)** :
+     1. Capacités du jeu en compétences attribuables : le jeu les teste partout par `UNIT_CATTRIBUTES` (`bmunit.h`, ~90 appels, IA comprise : vol, crochetage). Le redéfinir en `... | SkillAttributesFem(unit)`, qui rend les bits `CA_*` des compétences du jeu présentes dans les listes du personnage, de sa classe et ses compétences apprises (pas par `SkillTesterFem`, qui relit `UNIT_CATTRIBUTES` pour les compétences du jeu : boucle). D'abord Canto, Vol, Crochetage, Crit +15, Létalité ; Danse et Invocation plus tard (animation de danse de la classe, tables d'invocation).
+     2. Nouvelles compétences de carte, d'après le C-SkillSys (`PostActionSkills/Canto.c`, `PrePhaseSkills/PrePhaseHeal.c`, Galeforce) : Canto+ (bouger après un combat ou un bâton), Renewal (PV +30 % au début du tour), Galeforce (rejouer après avoir vaincu un ennemi, une fois par tour).
+     3. Commandes de menu (Steal du C-SkillSys, `MenuSkills/`) : au-delà des capacités du jeu, à voir après 1 et 2.
+     4. Playtests : Canto donné à un fantassin, vol par une unité non voleuse, Renewal au début du tour.
 
 Plus tard :
 - les arts de combat ;
