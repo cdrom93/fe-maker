@@ -105,6 +105,8 @@ Plus tard :
 
 ## Choix de l'utilisateur (06/11/2026)
 
+- **Noms en anglais (07/11)** : pour l'instant, les compétences gardent leur nom anglais (celui du C-SkillSys) aussi dans l'interface en français ; seules leurs descriptions sont traduites. Pas de traduction en jeu non plus pour le moment.
+
 - **Capacités de classe du jeu** : Perce, Grand bouclier, Coup sûr, Silence, Tueur, Vol et Canto sont montrées comme des compétences, avec leurs icônes, sur la fiche de l'unité et dans FE Maker.
 - **Compétences de classe par défaut (06/11)** : comme dans FEBuilder (table `ClassSkillTable` du Skill System : Canto des montés, Grand bouclier du Général, Coup sûr du Sniper, Crit +15 du Bretteur, Invocation, Cunning des voleurs, Slayer de l'Évêque, Supply des seigneurs). Toutes sont des comportements du jeu d'origine : FE Maker les montre déjà comme compétences du jeu, plus Approvisionnement pour le seigneur de la route (Eirika ou Ephraim, par personnage comme `SupplyUsability`) et Tueur pour l'Évêque (`IsUnitEffectiveAgainst`). Cunning = Vol + Crochetage chez nous. Rien à remplir dans les fiches de classe.
 - **Présentation sur la fiche** : celle du Skill System (MSS), d'après sa capture.
