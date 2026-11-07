@@ -185,3 +185,20 @@ def test_admin_endpoints_need_the_admin_mode():
     with pytest.raises(HTTPException) as refused:
         api.admin_tickets()
     assert refused.value.status_code == 403
+
+
+def test_the_admin_closing_a_sent_ticket_closes_its_issue(tmp_path, monkeypatch):
+    """The admin's Done / Cancel / Reopen on a ticket sent follows on GitHub; a tester's stays on their PC."""
+    from fe_maker import api, tickets
+
+    store = TicketStore(tmp_path)
+    ticket = store.create("Sent one")
+    store._set(ticket["id"], lambda t: t.update(remote={"number": 7, "secret": "s" * 32, "sentAt": "x"}))
+    monkeypatch.setattr(api, "tickets", store)
+    calls = []
+    monkeypatch.setattr(tickets, "admin_set_status", lambda number, status: calls.append((number, status)))
+    assert api.update_ticket(ticket["id"], {"status": "done"})["status"] == "done" and calls == []   # a tester
+    monkeypatch.setattr(tickets, "_admin", True)
+    api.update_ticket(ticket["id"], {"status": "open"})
+    api.update_ticket(ticket["id"], {"priority": "high"})
+    assert calls == [(7, "open")]

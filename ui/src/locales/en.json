@@ -1919,5 +1919,8 @@
   "identity.saveAsHint": "A copy of the project in a new folder (or an empty one), opened next. The current project stays where it is.",
   "identity.copyName": "Name of the copy",
   "project.copyFailed": "Could not copy it: {reason}",
-  "app.version": "FE Maker version"
+  "app.version": "FE Maker version",
+  "ticket.withdraw": "Withdraw",
+  "ticket.withdrawHint": "The ticket is no longer needed: the developers are told, and it is put away here.",
+  "ticket.withdrawnNote": "Ticket withdrawn by the tester."
 }

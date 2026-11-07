@@ -43,7 +43,7 @@ A small **i** next to a title or an option holds its explanation: hover over it.
 
 **▶ Test** compiles and starts the game in mGBA. The **Project** menu holds **Export patch**, which gives the `.ups` to share. Everything is saved as you go (Ctrl+S saves at once); the same menu also offers **Save as…** (a copy in another folder), **Rename…** and **Open the project's folder**.
 
-The **Ticket** button in the header reports a problem or suggests an idea: the ticket goes to FE Maker's developers, with no account to create, with your screenshots (and your project if you tick "Attach the project"). Their replies show under the ticket. Offline, it stays on your PC and "Send again" sends it later.
+The **Ticket** button in the header reports a problem or suggests an idea: the ticket goes to FE Maker's developers, with no account to create, with your screenshots (and your project if you tick "Attach the project"). Their replies show under the ticket. Offline, it stays on your PC and "Send again" sends it later. A ticket sent turns "Done" when the developers close it; "Withdraw" puts it away when it is no longer needed (they are told), and you can reply to a closed ticket if the problem comes back.
 
 ## Known limits of the alpha
 

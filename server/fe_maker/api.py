@@ -2476,6 +2476,14 @@ def create_ticket(body: TicketIn):
 
 @app.patch("/api/tickets/{ticket_id}")
 def update_ticket(ticket_id: str, changes: dict):
+    """The admin's own tickets sent to the relay: done, cancelled or reopened on GitHub too (first, so a failure
+    leaves both as they were); a tester's stay here, the admin decides on GitHub."""
+    sent = next((x for x in tickets.list() if x["id"] == ticket_id), {}).get("remote")
+    if changes.get("status") in ticketing.STATUSES and sent and ticketing.admin_available():
+        try:
+            ticketing.admin_set_status(sent["number"], str(changes["status"]))
+        except ticketing.AdminError as e:
+            raise HTTPException(502, str(e)) from e
     try:
         return tickets.update(ticket_id, changes)
     except KeyError:

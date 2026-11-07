@@ -174,10 +174,22 @@
     }
   }
 
+  let listError = $state('')
   async function update(id: string, changes: Parameters<typeof api.updateTicket>[1]) {
-    await api.updateTicket(id, changes)
-    editing = null
-    await load()
+    listError = ''
+    try {
+      await api.updateTicket(id, changes)
+      editing = null
+      await load()
+    } catch (e) {
+      listError = e instanceof ApiError ? e.detail : String(e)
+    }
+  }
+
+  /** A tester withdraws a ticket sent: a word for the admin on it, then it is put away here. */
+  async function withdraw(id: string) {
+    await api.addTicketComment(id, { body: t('ticket.withdrawnNote'), images: [] })
+    await update(id, { status: 'cancelled' })
   }
 
   async function remove(id: string) {
@@ -362,6 +374,7 @@
       <label class="check"><input type="checkbox" bind:checked={showClosed} /> {t('ticket.showClosedShort')}</label>
     </div>
     {#if !shown.length}<p class="muted small">{t('ticket.none')}</p>{/if}
+    {#if listError}<p class="bad small">{listError}</p>{/if}
     <ul>
       {#each shown as tk (tk.id)}
         <li class:closed={tk.status !== 'open'}>
@@ -433,10 +446,17 @@
               {#if !tk.remote}
                 <button disabled={resending === tk.id} onclick={() => resend(tk.id)}>{t('ticket.resend')}</button>
               {/if}
-              <button onclick={() => update(tk.id, { status: 'done' })}>{t('ticket.markDone')}</button>
-              <button onclick={() => update(tk.id, { status: 'cancelled' })}>{t('ticket.markCancelled')}</button>
-            {:else}
+              {#if !tk.remote || admin}
+                <button onclick={() => update(tk.id, { status: 'done' })}>{t('ticket.markDone')}</button>
+                <button onclick={() => update(tk.id, { status: 'cancelled' })}>{t('ticket.markCancelled')}</button>
+              {:else}
+                <button title={t('ticket.withdrawHint')} onclick={() => withdraw(tk.id)}>{t('ticket.withdraw')}</button>
+              {/if}
+            {:else if !tk.remote || admin}
               <button onclick={() => update(tk.id, { status: 'open' })}>{t('ticket.reopen')}</button>
+            {:else if reply?.id !== tk.id}
+              <!-- a tester's ticket closed by the admin: they can still say it is not fixed -->
+              <button onclick={() => (reply = { id: tk.id, body: '', images: [], error: '' })}>{t('ticket.reply')}</button>
             {/if}
             {#if confirmDelete === tk.id}
               <button class="danger" onclick={() => remove(tk.id)}>{t('ticket.confirmDeleteShort')}</button>
