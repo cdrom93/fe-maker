@@ -22,6 +22,8 @@ piège dans sa section.
 - `InitTextFont` charge la palette du texte dans la palette de fond qu'on lui donne : en animation de combat, la palette 2 est celle du côté gauche (plaques et jauge, rouge pour l'ennemi), qui devenait kaki (ticket 170). La sauvegarder avant et la remettre après.
 - Compiler sous Windows sans Docker (`docs/sans-docker.md`) : `os.system` des scripts de la décomp passe par `cmd.exe` et échoue en silence (symboles manquants seulement au lien final), la règle `objects.lst` dépasse les 32 Ko d'une ligne de commande, agbcc ne se compile qu'en série (`-j1`).
 
+- Compilation sans Docker : Windows (l'antivirus) garde parfois un fichier qui vient d'être écrit ; `sed -i` échoue (« Permission denied ») ou un `.s` reste à moitié écrit (« bad instruction »). `native.build` relance `make` une fois : il repart des cibles ratées.
+
 ## Données du jeu (personnages, classes, objets, textes)
 
 - Bâtons et objets agissent par leur numéro dans le moteur (`switch (GetItemIndex(item))`, `== ITEM_X`, tables de l'IA `{ ITEM_X, fonction }`) : une copie n'agit que si elle est ajoutée à ces tests (`_copy_item_behaviour`). Un numéro écrit en dur dans `asm/` ne serait pas suivi.

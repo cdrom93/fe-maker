@@ -243,13 +243,20 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
         say("[fe-maker] BUGFIX enabled\n")
     say("[fe-maker] Building ROM...\n")
     env = {**os.environ, "PATH": str(toolchain / "bin") + os.pathsep + os.environ.get("PATH", "")}
-    process = subprocess.Popen(make_command(toolchain, bugfix), cwd=work, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
-                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    assert process.stdout is not None
-    for line in process.stdout:
-        say(line)
-    if process.wait() != 0:
+    for attempt in range(2):
+        # Windows sometimes holds a file just written (the antivirus): `sed -i` then fails with "Permission denied", or
+        # an assembly file is left half written. make starts again from the failed targets: one more try.
+        if attempt:
+            say("[fe-maker] Build failed, trying once more (a file may have been locked by Windows)...\n")
+        process = subprocess.Popen(make_command(toolchain, bugfix), cwd=work, env=env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        assert process.stdout is not None
+        for line in process.stdout:
+            say(line)
+        if process.wait() == 0:
+            break
+    else:
         raise NativeBuildError("".join(log[-40:]))
     rom_out = work / "fireemblem8.gba"
     expected = (work / "checksum.sha1").read_text().split()[0]

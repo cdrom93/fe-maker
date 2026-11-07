@@ -180,7 +180,8 @@ MAGIC_SKILLS = frozenset(s.id for s in CATALOGUE if s.stat == 6)
 def catalogue() -> list[dict]:
     """What FE Maker offers on the sheets (names and descriptions are UI strings: skill.<id>, skill.<id>Hint); Magic
     skills only with the Strength / Magic split."""
-    return [{"id": s.id, "kind": s.kind, "magic": s.id in MAGIC_SKILLS} for s in CATALOGUE]
+    return ([{"id": s.id, "kind": s.kind, "magic": s.id in MAGIC_SKILLS} for s in CATALOGUE]
+            + [{"id": sid, "kind": "game", "magic": False} for sid in ASSIGNABLE])
 
 
 # The game skills in FE Maker's words: the abilities (gamedata.ABILITIES) or the classes that give them
@@ -192,6 +193,19 @@ GAME_SOURCES = {"Canto": (["canto"], []), "Steal": (["steal"], []), "LockTouch":
                 "GreatShield": ([], ["CLASS_GENERAL", "CLASS_GENERAL_F"]),
                 "Slayer": ([], ["CLASS_BISHOP", "CLASS_BISHOP_F"])}
 GAME_CHARACTERS = {"Supply": ["CHARACTER_EIRIKA", "CHARACTER_EPHRAIM"]}   # the routes' lords
+
+
+# Batch 4: the game abilities a sheet can give to anyone, by their class attribute: the game tests them everywhere
+# (AI included) with UNIT_CATTRIBUTES, which then adds SkillAttributesFem (docs/competences.md)
+ASSIGNABLE = {"Canto": "CA_CANTO", "Steal": "CA_STEAL", "LockTouch": "CA_THIEF", "Crit": "CA_CRITBONUS",
+              "Lethality": "CA_ASSASSIN"}
+
+
+def given(characters: list[dict], classes: list[dict], extra=()) -> set[str]:
+    """The skills the sheets give (own lists, learned by level) and the events' (extra)."""
+    ids = {sid for record in [*characters, *classes] for sid in record.get("skills") or []}
+    ids |= {entry.get("skill") for record in [*characters, *classes] for entry in record.get("learnedSkills") or []}
+    return ids | set(extra)
 
 
 def game_catalogue() -> list[dict]:
@@ -206,9 +220,7 @@ def event_skills(sources) -> set[str]:
 
 def used(characters: list[dict], classes: list[dict], magic_split: bool, extra=()) -> list[Skill]:
     """The project's skills in catalogue order, then every game skill (numbers 1 to N); `extra`: event_skills."""
-    ids = {sid for record in [*characters, *classes] for sid in record.get("skills") or []}
-    ids |= {entry.get("skill") for record in [*characters, *classes] for entry in record.get("learnedSkills") or []}
-    ids |= set(extra)
+    ids = given(characters, classes, extra)
     chosen = [s for s in CATALOGUE if s.id in ids and (magic_split or s.id not in MAGIC_SKILLS)]
     return (chosen + list(GAME_SKILLS))[:MAX_SKILLS]
 
@@ -316,9 +328,16 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     numbers = {s.id: i + 1 for i, s in enumerate(skills)}
     defines = "".join(f"#define SKILL_FEM_{s.id} {numbers[s.id]}\n" for s in skills)
 
-    # bmunit.h: numbers and functions
+    # bmunit.h: numbers and functions; the game abilities given by sheets or events added to UNIT_CATTRIBUTES
     rel = "include/bmunit.h"
     header = _read(files, decomp_dir, rel)
+    abilities = [sid for sid in ASSIGNABLE if sid in given(characters, classes, extra)]
+    if abilities:
+        attributes = "#define UNIT_CATTRIBUTES(aUnit) ((aUnit)->pCharacterData->attributes | (aUnit)->pClassData->attributes)\n"
+        header = _replace(header, attributes, (
+            "int SkillAttributesFem(struct Unit* unit); /* FE Maker: game abilities given as skills */\n"
+            "#define UNIT_CATTRIBUTES(aUnit) ((aUnit)->pCharacterData->attributes | (aUnit)->pClassData->attributes"
+            " | SkillAttributesFem(aUnit))\n"), rel)
     files[rel] = _replace(header, "\n#endif // GUARD_BM_UNIT_H", (
         "\n/* FE Maker: skills (docs/competences.md, from C-SkillSys) */\n#define SKILLS_FEM 1\n" + defines +
         f"#define SKILL_COUNT_FEM {len(skills)}\n"
@@ -363,6 +382,12 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
              "int SkillStatBonusFem(struct Unit* unit, int stat)\n{\n    int bonus = 0;\n"
              "    int defiant = unit->curHP * 4 < GetUnitMaxHp(unit);\n\n"
              f"    switch (stat) {{\n{cases}    }}\n    (void) defiant;\n    return bonus;\n}}\n")
+    if abilities:   # batch 4: on the lists only (SkillTesterFem), never through UNIT_CATTRIBUTES itself
+        unit += ("\n/* Batch 4: the class attributes of the game abilities the unit has as skills */\n"
+                 "int SkillAttributesFem(struct Unit* unit)\n{\n    int attributes = 0;\n\n"
+                 + "".join(f"    if (SkillTesterFem(unit, SKILL_FEM_{sid}))\n        attributes |= {ASSIGNABLE[sid]};\n"
+                           for sid in abilities)
+                 + "    return attributes;\n}\n")
     for k, name in GETTERS.items():   # only the stats a skill raises: their getter adds the bonus to the game's value
         if not bonuses[k]:
             continue
@@ -1249,7 +1274,8 @@ def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], texts: di
     game = [s for s in skills if s.kind == "game"]
     icons = ", ".join(str(base + i) for i in range(len(skills)))
     descs = ", ".join(str(texts[s.id]) for s in skills)
-    game_lines = "".join(f"    if ({s.game})\n        list[count++] = SKILL_FEM_{s.id};\n" for s in game)
+    game_lines = "".join(f"    if (({s.game}) && !SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
+                         f"        list[count++] = SKILL_FEM_{s.id};\n" for s in game)
     size = 2 * MAX_PER_SHEET + LEARNED_MAX + len(game)
     helpers = f"""#include "constants/characters.h"
 #include "chapterdata.h"

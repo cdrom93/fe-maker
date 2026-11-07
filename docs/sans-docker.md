@@ -84,6 +84,8 @@ Autres résultats :
 - **Chaîne d'outils** (`tools/build_toolchain.py`, `.github/workflows/toolchain.yml`) : 63 Mo, **24 Mo en zip**, que des DLL de Windows. Sources GPL jointes à la release `toolchain-1`. numpy ajouté aux dépendances de FE Maker.
 - Compilation par FE Maker lui-même (`builder.build`, moteur natif quand la chaîne est installée, Docker sinon) : ROM d'origine identique.
 
+- **Machine de l'utilisateur (07/11)** : chaîne installée, premières compilations natives ; un fichier verrouillé par Windows a fait échouer une compilation : `make` est maintenant relancé une fois (`docs/pieges.md`).
+
 **Reste** :
 
 1. ~~comparer un projet modifié~~ : fait le 07/11, le projet `test` de l'utilisateur donne la même ROM en natif et par Docker (SHA-1 `b920f8e2…`) ;

@@ -84,6 +84,7 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
      2. Nouvelles compétences de carte, d'après le C-SkillSys (`PostActionSkills/Canto.c`, `PrePhaseSkills/PrePhaseHeal.c`, Galeforce) : Canto+ (bouger après un combat ou un bâton), Renewal (PV +30 % au début du tour), Galeforce (rejouer après avoir vaincu un ennemi, une fois par tour).
      3. Commandes de menu (Steal du C-SkillSys, `MenuSkills/`) : au-delà des capacités du jeu, à voir après 1 et 2.
      4. Playtests : Canto donné à un fantassin, vol par une unité non voleuse, Renewal au début du tour.
+   - **État (07/11/2026)** : point 1 fait (`ASSIGNABLE` dans `skills.py`, groupe « Capacités du jeu » des fiches ; `UNIT_CATTRIBUTES` n'est redéfini que si une fiche ou un évènement en donne une). Playtest : Crit +15 donné au seigneur, critique = Tec / 2 + 15. Canto, Vol, Crochetage et Létalité passent par le même chemin, pas vus en jeu un par un (le Canto du jeu ne joue qu'après Attendre, un combat ou un bâton).
 
 Plus tard :
 - les arts de combat ;

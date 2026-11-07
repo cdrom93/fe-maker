@@ -126,3 +126,22 @@ def test_event_skill_commands_render_and_count_as_used():
     assert "SVAL(EVT_SLOT_3, 0)" in render_command({"op": "RemoveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]})
     assert skills.event_skills([text]) == {"Luna"}
     assert "Luna" in [s.id for s in skills.used([], [], False, {"Luna"})]
+
+
+def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    assert {"id": "Canto", "kind": "game", "magic": False} in skills.catalogue()
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Canto"], "learnedSkills": [{"skill": "Steal", "level": 5}]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    assert "| SkillAttributesFem(aUnit))" in files["include/bmunit.h"]
+    unit = files["src/bmunit.c"]
+    assert "if (SkillTesterFem(unit, SKILL_FEM_Canto))\n        attributes |= CA_CANTO;" in unit
+    assert "attributes |= CA_STEAL;" in unit and "CA_THIEF" not in unit.split("int SkillAttributesFem")[1]
+    # without any, the game's macro stays
+    plain = [{"id": "CHARACTER_EIRIKA", "skills": ["Luna"]}]
+    files = skills.apply(DECOMP, {}, plain, [], {**PAGE, **{s.id: 2 for s in skills.used(plain, [], False)}}, False)
+    assert "SkillAttributesFem" not in files["include/bmunit.h"]

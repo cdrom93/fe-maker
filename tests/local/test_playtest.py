@@ -1682,6 +1682,28 @@ def test_skill_learned_at_a_level_up(tmp_path):
         print("screenshot:", tmp_path / "learned.png")
 
 
+def test_game_ability_given_as_a_skill(tmp_path):
+    """Skills batch 4: Crit +15 (the game's CA_CRITBONUS) on the lord's sheet raises its crit rate in battle, through
+    UNIT_CATTRIBUTES, as on a Swordmaster."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "gameability", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Crit", "Canto"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        skl = game.read(attacker, 0x15)
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.read("gBattleActor", 0x5A, width=16), seconds=30, step=10)
+        crit = game.read("gBattleActor", 0x66, width=16, signed=True)
+        print("skill", skl, "crit", crit)
+        assert crit == skl // 2 + 15          # Iron Sword: 0 crit
+
+
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
     strikes first, then the lord twice in a row (its follow-up before any counter)."""
