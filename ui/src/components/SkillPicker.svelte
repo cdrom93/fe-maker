@@ -18,7 +18,7 @@
   } = $props()
 
   // the categories in the order of the list (skill.kind.<kind>)
-  const KINDS = ['stat', 'hp', 'initiative', 'attacked', 'weapon', 'foe', 'situation', 'battle', 'order', 'proc', 'hits',
+  const KINDS = ['stat', 'hp', 'initiative', 'attacked', 'weapon', 'foe', 'situation', 'battle', 'hit', 'damage', 'guard', 'order', 'proc', 'hits',
     'map', 'menu', 'game']
 
   let open = $state(false)

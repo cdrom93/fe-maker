@@ -1669,6 +1669,38 @@ def test_batch_5_passives_in_battle(tmp_path):
         assert stat(actor, 0x66) == skl // 2 + 15                       # Heavy Blade
 
 
+def test_batch_6_hit_crit_and_damage(tmp_path):
+    """Skills batch 6: the lord's Hawkeye (hit 100 with a sword of hit 0), the soldier's Fortune (no crit against it,
+    the sword's crit at 100) and Dragon Skin (the first hit's damage halved, rounded up)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch6", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=0, might=20, crit=100)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_unit = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    next(c for c in characters if c["id"] == lord_unit["character"])["skills"] = ["Hawkeye", "InfinityEdge"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 60
+    soldier["skills"] = ["Fortune", "DragonSkin"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor = game.address("gBattleActor")
+
+        def stat(offset):
+            return game.read(actor, offset, width=16, signed=True)
+        assert stat(0x64) == 100 and stat(0x6A) == 0      # Hawkeye, Fortune
+        first = game.read(game.address("gBattleHitArray"), width=32)
+        damage = (first >> 24) - 256 if first >> 24 > 127 else first >> 24   # hpChange, the damage dealt
+        base = stat(0x5A) - game.read(game.address("gBattleTarget"), 0x5C, width=16, signed=True)
+        assert damage == base - base // 2                  # Dragon Skin
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""

@@ -95,6 +95,25 @@ def test_batch_5_passives_see_the_foe_and_several_stats(monkeypatch):
     assert battle.count("void ComputeBattleUnitStats(") == 1
 
 
+def test_batch_6_hit_crit_and_damage(monkeypatch):
+    """Batch 6: hit and crit after the game's effective rates (a defender's skill acts on its attacker), damage skills
+    on each hit after the critical roll."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Hawkeye", "InfinityEdge", "Flare"]},
+                  {"id": "CHARACTER_SETH", "skills": ["Fortune", "DragonSkin"]}]
+    used = skills.used(characters, [], False)
+    battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    eff = battle[battle.index("void ComputeBattleUnitEffectiveStats("):]
+    eff = eff[:eff.index("\n}\n")]
+    assert "ComputeBattleUnitSpecialWeaponStats(attacker, defender);\n    if (!(gBattleStats.config" in eff
+    assert "SkillTesterFem(&defender->unit, SKILL_FEM_Fortune)" in eff and "battleEffectiveHitRate = 100;" in eff
+    assert "gBattleStats.damage = gBattleStats.damage * 4 / 3;" in battle and "*defense /= 2;" in battle
+    assert "SkillTesterFem(&defender->unit, SKILL_FEM_DragonSkin)" in battle
+
+
 def test_triggered_skills_go_into_each_hit(monkeypatch):
     if not (DECOMP / "src/bmbattle.c").is_file():
         pytest.skip("no decomp")

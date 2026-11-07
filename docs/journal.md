@@ -226,3 +226,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : ticket 21 : L maintenu n'accélère plus les écrans de montée de niveau, de promotion et les messages du combat (affichage cassé) ; playtest avec captures.
 - 07/11/2026 : tickets idée 9, 10, 12, 13, 14, 16, 17, 18 fermés et repris au cahier (Après l'alpha).
 - 07/11/2026 : compétences, lot 5 (78 passives simples du C-SkillSys, stats des deux unités avant les compétences, liste de choix avec recherche et catégories ; playtest d'un combat).
+- 07/11/2026 : compétences, lot 6 (20 compétences de précision, critique et dégâts, crochet après les taux effectifs ; playtest) ; noms des compétences en anglais dans l'interface pour l'instant.

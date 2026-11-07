@@ -65,6 +65,7 @@ class Skill:
     after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
     game: str = ""        # game skills: the C condition on `unit`
     menu: str = ""        # menu skills: the command's name in the unit menu
+    holder: str = "attacker"   # battle, late and eff skills: whose skill it is (the code reads attacker and defender)
     group: str = ""       # FE Maker's category in the skill picker (skill.kind.<group>); the kind when empty
     magic: bool = False   # only with the Strength / Magic split
 
@@ -338,6 +339,73 @@ CATALOGUE: tuple[Skill, ...] = (
     # always
     _b("Avoid", "battle", "Avoid +10:[NL]Avoid rate +10%.", "attacker->battleAvoidRate += 10;"),
     _b("Vigilance", "battle", "Vigilance:[NL]Gain +20 Avoid.", "attacker->battleAvoidRate += 20;"),
+    # batch 6: hit and crit (BattleCalcReal_ComputSkills, after the game's effective rates), damage on each hit
+    # (SkillEffects/BattleDamage), applied to the game's own damage after the critical roll
+    _b("Hawkeye", "hit", "Hawkeye:[NL]User will always hit[NL]the enemy.", "attacker->battleEffectiveHitRate = 100;",
+       kind="eff"),
+    _b("Merciless", "hit", "Merciless:[NL]Guaranteed critical hit[NL]against poisoned foes.",
+       "if (defender->unit.statusIndex == UNIT_STATUS_POISON) attacker->battleEffectiveCritRate = 100;", kind="eff"),
+    _b("Fortune", "hit", "Fortune:[NL]This unit cannot be crit.",
+       "{\n            attacker->battleCritRate = 0;\n            attacker->battleEffectiveCritRate = 0;\n        }",
+       kind="eff", holder="defender"),
+    _b("Foresight", "hit", "Foresight:[NL]Foes cannot land[NL]critical hits on this unit.",
+       "{\n            attacker->battleCritRate = 0;\n            attacker->battleEffectiveCritRate = 0;\n        }",
+       kind="eff", holder="defender"),
+    _b("SorceryBlade", "hit", "Sorcery Blade:[NL]Foe's defense is the lower[NL]of its DEF and RES.",
+       "{\n            int phys = defender->terrainDefense + defender->unit.def;\n"
+       "            int mag = defender->terrainResistance + defender->unit.res;\n"
+       f"            int used = {_MAGIC % 'attacker'} ? mag : phys;\n\n"
+       "            defender->battleDefense -= used - (phys < mag ? phys : mag);\n        }"),
+    Skill("InfinityEdge", "proc", "InfinityEdge", "Infinity Edge:[NL]Critical attacks[NL]damage +100%.", group="damage",
+          after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT)"
+                " && SkillTesterFem(&attacker->unit, SKILL_FEM_InfinityEdge))\n"
+                "            gBattleStats.damage = gBattleStats.damage * 4 / 3;"),
+    Skill("LunaAttack", "proc", "LunaAttack", "Luna Attack:[NL]Deals extra damage equal[NL]to a quarter of foe's DEF.",
+          group="damage", after="if (SkillTesterFem(&attacker->unit, SKILL_FEM_LunaAttack))\n"
+                                "            gBattleStats.damage += defender->battleDefense / 4;"),
+    Skill("Flare", "proc", "Flare", "Flare:[NL]Halves enemy defenses.[NL](Skill % activation).", group="damage",
+          code="if (SkillProcFem(attacker, SKILL_FEM_Flare))\n            *defense /= 2;"),
+    Skill("Glacies", "proc", "Glacies", "Glacies:[NL]Adds unit's RES to damage.[NL](Skill % activation).", group="damage",
+          code="if (SkillProcFem(attacker, SKILL_FEM_Glacies))\n            *attack += attacker->unit.res;"),
+    Skill("Vengeance", "proc", "Vengeance", "Vengeance:[NL]Adds damage taken to attack.[NL](Skill % activation).",
+          group="damage", code="if (SkillProcFem(attacker, SKILL_FEM_Vengeance))\n"
+                              "            *attack += attacker->unit.maxHP - attacker->unit.curHP;"),
+    Skill("DragonFang", "proc", "DragonFang", "Dragon Fang:[NL]Damage +50%.[NL](Skill x 2 % activation).", group="damage",
+          after="if (SkillProcRateFem(attacker, SKILL_FEM_DragonFang, attacker->unit.skl * 2))\n"
+                "            gBattleStats.damage += gBattleStats.damage / 2;"),
+    Skill("Impale", "proc", "Impale", "Impale:[NL]Damage +300%.[NL](Skill % activation).", group="damage",
+          after="if (!(gBattleHitIterator->attributes & (BATTLE_HIT_ATTR_CRIT | BATTLE_HIT_ATTR_SILENCER))"
+                " && SkillProcFem(attacker, SKILL_FEM_Impale)) {\n"
+                "            gBattleStats.damage *= 4;\n"
+                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_CRIT;\n        }"),
+    Skill("Bane", "proc", "Bane", "Bane:[NL]Leaves the foe at 1 HP.[NL](Skill % activation).", group="damage",
+          after="if (defender->unit.curHP > 1 && SkillProcFem(attacker, SKILL_FEM_Bane))\n"
+                "            gBattleStats.damage = defender->unit.curHP - 1;"),
+    Skill("Mercy", "proc", "Mercy", "Mercy:[NL]Leaves the foe at 1 HP if[NL]the attack would kill.[NL](Skill %)",
+          group="damage", after="if (gBattleStats.damage >= defender->unit.curHP && defender->unit.curHP > 1"
+                                " && SkillProcFem(attacker, SKILL_FEM_Mercy))\n"
+                                "            gBattleStats.damage = defender->unit.curHP - 1;"),
+    Skill("Eclipse", "proc", "Eclipse", "Eclipse:[NL]Halves the foe's current HP.[NL](Skill % activation).",
+          group="damage", after="if (defender->unit.curHP > 1 && SkillProcFem(attacker, SKILL_FEM_Eclipse))\n"
+                                "            gBattleStats.damage = defender->unit.curHP / 2;"),
+    # damage taken
+    Skill("DragonSkin", "proc", "DragonSkin", "Dragon Skin:[NL]Halves damage taken.", group="guard",
+          after="if (SkillTesterFem(&defender->unit, SKILL_FEM_DragonSkin))\n"
+                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+    Skill("Multiscale", "proc", "Multiscale", "Multiscale:[NL]Halves damage taken[NL]if HP is full.", group="guard",
+          after="if (defender->unit.curHP == defender->unit.maxHP && SkillTesterFem(&defender->unit, SKILL_FEM_Multiscale))\n"
+                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+    Skill("Expertise", "proc", "Expertise", "Expertise:[NL]Halves damage taken[NL]from critical hits.", group="guard",
+          after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT)"
+                " && SkillTesterFem(&defender->unit, SKILL_FEM_Expertise))\n"
+                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+    Skill("Barricade", "proc", "Barricade", "Barricade:[NL]Halves damage taken once[NL]struck in this combat.",
+          group="guard", after="if (defender->unit.curHP < defender->hpInitial"
+                               " && SkillTesterFem(&defender->unit, SKILL_FEM_Barricade))\n"
+                               "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+    Skill("TowerShieldPlus", "proc", "TowerShieldPlus", "Tower Shield+:[NL]Takes no damage from[NL]attacks at range.",
+          group="guard", after="if (gBattleStats.range > 1 && SkillTesterFem(&defender->unit, SKILL_FEM_TowerShieldPlus))\n"
+                               "            gBattleStats.damage = 0;"),
 )
 
 # The game's class abilities, shown as skills: their engine stays the game's (texts written for FE8's own rules).
@@ -611,7 +679,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     rel = "src/bmbattle.c"
     battle = _read(files, decomp_dir, rel)
     def skill_lines(kind):
-        return "".join(f"    if (SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
+        return "".join(f"    if (SkillTesterFem(&{s.holder}->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
                        for s in skills if s.kind == kind)
     # As C-SkillSys's PreBattleCalcInit: the actor's call computes both units' base stats, so that a skill can look
     # at the foe's; the target's call then only applies its skills (a target without class, as on the stat screen's
@@ -644,6 +712,11 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         + "".join(f"    if (bu->{f} < 0)\n        bu->{f} = 0;\n" for f in (
             "battleAttack", "battleDefense", "battleSpeed", "battleHitRate", "battleAvoidRate", "battleCritRate"))
         + "}\n\n"), rel)
+    if any(s.kind == "eff" for s in skills):   # batch 6: hit and crit, after the game's effective rates
+        special = "    ComputeBattleUnitSpecialWeaponStats(attacker, defender);\n}\n"
+        battle = _replace(battle, special, special.replace("}\n", (
+            "    if (!(gBattleStats.config & (BATTLE_CONFIG_ARENA | BATTLE_CONFIG_BIT2))) {\n"
+            + skill_lines("eff") + "    }\n}\n")), rel)
     effective = "void ComputeBattleUnitEffectiveStats(struct BattleUnit* attacker, struct BattleUnit* defender) {\n"
     if any(s.kind == "late" for s in skills):
         battle = _replace(battle, effective, effective + (
