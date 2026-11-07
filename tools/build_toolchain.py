@@ -112,6 +112,9 @@ def main() -> None:
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--skip-agbcc-build", action="store_true", help="agbcc is already built in --agbcc")
     args = parser.parse_args()
+    # Absolute: PATH and folders are used from inside subfolders (make -C).
+    for name in ("w64devkit", "arm", "agbcc", "decomp", "zlib", "libpng", "out"):
+        setattr(args, name, getattr(args, name).resolve())
     out: Path = args.out
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
