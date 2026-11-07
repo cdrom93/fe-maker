@@ -37,6 +37,12 @@ BOX_URL = (f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}"
            "/EngineHacks/SkillSystem/Internals/Graphics/ProcDisplayTiles.png")
 MAX_PER_SHEET = 3
 MAX_SHOWN = 6   # page 1: 2 rows of 3 icons (ticket 171)
+# learned skills (batch 3, docs/competences.md): 4 per character, in the free debug buffer before ICON_TABLE;
+# saved like Magic (strmag.SAVE) in the bonus-map zone of the save memory, after Magic and the temporary bonuses
+LEARNED_MAX = 4
+LEARNED_CHARACTERS = 0x40
+LEARNED_TABLE = "0x02028800"
+LEARNED_SAVE = 0x480
 MAX_SKILLS = 63           # icons after the game's 224, in the 0x120 entries of the moved lookup table
 
 
@@ -297,6 +303,9 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         f"extern const u8 gCharacterSkillsFem[0x100][{MAX_PER_SHEET}];\n"
         f"extern const u8 gClassSkillsFem[0x100][{MAX_PER_SHEET}];\n"
         "int SkillTesterFem(struct Unit* unit, int skill);\nint SkillStatBonusFem(struct Unit* unit, int stat);\n"
+        f"#define LEARNED_MAX_FEM {LEARNED_MAX}\n#define LEARNED_CHARACTERS_FEM 0x{LEARNED_CHARACTERS:X}\n"
+        f"#define LEARNED_SKILLS_FEM ((u8 (*)[LEARNED_MAX_FEM]) {LEARNED_TABLE})\n"
+        "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
         + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in sorted({s.stat for s in skills if s.kind == "stat"}))
         +
         "\n#endif // GUARD_BM_UNIT_H"), rel)
@@ -321,7 +330,10 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
              "    const u8* list = gCharacterSkillsFem[unit->pCharacterData->number];\n\n"
              "    if (list[0] == skill || list[1] == skill || list[2] == skill)\n        return TRUE;\n"
              "    list = gClassSkillsFem[unit->pClassData->number];\n"
-             "    return list[0] == skill || list[1] == skill || list[2] == skill;\n}\n\n"
+             "    if (list[0] == skill || list[1] == skill || list[2] == skill)\n        return TRUE;\n"
+             "    if (unit->pCharacterData->number >= LEARNED_CHARACTERS_FEM)\n        return FALSE;\n"
+             "    list = LEARNED_SKILLS_FEM[unit->pCharacterData->number];\n"
+             "    return list[0] == skill || list[1] == skill || list[2] == skill || list[3] == skill;\n}\n\n"
              "/* C-SkillSys's status getters (UnitStatusGetter): a stat's skill bonus; 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res,"
              " 5 Lck, 6 Mag */\n"
              "int SkillStatBonusFem(struct Unit* unit, int stat)\n{\n    int bonus = 0;\n"
@@ -388,6 +400,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files[rel] = icon
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
+    files.update(_learned(decomp_dir, files))
     return files
 
 
@@ -866,6 +879,109 @@ def _battle_order(battle: str, numbers: dict[str, int], rel: str) -> str:
 """ + battle[end:]
 
 
+def _learned(decomp_dir: Path, files: dict) -> dict:
+    """Learned skills (batch 3): LearnSkillFem / ForgetSkillFem in bmunit.c, the table cleared for a new game, and
+    saved per save slot like Magic (after its blocks): the save time, then the table."""
+    out = {}
+    rel = "src/bmunit.c"
+    out[rel] = _read(files, decomp_dir, rel) + """
+/* FE Maker: learned skills (batch 3, docs/competences.md; C-SkillSys's LearnSkill.c): 4 per character, the oldest
+   forgotten for a 5th; player units only, as C-SkillSys */
+void LearnSkillFem(struct Unit* unit, int skill)
+{
+    u8* list;
+    int i;
+
+    if (UNIT_FACTION(unit) != FACTION_BLUE || unit->pCharacterData->number >= LEARNED_CHARACTERS_FEM
+        || skill <= 0 || skill > SKILL_COUNT_FEM || SkillTesterFem(unit, skill))
+        return;
+    list = LEARNED_SKILLS_FEM[unit->pCharacterData->number];
+    for (i = 0; i < LEARNED_MAX_FEM; i++)
+        if (list[i] == 0) {
+            list[i] = skill;
+            return;
+        }
+    for (i = 0; i < LEARNED_MAX_FEM - 1; i++)
+        list[i] = list[i + 1];
+    list[LEARNED_MAX_FEM - 1] = skill;
+}
+
+void ForgetSkillFem(struct Unit* unit, int skill)
+{
+    u8* list;
+    int i, j;
+
+    if (unit->pCharacterData->number >= LEARNED_CHARACTERS_FEM)
+        return;
+    list = LEARNED_SKILLS_FEM[unit->pCharacterData->number];
+    for (i = 0; i < LEARNED_MAX_FEM; i++)
+        if (list[i] == skill) {
+            for (j = i; j < LEARNED_MAX_FEM - 1; j++)
+                list[j] = list[j + 1];
+            list[LEARNED_MAX_FEM - 1] = 0;
+            return;
+        }
+}
+"""
+    rel = "src/bmio.c"
+    out[rel] = _replace(_read(files, decomp_dir, rel), "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n",
+                        "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n"
+                        "    CpuFill16(0, LEARNED_SKILLS_FEM, LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM); /* FE Maker */\n",
+                        rel)
+    rel = "src/bmsave.c"
+    text = _read(files, decomp_dir, rel)
+    save = f"""/* FE Maker: learned skills, per save slot after Magic's blocks (docs/competences.md, batch 3): the save time,
+   then the table; a save without them (made before) has none */
+#define LEARNED_SAVE_FEM(slot) ((u8 *) CART_SRAM + SRAM_OFFSET_XMAP + 0x{LEARNED_SAVE:X} \\
+    + (slot) * (4 + LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM))
+
+static void WriteLearnedFem(int slot)
+{{
+    u32 time = gPlaySt.time_saved;
+
+    WriteAndVerifySramFast(&time, LEARNED_SAVE_FEM(slot), 4);
+    WriteAndVerifySramFast(LEARNED_SKILLS_FEM, LEARNED_SAVE_FEM(slot) + 4, LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM);
+}}
+
+static void ReadLearnedFem(int slot)
+{{
+    u32 time;
+
+    ReadSramFast(LEARNED_SAVE_FEM(slot), &time, 4);
+    if (time == gPlaySt.time_saved)
+        ReadSramFast(LEARNED_SAVE_FEM(slot) + 4, LEARNED_SKILLS_FEM, LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM);
+    else
+        CpuFill16(0, LEARNED_SKILLS_FEM, LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM);
+}}
+
+static void CopyLearnedFem(int src, int dest)
+{{
+    u8 buf[4 + LEARNED_CHARACTERS_FEM * LEARNED_MAX_FEM];
+
+    ReadSramFast(LEARNED_SAVE_FEM(src), buf, sizeof(buf));
+    WriteAndVerifySramFast(buf, LEARNED_SAVE_FEM(dest), sizeof(buf));
+}}
+
+"""
+    game_write = ("    for (i = 0; i < UNIT_SAVE_AMOUNT_BLUE; i++)\n"
+                  "        WriteGameSavePackedUnit(&gUnitArrayBlue[i], &dest->units[i]);\n")
+    game_read = "    for (i = 0; i < UNIT_SAVE_AMOUNT_BLUE; i++)\n        LoadSavedUnit(src->units + i, &gUnitArrayBlue[i]);\n"
+    suspend_write = ("    for (i = 0; i < UNIT_SAVE_AMOUNT_BLUE; i++)\n"
+                     "        EncodeSuspendSavePackedUnit(&gUnitArrayBlue[i], buf++);\n")
+    suspend_read = "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n"
+    copy = "    WriteAndVerifySramFast(gGenericBuffer, dest, sizeof(struct GameSaveBlock));\n"
+    for old, new in (
+            ("void CopyGameSave(int index_src, int index_dest)\n{", save + "void CopyGameSave(int index_src, int index_dest)\n{"),
+            (copy, copy + "    CopyLearnedFem(index_src, index_dest);\n"),
+            (game_write, game_write + "    WriteLearnedFem(slot);\n"),
+            (game_read, game_read + "    ReadLearnedFem(slot);\n"),
+            (suspend_write, "    WriteLearnedFem(slot);\n" + suspend_write),
+            (suspend_read, suspend_read + "    ReadLearnedFem(slot + gSuspendSaveIdOffset);\n")):
+        text = _replace(text, old, new, rel)
+    out[rel] = text
+    return out
+
+
 def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], texts: dict[str, int], base: int,
                    magic_split: bool) -> dict:
     """Page 1 laid out as the Skill System's MSS (ticket 171, docs/competences.md).
@@ -935,7 +1051,7 @@ def _status_screen(decomp_dir: Path, files: dict, skills: list[Skill], texts: di
     icons = ", ".join(str(base + i) for i in range(len(skills)))
     descs = ", ".join(str(texts[s.id]) for s in skills)
     game_lines = "".join(f"    if ({s.game})\n        list[count++] = SKILL_FEM_{s.id};\n" for s in game)
-    size = 2 * MAX_PER_SHEET + len(game)
+    size = 2 * MAX_PER_SHEET + LEARNED_MAX + len(game)
     helpers = f"""#include "constants/characters.h"
 #include "chapterdata.h"
 #include "event.h"
@@ -958,6 +1074,12 @@ static int GetUnitSkillListFem(struct Unit* unit, u8* list)
     for (i = 0; i < {MAX_PER_SHEET}; i++)
         if (own[i])
             list[count++] = own[i];
+    if (unit->pCharacterData->number < LEARNED_CHARACTERS_FEM) {{
+        own = LEARNED_SKILLS_FEM[unit->pCharacterData->number];
+        for (i = 0; i < LEARNED_MAX_FEM; i++)
+            if (own[i])
+                list[count++] = own[i];
+    }}
 {game_lines}    return count;
 }}
 

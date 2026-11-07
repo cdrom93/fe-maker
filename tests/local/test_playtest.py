@@ -1622,6 +1622,31 @@ def test_skills_in_battle_and_on_the_status_screen(tmp_path):
         assert game.read(actor, 0x5E, width=16, signed=True) == spd + 6
 
 
+def test_learned_skill_counts_in_battle(tmp_path):
+    """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
+    the soldier's sheet has Str+2 so that the skill is compiled."""
+    from fe_maker.decomp import skills
+
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "learned", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["skills"] = ["StrBonus"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    used = [s.id for s in skills.used(characters, project.load("classes"), False)]
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        pow_ = game.read(attacker, 0x14)
+        number = game.read(game.read(attacker, width=32), 4)
+        assert number < skills.LEARNED_CHARACTERS
+        game.write(int(skills.LEARNED_TABLE, 16) + number * skills.LEARNED_MAX, used.index("StrBonus") + 1)
+        _bench_attack(game, attacker)
+        game.run(240)
+        assert game.read(game.address("gBattleActor"), 0x14) == pow_ + 2
+
+
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
     strikes first, then the lord twice in a row (its follow-up before any counter)."""
