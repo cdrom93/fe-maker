@@ -211,3 +211,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : Canto+ vu par playtest ; relais des tickets : Worker Cloudflare (`relay/`, testé, pas déployé), envoi depuis FE Maker, réponses relues, projet joint sur case, `--remote` pour l'admin.
 - 07/11/2026 : compétences, lot 4 point 3 : commande de menu Pivot (playtest).
 - 07/11/2026 : relais des tickets déployé et vérifié en vrai (ticket, capture, relecture, réponses) ; certificats de certifi pour l'envoi depuis Python, erreurs GitHub dans les journaux du Worker.
+- 07/11/2026 : ticket 173 : Docker Desktop n'est plus lancé au démarrage quand FE Maker compile sans lui (sa chaîne installée).

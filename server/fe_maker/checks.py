@@ -42,11 +42,11 @@ def docker_desktop() -> Path | None:
 
 
 def start_docker() -> bool:
-    """Start Docker Desktop when Docker is installed but does not answer (ticket 146), detached from FE Maker.
-    True if it was launched."""
+    """Start Docker Desktop when Docker is installed but does not answer (ticket 146), detached from FE Maker; not when
+    builds run without it (FE Maker's own toolchain, ticket 173). True if it was launched."""
     global _docker_started_at
     exe = docker_desktop()
-    if exe is None or _docker_state() != (False, "stopped"):
+    if exe is None or native.available() or _docker_state() != (False, "stopped"):
         return False
     flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     try:

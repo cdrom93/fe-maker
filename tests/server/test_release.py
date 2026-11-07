@@ -81,11 +81,26 @@ def test_a_stopped_docker_desktop_is_started(monkeypatch, tmp_path):
     monkeypatch.setattr(checks.subprocess, "Popen", lambda args, **kw: launched.append(args))
     monkeypatch.setattr(checks, "_docker_started_at", None)
     monkeypatch.setattr(checks, "_windows", lambda: False)
+    monkeypatch.setattr(checks.native, "available", lambda: False)
     assert checks.start_docker() and launched == [[str(exe)]]
     found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
     assert found["docker"]["detail"] == "starting"
     monkeypatch.setattr(checks, "_docker_state", lambda: (True, "27.0"))
     assert not checks.start_docker()
+
+
+def test_docker_desktop_is_left_alone_when_builds_run_without_it(monkeypatch, tmp_path):
+    from fe_maker import checks
+
+    exe = tmp_path / "Docker" / "Docker" / "Docker Desktop.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"")
+    launched = []
+    monkeypatch.setenv("ProgramFiles", str(tmp_path))
+    monkeypatch.setattr(checks, "_docker_state", lambda: (False, "stopped"))
+    monkeypatch.setattr(checks.subprocess, "Popen", lambda args, **kw: launched.append(args))
+    monkeypatch.setattr(checks.native, "available", lambda: True)
+    assert not checks.start_docker() and launched == []
 
 
 def test_windows_asks_for_the_toolchain_then_builds_once_in_the_background(monkeypatch, tmp_path):
