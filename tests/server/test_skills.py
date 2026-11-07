@@ -137,6 +137,23 @@ def test_batch_7_order_of_the_rounds(monkeypatch):
     assert "if (BattleDoublesFem(&gBattleActor)) {" in forecast and "if (BattleDoublesFem(&gBattleTarget)) {" in forecast
 
 
+def test_batch_8_statuses_survival_and_weapons(monkeypatch):
+    """Inori / Sturdy on the damage, statuses and Armsthrift where the game consumes the attacker's weapon."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Sturdy", "Petrify", "Armsthrift"]},
+                  {"id": "CHARACTER_SETH", "skills": ["PoisonPoint", "EffectSpore"]}]
+    used = skills.used(characters, [], False)
+    battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    assert "ShowSkillFem(defender, SKILL_FEM_Sturdy);" in battle
+    assert "status = UNIT_STATUS_PETRIFY;" in battle and "InjectStatusFem(attacker, spores[NextRN_N(3)]);" in battle
+    assert battle.index("SKILL_FEM_Petrify") < battle.index("SKILL_FEM_PoisonPoint")      # C-SkillSys's order
+    assert "&& !ApplyHitEffectSkillsFem(attacker, defender)) { /* FE Maker: skills (lot 8) */" in battle
+    assert battle.index("static int ApplyHitEffectSkillsFem") < battle.index("void BattleGenerateHitEffects(")
+
+
 def test_triggered_skills_go_into_each_hit(monkeypatch):
     if not (DECOMP / "src/bmbattle.c").is_file():
         pytest.skip("no decomp")

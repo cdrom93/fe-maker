@@ -1743,6 +1743,36 @@ def test_batch_7_order_of_the_rounds(tmp_path):
         assert game.read(actor, 0x13) == max_hp - 1                      # Double Lion
 
 
+def test_batch_8_status_sturdy_and_armsthrift(tmp_path):
+    """Skills lot 8: the lord's Poison Point (the soldier poisoned) and Armsthrift (Luck 100: no use lost), the soldier's
+    Sturdy (full HP: a deadly hit leaves it at 1 HP)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch8", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=60, crit=0)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_unit = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    next(c for c in characters if c["id"] == lord_unit["character"])["skills"] = ["PoisonPoint", "Armsthrift"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 30
+    soldier["skills"] = ["Sturdy"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 100, 0x19)           # Luck 100: Armsthrift always
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor, target = game.address("gBattleActor"), game.address("gBattleTarget")
+        first = game.read(game.address("gBattleHitArray"), width=32)
+        assert first & (1 << 6)                                          # BATTLE_HIT_ATTR_POISON
+        assert game.read(target, 0x6F, signed=True) == 1                 # statusOut: poison
+        assert game.read(target, 0x13) == 1                               # Sturdy: 1 HP left
+        assert game.read(actor, 0x48, width=16) == game.read(actor, 0x4A, width=16)   # Armsthrift: same uses
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""
@@ -2069,6 +2099,8 @@ def test_adept_and_astra_add_hits(tmp_path, skill):
             attack = game.read("gBattleActor", 0x5A, width=16, signed=True)
             defense = game.read("gBattleTarget", 0x5C, width=16, signed=True)
             assert (hits[0] >> 24) == (attack - defense) // 2
+            shown = [game.read(0x02028D82 + 2 * k) for k in range(count)]   # the actor's skill shown on each hit
+            assert len(set(shown)) == 1 and shown[0]                        # Astra's number, on every hit
 
 
 def test_triggered_skill_name_in_battle_animation(tmp_path):

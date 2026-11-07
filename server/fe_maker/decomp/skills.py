@@ -63,6 +63,7 @@ class Skill:
     # defender); late skills: at the start of ComputeBattleUnitEffectiveStats (comparisons with the foe, as C-SkillSys's
     # BattleCalcReal); proc skills: C run on a hit before its damage (attacker, defender, magic, *attack, *defense)
     after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
+    effect: str = ""      # proc skills: C run once the hit's HP change is done (hit, allowed, status, keep; _hit_skills)
     game: str = ""        # game skills: the C condition on `unit`
     menu: str = ""        # menu skills: the command's name in the unit menu
     holder: str = "attacker"   # battle, late and eff skills: whose skill it is (the code reads attacker and defender)
@@ -193,7 +194,11 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Astra", "hits", "Astra", "Astra:[NL]Unit attacks 5 times but damage[NL]is halved. (SPD % activation).",
           code="if (unit == &gBattleActor && SkillProcRateFem(unit, SKILL_FEM_Astra, unit->unit.spd)) {\n"
                "            sAstraFem = TRUE;\n            more += 4;\n        }",
-          after="if (sAstraFem && attacker == &gBattleActor)\n            gBattleStats.damage /= 2;"),
+          after="if (sAstraFem && attacker == &gBattleActor) {\n            gBattleStats.damage /= 2;\n"
+                "            /* its name on each of its hits, as C-SkillSys's round skills */\n"
+                "            if (gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX)\n"
+                "                sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2] = SKILL_FEM_Astra;\n"
+                "        }"),
     Skill("Aegis", "proc", "Aegis", "Aegis:[NL]Nullifies a magic attack.[NL](Skill % activation).",
           code="if (magic && SkillProcFem(defender, SKILL_FEM_Aegis))\n"
                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
@@ -423,6 +428,56 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Eclipse", "proc", "Eclipse", "Eclipse:[NL]Halves the foe's current HP.[NL](Skill % activation).",
           group="damage", after="if (defender->unit.curHP > 1 && SkillProcFem(attacker, SKILL_FEM_Eclipse))\n"
                                 "            gBattleStats.damage = (defender->unit.curHP + 1) >> 1;"),   # the Eclipse tome
+    # lot 8: survive a deadly hit (C-SkillSys's CheckBattleInori, after Mercy)
+    Skill("Inori", "proc", "Inori", "Inori:[NL]Unit may not die if attacked[NL]to 0 HP (Luck % activation).", group="guard",
+          after="if (gBattleStats.damage >= defender->unit.curHP\n"
+                "            && SkillProcRateFem(defender, SKILL_FEM_Inori, defender->unit.lck))\n"
+                "            gBattleStats.damage = defender->unit.curHP - 1;"),
+    Skill("Sturdy", "proc", "Sturdy", "Sturdy:[NL]If the unit has full HP at the[NL]start of the fight, they cannot die.",
+          group="guard",
+          after="if (gBattleStats.damage >= defender->unit.curHP && defender->hpInitial == defender->unit.maxHP\n"
+                "            && SkillTesterFem(&defender->unit, SKILL_FEM_Sturdy)) {\n"
+                "            gBattleStats.damage = defender->unit.curHP - 1;\n"
+                "            ShowSkillFem(defender, SKILL_FEM_Sturdy);\n        }"),
+    # lot 8: statuses inflicted on a hit, one at most (C-SkillSys's BattleHit_InjectNegativeStatus, in its order)
+    Skill("Petrify", "proc", "Petrify", "Petrify:[NL]Inflict stone on the opponent.[NL](Skill % activation).",
+          group="status", effect="if (status == -1 && allowed && SkillProcFem(attacker, SKILL_FEM_Petrify))\n"
+                                 "            status = UNIT_STATUS_PETRIFY;"),
+    Skill("PoisonPoint", "proc", "", "Poison Point:[NL]Inflict poison[NL]on the opponent.", group="status",
+          effect="if (status == -1 && allowed && SkillTesterFem(&attacker->unit, SKILL_FEM_PoisonPoint))\n"
+                 "            status = UNIT_STATUS_POISON;"),
+    Skill("Enrage", "proc", "Enrage", "Enrage:[NL]Inflict Berserk on the opponent.[NL](Skill % activation).",
+          group="status", effect="if (status == -1 && allowed && SkillProcFem(attacker, SKILL_FEM_Enrage))\n"
+                                 "            status = UNIT_STATUS_BERSERK;"),
+    Skill("EffectSpore", "proc", "EffectSpore",
+          "Effect Spore:[NL]If attacked, 50% chance of inflicting[NL]poison, silence or sleep.", group="status",
+          effect="if (status == -1 && allowed && !DebuffedFem(attacker)\n"
+                 "            && SkillProcRateFem(defender, SKILL_FEM_EffectSpore, 50)) {\n"
+                 "            static const u8 spores[] = { UNIT_STATUS_POISON, UNIT_STATUS_SILENCED, UNIT_STATUS_SLEEP };\n"
+                 "            InjectStatusFem(attacker, spores[NextRN_N(3)]);\n            status = -2;\n        }"),
+    Skill("BlackMagic", "proc", "BlackMagic",
+          "Black Magic:[NL]Inflict a random bad status on the enemy.[NL](Skill % activation).", group="status",
+          effect="if (status == -1 && allowed && SkillProcFem(attacker, SKILL_FEM_BlackMagic)) {\n"
+                 "            static const u8 magics[] = { UNIT_STATUS_POISON, UNIT_STATUS_SLEEP, UNIT_STATUS_SILENCED,"
+                 " UNIT_STATUS_BERSERK };\n"
+                 "            status = magics[NextRN_N(4)];\n        }"),
+    # lot 8: weapons and items (C-SkillSys's BattleHit_ConsumeWeapon, Pickup in BattleHit.c)
+    Skill("Armsthrift", "proc", "Armsthrift", "Armsthrift:[NL]A weapon use is not consumed.[NL](Luck % activation).",
+          group="items", effect="if (!keep && SkillProcRateFem(attacker, SKILL_FEM_Armsthrift, attacker->unit.lck))\n"
+                                "            keep = TRUE;"),
+    Skill("Corrosion", "proc", "Corrosion",
+          "Corrosion:[NL]Reduce enemy's weapon durability[NL]by user's level (Skill % activation).", group="items",
+          effect="if (hit && defender->weapon && SkillProcFem(attacker, SKILL_FEM_Corrosion)) {\n"
+                 "            int uses = attacker->levelPrevious;\n\n"
+                 "            while (uses-- > 0 && defender->weapon)\n"
+                 "                defender->weapon = GetItemAfterUse(defender->weapon);\n"
+                 "            if (!defender->weapon)\n                defender->weaponBroke = TRUE;\n        }"),
+    Skill("Pickup", "proc", "",
+          "Pickup: Obtain the last item in the[NL]enemy's inventory after attacking[NL]and killing them. (Luck %)",
+          group="items",
+          effect="if (hit && attacker == &gBattleActor && defender->unit.curHP == 0\n"
+                 "            && SkillProcRateFem(attacker, SKILL_FEM_Pickup, attacker->unit.lck))\n"
+                 "            defender->unit.state |= US_DROP_ITEM;"),
     # without an icon at the pinned commit (a "?" until FE Maker imports its own icons)
     _b("WatchfulEye", "battle", "Watchful Eye:[NL]Hit rate +20%.", "attacker->battleHitRate += 20;", icon=""),
     _b("HeavyStrikes", "weapon", "Heavy Strikes:[NL]Adds weapon weight[NL]to critical chance.",
@@ -885,6 +940,60 @@ SHOWN_SKILLS = "0x02028D82"
 SHOWN_SIZE = 0x10
 
 
+def _hit_effects(battle: str, effects: str, rel: str) -> str:
+    """Lot 8: what a hit leaves once its HP change is done (C-SkillSys's BattleHit_InjectNegativeStatus and
+    BattleHit_ConsumeWeapon): one status at most, none against the Demon King or with a poison or stone weapon (the
+    game's own); the weapon use kept by Armsthrift. Called where the game consumes the attacker's weapon."""
+    battle = _replace(battle, "void BattleGenerateHitEffects(struct BattleUnit* attacker, struct BattleUnit* defender) {\n",
+                      """/* FE Maker: a status inflicted by a skill (C-SkillSys's InjectNegativeStatusExt) */
+static void InjectStatusFem(struct BattleUnit* bu, int status)
+{
+    int old = bu->statusOut >= 0 ? bu->statusOut : bu->unit.statusIndex;
+
+    if (old == UNIT_STATUS_PETRIFY || old == UNIT_STATUS_13)
+        bu->unit.state &= ~US_UNSELECTABLE;   /* "ungray" a petrified unit, as the game's poison does */
+    bu->statusOut = status;
+    if (status == UNIT_STATUS_PETRIFY) {
+        if (UNIT_FACTION(&bu->unit) == gPlaySt.faction)
+            bu->statusOut = UNIT_STATUS_13;
+        gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PETRIFY;
+    } else if (status == UNIT_STATUS_POISON)
+        gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_POISON;
+}
+
+static int DebuffedFem(struct BattleUnit* bu)
+{
+    int status = bu->statusOut >= 0 ? bu->statusOut : bu->unit.statusIndex;
+
+    return (status >= UNIT_STATUS_POISON && status <= UNIT_STATUS_BERSERK) || status >= UNIT_STATUS_PETRIFY;
+}
+
+/* TRUE: the weapon use is kept */
+static int ApplyHitEffectSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender)
+{
+    int hit = !(gBattleHitIterator->attributes & BATTLE_HIT_ATTR_MISS);
+    int effect = GetItemWeaponEffect(attacker->weapon);
+    int allowed = hit && defender->unit.pClassData->number != CLASS_DEMON_KING
+        && effect != WPN_EFFECT_POISON && effect != WPN_EFFECT_PETRIFY;
+    int status = -1, keep = FALSE;
+
+""" + effects + """    if (status >= 0)
+        InjectStatusFem(defender, status);
+    (void) DebuffedFem; (void) hit; (void) allowed;
+    return keep;
+}
+
+void BattleGenerateHitEffects(struct BattleUnit* attacker, struct BattleUnit* defender) {
+""", rel)
+    use = ("    if (!(gBattleHitIterator->attributes & BATTLE_HIT_ATTR_MISS) || "
+           "attacker->weaponAttributes & (IA_UNCOUNTERABLE | IA_MAGIC)) {\n        attacker->weapon = GetItemAfterUse(")
+    return _replace(battle, use, (
+        "    if ((!(gBattleHitIterator->attributes & BATTLE_HIT_ATTR_MISS) || "
+        "attacker->weaponAttributes & (IA_UNCOUNTERABLE | IA_MAGIC))\n"
+        "        && !ApplyHitEffectSkillsFem(attacker, defender)) { /* FE Maker: skills (lot 8) */\n"
+        "        attacker->weapon = GetItemAfterUse("), rel)
+
+
 def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
     """Skills that trigger on a hit, Skill % of the time (C-SkillSys's CheckBattleSkillActivate, never in the forecast):
     before the damage (defense, attack, Pavise and Aegis as the game's Great Shield, Luna and Corona as its Pierce),
@@ -898,6 +1007,13 @@ def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
 #define sHitDrainFem (*(vu8*) {DRAIN_FLAG})
 #define sAstraFem (*(vu8*) {ASTRA_FLAG})
 
+/* the skill's name is shown with this hit (2 bytes per hit: the actor's skill, the target's) */
+static void ShowSkillFem(struct BattleUnit* unit, int skill)
+{{
+    if (gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX)
+        sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2 + (unit == &gBattleTarget)] = skill;
+}}
+
 static int SkillProcRateFem(struct BattleUnit* unit, int skill, int rate)
 {{
     if (gBattleStats.config & BATTLE_CONFIG_SIMULATE)
@@ -906,9 +1022,7 @@ static int SkillProcRateFem(struct BattleUnit* unit, int skill, int rate)
         return FALSE;
     if (!BattleRoll2RN(rate, FALSE))
         return FALSE;
-    /* its name is shown with this hit (2 bytes per hit: the actor's skill, the target's) */
-    if (gBattleHitIterator < gBattleHitArray + BATTLE_HIT_MAX)
-        sSkillShownFem[(gBattleHitIterator - gBattleHitArray) * 2 + (unit == &gBattleTarget)] = skill;
+    ShowSkillFem(unit, skill);
     return TRUE;
 }}
 
@@ -972,6 +1086,9 @@ static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUni
     cap = ("    if (gBattleStats.damage > BATTLE_MAX_DAMAGE)\n        gBattleStats.damage = BATTLE_MAX_DAMAGE;\n\n"
            "    if (gBattleStats.damage < 0)\n        gBattleStats.damage = 0;\n\n    BattleCheckPetrify(")
     battle = _replace(battle, cap, "    ApplyHitSkillsAfterFem(attacker, defender);\n\n" + cap, rel)
+    effects = "".join(f"    {{\n        {s.effect}\n    }}\n" for s in procs if s.effect)
+    if effects:
+        battle = _hit_effects(battle, effects, rel)
     drain = ("        if (GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_HPDRAIN) {\n"
              "            if (attacker->unit.maxHP < (attacker->unit.curHP + gBattleStats.damage))\n"
              "                attacker->unit.curHP = attacker->unit.maxHP;\n"
