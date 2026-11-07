@@ -165,8 +165,8 @@ GAME_SKILLS: tuple[Skill, ...] = (
 
 BY_ID = {s.id: s for s in CATALOGUE + GAME_SKILLS}
 LABEL = "Skills"
-# page 1 (ticket 171): the labels of Talk and Lead, the help of Lead (Talk's is the game's, MSG_56A)
-PAGE_TEXTS = ("Talk", "Lead", "Leadership. No effect[LF]\nfor now.")
+# page 1 (ticket 171): the labels of Talk and Lead, the help of Lead (Talk's is the game's, MSG_56A), Lead's "--"
+PAGE_TEXTS = ("Talk", "Lead", "Leadership. No effect[LF]\nfor now.", "[DashedLine][DashedLine]")
 MAGIC_SKILLS = frozenset(s.id for s in CATALOGUE if s.stat == 6)
 
 
@@ -248,7 +248,7 @@ def add_texts(data, skills: list[Skill]) -> dict[str, int]:
     numbers = data.add_texts(LABEL, *PAGE_TEXTS, *(s.text.replace("[NL]", "[LF]\n") for s in skills))
     skill_numbers = numbers[1 + len(PAGE_TEXTS):]
     return {"label": numbers[0], "talk": numbers[1], "lead": numbers[2], "leadHelp": numbers[3],
-            **{s.id: n for s, n in zip(skills, skill_numbers)}}
+            "leadValue": numbers[4], **{s.id: n for s, n in zip(skills, skill_numbers)}}
 
 
 # --- C ------------------------------------------------------------------------------------------------------------
@@ -970,10 +970,10 @@ static void DisplaySkillsFem(void)
     if (count == 0)
         return;
     ClearText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM]);
-    PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM], gUiTmScratchA + TILEMAP_INDEX(11, 11),
-        TEXT_COLOR_SYSTEM_GOLD, GetStringTextCenteredPos(32, label), 0, label);
+    PutDrawText(&gStatScreen.text[STATSCREEN_TEXT_SKILLS_FEM], gUiTmScratchA + TILEMAP_INDEX(9, 11),
+        TEXT_COLOR_SYSTEM_GOLD, 0, 0, label);
     for (i = 0; i < count && i < {MAX_SHOWN}; i++)
-        DrawIcon(gUiTmScratchA + TILEMAP_INDEX(10 + (i % 3) * 2, 13 + (i / 3) * 2), sSkillIconFem[list[i]], 0x4000);
+        DrawIcon(gUiTmScratchA + TILEMAP_INDEX(9 + (i % 3) * 3, 13 + (i / 3) * 2), sSkillIconFem[list[i]], 0x4000);
 }}
 
 /* Talk: who the unit can talk to now, a talk event of the chapter first, then a support (C-SkillSys's GetTalkee,
@@ -1017,7 +1017,7 @@ static void DisplayLeadTalkFem(void)
     int talkee = GetTalkeeFem(gStatScreen.unit);
 
     Text_InsertDrawString(&gStatScreen.text[STATSCREEN_TEXT_AFFINLABEL], 24, TEXT_COLOR_SYSTEM_BLUE,
-        GetStringFromIndex(MSG_536)); /* Lead: none yet */
+        GetStringFromIndex({texts["leadValue"]})); /* Lead: none yet */
     Text_InsertDrawString(&gStatScreen.text[STATSCREEN_TEXT_RESCUENAME], 24, TEXT_COLOR_SYSTEM_BLUE,
         GetStringFromIndex(talkee ? UNIT_NAME_ID(GetUnitFromCharId(talkee)) : MSG_536));
 }}
@@ -1102,7 +1102,7 @@ def _help_entries(magic_split: bool) -> str:
             f"sHelpInfo_SkillFem{k}", right[-1][0] if row == 0 else f"sHelpInfo_SkillFem{k - 3}",
             f"sHelpInfo_SkillFem{k + 3}" if row == 0 else None,
             left_at(y) if col == 0 else f"sHelpInfo_SkillFem{k - 1}", f"sHelpInfo_SkillFem{k + 1}" if col < 2 else None,
-            174 + 16 * col, y, k, "HbRedirect_SkillFem, HbPopulate_SkillFem"))
+            166 + 24 * col, y, k, "HbRedirect_SkillFem, HbPopulate_SkillFem"))
     out.append(entry("sHelpInfo_Ss0Affinity", None, "sHelpInfo_Class", "sHelpInfo_Char", "sHelpInfo_Ss0Lck",
                      72, 80, "MSG_551", ""))
     return "".join(out)

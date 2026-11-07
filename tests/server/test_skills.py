@@ -5,7 +5,7 @@ import pytest
 from fe_maker.decomp import skills
 
 DECOMP = Path(__file__).parents[2] / "decomp"
-PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52}   # page 1 texts (ticket 171)
+PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   # page 1 texts (ticket 171)
 
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
@@ -33,7 +33,7 @@ def test_texts_go_on_lines_of_the_game():
 
     data = Data()
     numbers = skills.add_texts(data, [skills.BY_ID["Wrath"]])
-    assert numbers == {"label": 100, "talk": 101, "lead": 102, "leadHelp": 103, "Wrath": 104}
+    assert numbers == {"label": 100, "talk": 101, "lead": 102, "leadHelp": 103, "leadValue": 104, "Wrath": 105}
     assert data.bodies == ("Skills", *skills.PAGE_TEXTS, "Wrath:[LF]\nIf current HP is < 50%[LF]\nof max, +20 Crit Rate.")
 
 
@@ -45,7 +45,7 @@ def test_skills_match_the_decomp(monkeypatch):
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["StrBonus", "Vantage", "DefiantSpd"]}]
     classes = [{"id": "CLASS_EIRIKA_LORD", "skills": ["BlowDarting"]}]
     used = skills.used(characters, classes, False)
-    texts = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, **{s.id: 2 + k for k, s in enumerate(used)}}
+    texts = {**PAGE, **{s.id: 2 + k for k, s in enumerate(used)}}
     files = skills.apply(DECOMP, {}, characters, classes, texts, False)
     unit = files["src/bmunit.c"]
     assert "    [0x01] = { 1, 4, 2 }," in unit   # StrBonus, Vantage, DefiantSpd: numbered in catalogue order
