@@ -233,3 +233,5 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : compétences, lot 8 (Inori, Sturdy, statuts infligés, Armsthrift, Corrosion, Pickup ; playtest) ; nom d'Astra à chacun de ses coups (ticket 25).
 - 07/11/2026 : tickets 22 (choix d'une compétence dans une fenêtre), 23 (éclair et son de Galeforce), 26 (capacités du jeu rangées par effet).
 - 07/11/2026 : brouillon des retours au C-SkillSys (`docs/retours-cskillsys.md`, 5 écarts code / description), gardé jusqu'à la fin de l'adaptation.
+
+- 07/11/2026 : ticket 27 (menu des commandes de déplacement aligné et élargi, glissement des unités sur la carte).

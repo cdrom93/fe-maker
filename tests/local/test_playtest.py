@@ -1911,7 +1911,7 @@ def test_pivot_command(tmp_path):
 
 def test_reposition_shove_and_swap_commands(tmp_path):
     """Skills batch 4: the unit menu's Reposition, Shove and Swap (in this order, before Rescue), on the lord at (2, 2)
-    and the ally at (3, 2), one game each."""
+    and the ally at (3, 2), one game each; the units slide there (ticket 27)."""
     project = _bench(tmp_path, "moves", [["ITEM_SWORD_IRON"], []])
     chapters = project.load("chapters")
     friend = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][1]
@@ -1940,7 +1940,10 @@ def test_reposition_shove_and_swap_commands(tmp_path):
             for _ in range(command):
                 game.press("DOWN", wait=10)
             game.press("A", wait=30)       # the command
-            game.press("A", wait=30)       # the ally
+            game.press("A", wait=2)        # the ally
+            game.screenshot().save(tmp_path / f"slide{command}.png")
+            # ticket 27: the ally slides there on the map, set on its tile only at the end
+            assert (game.read(ally, 0x10), game.read(ally, 0x11)) == (3, 2)
             game.run(120)
             game.screenshot().save(tmp_path / f"after{command}.png")
             print("menu:", tmp_path / "menu.png", "after:", tmp_path / f"after{command}.png")

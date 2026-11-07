@@ -697,7 +697,7 @@ def add_texts(data, skills: list[Skill]) -> dict[str, int]:
     skill's help."""
     menus = [s for s in skills if s.menu]
     numbers = data.add_texts(LABEL, *PAGE_TEXTS, *(s.text.replace("[NL]", "[LF]\n") for s in skills),
-                             *(s.menu for s in menus))
+                             *(f" {s.menu}[.]" for s in menus))   # as the game's: " Rescue[.]" (ticket 27)
     skill_numbers = numbers[1 + len(PAGE_TEXTS):1 + len(PAGE_TEXTS) + len(skills)]
     menu_numbers = numbers[1 + len(PAGE_TEXTS) + len(skills):]
     return {"label": numbers[0], "talk": numbers[1], "lead": numbers[2], "leadHelp": numbers[3],
@@ -1448,7 +1448,7 @@ def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: 
     """Batch 4, commands of the unit menu (before Rescue), each only when the project uses it (C-SkillSys's
     HerosMovement: Pivot.c, Reposition.c, Shove.c, Swap.c): Pivot (to the other side of an adjacent ally),
     Reposition (the ally to the other side of the unit), Shove (the ally one tile further), Swap (the unit and the
-    ally switch places). The units go there at once, without a sliding animation; then the unit waits."""
+    ally switch places). The units slide there on the map (ticket 27); then the unit waits."""
     used = [sid for sid in MOVES if sid in numbers]
     if not used:
         return {}
@@ -1462,6 +1462,9 @@ def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: 
         f"    {{\"　{BY_ID[sid].menu}\", {texts['menu:' + sid]}, {texts[sid]}, 0, {0x6A + i}, {sid}UsabilityFem, 0, "
         f"{sid}EffectFem, 0, 0, 0}}, // FE Maker: {sid}\n" for i, sid in enumerate(used))
     out[rel] = _replace(out[rel], "    {\"　救出\", 0x689,", entries + "    {\"　救出\", 0x689,", rel)
+    if "Reposition" in used:   # the longest name: one more tile for the menu (ticket 27)
+        out[rel] = _replace(out[rel], "CONST_DATA struct MenuDef gUnitActionMenuDef = {\n    {1, 3, 7, 0},",
+                            "CONST_DATA struct MenuDef gUnitActionMenuDef = {\n    {1, 3, 8, 0},", rel)
     cases = "".join(f"""\
         case SKILL_FEM_{sid}:
             mover = {mover};
@@ -1489,6 +1492,8 @@ s8 CanUnitCrossTerrain(struct Unit* unit, int terrain);
 void ForEachAdjacentUnit(int x, int y, void(*func)(struct Unit* unit));
 s8 AreUnitsAllied(int left, int right);
 void RefreshUnitSprites(void);
+int GetFacingDirection(int xPos, int yPos, int xLook, int yLook);
+void HideUnitSprite(struct Unit* unit);
 
 /* Where the command sends the unit that moves (FALSE: nowhere it can stand) */
 static int MoveSkillDestinationFem(struct Unit* unit, int ux, int uy, struct Unit** moverOut, int* xOut, int* yOut)
@@ -1544,11 +1549,94 @@ static u8 MoveSkillUsabilityFem(int skill)
     return GetSelectTargetCount() ? MENU_ENABLED : MENU_NOTSHOWN;
 }}
 
-/* The units go to their new tiles at once; the active unit through the action (it "moves" there, then waits) */
+/* The units slide to their new tiles on the map (ticket 27, as C-SkillSys's HerosMovement: their map sprite walks one
+   or two tiles), the player phase waiting; then the ally is set there, and the active unit "moves" there through the
+   action before it waits */
+struct MoveSkillAnimFem {{
+    PROC_HEADER;
+    struct Unit* unit[2];
+    struct MuProc* mu[2];
+    s8 x[2];
+    s8 y[2];
+    u8 tiles[2];
+    u8 walked[2];
+}};
+
+static void MoveSkillAnimInitFem(struct MoveSkillAnimFem* proc)
+{{
+    int i;
+
+    for (i = 0; i < 2 && proc->unit[i]; i++)
+    {{
+        struct Unit* unit = proc->unit[i];
+        struct MuProc* mu = GetUnitMu(unit);
+
+        if (!mu)
+        {{
+            HideUnitSprite(unit);
+            mu = StartMu(unit);
+        }}
+        proc->mu[i] = mu;
+        proc->walked[i] = 0;
+        proc->tiles[i] = ABS(proc->x[i] - unit->xPos) + ABS(proc->y[i] - unit->yPos);
+        if (mu)
+        {{
+            SetMuFacing(mu, GetFacingDirection(unit->xPos, unit->yPos, proc->x[i], proc->y[i]));
+            if (unit != gActiveUnit)
+                DisableMuCamera(mu);
+        }}
+    }}
+}}
+
+static void MoveSkillAnimLoopFem(struct MoveSkillAnimFem* proc)
+{{
+    int i, moving = FALSE;
+
+    for (i = 0; i < 2 && proc->unit[i]; i++)
+    {{
+        if (!proc->mu[i] || proc->walked[i] >= proc->tiles[i])
+            continue;
+        Mu_OnStateMovement(proc->mu[i]);
+        if (proc->mu[i]->move_clock_q4 == 0)
+            proc->walked[i]++;
+        moving = TRUE;
+    }}
+    if (!moving)
+        Proc_Break(proc);
+}}
+
+static void MoveSkillAnimEndFem(struct MoveSkillAnimFem* proc)
+{{
+    int i;
+
+    for (i = 0; i < 2 && proc->unit[i]; i++)
+    {{
+        if (proc->unit[i] == gActiveUnit)
+            continue;   /* set by the action (gActionData.xMove), its map sprite ended there */
+        if (proc->mu[i])
+            EndMu(proc->mu[i]);
+        proc->unit[i]->xPos = proc->x[i];
+        proc->unit[i]->yPos = proc->y[i];
+    }}
+    RefreshEntityBmMaps();
+    RefreshUnitSprites();
+}}
+
+static const struct ProcCmd sProcScr_MoveSkillAnimFem[] = {{
+    PROC_YIELD,
+    PROC_CALL(MoveSkillAnimInitFem),
+    PROC_YIELD,
+    PROC_REPEAT(MoveSkillAnimLoopFem),
+    PROC_CALL(MoveSkillAnimEndFem),
+    PROC_END,
+}};
+
 static u8 MoveSkillSelectFem(ProcPtr proc, struct SelectTarget* target)
 {{
     struct Unit* unit = GetUnit(target->uid);
     struct Unit* mover;
+    struct MoveSkillAnimFem* anim;
+    ProcPtr phase = Proc_Find(gProcScr_PlayerPhase);
     int ux = gActiveUnit->xPos;
     int uy = gActiveUnit->yPos;
     int x, y;
@@ -1559,22 +1647,24 @@ static u8 MoveSkillSelectFem(ProcPtr proc, struct SelectTarget* target)
     gSubjectUnit = gActiveUnit;
     if (MoveSkillDestinationFem(unit, ux, uy, &mover, &x, &y))
     {{
+        anim = phase ? Proc_StartBlocking(sProcScr_MoveSkillAnimFem, phase)
+                     : Proc_Start(sProcScr_MoveSkillAnimFem, PROC_TREE_3);
+        anim->unit[0] = mover;
+        anim->x[0] = x;
+        anim->y[0] = y;
+        anim->unit[1] = NULL;
         if (mover == gActiveUnit)
         {{
             gActionData.xMove = x;
             gActionData.yMove = y;
         }}
-        else
+        else if (x == ux && y == uy)   /* Swap: the active unit to the ally's tile too */
         {{
-            if (x == ux && y == uy)   /* Swap */
-            {{
-                gActionData.xMove = unit->xPos;
-                gActionData.yMove = unit->yPos;
-            }}
-            unit->xPos = x;
-            unit->yPos = y;
-            RefreshEntityBmMaps();
-            RefreshUnitSprites();
+            gActionData.xMove = unit->xPos;
+            gActionData.yMove = unit->yPos;
+            anim->unit[1] = gActiveUnit;
+            anim->x[1] = unit->xPos;
+            anim->y[1] = unit->yPos;
         }}
     }}
     return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A | MENU_ACT_CLEAR;
