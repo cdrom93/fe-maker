@@ -4,6 +4,7 @@
 name = "fe-maker-tickets"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
+preview_urls = false
 
 [vars]
 FEEDBACK_REPO = "cdrom93/fe-maker-feedback"
