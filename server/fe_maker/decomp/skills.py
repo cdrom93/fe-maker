@@ -57,23 +57,43 @@ class Skill:
     kind: str             # stat, battle, order, game
     icon: str             # C-SkillSys's icon file
     text: str             # in-game help text, its name first
-    stat: int = -1        # stat skills: 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res, 5 Lck, 6 Mag
-    value: int = 0
-    defiant: bool = False  # stat skills: only under 25 % of HP
-    code: str = ""        # battle skills: C run in ComputeBattleUnitStats (attacker, defender); proc skills: C run on a
-    # hit before its damage (attacker, defender, magic, *attack, *defense)
+    stats: tuple = ()     # (stat, value) pairs added by the stat getters: 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res, 5 Lck, 6 Mag
+    when: str = ""        # stats: "low" (under 25 % of HP), "full" (HP full)
+    code: str = ""        # battle skills: C run in ComputeBattleUnitStats once both units' stats are computed (attacker,
+    # defender); late skills: at the start of ComputeBattleUnitEffectiveStats (comparisons with the foe, as C-SkillSys's
+    # BattleCalcReal); proc skills: C run on a hit before its damage (attacker, defender, magic, *attack, *defense)
     after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
     game: str = ""        # game skills: the C condition on `unit`
     menu: str = ""        # menu skills: the command's name in the unit menu
+    group: str = ""       # FE Maker's category in the skill picker (skill.kind.<group>); the kind when empty
+    magic: bool = False   # only with the Strength / Magic split
+
+    @property
+    def category(self) -> str:
+        return self.group or self.kind
 
 
 def _stat(sid, icon, stat, value, defiant, text):
-    return Skill(sid, "stat", icon, text, stat, value, defiant)
+    return Skill(sid, "stat", icon, text, ((stat, value),), "low" if defiant else "", group="hp" if defiant else "")
+
+
+ALL_STATS = (0, 1, 2, 3, 4, 5, 6)
+
+
+def _push(sid, stat, text):
+    stats = tuple((k, 5) for k in (ALL_STATS if stat is None else (stat,)))
+    return Skill(sid, "stat", sid, text, stats, "full", group="hp", magic=stat == 6)
+
+
+def _b(sid, group, text, code, kind="battle", **more):
+    """A battle skill (C-SkillSys's PreBattleCalcAttackerSkills; `late`: its BattleCalcReal comparisons)."""
+    return Skill(sid, kind, sid, text, code=code, group=group, **more)
 
 
 _LOW = "(attacker->hpInitial * 4 < attacker->unit.maxHP)"
 _HALF = "(attacker->unit.maxHP > attacker->unit.curHP * 2)"
 _FIRST = "(attacker == &gBattleActor)"
+_TARGET = "(attacker == &gBattleTarget)"
 _MAGIC = "((%s)->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE))"
 
 CATALOGUE: tuple[Skill, ...] = (
@@ -92,19 +112,19 @@ CATALOGUE: tuple[Skill, ...] = (
     _stat("DefiantDef", "DefiantDef", 3, 7, True, "Defiant Def:[NL]DEF +7 if HP < 25%."),
     _stat("DefiantRes", "DefiantRes", 4, 7, True, "Defiant Res:[NL]RES +7 if HP < 25%."),
     Skill("DefiantCrit", "battle", "DefiantCrit", "Defiant Crit:[NL]Crit Rate +50%,[NL]if HP < 25%.",
-          code=f"if {_LOW} attacker->battleCritRate += 50;"),
+          code=f"if {_LOW} attacker->battleCritRate += 50;", group="hp"),
     Skill("DefiantAvoid", "battle", "DefiantAvoid", "Defiant Avoid:[NL]Avoid Rate +30%,[NL]if HP < 25%.",
-          code=f"if {_LOW} attacker->battleAvoidRate += 30;"),
+          code=f"if {_LOW} attacker->battleAvoidRate += 30;", group="hp"),
     Skill("BlowDarting", "battle", "BlowDarting", "Darting Blow:[NL]If unit initiates combat,[NL]grants +6 AS during combat.",
-          code=f"if {_FIRST} attacker->battleSpeed += 6;"),
+          code=f"if {_FIRST} attacker->battleSpeed += 6;", group="initiative"),
     Skill("BlowDeath", "battle", "BlowDeath", "Death Blow:[NL]If unit initiates combat,[NL]grants +6 STR during combat.",
-          code=f"if ({_FIRST} && !{_MAGIC % 'attacker'}) attacker->battleAttack += 6;"),
+          code=f"if ({_FIRST} && !{_MAGIC % 'attacker'}) attacker->battleAttack += 6;", group="initiative"),
     Skill("BlowArmored", "battle", "BlowArmored", "Armored Blow:[NL]If unit initiates combat,[NL]grants +6 DEF during combat.",
-          code=f"if ({_FIRST} && !{_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+          code=f"if ({_FIRST} && !{_MAGIC % 'defender'}) attacker->battleDefense += 6;", group="initiative"),
     Skill("BlowWarding", "battle", "BlowWarding", "Warding Blow:[NL]If unit initiates combat,[NL]grants +6 RES during combat.",
-          code=f"if ({_FIRST} && {_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+          code=f"if ({_FIRST} && {_MAGIC % 'defender'}) attacker->battleDefense += 6;", group="initiative"),
     Skill("Wrath", "battle", "Wrath", "Wrath:[NL]If current HP is < 50%[NL]of max, +20 Crit Rate.",
-          code=f"if {_HALF} attacker->battleCritRate += 20;"),
+          code=f"if {_HALF} attacker->battleCritRate += 20;", group="hp"),
     Skill("Vantage", "order", "Vantage", "Vantage:[NL]When unit is defender while[NL]their HP is < 50%, attack first."),
     Skill("Desperation", "order", "Desperation",
           "Desperation:[NL]When unit attacks with HP < 50%,[NL]its follow-up comes at once."),
@@ -152,6 +172,172 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Swap", "menu", "Swap", "Swap:[NL]Unit switches places with[NL]an adjacent ally.", menu="Swap"),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn.[NL](Skill % activation)"),
+    # batch 5, simple passives (C-SkillSys's getters, PreBattleCalcAttackerSkills and BattleCalcReal; values from
+    # SkillExtraInfo.c)
+    _push("PushStrength", 0, "Push Strength:[NL]+5 STR if HP is full."),
+    _push("PushMagic", 6, "Push Magic:[NL]+5 MAG if HP is full."),
+    _push("PushSkill", 1, "Push Skill:[NL]+5 SKL if HP is full."),
+    _push("PushSpeed", 2, "Push Speed:[NL]+5 SPD if HP is full."),
+    _push("PushLuck", 5, "Push Luck:[NL]+5 LUCK if HP is full."),
+    _push("PushDefense", 3, "Push Defense:[NL]+5 DEF if HP is full."),
+    _push("PushResistance", 4, "Push Resistance:[NL]+5 RES if HP is full."),
+    _push("PushSpectrum", None, "Push Spectrum:[NL]+5 to all stats[NL]if HP is full."),
+    Skill("FortressDef", "stat", "FortressDef", "Fortress Def:[NL]STR/MAG -3, DEF +5.", ((0, -3), (6, -3), (3, 5))),
+    Skill("FortressRes", "stat", "FortressRes", "Fortress Res:[NL]STR/MAG -3, RES +5.", ((0, -3), (6, -3), (4, 5))),
+    # when the unit attacks
+    _b("BlowFiendish", "initiative", "Fiendish Blow:[NL]If unit initiates combat,[NL]grants +6 MAG during combat.",
+       f"if ({_FIRST} && {_MAGIC % 'attacker'}) attacker->battleAttack += 6;"),
+    _b("BlowDuelist", "initiative", "Duelist's Blow:[NL]If unit initiates combat,[NL]grants +20 Avoid.",
+       f"if {_FIRST} attacker->battleAvoidRate += 20;"),
+    _b("BlowUncanny", "initiative", "Uncanny Blow:[NL]If unit initiates combat,[NL]grants +30 Hit.",
+       f"if {_FIRST} attacker->battleHitRate += 30;"),
+    _b("BlowKilling", "initiative", "Killing Blow:[NL]If unit initiates combat,[NL]grants +20 Crit.",
+       f"if {_FIRST} attacker->battleCritRate += 20;"),
+    _b("ArcaneBlade", "initiative", "Arcane Blade:[NL]Initiating at 1 range:[NL]Hit and Crit +3+(MAG/2).",
+       f"if ({_FIRST} && gBattleStats.range == 1) {{\n"
+       "            attacker->battleCritRate += GetUnitMagicFem(&attacker->unit) / 2 + 3;\n"
+       "            attacker->battleHitRate += GetUnitMagicFem(&attacker->unit) / 2 + 3;\n        }", magic=True),
+    _b("Prescience", "initiative", "Prescience:[NL]Initiating at 1 range:[NL]Hit and Avoid +15.",
+       f"if ({_FIRST} && gBattleStats.range == 1) {{\n"
+       "            attacker->battleHitRate += 15;\n            attacker->battleAvoidRate += 15;\n        }"),
+    _b("QuickDraw", "initiative", "Quick Draw:[NL]If unit initiates combat,[NL]attack +4.",
+       f"if {_FIRST} attacker->battleAttack += 4;"),
+    _b("Charge", "initiative", "Charge:[NL]+1 damage for every[NL]two tiles moved.",
+       f"if {_FIRST} attacker->battleAttack += gActionData.moveCount / 2;"),
+    _b("Outrider", "initiative", "Outrider:[NL]+1 DEF and +3% crit[NL]per tile moved.",
+       f"if {_FIRST} {{\n            attacker->battleDefense += gActionData.moveCount;\n"
+       "            attacker->battleCritRate += gActionData.moveCount * 3;\n        }"),
+    # when the unit is attacked
+    _b("StanceBracing", "attacked", "Bracing Stance:[NL]Grants +4 DEF and RES[NL]if attacked.",
+       f"if {_TARGET} attacker->battleDefense += 4;"),
+    _b("StanceDarting", "attacked", "Darting Stance:[NL]Grants +6 AS if attacked.", f"if {_TARGET} attacker->battleSpeed += 6;"),
+    _b("StanceFierce", "attacked", "Fierce Stance:[NL]Grants +6 ATK if attacked.", f"if {_TARGET} attacker->battleAttack += 6;"),
+    _b("StanceKestrel", "attacked", "Kestrel Stance:[NL]Grants +4 ATK and AS[NL]if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleAttack += 4;\n            attacker->battleSpeed += 4;\n        }}"),
+    _b("StanceMirror", "attacked", "Mirror Stance:[NL]Grants +4 ATK and RES[NL]if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleAttack += 4;\n"
+       f"            if {_MAGIC % 'defender'}\n                attacker->battleDefense += 4;\n        }}"),
+    _b("StanceReady", "attacked", "Ready Stance:[NL]Grants +4 AS and DEF[NL]if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleSpeed += 4;\n"
+       f"            if (!{_MAGIC % 'defender'})\n                attacker->battleDefense += 4;\n        }}"),
+    _b("StanceSteady", "attacked", "Steady Stance:[NL]Grants +6 DEF if attacked.",
+       f"if ({_TARGET} && !{_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+    _b("StanceSturdy", "attacked", "Sturdy Stance:[NL]Grants +4 ATK and DEF[NL]if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleAttack += 4;\n"
+       f"            if (!{_MAGIC % 'defender'})\n                attacker->battleDefense += 4;\n        }}"),
+    _b("StanceSwift", "attacked", "Swift Stance:[NL]Grants +4 AS and RES[NL]if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleSpeed += 4;\n"
+       f"            if {_MAGIC % 'defender'}\n                attacker->battleDefense += 4;\n        }}"),
+    _b("StanceWarding", "attacked", "Warding Stance:[NL]Grants +6 RES if attacked.",
+       f"if ({_TARGET} && {_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+    _b("StanceSpectrum", "attacked", "Spectrum Stance:[NL]Grants +2 ATK, AS, DEF[NL]and RES if attacked.",
+       f"if {_TARGET} {{\n            attacker->battleAttack += 2;\n            attacker->battleSpeed += 2;\n"
+       "            attacker->battleDefense += 2;\n        }"),
+    _b("Patience", "attacked", "Patience:[NL]When under attack,[NL]avoid +10.", f"if {_TARGET} attacker->battleAvoidRate += 10;"),
+    _b("Pursuit", "attacked", "Pursuit:[NL]When under attack,[NL]attack speed +2.", f"if {_TARGET} attacker->battleSpeed += 2;"),
+    _b("StrongRiposte", "attacked", "Strong Riposte:[NL]When under attack,[NL]damage +3.",
+       f"if {_TARGET} attacker->battleAttack += 3;"),
+    # by weapon type
+    *(_b(f"Crit{w}", "weapon", f"Crit {name}:[NL]Crit rate +10%, if[NL]{art} {name} is equipped.",
+         f"if (attacker->weaponType == ITYPE_{t}) attacker->battleCritRate += 10;")
+      for w, name, art, t in (("Sword", "Sword", "a", "SWORD"), ("Lance", "Lance", "a", "LANCE"), ("Axe", "Axe", "an", "AXE"),
+                              ("Bow", "Bow", "a", "BOW"))),
+    *(_b(f"Faire{w}", "weapon", f"{name} Faire:[NL]Atk +5 if unit[NL]equips {art} {name}.",
+         f"if ({cond}) attacker->battleAttack += 5;")
+      for w, name, art, cond in (
+          ("Sword", "Sword", "a", "attacker->weaponType == ITYPE_SWORD"),
+          ("Lance", "Lance", "a", "attacker->weaponType == ITYPE_LANCE"),
+          ("Axe", "Axe", "an", "attacker->weaponType == ITYPE_AXE"),
+          ("Bow", "Bow", "a", "attacker->weaponType == ITYPE_BOW"),
+          ("BMag", "Tome", "a", "attacker->weaponType == ITYPE_ANIMA || attacker->weaponType == ITYPE_LIGHT"
+                                " || attacker->weaponType == ITYPE_DARK"),
+          ("Anima", "Anima", "an", "attacker->weaponType == ITYPE_ANIMA"),
+          ("Light", "Light", "a", "attacker->weaponType == ITYPE_LIGHT"),
+          ("Dark", "Dark", "a", "attacker->weaponType == ITYPE_DARK"))),
+    _b("AvoidSword", "weapon", "Avoid Sword:[NL]Avoid +20% if[NL]a Sword is equipped.",
+       "if (attacker->weaponType == ITYPE_SWORD) attacker->battleAvoidRate += 20;"),
+    _b("HolyAura", "weapon", "Holy Aura:[NL]Dmg +1, Hit, Avoid and[NL]Crit +5% with Light.",
+       "if (attacker->weaponType == ITYPE_LIGHT) {\n            attacker->battleAttack += 1;\n"
+       "            attacker->battleCritRate += 5;\n            attacker->battleHitRate += 5;\n"
+       "            attacker->battleAvoidRate += 5;\n        }"),
+    _b("LadyBlade", "weapon", "Lady Blade:[NL]If this unit is female,[NL]double weapon might.",
+       "if (UNIT_CATTRIBUTES(&attacker->unit) & CA_FEMALE) attacker->battleAttack += GetItemMight(attacker->weapon);"),
+    # by HP
+    _b("Perfectionist", "hp", "Perfectionist:[NL]+15 Hit and Avoid when[NL]HP is at maximum.",
+       "if (attacker->hpInitial == attacker->unit.maxHP) {\n            attacker->battleHitRate += 15;\n"
+       "            attacker->battleAvoidRate += 15;\n        }"),
+    _b("WindDisciple", "hp", "Wind Disciple:[NL]+10 Hit and Avoid when[NL]HP is not at max.",
+       "if (attacker->hpInitial < attacker->unit.maxHP) {\n            attacker->battleHitRate += 10;\n"
+       "            attacker->battleAvoidRate += 10;\n        }"),
+    _b("FieryBlood", "hp", "Fiery Blood:[NL]+4 attack if HP[NL]is not at max.",
+       "if (attacker->hpInitial < attacker->unit.maxHP) attacker->battleAttack += 4;"),
+    _b("FireBoost", "hp", "Fire Boost:[NL]ATK +6 if HP is at least[NL]3 higher than the foe's.",
+       "if (attacker->hpInitial >= defender->hpInitial + 3) attacker->battleAttack += 6;"),
+    _b("WindBoost", "hp", "Wind Boost:[NL]SPD +6 if HP is at least[NL]3 higher than the foe's.",
+       "if (attacker->hpInitial >= defender->hpInitial + 3) attacker->battleSpeed += 6;"),
+    _b("EarthBoost", "hp", "Earth Boost:[NL]DEF +6 if HP is at least[NL]3 higher than the foe's.",
+       f"if (attacker->hpInitial >= defender->hpInitial + 3 && !{_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+    _b("WaterBoost", "hp", "Water Boost:[NL]RES +6 if HP is at least[NL]3 higher than the foe's.",
+       f"if (attacker->hpInitial >= defender->hpInitial + 3 && {_MAGIC % 'defender'}) attacker->battleDefense += 6;"),
+    # by the foe
+    _b("Chivalry", "foe", "Chivalry:[NL]When foe is at full HP,[NL]attack and DEF/RES +2.",
+       "if (defender->hpInitial == defender->unit.maxHP) {\n            attacker->battleAttack += 2;\n"
+       "            attacker->battleDefense += 2;\n        }"),
+    _b("Pragmatic", "foe", "Pragmatic:[NL]When foe is not at full HP,[NL]attack +3 and DEF/RES +1.",
+       "if (defender->hpInitial < defender->unit.maxHP) {\n            attacker->battleAttack += 3;\n"
+       "            attacker->battleDefense += 1;\n        }"),
+    _b("StoneBody", "foe", "Stone Body:[NL]If CON is greater than[NL]the foe's, damage + the gap.",
+       "if (UNIT_CON(&attacker->unit) > UNIT_CON(&defender->unit))\n"
+       "            attacker->battleAttack += UNIT_CON(&attacker->unit) - UNIT_CON(&defender->unit);"),
+    _b("Trample", "foe", "Trample:[NL]+5 damage to[NL]unmounted units.",
+       "if (!(UNIT_CATTRIBUTES(&defender->unit) & CA_MOUNTEDAID)) attacker->battleAttack += 5;"),
+    _b("Opportunist", "foe", "Opportunist:[NL]+4 damage if the foe[NL]cannot counter.",
+       "if (!defender->canCounter) attacker->battleAttack += 4;"),
+    _b("Analytic", "foe", "Analytic:[NL]+10 ATK if SPD is 4 below[NL]the foe's; +5 if 1 to 3.",
+       "if (defender->battleSpeed - attacker->battleSpeed >= 4)\n            attacker->battleAttack += 10;\n"
+       "        else if (defender->battleSpeed > attacker->battleSpeed)\n            attacker->battleAttack += 5;"),
+    _b("MageSlayer", "foe", "Mage Slayer:[NL]+2 damage and +10% crit[NL]against magic users.",
+       "if (defender->unit.ranks[ITYPE_ANIMA] || defender->unit.ranks[ITYPE_LIGHT] || defender->unit.ranks[ITYPE_DARK]"
+       " || defender->unit.ranks[ITYPE_STAFF]) {\n            attacker->battleAttack += 2;\n"
+       "            attacker->battleCritRate += 10;\n        }"),
+    _b("HeavyBlade", "foe", "Heavy Blade:[NL]If attack is higher than[NL]the foe's, crit +15%.",
+       "if (attacker->battleAttack > defender->battleAttack) attacker->battleCritRate += 15;", kind="late"),
+    Skill("HeavyBladePlus", "late", "HeavyBladePlus",
+          "Heavy Blade+:[NL]STR +5. If attack is higher[NL]than the foe's, crit +25%.", ((0, 5),),
+          code="if (attacker->battleAttack > defender->battleAttack) attacker->battleCritRate += 25;",
+          group="foe"),
+    _b("FlashingBlade", "foe", "Flashing Blade:[NL]If AS is higher than[NL]the foe's, crit +15%.",
+       "if (attacker->battleSpeed > defender->battleSpeed) attacker->battleCritRate += 15;", kind="late"),
+    # by the situation: range, terrain, turn, status
+    _b("NaturalCover", "situation", "Natural Cover:[NL]-3 damage taken on[NL]terrain with effects.",
+       "if (attacker->terrainDefense > 0 || attacker->terrainAvoid > 0 || attacker->terrainResistance > 0)\n"
+       "            attacker->battleDefense += 3;"),
+    _b("TowerShield", "situation", "Tower Shield:[NL]Gain 6 Defense against[NL]attacks at range.",
+       "if (gBattleStats.range >= 2) attacker->battleDefense += 6;"),
+    _b("ShortShield", "situation", "Short Shield:[NL]Gain 6 Defense against[NL]attacks in melee.",
+       "if (gBattleStats.range == 1) attacker->battleDefense += 6;"),
+    _b("Vanity", "situation", "Vanity:[NL]+2 damage and +10 Hit[NL]when fighting at 2 range.",
+       "if (gBattleStats.range == 2) {\n            attacker->battleAttack += 2;\n"
+       "            attacker->battleHitRate += 10;\n        }"),
+    _b("EvenRhythm", "situation", "Even Rhythm:[NL]+10 Hit and Avoid on[NL]even numbered turns.",
+       "if (gPlaySt.chapterTurnNumber % 2 == 0) {\n            attacker->battleHitRate += 10;\n"
+       "            attacker->battleAvoidRate += 10;\n        }"),
+    _b("OddRhythm", "situation", "Odd Rhythm:[NL]+10 Hit and Avoid on[NL]odd numbered turns.",
+       "if (gPlaySt.chapterTurnNumber % 2 == 1) {\n            attacker->battleHitRate += 10;\n"
+       "            attacker->battleAvoidRate += 10;\n        }"),
+    _b("QuickBurn", "situation", "Quick Burn:[NL]+15 Hit and Avoid. This[NL]bonus decreases each turn.",
+       "if (gPlaySt.chapterTurnNumber < 15) {\n            attacker->battleHitRate += 15 - gPlaySt.chapterTurnNumber;\n"
+       "            attacker->battleAvoidRate += 15 - gPlaySt.chapterTurnNumber;\n        }"),
+    _b("SlowBurn", "situation", "Slow Burn:[NL]+1 Hit and Avoid for each[NL]passing turn, up to 15.",
+       "{\n            int turn = gPlaySt.chapterTurnNumber > 15 ? 15 : gPlaySt.chapterTurnNumber;\n\n"
+       "            attacker->battleHitRate += turn;\n            attacker->battleAvoidRate += turn;\n        }"),
+    _b("Guts", "situation", "Guts:[NL]+5 Attack if afflicted[NL]by any status condition.",
+       "if (attacker->unit.statusIndex != UNIT_STATUS_NONE) attacker->battleAttack += 5;"),
+    _b("StrongCon", "situation", "Strong Con:[NL]+5 Def/Res if afflicted[NL]by any status condition.",
+       "if (attacker->unit.statusIndex != UNIT_STATUS_NONE) attacker->battleDefense += 5;"),
+    # always
+    _b("Avoid", "battle", "Avoid +10:[NL]Avoid rate +10%.", "attacker->battleAvoidRate += 10;"),
+    _b("Vigilance", "battle", "Vigilance:[NL]Gain +20 Avoid.", "attacker->battleAvoidRate += 20;"),
 )
 
 # The game's class abilities, shown as skills: their engine stays the game's (texts written for FE8's own rules).
@@ -186,13 +372,13 @@ BY_ID = {s.id: s for s in CATALOGUE + GAME_SKILLS}
 LABEL = "Skills"
 # page 1 (ticket 171): the labels of Talk and Lead, the help of Lead (Talk's is the game's, MSG_56A), Lead's "--"
 PAGE_TEXTS = ("Talk", "Lead", "Leadership. No effect[LF]\nfor now.", "[DashedLine][DashedLine]")
-MAGIC_SKILLS = frozenset(s.id for s in CATALOGUE if s.stat == 6)
+MAGIC_SKILLS = frozenset(s.id for s in CATALOGUE if s.magic or (s.stats and all(k == 6 for k, _ in s.stats)))
 
 
 def catalogue() -> list[dict]:
     """What FE Maker offers on the sheets (names and descriptions are UI strings: skill.<id>, skill.<id>Hint); Magic
     skills only with the Strength / Magic split."""
-    return ([{"id": s.id, "kind": s.kind, "magic": s.id in MAGIC_SKILLS} for s in CATALOGUE]
+    return ([{"id": s.id, "kind": s.category, "magic": s.id in MAGIC_SKILLS} for s in CATALOGUE]
             + [{"id": sid, "kind": "game", "magic": False} for sid in ASSIGNABLE])
 
 
@@ -337,6 +523,11 @@ def _learn_table(decomp_dir: Path, records: list[dict], numbers: dict[str, int],
     return "\n".join(row for _, row in sorted(rows.items()))
 
 
+def _raised(skills: list[Skill], magic_split: bool) -> list[int]:
+    """The stats a skill raises or lowers, Magic only with the split (its getter exists only then)."""
+    return sorted({k for s in skills for k, _ in s.stats if k != 6 or magic_split})
+
+
 def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[dict], texts: dict[str, int],
           magic_split: bool, extra=()) -> dict:
     """The skills into the overlay `files` (after strmag.apply). `texts`: add_texts's numbers; `extra`: event_skills."""
@@ -365,7 +556,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
         "void LearnLevelSkillsFem(struct Unit* unit);\nvoid LearnedPopupsClearFem(void);\n"
         "void LearnedPopupsFem(void* proc);\n"
-        + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in sorted({s.stat for s in skills if s.kind == "stat"}))
+        + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in _raised(skills, magic_split))
         +
         "\n#endif // GUARD_BM_UNIT_H"), rel)
 
@@ -376,10 +567,11 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     class_rows = _table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_")
     bonuses = {k: [] for k in GETTERS}
     for s in skills:
-        if s.kind == "stat":
-            cond = "defiant && " if s.defiant else ""
-            bonuses[s.stat].append(f"        if ({cond}SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
-                                   f"            bonus += {s.value};\n")
+        for k, value in s.stats:
+            if k in _raised(skills, magic_split):
+                cond = {"low": "defiant && ", "full": "full && "}.get(s.when, "")
+                bonuses[k].append(f"        if ({cond}SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
+                                  f"            bonus += {value};\n")
     cases = "".join(f"    case {k}:\n{''.join(lines)}        break;\n" for k, lines in bonuses.items() if lines)
     unit += ("\n/* FE Maker: skills of characters and classes, by their numbers (docs/competences.md) */\n"
              f"const u8 gCharacterSkillsFem[0x100][{MAX_PER_SHEET}] = {{\n{char_rows}\n}};\n\n"
@@ -396,8 +588,9 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
              "/* C-SkillSys's status getters (UnitStatusGetter): a stat's skill bonus; 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res,"
              " 5 Lck, 6 Mag */\n"
              "int SkillStatBonusFem(struct Unit* unit, int stat)\n{\n    int bonus = 0;\n"
-             "    int defiant = unit->curHP * 4 < GetUnitMaxHp(unit);\n\n"
-             f"    switch (stat) {{\n{cases}    }}\n    (void) defiant;\n    return bonus;\n}}\n")
+             "    int defiant = unit->curHP * 4 < GetUnitMaxHp(unit);\n"
+             "    int full = unit->curHP == GetUnitMaxHp(unit);\n\n"
+             f"    switch (stat) {{\n{cases}    }}\n    (void) defiant;\n    (void) full;\n    return bonus;\n}}\n")
     if abilities:   # batch 4: on the lists only (SkillTesterFem), never through UNIT_CATTRIBUTES itself
         unit += ("\n/* Batch 4: the class attributes of the game abilities the unit has as skills */\n"
                  "int SkillAttributesFem(struct Unit* unit)\n{\n    int attributes = 0;\n\n"
@@ -417,15 +610,47 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     # bmbattle.c: battle skills after the game's own computations, and the order of the rounds
     rel = "src/bmbattle.c"
     battle = _read(files, decomp_dir, rel)
-    lines = "".join(f"    if (SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
-                    for s in skills if s.kind == "battle")
-    end = "    ComputeBattleUnitStatusBonuses(attacker);\n}\n"
-    battle = _replace(battle, "void ComputeBattleUnitStats(struct BattleUnit* attacker, struct BattleUnit* defender) {", (
+    def skill_lines(kind):
+        return "".join(f"    if (SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
+                       for s in skills if s.kind == kind)
+    # As C-SkillSys's PreBattleCalcInit: the actor's call computes both units' base stats, so that a skill can look
+    # at the foe's; the target's call then only applies its skills (a target without class, as on the stat screen's
+    # BattleGenerateUiStats, keeps the game's own order). Skills skip the arena and the stat screen, as C-SkillSys.
+    start = "void ComputeBattleUnitStats(struct BattleUnit* attacker, struct BattleUnit* defender) {\n"
+    battle = _replace(battle, start, (
         "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
         "static void ApplyBattleSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender)\n{\n"
-        f"{lines}    (void) defender;\n}}\n\n"
-        "void ComputeBattleUnitStats(struct BattleUnit* attacker, struct BattleUnit* defender) {"), rel)
-    battle = _replace(battle, end, end.replace("}\n", "    ApplyBattleSkillsFem(attacker, defender);\n}\n"), rel)
+        "    if (gBattleStats.config & (BATTLE_CONFIG_ARENA | BATTLE_CONFIG_BIT2))\n        return;\n"
+        f"{skill_lines('battle')}    (void) defender;\n}}\n\n"
+        "/* C-SkillSys's BattleCalcReal: skills comparing the unit with its foe, once both units' skills are applied */\n"
+        "static void ApplyLateBattleSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender)\n{\n"
+        "    if (gBattleStats.config & (BATTLE_CONFIG_ARENA | BATTLE_CONFIG_BIT2))\n        return;\n"
+        f"{skill_lines('late')}    (void) defender;\n}}\n\n"
+        "static void ComputeBattleUnitBaseStatsFem(struct BattleUnit* attacker, struct BattleUnit* defender) {\n"), rel)
+    end = "    ComputeBattleUnitStatusBonuses(attacker);\n}\n"
+    battle = _replace(battle, end, end + (
+        "\n" + start +
+        "    if (attacker == &gBattleActor) {\n"
+        "        ComputeBattleUnitBaseStatsFem(attacker, defender);\n"
+        "        if (defender == &gBattleTarget && gBattleTarget.unit.pClassData)\n"
+        "            ComputeBattleUnitBaseStatsFem(defender, attacker);\n"
+        "    } else if (attacker != &gBattleTarget || !attacker->unit.pClassData)\n"
+        "        ComputeBattleUnitBaseStatsFem(attacker, defender);\n"
+        "    ApplyBattleSkillsFem(attacker, defender);\n"
+        "    ClampBattleStatsFem(attacker);\n}\n"), rel)
+    battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", (
+        "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
+        "static void ClampBattleStatsFem(struct BattleUnit* bu)\n{\n"   # PreBattleCalcEnd
+        + "".join(f"    if (bu->{f} < 0)\n        bu->{f} = 0;\n" for f in (
+            "battleAttack", "battleDefense", "battleSpeed", "battleHitRate", "battleAvoidRate", "battleCritRate"))
+        + "}\n\n"), rel)
+    effective = "void ComputeBattleUnitEffectiveStats(struct BattleUnit* attacker, struct BattleUnit* defender) {\n"
+    if any(s.kind == "late" for s in skills):
+        battle = _replace(battle, effective, effective + (
+            "    if (attacker == &gBattleActor) {\n"
+            "        ApplyLateBattleSkillsFem(&gBattleActor, &gBattleTarget);\n"
+            "        ApplyLateBattleSkillsFem(&gBattleTarget, &gBattleActor);\n"
+            "        ClampBattleStatsFem(&gBattleActor);\n        ClampBattleStatsFem(&gBattleTarget);\n    }\n"), rel)
     # the triggered skills to show in battle (banim-main.c), cleared for each battle
     marker = "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
     battle = _replace(battle, marker, (

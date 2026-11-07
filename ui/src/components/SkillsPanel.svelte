@@ -1,5 +1,6 @@
 <script lang="ts">
   import Help from './Help.svelte'
+  import SkillPicker from './SkillPicker.svelte'
   import { t } from '../lib/i18n.svelte'
   import { gameSkills, loadSkills, offeredSkills, skillCatalogue, skillIcon } from '../lib/skills.svelte'
 
@@ -32,7 +33,6 @@
 
   $effect(() => { loadSkills() })
 
-  const KINDS = ['stat', 'battle', 'order', 'proc', 'hits', 'map', 'menu', 'game']
   const game = $derived(gameSkills(abilities, classId, characterId))
   const offered = $derived(offeredSkills().filter((s) => !skills.includes(s.id) && !fromClass.includes(s.id) && !game.includes(s.id)))
   const full = $derived(skills.length >= skillCatalogue.maxPerSheet)
@@ -67,15 +67,8 @@
   {#each skills as id (id)}{@render row(id, '', true)}{/each}
   {#each fromClass as id (id)}{@render row(id, t('skill.fromClass'), false)}{/each}
   {#each game as id (id)}{@render row(id, t('skill.fromGame'), false)}{/each}
-  <select value="" disabled={full} title={full ? t('skill.full', { n: skillCatalogue.maxPerSheet }) : ''}
-    onchange={(e) => { add((e.target as HTMLSelectElement).value); (e.target as HTMLSelectElement).value = '' }}>
-    <option value="">{t('skill.add')}</option>
-    {#each KINDS as kind (kind)}
-      <optgroup label={t(`skill.kind.${kind}`)}>
-        {#each offered.filter((s) => s.kind === kind) as s (s.id)}<option value={s.id}>{t(`skill.${s.id}`)}</option>{/each}
-      </optgroup>
-    {/each}
-  </select>
+  <SkillPicker skills={offered} placeholder={t('skill.add')} disabled={full}
+    title={full ? t('skill.full', { n: skillCatalogue.maxPerSheet }) : ''} onpick={add} />
   {#if onlearnedchange}
     <h4>{t('skill.learnedTitle')} <Help text={t(isClass ? 'skill.learnedClassHint' : 'skill.learnedHint', { n: LEARN_MAX })} /></h4>
     {#each learned as entry, i (entry.skill)}
@@ -89,15 +82,10 @@
       </div>
     {/each}
     <div class="learn">
-      <select value="" disabled={learned.length >= LEARN_MAX} title={learned.length >= LEARN_MAX ? t('skill.full', { n: LEARN_MAX }) : ''}
-        onchange={(e) => { learn((e.target as HTMLSelectElement).value); (e.target as HTMLSelectElement).value = '' }}>
-        <option value="">{t('skill.learnAdd')}</option>
-        {#each KINDS as kind (kind)}
-          <optgroup label={t(`skill.kind.${kind}`)}>
-            {#each learnOffered.filter((s) => s.kind === kind) as s (s.id)}<option value={s.id}>{t(`skill.${s.id}`)}</option>{/each}
-          </optgroup>
-        {/each}
-      </select>
+      <div class="grow">
+        <SkillPicker skills={learnOffered} placeholder={t('skill.learnAdd')} disabled={learned.length >= LEARN_MAX}
+          title={learned.length >= LEARN_MAX ? t('skill.full', { n: LEARN_MAX }) : ''} onpick={learn} />
+      </div>
       <label class="level">{t('skill.atLevel')} <input type="number" min="1" max="40" bind:value={learnLevel} /></label>
     </div>
   {/if}
@@ -107,10 +95,9 @@
   .skill { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; min-height: 2.2rem; }
   .skill .name { flex: 1; }
   .tag { font-size: 0.85em; }
-  select { margin-top: 0.4rem; }
   h4 { margin: 0.8rem 0 0.2rem; }
   .level { display: flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
   .level input { width: 3.5rem; }
-  .learn { display: flex; align-items: center; gap: 0.5rem; }
-  .learn select { flex: 1; }
+  .learn { display: flex; align-items: flex-end; gap: 0.5rem; }
+  .learn .grow { flex: 1; min-width: 0; }
 </style>

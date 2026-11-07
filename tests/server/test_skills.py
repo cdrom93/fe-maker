@@ -10,7 +10,7 @@ PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   #
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     magic = {s["id"] for s in skills.catalogue() if s["magic"]}
-    assert magic == {"MagBonus", "DefiantMag"}
+    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade"}
     assert all(s.icon and s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
     game = {g["id"]: g for g in skills.game_catalogue()}
     assert game["Dance"]["abilities"] == ["dance", "play"] and game["Pierce"]["classes"][0] == "CLASS_WYVERN_KNIGHT"
@@ -68,6 +68,31 @@ def test_skills_match_the_decomp(monkeypatch):
     assert "static const u32 sMidLeadFem = 51;" in status and "DisplayLeadTalkFem();" in status
     assert "sHelpInfo_SkillFem5 =" in status and "    166, 72, 52,\n" in status   # Lead's help
     assert "TILEMAP_INDEX(12, 9)" not in status   # the affinity icon left the right column
+
+
+def test_batch_5_passives_see_the_foe_and_several_stats(monkeypatch):
+    """Batch 5: both units' base stats come before either's skills (C-SkillSys's PreBattleCalcInit), comparisons run
+    once both are applied, and a stat skill raises or lowers several stats under a condition (Magic only with the
+    split)."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["FortressDef", "PushSpeed", "HeavyBlade"]},
+                  {"id": "CHARACTER_SETH", "skills": ["StanceFierce", "Chivalry"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    unit = files["src/bmunit.c"]
+    assert "if (full && SkillTesterFem(unit, SKILL_FEM_PushSpeed))\n            bonus += 5;" in unit
+    assert "bonus += -3;" in unit and "GetUnitMagicFem" not in unit   # Fortress: Str -3, Def +5, no Magic
+    battle = files["src/bmbattle.c"]
+    calc = battle[battle.index("void ComputeBattleUnitStats("):]
+    assert calc.index("ComputeBattleUnitBaseStatsFem(defender, attacker);") < calc.index("ApplyBattleSkillsFem(")
+    assert "if (attacker == &gBattleTarget) attacker->battleAttack += 6;" in battle
+    assert "ApplyLateBattleSkillsFem(&gBattleTarget, &gBattleActor);" in battle
+    assert "if (attacker->battleAttack > defender->battleAttack) attacker->battleCritRate += 15;" in battle
+    assert "if (bu->battleHitRate < 0)" in battle
+    assert battle.count("void ComputeBattleUnitStats(") == 1
 
 
 def test_triggered_skills_go_into_each_hit(monkeypatch):

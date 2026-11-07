@@ -225,3 +225,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : ticket 20 : une compilation sans Docker verrouille sa propre copie de travail (un autre FE_MAKER_HOME n'attend plus) ; la fenêtre de compilation dit qu'elle attend une autre compilation au lieu d'afficher 1 %.
 - 07/11/2026 : ticket 21 : L maintenu n'accélère plus les écrans de montée de niveau, de promotion et les messages du combat (affichage cassé) ; playtest avec captures.
 - 07/11/2026 : tickets idée 9, 10, 12, 13, 14, 16, 17, 18 fermés et repris au cahier (Après l'alpha).
+- 07/11/2026 : compétences, lot 5 (78 passives simples du C-SkillSys, stats des deux unités avant les compétences, liste de choix avec recherche et catégories ; playtest d'un combat).

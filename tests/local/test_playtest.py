@@ -1622,6 +1622,53 @@ def test_skills_in_battle_and_on_the_status_screen(tmp_path):
         assert game.read(actor, 0x5E, width=16, signed=True) == spd + 6
 
 
+def test_batch_5_passives_in_battle(tmp_path):
+    """Skills batch 5: the lord's Push Speed (+5 at full HP), Fortress Def (Str -3, Def +5), Heavy Blade (crit +15 when
+    its attack beats the foe's, after both units' skills) and its class's Avoid +10; the attacked soldier's Fierce
+    Stance (+6 attack) and Chivalry (+2 attack and defense against a foe at full HP)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch5", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=20, crit=0)
+    next(i for i in items if i["id"] == "ITEM_LANCE_IRON").update(might=0, hit=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    for units in chapters["unitGroups"].values():   # the soldier gets a weapon (unarmed, the game shows its attack as 255)
+        for unit in units:
+            if unit.get("character") == "CHARACTER_SOLDIER_83":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord_unit = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    lord = next(c for c in characters if c["id"] == lord_unit["character"])
+    lord["skills"] = ["PushSpeed", "FortressDef", "HeavyBlade"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 60
+    soldier["skills"] = ["StanceFierce", "Chivalry"]
+    project.save("characters", characters)
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == lord_unit["class"])["skills"] = ["Avoid"]
+    project.save("classes", classes)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        pow_, skl, spd, def_, lck = (game.read(attacker, k) for k in (0x14, 0x15, 0x16, 0x17, 0x19))
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor, target = game.address("gBattleActor"), game.address("gBattleTarget")
+
+        def stat(unit, offset):
+            return game.read(unit, offset, width=16, signed=True)
+        assert (game.read(actor, 0x14), game.read(actor, 0x16), game.read(actor, 0x17)) == (pow_ - 3, spd + 5, def_ + 5)
+        assert stat(actor, 0x62) == (spd + 5) * 2 + game.read(actor, 0x57, signed=True) + lck + 10   # Avoid +10
+        tri = game.read(target, 0x54, signed=True)                      # the lance's triangle bonus
+        assert stat(target, 0x5A) == game.read(target, 0x14) + tri + 8   # a lance of might 0: Str, +6 and +2
+        assert stat(target, 0x5C) == game.read(target, 0x17) + game.read(target, 0x56, signed=True) + 2
+        assert stat(actor, 0x5A) > stat(target, 0x5A)
+        assert stat(actor, 0x66) == skl // 2 + 15                       # Heavy Blade
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""
