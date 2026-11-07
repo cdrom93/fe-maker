@@ -1704,6 +1704,29 @@ def test_game_ability_given_as_a_skill(tmp_path):
         assert crit == skl // 2 + 15          # Iron Sword: 0 crit
 
 
+def test_canto_plus_moves_after_a_battle(tmp_path):
+    """Skills batch 4: with Canto+, the lord (on foot, no Canto) can move again after a battle: the game's Canto."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "cantoplus", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["CantoPlus"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 40, 0x17)            # Defense 40: it survives
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: game.read(attacker, 0xC, width=32) & 0x40, seconds=60, step=10)
+        game.run(60)
+        state = game.read(attacker, 0xC, width=32)
+        game.screenshot().save(tmp_path / "canto.png")
+        print("state", hex(state), "screenshot:", tmp_path / "canto.png")
+        assert state & 0x40 and not state & 0x2   # cantoing, not grayed
+
+
 def test_renewal_and_galeforce_on_the_map(tmp_path):
     """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (Skill 100: sure) lets it
     act again after its battle won."""
