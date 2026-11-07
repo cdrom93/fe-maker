@@ -203,6 +203,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
   - **Menu de base** entre les chapitres (#10), avec un hub façon Fates simple (#11, fusionné) : un menu plus agréable, sans être lourd.
   - **Mode 2 joueurs** (#14) : coopération, compétition ou duel ; par exemple les deux joueurs sur la même carte de survie, un ennemi vaincu chez l'un apparaissant chez l'autre.
 - Idée de l'utilisateur (07/11/2026, ticket 172), peut-être plus tard : un créateur d'animations de combat dans FE Maker (dessiner ou assembler les images, palette de 16 couleurs, script des modes). Référence : le guide de création d'animations https://fe-battle-animations.neocities.org/ (images 248 × 160, palette, modes et commandes du script, erreurs fréquentes) ; ses idées pour l'import sont en phase 5.
+- Idée de l'utilisateur (07/11/2026, #29) : **modifications en direct** pendant un test, pour l'accélérer (comme le permet FEBuilder) : FE Maker écrit dans la mémoire de mGBA pendant la partie (stats, objets, PV, position et compétences des unités, argent), sans recompiler ; tout ce qui touche le code, les cartes, les textes ou les évènements demande toujours une compilation. À concevoir avec lui.
 - Idée de l'utilisateur (03/11/2026, #150) : des ennemis génériques tout prêts (classe, niveau, inventaire classique : soldat à la lance de fer, archer, mage…) à glisser-déposer sur la carte d'un chapitre.
 
 ### Phase 6 — Édition avancée et moteur
