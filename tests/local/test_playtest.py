@@ -1763,6 +1763,33 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
         assert game.read("gAnimRoundData", 2, width=16) & 0x800   # ANIM_ROUND_SURE_SHOT on Seth's side (right)
 
 
+def test_damage_and_heal_numbers_in_battle_animation(tmp_path):
+    """Ticket 169 (option battleNumbers, C-SkillSys's AnimNumber): Seth with Sol attacks in the prologue; a red "-n"
+    rises over the unit hit, a green "+n" over Seth when Sol heals him."""
+    project = Project.create(tmp_path / "numbers", "Numbers")
+    project.set_game_options({**project.game_options, "skills": True, "battleNumbers": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        base = game.address("gUnitArrayBlue")
+        seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
+                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
+        game.write(seth, 100, 0x15)          # Skill 100: Sol always triggers
+        game.write(seth, 10, 0x13)           # 10 HP: Sol has something to heal
+        _seth_attacks(game)
+        def drawn():   # the number's tiles (the game's MISS / NO DAMAGE text's), first row of slot 0
+            return any(game.read(0x06012000 + 4 * k, width=32) for k in range(0x40))
+
+        assert game.wait_until(drawn, seconds=30, step=2)
+        for k in range(15):
+            game.screenshot().convert("RGB").save(tmp_path / f"numbers{k}.png")
+            game.run(8)
+        print("screenshots:", tmp_path)
+
+
 def test_triggered_skill_icon_in_map_battle(tmp_path):
     """Skills lot 2: without battle animations, a triggered skill's icon shows beside the map battle box (Huichelaar's
     SPD_Map, Skill System): Seth, with Sol and 100 Skill, attacks in the prologue with animations off."""

@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 16
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 17
 
 
 def test_a_unit_acts_after_a_talk():
@@ -103,3 +103,21 @@ def test_growths_on_the_status_screen_colour_the_stat_names():
     assert "ApplyPalettes(sGrowthColorsFem[0], STATSCREEN_BGPAL_GROWTHS_FEM, 2);" in text
     assert text.index("ColorStatLabelsFem();") < text.index("// displaying mov stat value")
     assert "PutGrowthLabelFem(STATSCREEN_TEXT_BWL, y, MSG_4E9, 9);" in text
+
+
+def test_battle_numbers_hook_the_hp_bars(monkeypatch):
+    """Ticket 169: C-SkillSys's AnimNumber on the HP bar's flash (damage), efxHPBarLive (heal) and efxHPBarResire
+    (drain); its image downloaded, never in the repository."""
+    from fe_maker.decomp import battlenumbers
+
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / battlenumbers.HPBAR_FILE).is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(battlenumbers, "image_png", lambda: b"\x89PNG")
+    files = gameoptions.apply(root, {"battleNumbers": True}, {})
+    bar = files[battlenumbers.HPBAR_FILE]
+    assert "    PROC_REPEAT(EfxHpBarResire_SetAnotherSide),\n    PROC_REPEAT(EfxHpBarResireNumberFem),\n" in bar
+    assert "    PROC_CALL(EfxHpBarLiveNumberFem),\n" in bar and "AnimSprite_AnimNumberFem15[]" in bar
+    assert "NewEfxAnimNumberFem(anim, -gBattleHitArray[anim->nextRoundId - 1].hpChange);" in files[battlenumbers.FLASH_FILE]
+    assert '.incbin "graphics/banim/anim_number_fem.4bpp"' in files[battlenumbers.DATA_FILE]
+    assert files[battlenumbers.IMAGE] == b"\x89PNG"

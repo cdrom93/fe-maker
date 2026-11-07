@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from . import battlenumbers
 from .tweaks import GAME_CONTROL_FILE, TweakError, skip_intro
 
 CONFIG_FILE = "src/bmio.c"
@@ -49,6 +50,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange"),
+                 "battle": ("battleNumbers",),
                  "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule",)}
@@ -574,6 +576,8 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BARS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BARS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BARS, MAP_SPRITES_FILE)
+    if options.get("battleNumbers"):
+        files = battlenumbers.apply(decomp_dir, files)
     if options.get("talkBubbles"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)

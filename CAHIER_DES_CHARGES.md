@@ -201,7 +201,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
   - **Lot 1 fait** : 23 compétences passives (bonus de stats, Sursaut, coups, Colère, Initiative, Désespoir) choisies sur les fiches personnage et classe (3 au plus), capacités de classe du jeu montrées comme compétences (plus Approvisionnement et Tueur, compétences par défaut de FEBuilder), « Skills » et icônes sur la fiche de l'unité avec l'aide R.
   - **Lot 2 fait** : Luna, Corona, Sol, Éther, Ignis, Colosse, Pavois, Égide (taux = technique), Adepte, Astra (6 coups au plus par combat) ; nom et icône de la compétence déclenchée en animation de combat, icône près de la boîte de combat sans animation.
   - Vérifié par playtest ; pas encore vu en jeu par l'utilisateur.
-  - **Reste** : nombres de dégâts et de soins (#169) ; 6 compétences sur la page 1 de la fiche (#171) faites le 07/11, vérifiées par playtest, à valider en jeu ; lots 3 et 4 ; textes du jeu en anglais seulement.
+  - **Reste** : nombres de dégâts et de soins (#169) faits le 07/11 (option « Dégâts et soins affichés », catégorie En combat ; « -n » vérifié par playtest, « +n » du soin d'un bâton pas vu en jeu ; le drain de Sol avec une arme physique ne s'anime pas, donc pas de « +n ») ; 6 compétences sur la page 1 de la fiche (#171) faites le 07/11, vérifiées par playtest, à valider en jeu ; lots 3 et 4 ; textes du jeu en anglais seulement.
 - Mécaniques des hacks aimés par l'utilisateur (ticket 43, `docs/inspirations-hacks.md`) : objectif « s'échapper », chapitres annexes à condition, patchs à cocher (Locktouch, Pousser, échanges FE5), puis talents, arts de combat et reclassement.
 - « Mode expert » : accès au code C depuis l'outil, modules moteur réutilisables et partagés entre utilisateurs.
 
