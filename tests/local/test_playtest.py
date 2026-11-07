@@ -2093,3 +2093,60 @@ def test_heal_preview_battle_speed_and_fallen_items(tmp_path):
         convoy = [game.read("gConvoyItemArray", 2 * k, width=16) for k in range(100)]
         assert all(item in convoy for item in items)
         assert not any(game.read(victim, 0x1E + 2 * k, width=16) for k in range(5))
+
+
+def test_renewal_for_an_enemy_steal_and_canto_given(tmp_path):
+    """Skills batch 4, the last checks: Renewal heals an enemy at the start of its phase (the terrain's heal runs for
+    every side); Steal given to the lord (not a thief) takes the enemy's Vulnerary; Canto given to a unit on foot lets
+    it move again after using an item."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "givenskills", [[], ["ITEM_VULNERARY"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    chapters = project.load("chapters")
+    ally = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    lord_id, walker_id = ally[0]["character"], ally[1]["character"]
+    enemy = next(u for group in chapters["unitGroups"].values() for u in group if u.get("character") == "CHARACTER_SOLDIER_83")
+    enemy["items"] = ["ITEM_VULNERARY"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord = next(c for c in characters if c["id"] == lord_id)
+    lord["skills"] = ["Steal"]
+    lord["bases"]["spd"] = 20
+    next(c for c in characters if c["id"] == walker_id)["skills"] = ["Canto"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier.update(skills=["Renewal"])
+    soldier["bases"].update(hp=20, spd=0)
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        thief, walker = _bench_units(game)
+        base = game.address("gUnitArrayRed")
+        foe = next(base + n * UNIT_SIZE for n in range(50) if game.read(base + n * UNIT_SIZE, width=32)
+                   and (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == place)
+        vulnerary = game.read(foe, 0x1E, width=16)
+        game.move_cursor(*BENCH_SPOTS[0])
+        game.press("A")
+        game.press("A", wait=60)       # stays
+        game.screenshot().save(tmp_path / "menu.png")
+        print("menu:", tmp_path / "menu.png")
+        game.press("A", wait=30)       # Steal
+        game.press("A", wait=60)       # the soldier
+        game.press("A", wait=60)       # its Vulnerary
+        assert game.wait_until(lambda: game.read(thief, 0x1E, width=16) == vulnerary, seconds=20)
+        assert not game.read(foe, 0x1E, width=16)
+        game.run(120)
+        game.write(foe, 1, 0x13)       # 1 HP: Renewal heals 30 % of max HP at the start of the enemy phase
+        game.move_cursor(14, 2)
+        game.press("A", wait=30)
+        game.press("UP", wait=15)      # End
+        game.press("A", wait=30)
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        print("enemy Renewal: 1 ->", game.read(foe, 0x13))
+        assert game.read(foe, 0x13) == 1 + game.read(foe, 0x12) * 30 // 100
+        game.run(120)
+        game.write(walker, 5, 0x13)
+        _bench_use_item(game, walker)
+        state = game.read(walker, 0x0C, width=32)
+        game.screenshot().save(tmp_path / "canto.png")
+        print("Canto state", hex(state), "screenshot:", tmp_path / "canto.png")
+        assert state & 0x40 and not state & 0x2      # cantoing, not done
