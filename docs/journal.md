@@ -223,3 +223,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : compétences, lot 4 terminé : playtest du Vol donné au seigneur, du Renouveau d'un ennemi et du Canto donné à un fantassin ; l'IA voit déjà les compétences passives (simulation de combat du jeu).
 - 07/11/2026 : options du jeu : la page n'envoie plus que l'option changée (une page ouverte avant une mise à jour ne décoche plus les autres) ; les options d'une autre version restent dans le projet.
 - 07/11/2026 : ticket 20 : une compilation sans Docker verrouille sa propre copie de travail (un autre FE_MAKER_HOME n'attend plus) ; la fenêtre de compilation dit qu'elle attend une autre compilation au lieu d'afficher 1 %.
+- 07/11/2026 : ticket 21 : L maintenu n'accélère plus les écrans de montée de niveau, de promotion et les messages du combat (affichage cassé) ; playtest avec captures.

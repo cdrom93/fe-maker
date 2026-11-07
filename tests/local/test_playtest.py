@@ -2150,3 +2150,23 @@ def test_renewal_for_an_enemy_steal_and_canto_given(tmp_path):
         game.screenshot().save(tmp_path / "canto.png")
         print("Canto state", hex(state), "screenshot:", tmp_path / "canto.png")
         assert state & 0x40 and not state & 0x2      # cantoing, not done
+
+
+def test_level_up_screen_with_l_held(tmp_path):
+    """Ticket 21: L held through a battle animation ending in a level up: the battle goes twice as fast, the level up
+    screen at its own speed (screenshots along the way)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "lvupl", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "holdLBattleSpeed": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 60, 0x14)            # Strength 60: one hit kills
+        game.write(attacker, 99, 0x09)            # 99 experience: the kill levels up
+        level = game.read(attacker, 0x08)
+        _bench_attack(game, attacker)
+        for k in range(30):
+            game.run(30, ["L"])
+            game.screenshot().save(tmp_path / f"lvup{k:02}.png")
+        print("screenshots:", tmp_path)
+        assert game.read(attacker, 0x08) == level + 1

@@ -376,8 +376,10 @@ BATTLE_ANIM_FILE = "src/banim-ekrbattle.c"
 _BATTLE_FRAME = "    if (gEkrDebugUnk1 == 0)\n        MainUpdateEkrBattle();\n"
 _BATTLE_FRAME_FAST = """    if (gEkrDebugUnk1 == 0) {
         MainUpdateEkrBattle();
-        /* FE Maker: holding L plays the battle twice as fast (ticket 7) */
-        if ((gKeyStatusPtr->heldKeys & L_BUTTON) && gEkrBattleEndFlag == 0)
+        /* FE Maker: holding L plays the battle twice as fast (ticket 7), not the level up, promotion and popup
+           screens, whose drawing goes wrong at double speed (ticket 21) */
+        if ((gKeyStatusPtr->heldKeys & L_BUTTON) && gEkrBattleEndFlag == 0 && !Proc_Find(ProcScr_EkrLevelup)
+            && !Proc_Find(ProcScr_ekrClasschg) && !Proc_Find(ProcScr_ekrPopup) && !Proc_Find(ProcScr_ekrPopup2))
             MainUpdateEkrBattle();
     }
 """
