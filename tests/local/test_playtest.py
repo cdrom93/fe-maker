@@ -1919,11 +1919,14 @@ def test_reposition_shove_and_swap_commands(tmp_path):
 
 
 def test_renewal_and_galeforce_on_the_map(tmp_path):
-    """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (Skill 100: sure) lets it
-    act again after its battle won."""
+    """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (every time, even with
+    Skill 0; a sword of hit 255) lets it act again after its battle won."""
     place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
     project = _bench(tmp_path, "mapskills", [["ITEM_SWORD_IRON"], []], enemy_at=place)
     project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(hit=255)
+    project.save("items", items)
     characters = project.load("characters")
     lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Renewal", "Galeforce"]
@@ -1944,7 +1947,7 @@ def test_renewal_and_galeforce_on_the_map(tmp_path):
         print("Renewal: 1 ->", hp, "of", max_hp)
         assert hp == min(max_hp, 1 + max_hp * 30 // 100)
         game.write(attacker, 60, 0x14)            # Strength 60: one hit kills
-        game.write(attacker, 100, 0x15)           # Skill 100: Galeforce triggers
+        game.write(attacker, 0, 0x15)             # Skill 0: Galeforce triggers all the same
         _bench_attack(game, attacker)
         assert game.wait_until(lambda: not game.units("Red"), seconds=60, step=10)
         game.run(120)

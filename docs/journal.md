@@ -229,3 +229,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : compétences, lot 6 (20 compétences de précision, critique et dégâts, crochet après les taux effectifs ; playtest) ; noms des compétences en anglais dans l'interface pour l'instant.
 - 07/11/2026 : compétences : icône « ? » pour celles sans icône au C-SkillSys (14 ajoutées), baisses de dégâts additionnées comme le C-SkillSys, Eclipse arrondi comme le tome du jeu ; playtest.
 - 07/11/2026 : compétences, lot 7 (ordre des coups selon le tableau du C-SkillSys, 18 compétences, x2 des deux camps dans l'aperçu ; playtest).
+- 07/11/2026 : tickets 22 (liste de choix des compétences : effet visible, filtres par catégorie) et 23 (Galeforce à chaque fois, une fois par tour ; playtest avec Technique 0).

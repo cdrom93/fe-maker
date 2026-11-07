@@ -207,7 +207,7 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Shove", "menu", "Shove", "Shove:[NL]Pushes an adjacent ally[NL]one tile away.", menu="Shove"),
     Skill("Swap", "menu", "Swap", "Swap:[NL]Unit switches places with[NL]an adjacent ally.", menu="Swap"),
     Skill("Galeforce", "map", "Galeforce",
-          "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn.[NL](Skill % activation)"),
+          "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn."),
     # batch 5, simple passives (C-SkillSys's getters, PreBattleCalcAttackerSkills and BattleCalcReal; values from
     # SkillExtraInfo.c)
     _push("PushStrength", 0, "Push Strength:[NL]+5 STR if HP is full."),
@@ -1483,7 +1483,7 @@ GALEFORCE_USED = "0x02028E30"   # free RAM after the popups: 8 bytes, a bit per 
 def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
     """Batch 4, skills on the map, each patched in only when the project uses it: Canto+ (the game's Canto after a
     battle or a staff too), Renewal (with the terrain's heal at the start of the phase), Galeforce (the unit acts
-    again after defeating an enemy, once a turn, Skill % activation)."""
+    again after defeating an enemy, once a turn, every time: user's choice, C-SkillSys rolls Skill %)."""
     out = {}
     if "Renewal" in numbers:
         rel = "src/bmtarget.c"
@@ -1549,7 +1549,7 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
     }
 """, rel)
         text = _replace(text, "//! FE8U = 0x0801D344\nvoid PlayerPhase_FinishAction(ProcPtr proc)\n", f"""\
-/* FE Maker: Galeforce (C-SkillSys's Tsuzuku.c): after a battle won, the unit acts again, once a turn, Skill % */
+/* FE Maker: Galeforce (C-SkillSys's Tsuzuku.c): after a battle won, the unit acts again, once a turn (every time) */
 #define sGaleforceUsedFem ((vu8*) {GALEFORCE_USED})
 #define sGaleforceTurnFem (*(vu16*) ({GALEFORCE_USED} + 8))
 
@@ -1565,7 +1565,7 @@ static bool TryGaleforceFem(void)
     }}
     if (gActionData.unitActionType != UNIT_ACTION_COMBAT || i >= 0x40 || (sGaleforceUsedFem[i / 8] & (1 << (i % 8)))
         || !SkillTesterFem(gActiveUnit, SKILL_FEM_Galeforce) || gActiveUnit->state & US_DEAD
-        || gBattleTarget.unit.curHP != 0 || GetUnitCurrentHp(gActiveUnit) <= 0 || !Roll1RN(GetUnitSkill(gActiveUnit)))
+        || gBattleTarget.unit.curHP != 0 || GetUnitCurrentHp(gActiveUnit) <= 0)
         return FALSE;
     sGaleforceUsedFem[i / 8] |= 1 << (i % 8);
     gActiveUnit->state &= ~(US_UNSELECTABLE | US_HAS_MOVED | US_HAS_MOVED_AI);

@@ -114,6 +114,9 @@ Plus tard :
 
 ## Choix de l'utilisateur (06/11/2026)
 
+- **Galeforce (ticket 23, 07/11)** : se déclenche à chaque fois (une fois par tour) dès que l'unité achève un ennemi ; le C-SkillSys le tire à Technique %.
+- **Liste de choix (ticket 22, 07/11)** : plus large, l'effet de chaque compétence écrit sous son nom, une pastille par catégorie pour filtrer.
+
 - **Noms en anglais (07/11)** : pour l'instant, les compétences gardent leur nom anglais (celui du C-SkillSys) aussi dans l'interface en français ; seules leurs descriptions sont traduites. Pas de traduction en jeu non plus pour le moment.
 
 - **Capacités de classe du jeu** : Perce, Grand bouclier, Coup sûr, Silence, Tueur, Vol et Canto sont montrées comme des compétences, avec leurs icônes, sur la fiche de l'unité et dans FE Maker.

@@ -23,6 +23,7 @@
 
   let open = $state(false)
   let query = $state('')
+  let kind = $state<string | null>(null)   // the category chip chosen, as the map editor's terrain filter
   let active = $state(0)
   let root = $state<HTMLDivElement>()
   let search = $state<HTMLInputElement>()
@@ -33,15 +34,22 @@
   const choices = $derived.by(() => {
     const q = fold(query.trim())
     return skills
+      .filter((s) => !kind || s.kind === kind)
       .filter((s) => !q || [t(`skill.${s.id}`), t(`skill.${s.id}Hint`), t(`skill.kind.${s.kind}`)].some((x) => fold(x).includes(q)))
       .sort((a, b) => rank(a.kind) - rank(b.kind))
   })
+
+  // the categories present, with their number of skills
+  const kinds = $derived(
+    [...new Set(skills.map((s) => s.kind))].sort((a, b) => rank(a) - rank(b)).map((k) => ({ id: k, count: skills.filter((s) => s.kind === k).length })),
+  )
 
   function toggle() {
     if (disabled) return
     open = !open
     if (open) {
       query = ''
+      kind = null
       active = 0
       queueMicrotask(() => search?.focus())
     }
@@ -83,13 +91,19 @@
   {#if open}
     <div class="popup">
       <input bind:this={search} bind:value={query} placeholder={t('skill.search')} oninput={() => (active = 0)} onkeydown={key} />
+      <div class="kinds">
+        {#each kinds as k (k.id)}
+          <button type="button" class="chip" class:active={kind === k.id} title={t('skill.filterKind')}
+            onclick={() => { kind = kind === k.id ? null : k.id; active = 0; search?.focus() }}>{t(`skill.kind.${k.id}`)} <span class="count">{k.count}</span></button>
+        {/each}
+      </div>
       <ul role="listbox" bind:this={listEl}>
         {#each choices as s, i (s.id)}
           {#if i === 0 || choices[i - 1].kind !== s.kind}<li class="group">{t(`skill.kind.${s.kind}`)}</li>{/if}
           <li role="option" aria-selected={i === active} class:active={i === active}>
-            <button type="button" title={t(`skill.${s.id}Hint`)} onclick={() => pick(s)} onmouseenter={() => (active = i)}>
+            <button type="button" onclick={() => pick(s)} onmouseenter={() => (active = i)}>
               <img class="pixel" src={skillIcon(s.id)} alt="" loading="lazy" />
-              <span class="name">{t(`skill.${s.id}`)}</span>
+              <span class="text"><span class="name">{t(`skill.${s.id}`)}</span><span class="hint">{t(`skill.${s.id}Hint`)}</span></span>
             </button>
           </li>
         {:else}
@@ -106,12 +120,19 @@
   .current .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .caret { color: var(--muted); font-size: 0.75rem; }
   .pixel { width: 16px; height: 16px; image-rendering: pixelated; flex-shrink: 0; }
-  .popup { position: absolute; z-index: 30; top: calc(100% + 2px); left: 0; width: max(100%, 16rem); background: var(--panel, var(--bg)); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgb(0 0 0 / 0.35); padding: 0.3rem; }
+  .popup { position: absolute; z-index: 30; top: calc(100% + 2px); left: 0; width: min(max(100%, 40rem), 90vw); background: var(--panel, var(--bg)); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgb(0 0 0 / 0.35); padding: 0.3rem; }
   .popup input { width: 100%; box-sizing: border-box; margin-bottom: 0.25rem; }
-  ul { list-style: none; margin: 0; padding: 0; max-height: 18rem; overflow-y: auto; }
-  li button { display: flex; align-items: center; gap: 0.4rem; width: 100%; text-align: left; border: none; background: none; padding: 0.15rem 0.3rem; font: inherit; color: inherit; border-radius: 4px; }
+  .kinds { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.3rem; }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
+  .chip.active { border-color: var(--accent); background: var(--accent-soft); }
+  .chip .count { color: var(--muted); font-size: 0.7rem; }
+  ul { list-style: none; margin: 0; padding: 0; max-height: 26rem; overflow-y: auto; }
+  li button { display: flex; align-items: flex-start; gap: 0.4rem; width: 100%; text-align: left; border: none; background: none; padding: 0.25rem 0.3rem; font: inherit; color: inherit; border-radius: 4px; }
   li.active button { background: var(--accent-soft); }
-  li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li .pixel { margin-top: 0.15rem; }
+  li .text { display: flex; flex-direction: column; min-width: 0; }
+  li .name { font-weight: 600; }
+  li .hint { color: var(--muted); font-size: 0.8rem; line-height: 1.25; }
   .group { color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.3rem 0.1rem; }
   .empty { color: var(--muted); padding: 0.3rem; font-size: 0.85rem; }
 </style>
