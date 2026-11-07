@@ -87,6 +87,6 @@ Autres résultats :
 **Reste** :
 
 1. ~~comparer un projet modifié~~ : fait le 07/11, le projet `test` de l'utilisateur donne la même ROM en natif et par Docker (SHA-1 `b920f8e2…`) ;
-2. lancer le workflow `Toolchain` sur GitHub : il publie la chaîne, que FE Maker télécharge (le dépôt doit être public, sinon le téléchargement échoue) ;
+2. ~~lancer le workflow `Toolchain`~~ : fait le 07/11, release `toolchain-1` (archive de 24,7 Mo, sources GPL jointes) ; installée par `install_toolchain` et compilée de zéro : ROM d'origine identique en 8 min 13. FE Maker ne pourra la télécharger qu'une fois le dépôt public ;
 3. un test `tests/local` qui compile par les deux moteurs ;
 4. ~~le guide~~ : fait le 07/11 (guide FR/EN, README, CHANGELOG).
