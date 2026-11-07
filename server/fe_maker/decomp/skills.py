@@ -86,9 +86,10 @@ def _push(sid, stat, text):
     return Skill(sid, "stat", sid, text, stats, "full", group="hp", magic=stat == 6)
 
 
-def _b(sid, group, text, code, kind="battle", **more):
-    """A battle skill (C-SkillSys's PreBattleCalcAttackerSkills; `late`: its BattleCalcReal comparisons)."""
-    return Skill(sid, kind, sid, text, code=code, group=group, **more)
+def _b(sid, group, text, code, kind="battle", icon=None, **more):
+    """A battle skill (C-SkillSys's PreBattleCalcAttackerSkills; `late`: its BattleCalcReal comparisons); icon "":
+    none at the pinned commit, a "?" is drawn."""
+    return Skill(sid, kind, sid if icon is None else icon, text, code=code, group=group, **more)
 
 
 _LOW = "(attacker->hpInitial * 4 < attacker->unit.maxHP)"
@@ -387,22 +388,62 @@ CATALOGUE: tuple[Skill, ...] = (
                                 "            gBattleStats.damage = defender->unit.curHP - 1;"),
     Skill("Eclipse", "proc", "Eclipse", "Eclipse:[NL]Halves the foe's current HP.[NL](Skill % activation).",
           group="damage", after="if (defender->unit.curHP > 1 && SkillProcFem(attacker, SKILL_FEM_Eclipse))\n"
-                                "            gBattleStats.damage = defender->unit.curHP / 2;"),
+                                "            gBattleStats.damage = (defender->unit.curHP + 1) >> 1;"),   # the Eclipse tome
+    # without an icon at the pinned commit (a "?" until FE Maker imports its own icons)
+    _b("WatchfulEye", "battle", "Watchful Eye:[NL]Hit rate +20%.", "attacker->battleHitRate += 20;", icon=""),
+    _b("HeavyStrikes", "weapon", "Heavy Strikes:[NL]Adds weapon weight[NL]to critical chance.",
+       "attacker->battleCritRate += GetItemWeight(attacker->weapon);", icon=""),
+    _b("KnightAspirant", "hp", "Knight Aspirant:[NL]Above 75% HP: +2 damage,[NL]+15% avoid.",
+       "if (attacker->hpInitial * 4 > attacker->unit.maxHP * 3) {\n            attacker->battleAttack += 2;\n"
+       "            attacker->battleAvoidRate += 15;\n        }", icon=""),
+    _b("SilentPride", "hp", "Silent Pride:[NL]+2 damage and DEF per[NL]25% below max HP.",
+       "{\n            int lost = (attacker->unit.maxHP - attacker->hpInitial) * 4 / attacker->unit.maxHP;\n\n"
+       "            attacker->battleAttack += 2 * lost;\n            attacker->battleDefense += 2 * lost;\n        }",
+       icon=""),
+    _b("Frenzy", "hp", "Frenzy:[NL]For every 4 damage taken,[NL]+1 to damage dealt.",
+       "attacker->battleAttack += (attacker->unit.maxHP - attacker->hpInitial) / 4;", icon=""),
+    _b("Puissance", "foe", "Puissance:[NL]+3 Attack if attack is[NL]greater than the foe's.",
+       "if (attacker->battleAttack > defender->battleAttack) attacker->battleAttack += 3;", kind="late", icon=""),
+    _b("NoGuard", "hit", "No Guard:[NL]Both sides have a 100%[NL]chance of hitting.",
+       "attacker->battleEffectiveHitRate = 100;", kind="eff", icon="", holder="either"),
+    _b("WonderGuard", "guard", "Wonder Guard:[NL]No damage from weapons of[NL]the unit's weapon type.",
+       "if (defender->weaponType == attacker->weaponType) attacker->battleAttack = 0;", kind="eff", icon="",
+       holder="defender"),
+    _b("CriticalPierce", "hit", "Critical Pierce:[NL]Ignores the foe's[NL]critical avoid.", "defender->battleDodgeRate = 0;",
+       kind="late", icon=""),
+    Skill("ShieldPulse", "proc", "", "Shield Pulse:[NL]Reduces damage from[NL]critical hits by 50%.", group="guard",
+          after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT)"
+                " && SkillTesterFem(&defender->unit, SKILL_FEM_ShieldPulse))\n            decrease += DmgDecreaseFem(50);"),
+    Skill("Gambit", "proc", "", "Gambit:[NL]Reduces critical damage[NL]taken in melee.", group="guard",
+          after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT) && gBattleStats.range == 1"
+                " && SkillTesterFem(&defender->unit, SKILL_FEM_Gambit))\n"
+                "            gBattleStats.damage = gBattleStats.damage * 5 / 6;"),
+    Skill("MagicGambit", "proc", "", "Magic Gambit:[NL]Reduces critical damage[NL]taken at range.", group="guard",
+          after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT) && gBattleStats.range > 1"
+                " && SkillTesterFem(&defender->unit, SKILL_FEM_MagicGambit))\n"
+                "            gBattleStats.damage = gBattleStats.damage * 5 / 6;"),
+    Skill("CounterRoar", "proc", "", "Counter Roar:[NL]-30% damage from the foe's[NL]first hit, -70% after.",
+          group="guard", after="if (SkillTesterFem(&defender->unit, SKILL_FEM_CounterRoar))\n"
+                               "            decrease += DmgDecreaseFem(HitRankFem(attacker) == 1 ? 30 : 70);"),
+    Skill("CrusaderWard", "proc", "", "Crusader Ward:[NL]-80% damage from the foe's[NL]second ranged hit on.",
+          group="guard", after="if (gBattleStats.range > 1 && HitRankFem(attacker) > 1"
+                               " && SkillTesterFem(&defender->unit, SKILL_FEM_CrusaderWard))\n"
+                               "            decrease += DmgDecreaseFem(80);"),
     # damage taken
     Skill("DragonSkin", "proc", "DragonSkin", "Dragon Skin:[NL]Halves damage taken.", group="guard",
           after="if (SkillTesterFem(&defender->unit, SKILL_FEM_DragonSkin))\n"
-                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+                "            decrease += DmgDecreaseFem(50);"),
     Skill("Multiscale", "proc", "Multiscale", "Multiscale:[NL]Halves damage taken[NL]if HP is full.", group="guard",
           after="if (defender->unit.curHP == defender->unit.maxHP && SkillTesterFem(&defender->unit, SKILL_FEM_Multiscale))\n"
-                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+                "            decrease += DmgDecreaseFem(50);"),
     Skill("Expertise", "proc", "Expertise", "Expertise:[NL]Halves damage taken[NL]from critical hits.", group="guard",
           after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT)"
                 " && SkillTesterFem(&defender->unit, SKILL_FEM_Expertise))\n"
-                "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+                "            decrease += DmgDecreaseFem(50);"),
     Skill("Barricade", "proc", "Barricade", "Barricade:[NL]Halves damage taken once[NL]struck in this combat.",
           group="guard", after="if (defender->unit.curHP < defender->hpInitial"
                                " && SkillTesterFem(&defender->unit, SKILL_FEM_Barricade))\n"
-                               "            gBattleStats.damage -= gBattleStats.damage / 2;"),
+                               "            decrease += DmgDecreaseFem(50);"),
     Skill("TowerShieldPlus", "proc", "TowerShieldPlus", "Tower Shield+:[NL]Takes no damage from[NL]attacks at range.",
           group="guard", after="if (gBattleStats.range > 1 && SkillTesterFem(&defender->unit, SKILL_FEM_TowerShieldPlus))\n"
                                "            gBattleStats.damage = 0;"),
@@ -503,11 +544,37 @@ def icon_png(skill_id: str) -> bytes:
 
 
 def icon_path(skill_id: str) -> Path:
-    """The cached icon file, downloaded first if needed."""
+    """The cached icon file, downloaded first if needed; a "?" for a skill C-SkillSys has no icon for."""
     skill = BY_ID.get(skill_id)
     if skill is None:
         raise SkillError("unknownSkill")
+    if not skill.icon:
+        return _placeholder()
     return _download(ICON_URL.format(skill.icon), _cache() / f"{skill.icon}.png")
+
+
+# The "?" icon of skills without one (FE Maker's own drawing, in the frame style of C-SkillSys's icons), in the
+# game's item icon palette (0 transparent, 1 white, 2 light grey, 4 outline, 9 lavender)
+PLACEHOLDER_ROWS = (
+    "0001111111111900", "0919999999999190", "9199999999999914", "1499994444999924", "1499944994499924",
+    "1499999994499924", "1499999944999924", "1499999449999924", "1499999449999924", "1499999999999924",
+    "1499999449999924", "1499999449999924", "1999999999999294", "2199999999992940", "4212222222222400",
+    "0444444444444000")
+ICON_PALETTE = ((192, 248, 200), (248, 248, 248), (200, 192, 184), (144, 144, 128), (40, 56, 32), (216, 208, 32),
+                (160, 8, 8), (56, 80, 240), (112, 120, 144), (176, 176, 208), (40, 128, 96), (104, 200, 184),
+                (112, 80, 48), (152, 128, 112), (80, 56, 64), (192, 96, 0))
+
+
+def _placeholder() -> Path:
+    path = _cache() / "_placeholder.png"
+    if not path.is_file():
+        from PIL import Image
+        image = Image.new("P", (16, 16))
+        image.putpalette([c for rgb in ICON_PALETTE for c in rgb])
+        image.putdata([int(ch, 16) for row in PLACEHOLDER_ROWS for ch in row])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        image.save(path, bits=4)   # 4-bit like C-SkillSys's icons (gbagfx reads them as they are)
+    return path
 
 
 def box_png() -> bytes:
@@ -679,8 +746,12 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     rel = "src/bmbattle.c"
     battle = _read(files, decomp_dir, rel)
     def skill_lines(kind):
-        return "".join(f"    if (SkillTesterFem(&{s.holder}->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
-                       for s in skills if s.kind == kind)
+        def test(s):
+            if s.holder == "either":
+                return (f"SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}) || "
+                        f"SkillTesterFem(&defender->unit, SKILL_FEM_{s.id})")
+            return f"SkillTesterFem(&{s.holder}->unit, SKILL_FEM_{s.id})"
+        return "".join(f"    if ({test(s)})\n        {s.code}\n" for s in skills if s.kind == kind)
     # As C-SkillSys's PreBattleCalcInit: the actor's call computes both units' base stats, so that a skill can look
     # at the foe's; the target's call then only applies its skills (a target without class, as on the stat screen's
     # BattleGenerateUiStats, keeps the game's own order). Skills skip the arena and the stat screen, as C-SkillSys.
@@ -825,9 +896,34 @@ static void ApplyHitSkillsFem(struct BattleUnit* attacker, struct BattleUnit* de
 {before}    (void) magic; (void) attack; (void) defense;
 }}
 
+/* C-SkillSys's _DmgDecreaseRef: damage reductions add up, damage * 0x100 / (0x100 + their sum) */
+static int DmgDecreaseFem(int rate)
+{{
+    return 0x100 * rate / (100 - rate);
+}}
+
+/* The attacker's hits so far in this battle, this one included (C-SkillSys's round_cnt_hit) */
+static int HitRankFem(struct BattleUnit* unit)
+{{
+    struct BattleHit* hit;
+    int rank = 1;
+
+    for (hit = gBattleHitArray; hit < gBattleHitIterator; hit++)
+        if (!(hit->info & BATTLE_HIT_INFO_RETALIATION) == (unit == &gBattleActor))
+            rank++;
+    return rank;
+}}
+
 static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUnit* defender)
 {{
-{after}    (void) defender;
+    int decrease = 0;
+
+{after}    if (decrease > 0 && gBattleStats.damage > 0) {{
+        gBattleStats.damage = gBattleStats.damage * 0x100 / (0x100 + decrease);
+        if (gBattleStats.damage == 0)
+            gBattleStats.damage = 1;
+    }}
+    (void) defender; (void) HitRankFem;
 }}
 
 /* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */

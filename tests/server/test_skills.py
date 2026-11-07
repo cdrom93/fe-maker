@@ -11,7 +11,8 @@ PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   #
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     magic = {s["id"] for s in skills.catalogue() if s["magic"]}
     assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade"}
-    assert all(s.icon and s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
+    assert all(s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
+    assert skills.icon_path("NoGuard").name == "_placeholder.png"   # no icon at the pinned commit: a "?"
     game = {g["id"]: g for g in skills.game_catalogue()}
     assert game["Dance"]["abilities"] == ["dance", "play"] and game["Pierce"]["classes"][0] == "CLASS_WYVERN_KNIGHT"
 

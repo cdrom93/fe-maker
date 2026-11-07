@@ -101,14 +101,16 @@ Décidé avec l'utilisateur le 06/11/2026 : on porte les compétences du C-Skill
    2. **Dégâts de l'attaquant** : Infinity Edge (critique ×4 au lieu de ×3), Luna Attack (+ déf/4), et à déclenchement (Tec %, nom affiché comme le lot 2) : Flare, Glacies, Vengeance, Dragon Fang (Tec × 2 %), Impale, Bane, Mercy, Eclipse.
    3. **Dégâts reçus** : Dragon Skin, Multiscale, Expertise, Shield Pulse, Gambit, Magic Gambit, Barricade, Tower Shield+, et selon le rang du coup dans le combat (compté sur `gBattleHitArray`) : Counter Roar, Crusader Ward, Dragon Wrath.
    4. Playtest : un combat avec Dragon Skin, Hawkeye et Infinity Edge.
-   - **État (07/11/2026)** : fait, 20 compétences (Hawkeye, Merciless, Fortune, Foresight, Sorcery Blade, Infinity Edge, Luna Attack, Flare, Glacies, Vengeance, Dragon Fang, Impale, Bane, Mercy, Eclipse, Dragon Skin, Multiscale, Expertise, Barricade, Tower Shield+ ; groupes `hit`, `damage`, `guard`). Playtest : Hawkeye (précision 100 avec une épée à 0), Fortune (critique 0 avec une épée à 100), Dragon Skin (dégâts du premier coup divisés par deux, arrondis au-dessus). À valider en jeu. Sans icône au commit suivi, laissés de côté : No Guard, Wonder Guard, Critical Pierce, Shield Pulse, Gambit, Magic Gambit, Counter Roar, Crusader Ward. Vengeance, Eclipse et Mercy écrits d'après leur description (code du C-SkillSys pas relu). L'aperçu du combat ne montre pas les dégâts réduits ou augmentés par coup (comme le jeu pour Luna).
+   - **État (07/11/2026)** : fait, 20 compétences (Hawkeye, Merciless, Fortune, Foresight, Sorcery Blade, Infinity Edge, Luna Attack, Flare, Glacies, Vengeance, Dragon Fang, Impale, Bane, Mercy, Eclipse, Dragon Skin, Multiscale, Expertise, Barricade, Tower Shield+ ; groupes `hit`, `damage`, `guard`). Playtest : Hawkeye (précision 100 avec une épée à 0), Fortune (critique 0 avec une épée à 100), Dragon Skin (dégâts du premier coup divisés par deux, arrondis au-dessus). À valider en jeu. Les baisses de dégâts s'additionnent comme dans le C-SkillSys (dégâts × 0x100 / (0x100 + somme), `_DmgDecreaseRef` : deux fois −50 % donnent ×1/3) ; Eclipse arrondit comme le tome Eclipse du jeu ; Mercy comme le C-SkillSys (`CheckBattleInori`) ; Vengeance n'a pas d'effet dans le C-SkillSys à ce commit (seulement son texte) : écrite d'après sa description. L'aperçu du combat ne montre pas les dégâts réduits ou augmentés par coup (comme le jeu pour Luna) : à revoir plus tard.
+   - **Icône « ? » (07/11, demande de l'utilisateur)** : les compétences sans icône au commit suivi en ont une dessinée par FE Maker (`PLACEHOLDER_ROWS`), et sont ajoutées : Watchful Eye, Heavy Strikes, Knight Aspirant, Silent Pride, Frenzy, Puissance, No Guard, Wonder Guard, Critical Pierce, Shield Pulse, Gambit, Magic Gambit, Counter Roar, Crusader Ward. Puissance suit sa description (attaque supérieure ; le code du C-SkillSys compare la vitesse). Playtest : Counter Roar avec Dragon Skin (baisses additionnées).
    - Lot 7 (ordre des coups, d'abord prévu ici) : Quick Riposte, Wary, Bold, Vengeful, Reckless Fighter, Dazzle, Moonlight, Last Word, Biding Blow, Double Lion, Prideful Warrior, Gale Wings… ; plus tard : statuts infligés, Inori / Sturdy, Armsthrift, Lifetaker, Pickup, et le tableau des coups agrandi.
 
 Plus tard :
 - les arts de combat ;
 - l'équipement des compétences en préparation (comme dans FE16) ;
 - les compétences d'objets et d'armes ;
-- l'import de ses propres icônes.
+- l'import de ses propres icônes ; une vraie icône pour les compétences qui ont le « ? » (liste au lot 6) ;
+- l'aperçu du combat avec les dégâts des compétences.
 
 ## Choix de l'utilisateur (06/11/2026)
 
