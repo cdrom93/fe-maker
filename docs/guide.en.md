@@ -6,7 +6,6 @@ FE Maker is an easy editor for making a rom hack of Fire Emblem: The Sacred Ston
 
 - **Windows 10 or 11** (Linux and macOS will come later).
 - **Python 3.10 or later**: https://www.python.org/downloads/ (tick "Add Python to PATH" when installing).
-- **Docker Desktop**, started: it compiles the game. If it does not start, virtualization (Intel VT-x, AMD-V) is probably off in the BIOS.
 - **mGBA**, for testing: https://mgba.io/downloads.html
 - **Your own ROM** of Fire Emblem: The Sacred Stones (USA, Australia), legally obtained. FE Maker does not distribute it and checks its checksum.
 
@@ -14,8 +13,8 @@ FE Maker is an easy editor for making a rom hack of Fire Emblem: The Sacred Ston
 
 1. Unzip `fe-maker-<version>.zip` wherever you like.
 2. Run `lancer-fe-maker.bat`. The first launch installs what is needed, then opens the interface in your browser.
-3. Give your ROM. The home page shows what is still missing: the "Download" button fetches the game's code (a few minutes, once).
-4. The first build prepares the tools: it can take several minutes.
+3. Give your ROM. The home page shows what is still missing: the "Download" buttons fetch the game's code and the build tools (a few minutes, once). Nothing else to install: no Docker needed.
+4. FE Maker then starts the game's first build by itself, in the background (about ten minutes, once): you can work meanwhile. After that, a test builds in under two minutes.
 
 ## Update
 

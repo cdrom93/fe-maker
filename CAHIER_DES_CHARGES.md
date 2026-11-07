@@ -123,7 +123,7 @@ Public : FE Universe, dépôt rendu public. Plateforme : Windows d'abord.
 8. **Docs** : prêtes (guide FR/EN, limites connues, CHANGELOG). Passage d'une version à l'autre fait (`migrations.py`).
 9. **À faire, dans l'ordre choisi le 06/11** (viser une alpha qui donne envie, même incomplète) :
    - **musique** (phase 5) ;
-   - **compilation sans Docker sous Windows** : faite le 07/11 (`docs/sans-docker.md`, `server/fe_maker/native/`), Docker en secours ; ROM d'origine identique ; première compilation 8 min 30, lancée en arrière-plan dès l'installation, ensuite 30 s à 2 min. **Reste** : comparer un projet modifié avec Docker, publier la chaîne (workflow `Toolchain`, dépôt public), guide sans Docker ;
+   - **compilation sans Docker sous Windows** : faite le 07/11 (`docs/sans-docker.md`, `server/fe_maker/native/`), Docker en secours ; ROM d'origine identique ; première compilation 8 min 30, lancée en arrière-plan dès l'installation, ensuite 30 s à 2 min. un projet modifié donne la même ROM qu'avec Docker ; guide à jour. **Reste** : la chaîne publiée par le workflow `Toolchain` ne se télécharge qu'une fois le dépôt public ;
    - **test fermé** avec quelques personnes choisies : FE Maker et les tickets sur d'autres machines ;
    - pour l'annonce : **vidéo de démonstration** de 2-3 min (carte, unités, dialogue, classe et compétence, « Tester ») et **hack témoin** partagé par l'utilisateur sur FEU, qui ne ressemble pas à FE8 ;
    - dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (`[AI]` dans le titre).

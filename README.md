@@ -39,7 +39,7 @@ FE Maker est **développé en très grande partie avec une IA générative** (Cl
 
 ## Développer / Develop
 
-Prérequis / *Requirements*: Python 3.10+, Node.js 20+, Docker Desktop, mGBA.
+Prérequis / *Requirements*: Python 3.10+, Node.js 20+, mGBA ; Docker Desktop, sauf sous Windows avec la chaîne d'outils de FE Maker (`server/fe_maker/native/`, [sans Docker](docs/sans-docker.md)) / *Docker Desktop, except on Windows with FE Maker's toolchain*.
 
 ```bash
 git clone --recursive https://github.com/cdrom93/fe-maker.git
