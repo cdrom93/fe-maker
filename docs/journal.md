@@ -207,3 +207,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : compétences, lot 3 fini : apprentissage par niveau (fiches personnage et classe, après montée de niveau et promotion ; playtest) et commandes d'évènement « Donner / Retirer une compétence ».
 - 07/11/2026 : compétences : message « X learned Y. » avec l'icône quand une unité apprend une compétence (après combat, bâton, danse, arène ; playtest).
 - 07/11/2026 : dépôt passé en public, chaîne sans Docker installée sur sa machine ; `make` relancé une fois en cas d'échec (fichier verrouillé par Windows) ; compétences, lot 4 point 1 : Canto, Vol, Crochetage, Crit +15 et Létalité attribuables (playtest de Crit +15).
+- 07/11/2026 : compétences, lot 4 point 2 : Canto+, Renouveau, Bourrasque (playtest de Renouveau et Bourrasque).

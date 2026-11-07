@@ -32,7 +32,7 @@
 
   $effect(() => { loadSkills() })
 
-  const KINDS = ['stat', 'battle', 'order', 'proc', 'hits', 'game']
+  const KINDS = ['stat', 'battle', 'order', 'proc', 'hits', 'map', 'game']
   const game = $derived(gameSkills(abilities, classId, characterId))
   const offered = $derived(offeredSkills().filter((s) => !skills.includes(s.id) && !fromClass.includes(s.id) && !game.includes(s.id)))
   const full = $derived(skills.length >= skillCatalogue.maxPerSheet)

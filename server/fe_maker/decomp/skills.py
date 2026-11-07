@@ -140,6 +140,11 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Aegis", "proc", "Aegis", "Aegis:[NL]Nullifies a magic attack.[NL](Skill % activation).",
           code="if (magic && SkillProcFem(defender, SKILL_FEM_Aegis))\n"
                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
+    # batch 4, on the map (_map_skills): C-SkillSys's PostActionSkills/Canto.c, PrePhaseSkills/PrePhaseHeal.c, Tsuzuku.c
+    Skill("CantoPlus", "map", "CantoPlus", "Canto+:[NL]Unit can move again after[NL]any action, combat included."),
+    Skill("Renewal", "map", "Renewal", "Renewal:[NL]Restores 30% of max HP[NL]at the start of each turn."),
+    Skill("Galeforce", "map", "Galeforce",
+          "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn.[NL](Skill % activation)"),
 )
 
 # The game's class abilities, shown as skills: their engine stays the game's (texts written for FE8's own rules).
@@ -449,6 +454,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files[rel] = icon
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
+    files.update(_map_skills(decomp_dir, files, numbers))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
                           texts, base))
@@ -862,6 +868,108 @@ void StartSkillIconMapFem(ProcPtr parent)
     out[rel] = _replace(main, "                case 0x07:\n",
                         "                case 0x07:\n                    if (GetAISLayerId(anim) == 0)\n"
                         "                        StartSkillNameFem(anim); /* FE Maker */\n", rel)
+    return out
+
+
+GALEFORCE_USED = "0x02028E30"   # free RAM after the popups: 8 bytes, a bit per player unit, then the turn they are for
+
+
+def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
+    """Batch 4, skills on the map, each patched in only when the project uses it: Canto+ (the game's Canto after a
+    battle or a staff too), Renewal (with the terrain's heal at the start of the phase), Galeforce (the unit acts
+    again after defeating an enemy, once a turn, Skill % activation)."""
+    out = {}
+    if "Renewal" in numbers:
+        rel = "src/bmtarget.c"
+        out[rel] = _replace(_read(files, decomp_dir, rel), """\
+        if (GetTerrainHealAmount(terrainId) != 0 && (GetUnitCurrentHp(unit) != GetUnitMaxHp(unit))) {
+            amount = (GetTerrainHealAmount(terrainId) * GetUnitMaxHp(unit)) / 100;
+            AddTarget(unit->xPos, unit->yPos, unit->index, amount);
+        }
+""", """        if (GetUnitCurrentHp(unit) != GetUnitMaxHp(unit)) { /* FE Maker: Renewal with the terrain (C-SkillSys) */
+            amount = (GetTerrainHealAmount(terrainId) * GetUnitMaxHp(unit)) / 100;
+            if (SkillTesterFem(unit, SKILL_FEM_Renewal))
+                amount += GetUnitMaxHp(unit) * 30 / 100;
+            if (amount != 0)
+                AddTarget(unit->xPos, unit->yPos, unit->index, amount);
+        }
+""", rel)
+    if "CantoPlus" not in numbers and "Galeforce" not in numbers:
+        return out
+    rel = "src/playerphase.c"
+    text = _read(files, decomp_dir, rel)
+    if "CantoPlus" in numbers:
+        text = _replace(text, """    if (!(UNIT_CATTRIBUTES(gActiveUnit) & CA_CANTO))
+    {
+        return false;
+    }
+""", """    if (!(UNIT_CATTRIBUTES(gActiveUnit) & CA_CANTO) && !SkillTesterFem(gActiveUnit, SKILL_FEM_CantoPlus))
+    {
+        return false;
+    }
+""", rel)
+        text = _replace(text, """    switch (gActionData.unitActionType)
+    {
+        case UNIT_ACTION_WAIT:
+        case UNIT_ACTION_COMBAT:
+        case UNIT_ACTION_STAFF:
+            return false;
+    }
+""", """    switch (gActionData.unitActionType)
+    {
+        case UNIT_ACTION_WAIT:
+            return false;
+
+        case UNIT_ACTION_COMBAT:
+        case UNIT_ACTION_STAFF: /* FE Maker: Canto+ moves after them too */
+            if (!SkillTesterFem(gActiveUnit, SKILL_FEM_CantoPlus))
+                return false;
+            break;
+    }
+""", rel)
+    if "Galeforce" in numbers:
+        text = _replace(text, '#include "bmunit.h"\n', '#include "bmunit.h"\n#include "rng.h"\n', rel)
+        text = _replace(text, """    if (TryMakeCantoUnit(proc))
+    {
+        HideUnitSprite(gActiveUnit);
+        return;
+    }
+""", """    if (TryGaleforceFem())
+        RefreshUnitSprites();
+    else if (TryMakeCantoUnit(proc))
+    {
+        HideUnitSprite(gActiveUnit);
+        return;
+    }
+""", rel)
+        text = _replace(text, "//! FE8U = 0x0801D344\nvoid PlayerPhase_FinishAction(ProcPtr proc)\n", f"""\
+/* FE Maker: Galeforce (C-SkillSys's Tsuzuku.c): after a battle won, the unit acts again, once a turn, Skill % */
+#define sGaleforceUsedFem ((vu8*) {GALEFORCE_USED})
+#define sGaleforceTurnFem (*(vu16*) ({GALEFORCE_USED} + 8))
+
+static bool TryGaleforceFem(void)
+{{
+    int i = gActiveUnit->index;
+
+    if (sGaleforceTurnFem != gPlaySt.chapterTurnNumber) {{
+        for (i = 0; i < 8; i++)
+            sGaleforceUsedFem[i] = 0;
+        sGaleforceTurnFem = gPlaySt.chapterTurnNumber;
+        i = gActiveUnit->index;
+    }}
+    if (gActionData.unitActionType != UNIT_ACTION_COMBAT || i >= 0x40 || (sGaleforceUsedFem[i / 8] & (1 << (i % 8)))
+        || !SkillTesterFem(gActiveUnit, SKILL_FEM_Galeforce) || gActiveUnit->state & US_DEAD
+        || gBattleTarget.unit.curHP != 0 || GetUnitCurrentHp(gActiveUnit) <= 0 || !Roll1RN(GetUnitSkill(gActiveUnit)))
+        return FALSE;
+    sGaleforceUsedFem[i / 8] |= 1 << (i % 8);
+    gActiveUnit->state &= ~(US_UNSELECTABLE | US_HAS_MOVED | US_HAS_MOVED_AI);
+    return TRUE;
+}}
+
+//! FE8U = 0x0801D344
+void PlayerPhase_FinishAction(ProcPtr proc)
+""", rel)
+    out[rel] = text
     return out
 
 

@@ -1704,6 +1704,42 @@ def test_game_ability_given_as_a_skill(tmp_path):
         assert crit == skl // 2 + 15          # Iron Sword: 0 crit
 
 
+def test_renewal_and_galeforce_on_the_map(tmp_path):
+    """Skills batch 4: Renewal heals the lord at the start of turn 2; on turn 2, Galeforce (Skill 100: sure) lets it
+    act again after its battle won."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "mapskills", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Renewal", "Galeforce"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 40, 0x17)            # Defense 40: the soldier does no damage
+        game.write(attacker, 1, 0x13)             # 1 HP
+        game.move_cursor(0, 0)                     # End the turn from the map menu
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        game.run(240)
+        hp, max_hp = game.read(attacker, 0x13), game.read(attacker, 0x12)
+        print("Renewal: 1 ->", hp, "of", max_hp)
+        assert hp == min(max_hp, 1 + max_hp * 30 // 100)
+        game.write(attacker, 60, 0x14)            # Strength 60: one hit kills
+        game.write(attacker, 100, 0x15)           # Skill 100: Galeforce triggers
+        _bench_attack(game, attacker)
+        assert game.wait_until(lambda: not game.units("Red"), seconds=60, step=10)
+        game.run(120)
+        state = game.read(attacker, 0xC, width=32)
+        game.screenshot().save(tmp_path / "galeforce.png")
+        print("state", hex(state), "screenshot:", tmp_path / "galeforce.png")
+        assert not state & 0x2                     # not grayed: it can act again
+
+
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
     strikes first, then the lord twice in a row (its follow-up before any counter)."""
