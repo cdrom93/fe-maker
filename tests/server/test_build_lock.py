@@ -21,6 +21,15 @@ def test_a_second_build_waits_for_the_first():
     assert "waiting" in said[0]
 
 
+def test_another_working_copy_does_not_wait(tmp_path):
+    """Ticket 20: builds without Docker lock their own working copies: another FE_MAKER_HOME builds at once."""
+    said = []
+    with build_lock(where=tmp_path / "a"):
+        with build_lock(said.append, poll=0.01, where=tmp_path / "b"):
+            pass
+    assert said == []
+
+
 def test_the_build_bar_guesses_from_the_last_build(tmp_path, monkeypatch):
     from fe_maker import api
 

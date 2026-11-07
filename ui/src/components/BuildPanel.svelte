@@ -13,6 +13,8 @@
   let timer: ReturnType<typeof setTimeout> | undefined
   // Progress guessed from the lines printed against the last build's count; past it, the bar has no value (ticket 156).
   let progress = $derived(status?.expected && log.length < status.expected ? log.length / status.expected : null)
+  // Another build of the same working copy (another FE Maker window, a test) goes first: this one waits (ticket 20).
+  let waiting = $derived(!!log.at(-1)?.includes('Another build is running'))
 
   async function poll() {
     try {
@@ -46,12 +48,15 @@
       <p>{error}</p>
     {:else if !status || status.state === 'running'}
       <h2>{t('build.running')}</h2>
-      {#if progress !== null}
+      {#if waiting}
+        <progress></progress>
+        <p>{t('build.waiting')}</p>
+      {:else if progress !== null}
         <div class="bar"><progress value={progress}></progress><span>{Math.round(progress * 100)} %</span></div>
       {:else}
         <progress></progress>
       {/if}
-      <p class="muted">{t('build.firstTime')}</p>
+      {#if !waiting}<p class="muted">{t('build.firstTime')}</p>{/if}
       <p class="last mono">{log.at(-1) ?? ''}</p>
     {:else if status.state === 'done'}
       <h2 class="good">{t('build.done')}</h2>

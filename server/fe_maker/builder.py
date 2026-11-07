@@ -60,11 +60,16 @@ def _try_lock(file) -> bool:
 
 
 @contextmanager
-def build_lock(on_output: Callable[[str], None] | None = None, poll: float = 1.0) -> Iterator[None]:
-    """One build at a time on this computer, whatever program asks for it (FE Maker, a second server, playtests): they
-    share the working copy of the Docker volume, and two builds at once mix their projects' files (ticket 57). The
-    system frees the lock when the process ends, even after a crash."""
-    with open(Path(tempfile.gettempdir()) / "fe-maker-build.lock", "a+b") as file:
+def build_lock(on_output: Callable[[str], None] | None = None, poll: float = 1.0,
+               where: Path | None = None) -> Iterator[None]:
+    """One build at a time per working copy, whatever program asks for it (FE Maker, a second server, playtests): two
+    builds at once in one working copy mix their projects' files (ticket 57). Docker's volume is one for the whole
+    computer (the lock in the temporary folder); a build without Docker locks its own working copies (`where`), so a
+    program with another FE_MAKER_HOME does not wait (ticket 20). The system frees the lock when the process ends,
+    even after a crash."""
+    folder = where or Path(tempfile.gettempdir())
+    folder.mkdir(parents=True, exist_ok=True)
+    with open(folder / "fe-maker-build.lock", "a+b") as file:
         waited = False
         while not _try_lock(file):
             if not waited and on_output:
@@ -158,7 +163,7 @@ def build(
     if overlay is not None and not overlay.is_dir():
         raise BuildError(f"Overlay directory not found: {overlay}")
     if native.available():   # Windows without Docker (docs/sans-docker.md); Docker stays the fallback
-        with build_lock(on_output):
+        with build_lock(on_output, where=native.work_dir(bugfix).parent):
             try:
                 log = native.build(rom.resolve(), out_dir, DECOMP_DIR, overlay.resolve() if overlay else None, bugfix,
                                    on_output)

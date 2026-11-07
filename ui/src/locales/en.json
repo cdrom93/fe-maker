@@ -118,6 +118,7 @@
   "wtype.monster": "Monster",
   "wtype.dance": "Dance",
   "build.running": "Building…",
+  "build.waiting": "Another build is running (another FE Maker window or a test): this one starts as soon as it ends.",
   "build.done": "Game built!",
   "build.launched": "The game is starting in mGBA.",
   "build.error": "The build failed",

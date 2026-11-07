@@ -118,6 +118,7 @@
   "wtype.monster": "Monstre",
   "wtype.dance": "Danse",
   "build.running": "Compilation en cours…",
+  "build.waiting": "Une autre compilation est en cours (autre fenêtre de FE Maker ou test) : celle-ci démarrera dès qu'elle sera finie.",
   "build.done": "Jeu compilé !",
   "build.launched": "Le jeu se lance dans mGBA.",
   "build.error": "La compilation a échoué",
