@@ -24,6 +24,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from . import __version__, decompfetch, emulator, ferepo, native, newchapter, scope, validation
+from . import tickets as ticketing
 from .builder import BuildError
 from .checks import run_checks
 from .config import Settings, config_dir, default_projects_dir, find_tiled
@@ -2466,6 +2467,64 @@ def ticket_image(name: str):
     if path is None:
         raise HTTPException(404)
     return FileResponse(path)
+
+
+# ---------- admin mode: the testers' tickets (tickets.py, through the admin's gh login) ----------
+
+
+class AdminReplyIn(BaseModel):
+    body: str
+    images: list[str] = []  # data URLs
+
+
+class AdminStatusIn(BaseModel):
+    status: str
+
+
+def _admin(call):
+    if not ticketing.admin_available():
+        raise HTTPException(403, "notAdmin")
+    try:
+        return call()
+    except ticketing.AdminError as e:
+        raise HTTPException(502, str(e)) from e
+
+
+@app.get("/api/admin")
+def admin_state():
+    return {"available": ticketing.admin_available()}
+
+
+@app.get("/api/admin/tickets")
+def admin_tickets(closed: bool = False):
+    return _admin(lambda: ticketing.admin_tickets(closed))
+
+
+@app.post("/api/admin/tickets/{number}/comments")
+def admin_reply(number: int, body: AdminReplyIn):
+    if not body.body.strip():
+        raise HTTPException(400, "bodyEmpty")
+    _admin(lambda: ticketing.admin_reply(number, body.body, body.images))
+    return {"ok": True}
+
+
+@app.post("/api/admin/tickets/{number}/status")
+def admin_status(number: int, body: AdminStatusIn):
+    if body.status not in ("open", "done", "cancelled"):
+        raise HTTPException(400, "badStatus")
+    _admin(lambda: ticketing.admin_set_status(number, body.status))
+    return {"ok": True}
+
+
+@app.get("/api/admin/file")
+def admin_file(path: str):
+    """A screenshot or a joined project of the feedback repository's uploads/ folder."""
+    import mimetypes
+
+    data = _admin(lambda: ticketing.admin_file(path))
+    name = path.rsplit("/", 1)[-1]
+    headers = {"Content-Disposition": f'attachment; filename="{name}"'} if name.endswith(".zip") else {}
+    return Response(data, media_type=mimetypes.guess_type(name)[0] or "application/octet-stream", headers=headers)
 
 
 # ---------- interface ----------

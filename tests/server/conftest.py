@@ -18,3 +18,6 @@ def decomp_dir() -> Path:
 def no_ticket_relay(monkeypatch):
     """Tests never send tickets to the real relay (tickets.py); test_tickets.py gives a fake one."""
     monkeypatch.setenv("FE_MAKER_RELAY", "off")
+    from fe_maker import tickets
+
+    monkeypatch.setattr(tickets, "_admin", False)   # nor ask gh whether the admin mode is on

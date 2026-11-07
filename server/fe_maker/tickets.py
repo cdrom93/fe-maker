@@ -354,28 +354,142 @@ class TicketStore:
 
 FEEDBACK_REPO = "cdrom93/fe-maker-feedback"   # where the relay writes (relay/wrangler.toml)
 
+# ---------- admin mode: the testers' tickets, read and answered through the admin's own gh login ----------
+# No token is typed or kept by FE Maker: the gh CLI holds it, and the mode only shows to whoever can write to the
+# feedback repository. Admin replies are plain comments: the relay hands every comment without the tester mark back
+# to the tester as a reply.
+
+UPLOAD_LINK = re.compile(r"^\s*!?\[[^\]]*\]\(https://github\.com/[^/]+/[^/]+/blob/main/(uploads/[\w./-]+)\?raw=true\)\s*$")
+MARKS = re.compile(r"<!-- fem:[^>]*-->")
+_admin: bool | None = None
+
+
+class AdminError(Exception):
+    pass
+
+
+def _gh(*args: str, stdin: str | None = None) -> str:
+    try:
+        out = subprocess.run(["gh", *args], capture_output=True, text=True, encoding="utf-8", input=stdin, timeout=60)
+    except (OSError, subprocess.SubprocessError) as e:
+        raise AdminError(str(e)) from e
+    if out.returncode != 0:
+        raise AdminError(out.stderr.strip() or "gh failed")
+    return out.stdout
+
+
+def admin_available() -> bool:
+    """gh is installed, logged in and may write to the feedback repository (checked once per run)."""
+    global _admin
+    if _admin is None:
+        try:
+            _admin = _gh("api", f"repos/{FEEDBACK_REPO}", "--jq", ".permissions.push").strip() == "true"
+        except AdminError:
+            _admin = False
+    return _admin
+
+
+def _split(text: str) -> dict:
+    """An issue or comment body written by the relay: the text, its context table, screenshots and project."""
+    lines, context, images, project = [], {}, [], ""
+    for line in MARKS.sub("", text or "").splitlines():
+        link = UPLOAD_LINK.match(line)
+        if link:
+            if link.group(1).endswith(".zip"):
+                project = link.group(1)
+            else:
+                images.append(link.group(1))
+        elif line.startswith("|"):
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) == 2 and cells[0] and not set(cells[0]) <= {"-"}:
+                context[cells[0]] = cells[1]
+        else:
+            lines.append(line)
+    return {"body": "\n".join(lines).strip(), "context": context, "images": images, "project": project}
+
+
+def _issue(issue: dict) -> dict:
+    labels = [label["name"] for label in issue.get("labels", [])]
+    state = "open" if issue["state"] == "OPEN" else "cancelled" if issue.get("stateReason") == "NOT_PLANNED" else "done"
+    parts = _split(issue.get("body") or "")
+    return {
+        "number": issue["number"],
+        "kind": next((k for k in ("bug", "idea", "question") if k in labels), "bug"),
+        "priority": next((x.split(":", 1)[1] for x in labels if x.startswith("priority:")), "normal"),
+        "version": next((x[1:] for x in labels if x.startswith("v") and x[1:2].isdigit()), parts["context"].get("version", "")),
+        "status": state,
+        "createdAt": issue["createdAt"],
+        "url": issue.get("url", ""),
+        **parts,
+        "comments": [
+            {"from": "tester" if "<!-- fem:tester -->" in (c.get("body") or "") else "admin", "createdAt": c["createdAt"],
+             **{k: v for k, v in _split(c.get("body") or "").items() if k in ("body", "images")}}
+            for c in issue.get("comments", [])
+        ],
+    }
+
+
+def admin_tickets(include_closed: bool = False) -> list[dict]:
+    fields = "number,body,labels,createdAt,state,stateReason,comments,url"
+    issues = json.loads(_gh("issue", "list", "-R", FEEDBACK_REPO, "--state", "all" if include_closed else "open",
+                            "--limit", "200", "--json", fields))
+    return sorted((_issue(i) for i in issues), key=lambda i: -i["number"])
+
+
+def _upload(data_url: str, name: str) -> str:
+    """A screenshot of an admin reply, into the repository's uploads/ folder like the relay's."""
+    m = re.match(r"^data:image/(png|jpeg|webp|gif);base64,(.+)$", data_url, re.S)
+    if not m:
+        raise AdminError("badImage")
+    path = f"uploads/{datetime.now().strftime('%Y-%m')}/{name}.{'jpg' if m.group(1) == 'jpeg' else m.group(1)}"
+    _gh("api", "-X", "PUT", f"repos/{FEEDBACK_REPO}/contents/{path}", "--input", "-",
+        stdin=json.dumps({"message": f"Screenshot {name}", "content": m.group(2)}))
+    return path
+
+
+def admin_reply(number: int, body: str, images: list[str] | None = None) -> None:
+    key = uuid.uuid4().hex[:6]
+    paths = [_upload(src, f"{number}-{key}-{i + 1}") for i, src in enumerate(images or [])]
+    links = [f"\n![Capture {i + 1}](https://github.com/{FEEDBACK_REPO}/blob/main/{p}?raw=true)" for i, p in enumerate(paths)]
+    _gh("issue", "comment", str(number), "-R", FEEDBACK_REPO, "--body-file", "-", stdin="\n".join([body.strip(), *links]))
+
+
+def admin_set_status(number: int, status: str) -> None:
+    if status == "open":
+        _gh("issue", "reopen", str(number), "-R", FEEDBACK_REPO)
+    else:
+        _gh("issue", "close", str(number), "-R", FEEDBACK_REPO, "--reason",
+            "not planned" if status == "cancelled" else "completed")
+
+
+def admin_file(path: str) -> bytes:
+    """A file of the repository's uploads/ folder (screenshots, projects), through the git blob for big ones."""
+    if not re.fullmatch(r"uploads/[\w.-]+/[\w.-]+", path) or ".." in path:
+        raise AdminError("notFound")
+    info = json.loads(_gh("api", f"repos/{FEEDBACK_REPO}/contents/{path}"))
+    content = info.get("content") or json.loads(_gh("api", f"repos/{FEEDBACK_REPO}/git/blobs/{info['sha']}"))["content"]
+    return base64.b64decode(content)
+
 
 def print_remote(include_closed: bool = False) -> None:
-    """The tickets the relay wrote, read with the admin's gh login (screenshots: links into the repository)."""
-    fields = "number,title,body,labels,createdAt,state,comments"
-    out = subprocess.run(["gh", "issue", "list", "-R", FEEDBACK_REPO, "--state", "all" if include_closed else "open",
-                          "--limit", "200", "--json", fields], capture_output=True, text=True, encoding="utf-8")
-    if out.returncode != 0:
-        print(out.stderr.strip() or "gh failed", file=sys.stderr)
+    """The tickets the relay wrote, read with the admin's gh login."""
+    try:
+        issues = admin_tickets(include_closed)
+    except AdminError as e:
+        print(e, file=sys.stderr)
         sys.exit(1)
-    issues = json.loads(out.stdout)
     if not issues:
         print("No ticket.")
-    for issue in sorted(issues, key=lambda i: i["number"]):
-        labels = ", ".join(label["name"] for label in issue["labels"])
-        print(f"#{issue['number']} {issue['state'].lower()} · {labels} · {issue['createdAt']}")
-        for line in re.sub(r"<!-- fem:[^>]*-->", "", issue["body"] or "").strip().splitlines():
+    for issue in reversed(issues):
+        print(f"#{issue['number']} {issue['status']} · {issue['kind']} · {issue['priority']} · v{issue['version']} · "
+              f"{issue['createdAt']}")
+        for line in issue["body"].splitlines():
             print(f"    {line}")
+        for name in issue["images"] + ([issue["project"]] if issue["project"] else []):
+            print(f"    [{name}]")
         for comment in issue["comments"]:
-            body = comment["body"] or ""
-            who = "tester" if "<!-- fem:tester -->" in body else "admin"
-            print(f"    --- {who} · {comment['createdAt']}")
-            for line in body.replace("<!-- fem:tester -->", "").strip().splitlines():
+            print(f"    --- {comment['from']} · {comment['createdAt']}")
+            for line in comment["body"].splitlines():
                 print(f"    {line}")
         print()
 

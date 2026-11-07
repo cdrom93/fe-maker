@@ -1,6 +1,6 @@
 import { iconVersion, mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { SkillCatalogue } from './skills.svelte'
-import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn } from './types'
+import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn, AdminTicket } from './types'
 
 /** What a project keeps of the game (server: scope.py) */
 export type ScopeRow = { id: string | number; name: string; kept: boolean }
@@ -222,9 +222,15 @@ export const api = {
   /** the ticket relay (tickets.py): send again, read back the replies and states */
   sendTicket: (id: string, attachProject: boolean) => request<Ticket>('POST', `/api/tickets/${id}/send`, { attachProject }),
   syncTickets: () => request<Ticket[]>('POST', '/api/tickets/sync'),
+  /** admin mode: the testers' tickets, answered and closed through the admin's gh login */
+  adminState: () => request<{ available: boolean }>('GET', '/api/admin'),
+  adminTickets: (closed: boolean) => request<AdminTicket[]>('GET', `/api/admin/tickets?closed=${closed}`),
+  adminReply: (n: number, reply: { body: string; images: string[] }) => request<{ ok: boolean }>('POST', `/api/admin/tickets/${n}/comments`, reply),
+  adminStatus: (n: number, status: AdminTicket['status']) => request<{ ok: boolean }>('POST', `/api/admin/tickets/${n}/status`, { status }),
 }
 
 export const ticketImageUrl = (name: string) => `/api/tickets/images/${name}`
+export const adminFileUrl = (path: string) => `/api/admin/file?path=${encodeURIComponent(path)}`
 /** `version` changes when the project's painted layout changes (the image is not cached then). */
 export const chapterMapUrl = (index: number, version = '', change: number | null = null) =>
   `/api/chapters/${index}/map.png?v=${version}${change === null ? '' : `&change=${change}`}`

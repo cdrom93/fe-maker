@@ -118,3 +118,68 @@ def test_project_joined_without_its_builds(tmp_path):
     (tmp_path / "build" / "game.gba").write_bytes(b"rom")
     names = zipfile.ZipFile(BytesIO(project_zip(tmp_path))).namelist()
     assert sorted(names) == ["data/characters.json", "fe-maker.json"]
+
+
+ISSUE_BODY = """Plantage au tour 2
+avec deux lignes
+
+| | |
+|---|---|
+| tab | Cartes |
+| version | 0.1.0-prealpha.1+abc1234 |
+
+![Capture 1](https://github.com/cdrom93/fe-maker-feedback/blob/main/uploads/2026-11/ab12-1.png?raw=true)
+
+[Projet joint](https://github.com/cdrom93/fe-maker-feedback/blob/main/uploads/2026-11/ab12-project.zip?raw=true)
+
+<!-- fem:secret=""" + "0" * 64 + " -->"
+
+
+def test_admin_mode_reads_answers_and_closes_through_gh(monkeypatch):
+    import json
+
+    from fe_maker import tickets
+
+    calls = []
+    labels = [{"name": "bug"}, {"name": "priority:high"}, {"name": "v0.1.0-prealpha.1"}]
+    issue = {"number": 5, "body": ISSUE_BODY, "labels": labels,
+             "createdAt": "2026-11-07T12:00:00Z", "state": "CLOSED", "stateReason": "NOT_PLANNED", "url": "u",
+             "comments": [{"body": "Merci\n\n<!-- fem:tester -->", "createdAt": "c1"}, {"body": "Corrigé", "createdAt": "c2"}]}
+
+    def gh(*args, stdin=None):
+        calls.append((args, stdin))
+        if args[:2] == ("issue", "list"):
+            return json.dumps([issue])
+        if args[0] == "api" and args[-1].endswith(".png") and "-X" not in args:
+            return json.dumps({"content": base64.b64encode(b"PNG").decode(), "sha": "s"})
+        return ""
+
+    monkeypatch.setattr(tickets, "_gh", gh)
+    [found] = tickets.admin_tickets(include_closed=True)
+    assert found["body"] == "Plantage au tour 2\navec deux lignes"
+    assert found["context"] == {"tab": "Cartes", "version": "0.1.0-prealpha.1+abc1234"}
+    assert found["images"] == ["uploads/2026-11/ab12-1.png"] and found["project"] == "uploads/2026-11/ab12-project.zip"
+    assert (found["kind"], found["priority"], found["status"]) == ("bug", "high", "cancelled")
+    assert found["version"] == "0.1.0-prealpha.1"
+    assert [(c["from"], c["body"]) for c in found["comments"]] == [("tester", "Merci"), ("admin", "Corrigé")]
+
+    tickets.admin_reply(5, "C'est réglé", [_png_data_url()])
+    upload, comment = calls[-2], calls[-1]
+    assert upload[0][:3] == ("api", "-X", "PUT") and json.loads(upload[1])["content"]
+    assert comment[0][:3] == ("issue", "comment", "5") and comment[1].startswith("C'est réglé\n\n![Capture 1](")
+    tickets.admin_set_status(5, "done")
+    assert calls[-1][0][:2] == ("issue", "close") and "completed" in calls[-1][0]
+    assert tickets.admin_file("uploads/2026-11/ab12-1.png") == b"PNG"
+    with pytest.raises(tickets.AdminError):
+        tickets.admin_file("../secrets.txt")
+
+
+def test_admin_endpoints_need_the_admin_mode():
+    from fastapi import HTTPException
+
+    from fe_maker import api
+
+    assert api.admin_state() == {"available": False}
+    with pytest.raises(HTTPException) as refused:
+        api.admin_tickets()
+    assert refused.value.status_code == 403

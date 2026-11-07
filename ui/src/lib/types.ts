@@ -644,6 +644,22 @@ export interface Ticket {
   replies?: { body: string; createdAt: string }[]
 }
 
+/** A tester's ticket in the admin mode (tickets.py, read through the admin's gh login). */
+export interface AdminTicket {
+  number: number
+  kind: TicketKind
+  priority: TicketPriority
+  version: string
+  status: 'open' | 'done' | 'cancelled'
+  createdAt: string
+  body: string
+  context: Record<string, string>
+  /** paths in the feedback repository's uploads/ folder */
+  images: string[]
+  project: string
+  comments: { from: 'tester' | 'admin'; body: string; images: string[]; createdAt: string }[]
+}
+
 /** A reply that completes a ticket. */
 export interface TicketComment {
   id: string

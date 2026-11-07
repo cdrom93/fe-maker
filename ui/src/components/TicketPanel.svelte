@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  import { api, ApiError, ticketImageUrl } from '../lib/api'
+  import { adminFileUrl, api, ApiError, ticketImageUrl } from '../lib/api'
   import { appContext } from '../lib/appContext.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
-  import type { Ticket, TicketKind, TicketPriority } from '../lib/types'
+  import type { AdminTicket, Ticket, TicketKind, TicketPriority } from '../lib/types'
   import Help from './Help.svelte'
 
   /** Side column to write feedback tickets while using the app: new ticket on top, open tickets below. */
@@ -31,6 +31,32 @@
   let reply = $state<{ id: string; body: string; images: string[]; error: string } | null>(null)
   let replying = $state(false)
   let textarea = $state<HTMLTextAreaElement>()
+  /** admin mode (whoever may write to the feedback repository): the testers' tickets beside one's own */
+  let admin = $state(false)
+  let view = $state<'mine' | 'testers'>('mine')
+  let testers = $state<AdminTicket[] | null>(null)
+  let adminError = $state('')
+  api.adminState().then((s) => (admin = s.available)).catch(() => {})
+
+  async function loadTesters() {
+    adminError = ''
+    try {
+      testers = await api.adminTickets(showClosed)
+    } catch (e) {
+      adminError = e instanceof ApiError ? e.detail : String(e)
+    }
+  }
+
+  function showView(v: 'mine' | 'testers') {
+    view = v
+    reply = null
+    if (v === 'testers') loadTesters()
+  }
+
+  async function setTesterStatus(n: number, status: AdminTicket['status']) {
+    await api.adminStatus(n, status)
+    await loadTesters()
+  }
   let panel = $state<HTMLElement>()
 
   // What the user is looking at right now (the column stays open while they use the app).
@@ -104,9 +130,15 @@
     replying = true
     reply.error = ''
     try {
-      await api.addTicketComment(id, { body: text, images: pictures })
-      reply = null
-      await load()
+      if (id.startsWith('admin-')) {
+        await api.adminReply(Number(id.slice(6)), { body: text, images: pictures })
+        reply = null
+        await loadTesters()
+      } else {
+        await api.addTicketComment(id, { body: text, images: pictures })
+        reply = null
+        await load()
+      }
     } catch (e) {
       if (reply) reply.error = e instanceof ApiError ? t(`ticket.error.${e.detail}`) : String(e)
     } finally {
@@ -167,11 +199,120 @@
   }
 </script>
 
+{#snippet replyBox()}
+  {#if reply}
+    <div class="reply">
+      <textarea use:focus bind:value={reply.body} rows="3" aria-label={t('ticket.reply')} placeholder={t('ticket.replyPlaceholder')}
+        onpaste={(e) => paste(e, readReplyImage)}
+        onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && reply?.body.trim()) sendReply() }}></textarea>
+      <div class="images">
+        {#each reply.images as src, i (i)}
+          <span class="thumb">
+            <img {src} alt={t('ticket.image', { n: i + 1 })} />
+            <button class="x" aria-label={t('ticket.removeImage')} onclick={() => { if (reply) reply.images = reply.images.filter((_, j) => j !== i) }}>✕</button>
+          </span>
+        {/each}
+        <label class="add-image">
+          <input type="file" accept="image/*" multiple onchange={(e) => {
+            const input = e.target as HTMLInputElement
+            ;[...(input.files ?? [])].forEach(readReplyImage)
+            input.value = ''
+          }} />
+          {t('ticket.addImage')}
+        </label>
+      </div>
+      {#if reply.error}<p class="bad small">{reply.error}</p>{/if}
+      <div class="actions">
+        <button onclick={() => (reply = null)}>{t('ticket.cancelEdit')}</button>
+        <button class="primary" disabled={!reply.body.trim() || replying} onclick={sendReply}>{t('ticket.replySend')}</button>
+      </div>
+    </div>
+  {/if}
+{/snippet}
+
 <aside class="side" bind:this={panel} aria-labelledby="ticket-title">
   <div class="head">
     <h2 id="ticket-title">{t('ticket.title')}</h2>
     <button class="ghost" aria-label={t('build.close')} title={t('build.close')} onclick={onClose}>✕</button>
   </div>
+  {#if admin}
+    <div class="views">
+      <div class="seg" role="radiogroup" aria-label={t('ticket.title')}>
+        {#each ['mine', 'testers'] as const as v (v)}
+          <button role="radio" aria-checked={view === v} class:active={view === v} onclick={() => showView(v)}>{t(`ticket.view.${v}`)}</button>
+        {/each}
+      </div>
+      <Help text={t('ticket.testersHint')} />
+    </div>
+  {/if}
+
+  {#if view === 'testers'}
+  <section class="list" aria-label={t('ticket.view.testers')}>
+    <div class="list-head">
+      <h3>{t('ticket.view.testers')}</h3>
+      <label class="check"><input type="checkbox" bind:checked={showClosed} onchange={loadTesters} /> {t('ticket.showClosedShort')}</label>
+    </div>
+    {#if adminError}<p class="bad small">{t('ticket.adminError', { reason: adminError })}</p>
+    {:else if !testers}<p class="muted small">{t('ticket.loading')}</p>
+    {:else if !testers.length}<p class="muted small">{t('ticket.none')}</p>{/if}
+    <ul>
+      {#each testers ?? [] as tk (tk.number)}
+        <li class:closed={tk.status !== 'open'}>
+          <div class="meta">
+            <strong>#{tk.number}</strong>
+            <span class="tag">{t(`ticket.kind.${tk.kind}`)}</span>
+            <span class="tag prio {tk.priority}">{t(`ticket.priority.${tk.priority}`)}</span>
+            {#if tk.status !== 'open'}<span class="tag">{t(`ticket.status.${tk.status}`)}</span>{/if}
+            {#if tk.version}<span class="tag">{tk.version}</span>{/if}
+            <span class="muted tiny">{date(tk.createdAt)}</span>
+          </div>
+          <p class="comment-body">{tk.body}</p>
+          {#if tk.context.tab || tk.context.record || tk.context.detail}
+            <p class="muted tiny">{[tk.context.tab, tk.context.record, tk.context.detail].filter(Boolean).join(' · ')}</p>
+          {/if}
+          {#if tk.images.length || tk.project}
+            <div class="images">
+              {#each tk.images as path (path)}
+                <a class="thumb" href={adminFileUrl(path)} target="_blank" rel="noreferrer"><img src={adminFileUrl(path)} alt={path} /></a>
+              {/each}
+              {#if tk.project}<a class="add-image" href={adminFileUrl(tk.project)} download>{t('ticket.project')}</a>{/if}
+            </div>
+          {/if}
+          {#each tk.comments as comment, i (i)}
+            <div class="comment" class:answer={comment.from === 'admin'}>
+              <div class="meta">
+                <strong class="tiny">{comment.from === 'admin' ? t('ticket.fromYou') : t('ticket.fromTester')}</strong>
+                <span class="muted tiny">{date(comment.createdAt)}</span>
+              </div>
+              <p class="comment-body">{comment.body}</p>
+              {#if comment.images.length}
+                <div class="images">
+                  {#each comment.images as path (path)}
+                    <a class="thumb" href={adminFileUrl(path)} target="_blank" rel="noreferrer"><img src={adminFileUrl(path)} alt={path} /></a>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
+          {#if reply?.id === `admin-${tk.number}`}
+            {@render replyBox()}
+          {/if}
+          <div class="actions left">
+            {#if tk.status === 'open'}
+              {#if reply?.id !== `admin-${tk.number}`}
+                <button onclick={() => (reply = { id: `admin-${tk.number}`, body: '', images: [], error: '' })}>{t('ticket.reply')}</button>
+              {/if}
+              <button onclick={() => setTesterStatus(tk.number, 'done')}>{t('ticket.markDone')}</button>
+              <button onclick={() => setTesterStatus(tk.number, 'cancelled')}>{t('ticket.markCancelled')}</button>
+            {:else}
+              <button onclick={() => setTesterStatus(tk.number, 'open')}>{t('ticket.reopen')}</button>
+            {/if}
+          </div>
+        </li>
+      {/each}
+    </ul>
+  </section>
+  {:else}
 
   <section class="new" aria-label={t('ticket.new')}>
     <h3>{t('ticket.new')}</h3>
@@ -280,32 +421,7 @@
             </div>
           {/each}
           {#if reply?.id === tk.id}
-            <div class="reply">
-              <textarea use:focus bind:value={reply.body} rows="3" aria-label={t('ticket.reply')} placeholder={t('ticket.replyPlaceholder')}
-                onpaste={(e) => paste(e, readReplyImage)}
-                onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && reply?.body.trim()) sendReply() }}></textarea>
-              <div class="images">
-                {#each reply.images as src, i (i)}
-                  <span class="thumb">
-                    <img {src} alt={t('ticket.image', { n: i + 1 })} />
-                    <button class="x" aria-label={t('ticket.removeImage')} onclick={() => { if (reply) reply.images = reply.images.filter((_, j) => j !== i) }}>✕</button>
-                  </span>
-                {/each}
-                <label class="add-image">
-                  <input type="file" accept="image/*" multiple onchange={(e) => {
-                    const input = e.target as HTMLInputElement
-                    ;[...(input.files ?? [])].forEach(readReplyImage)
-                    input.value = ''
-                  }} />
-                  {t('ticket.addImage')}
-                </label>
-              </div>
-              {#if reply.error}<p class="bad small">{reply.error}</p>{/if}
-              <div class="actions">
-                <button onclick={() => (reply = null)}>{t('ticket.cancelEdit')}</button>
-                <button class="primary" disabled={!reply.body.trim() || replying} onclick={sendReply}>{t('ticket.replySend')}</button>
-              </div>
-            </div>
+            {@render replyBox()}
           {/if}
           <div class="actions left">
             {#if tk.status === 'open'}
@@ -331,6 +447,7 @@
       {/each}
     </ul>
   </section>
+  {/if}
 </aside>
 
 <style>
@@ -341,6 +458,9 @@
     box-shadow: -6px 0 18px rgb(0 0 0 / 0.18);
   }
   .head { display: flex; justify-content: space-between; align-items: center; }
+  .views { display: flex; align-items: center; gap: 0.4rem; }
+  .views .seg button { white-space: nowrap; }
+  a.add-image { text-decoration: none; }
   h2 { margin: 0; font-size: 1.05rem; }
   h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   section { display: flex; flex-direction: column; gap: 0.5rem; }

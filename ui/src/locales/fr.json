@@ -1886,5 +1886,13 @@
   "ticket.error.projectTooBig": "projet trop lourd (10 Mo au plus)",
   "ticket.error.badProject": "projet illisible",
   "ticket.error.badRequest": "ticket illisible",
-  "ticket.error.notFound": "ticket introuvable"
+  "ticket.error.notFound": "ticket introuvable",
+  "ticket.view.mine": "Mes tickets",
+  "ticket.view.testers": "Testeurs",
+  "ticket.testersHint": "Les tickets envoyés par les testeurs, lus avec votre connexion gh (droit d'écriture sur le dépôt des retours). Vos réponses s'affichent chez eux dans FE Maker.",
+  "ticket.fromTester": "Testeur",
+  "ticket.fromYou": "Vous",
+  "ticket.project": "Projet joint",
+  "ticket.loading": "Chargement…",
+  "ticket.adminError": "Lecture impossible : {reason}"
 }

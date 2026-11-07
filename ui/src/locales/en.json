@@ -1886,5 +1886,13 @@
   "ticket.error.projectTooBig": "project too heavy (10 MB at most)",
   "ticket.error.badProject": "unreadable project",
   "ticket.error.badRequest": "unreadable ticket",
-  "ticket.error.notFound": "ticket not found"
+  "ticket.error.notFound": "ticket not found",
+  "ticket.view.mine": "My tickets",
+  "ticket.view.testers": "Testers",
+  "ticket.testersHint": "The tickets sent by testers, read with your gh login (write access to the feedback repository). Your replies show up for them in FE Maker.",
+  "ticket.fromTester": "Tester",
+  "ticket.fromYou": "You",
+  "ticket.project": "Attached project",
+  "ticket.loading": "Loading…",
+  "ticket.adminError": "Could not read them: {reason}"
 }

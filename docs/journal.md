@@ -213,3 +213,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : relais des tickets déployé et vérifié en vrai (ticket, capture, relecture, réponses) ; certificats de certifi pour l'envoi depuis Python, erreurs GitHub dans les journaux du Worker.
 - 07/11/2026 : ticket 173 : Docker Desktop n'est plus lancé au démarrage quand FE Maker compile sans lui (sa chaîne installée).
 - 07/11/2026 : versions préalpha : 0.1.0-prealpha.1 (une de plus à chaque push), envoyée avec les tickets (+commit) ; le relais étiquette la version seule (redéployé).
+- 07/11/2026 : mode admin des tickets : vue « Testeurs » du panneau (lire, répondre avec captures, fermer, rouvrir), par la connexion gh de l'admin ; idées du ticket 172 pour l'import d'animations notées au cahier (phase 5).
