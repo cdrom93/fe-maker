@@ -28,6 +28,7 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
+from . import __version__
 from .config import config_dir
 from .paths import REPO_ROOT
 
@@ -98,15 +99,16 @@ def tickets_dir() -> Path:
 
 
 def app_version() -> str:
-    """Short commit of the running code (the app is run from a git checkout), else the package version."""
+    """FE Maker's version, with the short commit of the running code after a "+" when run from a git checkout
+    (0.1.0-prealpha.1+e2e2bab): the relay labels the issue with the version alone."""
     try:
         out = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--short", "HEAD"],
                              capture_output=True, text=True, timeout=5)
-        if out.returncode == 0:
-            return out.stdout.strip()
+        if out.returncode == 0 and out.stdout.strip():
+            return f"{__version__}+{out.stdout.strip()}"
     except (OSError, subprocess.SubprocessError):
         pass
-    return "0.1.0"
+    return __version__
 
 
 def _now() -> str:

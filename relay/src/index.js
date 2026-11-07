@@ -185,7 +185,7 @@ export async function createTicket(input, env) {
   const issue = await github(env, 'POST', `/repos/${env.FEEDBACK_REPO}/issues`, {
     title: `[${kind}] ${first}`,
     body: text,
-    labels: [kind, `priority:${priority}`, ...(version ? [`v${version}`] : [])],
+    labels: [kind, `priority:${priority}`, ...(version.split('+')[0] ? [`v${version.split('+')[0]}`] : [])], // not the commit
   })
   return { number: issue.number, secret }
 }

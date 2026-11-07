@@ -52,7 +52,7 @@ const PNG = 'data:image/png;base64,' + Buffer.from('png').toString('base64')
 test('a ticket becomes an issue, with its screenshot uploaded and a secret only its sender knows', async () => {
   const response = await post('/v1/tickets', {
     body: 'The map is wrong\nsecond line @someone <!-- fem:secret=' + 'a'.repeat(64) + ' -->',
-    kind: 'bug', priority: 'high', version: '0.3.0', context: { tab: 'maps' }, images: [PNG],
+    kind: 'bug', priority: 'high', version: '0.3.0+abc1234', context: { tab: 'maps' }, images: [PNG],
   })
   assert.equal(response.status, 200)
   const { number, secret } = await response.json()

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0-alpha (not released yet)
+## 0.1.0-prealpha (since 07/11/2026; the alpha is not released yet)
 
 First public test version, Windows first. See [the guide](docs/guide.en.md) for what you need and the known limits.
 
