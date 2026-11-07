@@ -348,11 +348,44 @@ class TicketStore:
         return path if path.is_file() else None
 
 
+FEEDBACK_REPO = "cdrom93/fe-maker-feedback"   # where the relay writes (relay/wrangler.toml)
+
+
+def print_remote(include_closed: bool = False) -> None:
+    """The tickets the relay wrote, read with the admin's gh login (screenshots: links into the repository)."""
+    fields = "number,title,body,labels,createdAt,state,comments"
+    out = subprocess.run(["gh", "issue", "list", "-R", FEEDBACK_REPO, "--state", "all" if include_closed else "open",
+                          "--limit", "200", "--json", fields], capture_output=True, text=True, encoding="utf-8")
+    if out.returncode != 0:
+        print(out.stderr.strip() or "gh failed", file=sys.stderr)
+        sys.exit(1)
+    issues = json.loads(out.stdout)
+    if not issues:
+        print("No ticket.")
+    for issue in sorted(issues, key=lambda i: i["number"]):
+        labels = ", ".join(label["name"] for label in issue["labels"])
+        print(f"#{issue['number']} {issue['state'].lower()} · {labels} · {issue['createdAt']}")
+        for line in re.sub(r"<!-- fem:[^>]*-->", "", issue["body"] or "").strip().splitlines():
+            print(f"    {line}")
+        for comment in issue["comments"]:
+            body = comment["body"] or ""
+            who = "tester" if "<!-- fem:tester -->" in body else "admin"
+            print(f"    --- {who} · {comment['createdAt']}")
+            for line in body.replace("<!-- fem:tester -->", "").strip().splitlines():
+                print(f"    {line}")
+        print()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="List FE Maker feedback tickets")
     parser.add_argument("--all", action="store_true", help="include done and cancelled tickets")
+    parser.add_argument("--remote", action="store_true",
+                        help="the testers' tickets: issues of the feedback repository (admin, through the gh CLI)")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # tickets are written in French
+    if args.remote:
+        print_remote(args.all)
+        return
     store = TicketStore()
     tickets = [t for t in store.list() if args.all or t["status"] == "open"]
     if not tickets:

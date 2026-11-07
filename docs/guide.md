@@ -43,7 +43,7 @@ Un petit **i** à côté d'un titre ou d'une option donne son explication : surv
 
 **▶ Tester** compile et lance le jeu dans mGBA. Le menu **Projet** contient **Exporter le patch**, qui donne le `.ups` à partager.
 
-Le bouton **Ticket** de l'en-tête note un problème ; « Envoyer sur GitHub » ouvre un signalement pré-rempli, que vous relisez avant de l'envoyer.
+Le bouton **Ticket** de l'en-tête signale un problème ou propose une idée : le ticket part aux développeurs de FE Maker, sans compte à créer, avec vos captures (et votre projet si vous cochez « Joindre le projet »). Leurs réponses s'affichent sous le ticket. Sans connexion, il reste noté sur votre PC et « Renvoyer » le renvoie plus tard.
 
 ## Limites connues de l'alpha
 

@@ -43,7 +43,7 @@ A small **i** next to a title or an option holds its explanation: hover over it.
 
 **▶ Test** compiles and starts the game in mGBA. The **Project** menu holds **Export patch**, which gives the `.ups` to share.
 
-The **Ticket** button in the header notes a problem; "Send to GitHub" opens a filled-in report that you read before sending.
+The **Ticket** button in the header reports a problem or suggests an idea: the ticket goes to FE Maker's developers, with no account to create, with your screenshots (and your project if you tick "Attach the project"). Their replies show under the ticket. Offline, it stays on your PC and "Send again" sends it later.
 
 ## Known limits of the alpha
 
