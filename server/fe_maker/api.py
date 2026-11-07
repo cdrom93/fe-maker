@@ -2329,10 +2329,11 @@ def get_game_options():
 
 
 @app.put("/api/project/game-options")
-def put_game_options(options: dict):
+def put_game_options(changes: dict):
+    """The options changed only (ticket: options lost when a page loaded earlier sent its whole, older set)."""
     project = state.require_project()
     try:
-        project.set_game_options(options)
+        project.change_game_options(changes)
     except ProjectError as e:
         raise HTTPException(400, str(e)) from e
     return get_game_options()

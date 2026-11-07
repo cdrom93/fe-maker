@@ -216,14 +216,23 @@ class Project:
         return {k: v for k, v in self.meta.get("gameOptions", {}).items() if k in known}
 
     def set_game_options(self, options: dict) -> None:
+        """The project's whole set of known options. The options this version does not know (a newer version's) stay
+        in the file as they were: a server of another version never erases them."""
         problem = gameoptions.validate(options)
         if problem:
             raise ProjectError(problem)
-        self.meta["gameOptions"] = {k: v for k, v in options.items()
-                                    if k in gameoptions.SWITCHES and v or k in gameoptions.DEFAULTS
-                                    and v != gameoptions.DEFAULTS[k][1]
-                                    or k in gameoptions.CHOICES and v != gameoptions.CHOICES[k][0]}
+        known = (*gameoptions.SWITCHES, *gameoptions.DEFAULTS, *gameoptions.CHOICES)
+        kept = {k: v for k, v in self.meta.get("gameOptions", {}).items() if k not in known}
+        self.meta["gameOptions"] = kept | {k: v for k, v in options.items()
+                                           if k in gameoptions.SWITCHES and v or k in gameoptions.DEFAULTS
+                                           and v != gameoptions.DEFAULTS[k][1]
+                                           or k in gameoptions.CHOICES and v != gameoptions.CHOICES[k][0]}
         (self.root / PROJECT_FILE).write_text(json.dumps(self.meta, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def change_game_options(self, changes: dict) -> None:
+        """Only the options changed, over the ones saved: a page loaded before other changes (another tab, an older
+        version of the page) cannot undo them."""
+        self.set_game_options({**self.game_options, **changes})
 
     def update_credits(self) -> None:
         """CREDITS.txt lists the community resources the project uses (imported from FE-Repo) and says how

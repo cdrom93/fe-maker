@@ -45,7 +45,7 @@
     saving = true
     error = ''
     try {
-      data = await api.setGameOptions({ ...data.options, [key]: value })
+      data = await api.setGameOptions({ [key]: value })   // only the change: the server keeps the rest
       magicSplit.on = !!data.options.strMagSplit
       skillsOption.on = !!data.options.skills
     } catch (e) {

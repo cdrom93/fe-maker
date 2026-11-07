@@ -123,3 +123,16 @@ def test_a_project_is_renamed_and_saved_as_a_copy(tmp_path, decomp_dir, monkeypa
     assert (copy / "fe-maker.json").is_file() and (copy / "data").is_dir() and not (copy / "build").exists()
     assert Project(tmp_path / "old", decomp_dir).name == "New name" and (tmp_path / "old" / "build" / "hack.gba").is_file()
     assert api.state.project.root == copy
+
+
+def test_a_page_loaded_earlier_does_not_undo_other_options(tmp_path, decomp_dir, monkeypatch):
+    """The options page sends only the option changed: a page loaded before other changes (another tab, a page from an
+    older version) does not untick them; an option this version does not know stays in the file."""
+    from fe_maker import api
+
+    project = Project.create(tmp_path / "p", "P", decomp_dir=decomp_dir)
+    project.meta["gameOptions"] = {"hpBars": True, "fromANewerVersion": True}
+    monkeypatch.setattr(api.state, "project", project)
+    assert api.put_game_options({"quickExpBar": True})["options"] == {"hpBars": True, "quickExpBar": True}
+    api.put_game_options({"hpBars": False})
+    assert project.meta["gameOptions"] == {"fromANewerVersion": True, "quickExpBar": True}

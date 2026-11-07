@@ -96,6 +96,7 @@ piège dans sa section.
 
 ## Outils et interface
 
+- Options du jeu : la page renvoyait toute la liste chargée à son ouverture ; une page restée ouverte (autre onglet, version d'avant une mise à jour) décochait ce qui avait changé depuis, et un serveur d'une autre version jetait les options qu'il ne connaissait pas. Désormais la page n'envoie que l'option touchée (`change_game_options`) et les options inconnues restent dans `fe-maker.json` (07/11/2026).
 - `pytest ... | tail` rend le code de sortie de `tail` : un test rouge n'arrête pas un `&&`. Mettre `set -o pipefail` avant de chaîner un commit. Un test qui crée un projet passe `decomp_dir=decomp_dir` : sinon il lit la décomp installée sur la machine, absente de la CI.
 
 - **Un champ ajouté (`FIELDS_ADDED_LATER`)** : ce qu'un projet a ajouté (arme `ITEM_NEW_`, classe) le prend chez son modèle, sinon la fiche plante. Chaque `Project.load` qui complète relit toute la décomp : les champs sont donc enregistrés dès la première lecture, et `validate` ne charge qu'une fois (90 s sur « La Fuite de Lorn » avant, page vide en attendant). Essayer un nouveau champ sur une copie d'un vrai projet, pas seulement sur un projet neuf.
