@@ -233,18 +233,18 @@
 <aside class="side" bind:this={panel} aria-labelledby="ticket-title">
   <div class="head">
     <h2 id="ticket-title">{t('ticket.title')}</h2>
+    {#if admin}
+      <div class="views">
+        <div class="seg" role="radiogroup" aria-label={t('ticket.title')}>
+          {#each ['mine', 'testers'] as const as v (v)}
+            <button role="radio" aria-checked={view === v} class:active={view === v} onclick={() => showView(v)}>{t(`ticket.view.${v}`)}</button>
+          {/each}
+        </div>
+        <Help text={t('ticket.testersHint')} />
+      </div>
+    {/if}
     <button class="ghost" aria-label={t('build.close')} title={t('build.close')} onclick={onClose}>✕</button>
   </div>
-  {#if admin}
-    <div class="views">
-      <div class="seg" role="radiogroup" aria-label={t('ticket.title')}>
-        {#each ['mine', 'testers'] as const as v (v)}
-          <button role="radio" aria-checked={view === v} class:active={view === v} onclick={() => showView(v)}>{t(`ticket.view.${v}`)}</button>
-        {/each}
-      </div>
-      <Help text={t('ticket.testersHint')} />
-    </div>
-  {/if}
 
   {#if view === 'testers'}
   <section class="list" aria-label={t('ticket.view.testers')}>
@@ -316,15 +316,17 @@
 
   <section class="new" aria-label={t('ticket.new')}>
     <h3>{t('ticket.new')}</h3>
-    <div class="seg" role="radiogroup" aria-label={t('ticket.kind')}>
-      {#each KINDS as k (k)}
-        <button role="radio" aria-checked={kind === k} class:active={kind === k} onclick={() => (kind = k)}>{t(`ticket.kind.${k}`)}</button>
-      {/each}
-    </div>
-    <div class="seg" role="radiogroup" aria-label={t('ticket.priority')}>
-      {#each PRIORITIES as p (p)}
-        <button role="radio" aria-checked={priority === p} class="prio {p}" class:active={priority === p} onclick={() => (priority = p)}>{t(`ticket.priority.${p}`)}</button>
-      {/each}
+    <div class="segs">
+      <div class="seg" role="radiogroup" aria-label={t('ticket.kind')}>
+        {#each KINDS as k (k)}
+          <button role="radio" aria-checked={kind === k} class:active={kind === k} onclick={() => (kind = k)}>{t(`ticket.kind.${k}`)}</button>
+        {/each}
+      </div>
+      <div class="seg" role="radiogroup" aria-label={t('ticket.priority')}>
+        {#each PRIORITIES as p (p)}
+          <button role="radio" aria-checked={priority === p} class="prio {p}" class:active={priority === p} onclick={() => (priority = p)}>{t(`ticket.priority.${p}`)}</button>
+        {/each}
+      </div>
     </div>
     <textarea bind:this={textarea} bind:value={body} rows="4" placeholder={t('ticket.placeholder')} oninput={() => (sent = null)} onpaste={paste} onkeydown={keydown}></textarea>
     <div class="images">
@@ -453,11 +455,14 @@
 <style>
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;
-    display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 0.7rem; overflow-y: auto; box-sizing: border-box;
     padding: 0.9rem 1rem 1.5rem; background: var(--panel); border-left: 1px solid var(--border);
     box-shadow: -6px 0 18px rgb(0 0 0 / 0.18);
   }
-  .head { display: flex; justify-content: space-between; align-items: center; }
+  .head { display: flex; align-items: center; gap: 0.6rem; }
+  .head .ghost { margin-left: auto; }
+  .segs { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .segs .seg button { padding: 0.25em 0.45em; font-size: 0.8rem; }
   .views { display: flex; align-items: center; gap: 0.4rem; }
   .views .seg button { white-space: nowrap; }
   a.add-image { text-decoration: none; }
