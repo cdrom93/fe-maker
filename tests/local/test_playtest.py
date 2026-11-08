@@ -1773,6 +1773,87 @@ def test_batch_8_status_sturdy_and_armsthrift(tmp_path):
         assert game.read(actor, 0x48, width=16) == game.read(actor, 0x4A, width=16)   # Armsthrift: same uses
 
 
+def test_batch_9_auras_in_battle(tmp_path):
+    """Skills batch 9: the lord attacks the soldier next to it, its friend two tiles away. The friend's Charm (reach 2)
+    gives the lord +3 attack, its Spur Spd (reach 1) and Hex (the soldier is 3 tiles away) give nothing; the lord's
+    Inner Flame 3 (no adjacent ally) +5 attack, Inner Flame 2 (an ally within 2) nothing; the soldier's Intimidate
+    takes 10 off the lord's avoid, its Tantivy (no ally within 3) gives it +10 avoid."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch9", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=20, crit=0)
+    next(i for i in items if i["id"] == "ITEM_LANCE_IRON").update(might=0, hit=0, weight=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    friend_spot = (BENCH_SPOTS[0][0], BENCH_SPOTS[0][1] + 2)
+    army[1].update(x=friend_spot[0], y=friend_spot[1], endX=friend_spot[0], endY=friend_spot[1])
+    for units in chapters["unitGroups"].values():
+        for unit in units:
+            if unit.get("character") == "CHARACTER_SOLDIER_83":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["InnerFlame3", "InnerFlame2"]
+    next(c for c in characters if c["id"] == army[1]["character"])["skills"] = ["Charm", "SpurSpd", "Hex"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 60
+    soldier["skills"] = ["Intimidate", "Tantivy"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker = _bench_units(game)[0]
+        pow_, spd, lck = (game.read(attacker, k) for k in (0x14, 0x16, 0x19))
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor, target = game.address("gBattleActor"), game.address("gBattleTarget")
+
+        def stat(unit, offset):
+            return game.read(unit, offset, width=16, signed=True)
+        tri = game.read(actor, 0x54, signed=True)
+        assert stat(actor, 0x5A) == pow_ + 20 + tri + 3 + 5                       # Charm, Inner Flame 3
+        assert stat(actor, 0x5E) == spd                                         # no Spur Spd
+        assert stat(actor, 0x62) == spd * 2 + game.read(actor, 0x57, signed=True) + lck - 10   # Intimidate
+        t_spd, t_lck = game.read(target, 0x16), game.read(target, 0x19)
+        assert stat(target, 0x62) == t_spd * 2 + game.read(target, 0x57, signed=True) + t_lck + 10   # Tantivy
+
+
+def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
+    """Skills batch 9: the lord, its friend two tiles away, both at 1 HP. On turn 2 the lord gets Camaraderie (10 %,
+    an ally within 2) and the friend's Amaterasu (20 %), not Relief (no ally within 2); the friend, with Relief and
+    Amaterasu (an ally's only), stays at 1 HP."""
+    project = _bench(tmp_path, "batch9heal", [["ITEM_SWORD_IRON"], []])
+    project.set_game_options({**project.game_options, "skills": True})
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    army[1].update(x=BENCH_SPOTS[0][0], y=BENCH_SPOTS[0][1] + 2, endX=BENCH_SPOTS[0][0], endY=BENCH_SPOTS[0][1] + 2)
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["Relief", "Camaraderie"]
+    next(c for c in characters if c["id"] == army[1]["character"])["skills"] = ["Relief", "Amaterasu"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player" and game.units())
+        game.run(120)
+        base = game.address("gUnitArrayBlue")
+        found = {(game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)): base + n * UNIT_SIZE
+                 for n in range(62) if game.read(base + n * UNIT_SIZE, width=32)}
+        lord, friend = found[BENCH_SPOTS[0]], found[(BENCH_SPOTS[0][0], BENCH_SPOTS[0][1] + 2)]
+        for unit in (lord, friend):
+            game.write(unit, 1, 0x13)
+        game.move_cursor(0, 0)                     # End the turn from the map menu
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        game.run(240)
+        max_hp = game.read(lord, 0x12)
+        assert game.read(lord, 0x13) == min(max_hp, 1 + max_hp * 10 // 100 + max_hp * 20 // 100)
+        assert game.read(friend, 0x13) == 1
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""

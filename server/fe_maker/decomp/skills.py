@@ -69,6 +69,9 @@ class Skill:
     holder: str = "attacker"   # battle, late and eff skills: whose skill it is (the code reads attacker and defender)
     group: str = ""       # FE Maker's category in the skill picker (skill.kind.<group>); the kind when empty
     magic: bool = False   # only with the Strength / Magic split
+    side: str = ""        # aura skills: whose battles they act on, "ally", "foe" or "both" of the holder; "self": the
+    # holder's own, by the units around it (allies1..3, foes1..3: within 1 to 3 tiles)
+    reach: int = 0        # aura skills: the greatest distance (in tiles) from the holder
 
     @property
     def category(self) -> str:
@@ -91,6 +94,12 @@ def _b(sid, group, text, code, kind="battle", icon=None, **more):
     """A battle skill (C-SkillSys's PreBattleCalcAttackerSkills; `late`: its BattleCalcReal comparisons); icon "":
     none at the pinned commit, a "?" is drawn."""
     return Skill(sid, kind, sid if icon is None else icon, text, code=code, group=group, **more)
+
+
+def _aura(sid, side, reach, text, code):
+    """An aura (C-SkillSys's PreBattleCalcAuraEffect): `code` changes `attacker`, the unit in battle, when the holder
+    `unit` is on `side` of it within `reach` tiles."""
+    return Skill(sid, "aura", sid, text, code=code, group="aura", side=side, reach=reach)
 
 
 _LOW = "(attacker->hpInitial * 4 < attacker->unit.maxHP)"
@@ -205,6 +214,15 @@ CATALOGUE: tuple[Skill, ...] = (
     # batch 4, on the map (_map_skills): C-SkillSys's PostActionSkills/Canto.c, PrePhaseSkills/PrePhaseHeal.c, Tsuzuku.c
     Skill("CantoPlus", "map", "CantoPlus", "Canto+:[NL]Unit can move again after[NL]any action, combat included."),
     Skill("Renewal", "map", "Renewal", "Renewal:[NL]Restores 30% of max HP[NL]at the start of each turn."),
+    # batch 9, heals at the start of the phase (PrePhaseHeal.c, HEAL_SKILLS)
+    Skill("Imbue", "map", "Imbue", "Imbue:[NL]Recover HP equal to MAG[NL]at the start of each turn.", magic=True),
+    Skill("Forager", "map", "Forager", "Forager:[NL]Recover 20% HP each turn if[NL]on a Plain, Forest or Mountain."),
+    Skill("RainDish", "map", "RainDish", "RainDish:[NL]If it is raining, restore 30%[NL]of max HP at the start of each turn."),
+    Skill("Relief", "map", "Relief",
+          "Relief:[NL]Restore 20% of max HP at the start[NL]of turn, if no allies within 2 tiles."),
+    Skill("Camaraderie", "map", "Camaraderie",
+          "Camaraderie:[NL]Restore 10% of max HP at the start[NL]of turn, if allies within 2 tiles."),
+    Skill("Amaterasu", "map", "Amaterasu", "Amaterasu:[NL]Allies within 2 tiles[NL]recover 20% HP each turn."),
     # batch 4, unit menu commands (_menu_skills): C-SkillSys's MenuSkills/HerosMovement
     Skill("Pivot", "menu", "Pivot", "Pivot:[NL]Unit can move to the other[NL]side of an adjacent ally.", menu="Pivot"),
     Skill("Reposition", "menu", "Reposition", "Reposition:[NL]Moves an adjacent ally to[NL]the other side of the unit.",
@@ -536,6 +554,76 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("TowerShieldPlus", "proc", "TowerShieldPlus", "Tower Shield+:[NL]Takes no damage from[NL]attacks at range.",
           group="guard", after="if (gBattleStats.range > 1 && SkillTesterFem(&defender->unit, SKILL_FEM_TowerShieldPlus))\n"
                                "            gBattleStats.damage = 0;"),
+    # batch 9, auras (C-SkillSys's PreBattleCalcAuraEffect, values from SkillExtraInfo.c; _aura_skills)
+    _aura("DivinelyInspiring", "ally", 1, "D-Inspir: Adjacent allies[NL]deal +3 damage and[NL]receive -1 damage.",
+          "attacker->battleAttack += 3;\n            attacker->battleDefense += 1;"),
+    _aura("LilysPoise", "ally", 1, "Lily's Poise:[NL]Adjacent allies deal +1 damage[NL]and receive -3 damage.",
+          "attacker->battleAttack += 1;\n            attacker->battleDefense += 3;"),
+    _aura("BloodTide", "ally", 1, "Blood Tide:[NL]Grants +5 ATK and Hit[NL]to adjacent allies.",
+          "attacker->battleAttack += 5;\n            attacker->battleHitRate += 5;"),
+    _aura("WhitePool", "ally", 1, "White Pool:[NL]Grants +5 ATK and AS[NL]to adjacent allies.",
+          "attacker->battleAttack += 5;\n            attacker->battleSpeed += 5;"),
+    _aura("NightTide", "ally", 1, "Night Tide:[NL]Grants +5 DEF and RES[NL]to adjacent allies.",
+          "attacker->battleDefense += 5;"),
+    _aura("SpurStr", "ally", 1, "Spur Str:[NL]Adjacent allies gain +4 STR.",
+          f"if (!{_MAGIC % 'attacker'}) attacker->battleAttack += 4;"),
+    _aura("SpurMag", "ally", 1, "Spur Mag:[NL]Adjacent allies gain +4 MAG.",
+          f"if ({_MAGIC % 'attacker'}) attacker->battleAttack += 4;"),
+    _aura("SpurSpd", "ally", 1, "Spur Spd:[NL]Adjacent allies gain +4 SPD.", "attacker->battleSpeed += 4;"),
+    _aura("SpurDef", "ally", 1, "Spur Def:[NL]Adjacent allies gain +4 DEF.",
+          f"if (!{_MAGIC % 'defender'}) attacker->battleDefense += 4;"),
+    _aura("SpurRes", "ally", 1, "Spur Res:[NL]Adjacent allies gain +4 RES.",
+          f"if ({_MAGIC % 'defender'}) attacker->battleDefense += 4;"),
+    _aura("Solidarity", "ally", 1, "Solidarity:[NL]+10 Crit and Crit Avoid[NL]to adjacent allies.",
+          "attacker->battleCritRate += 10;\n            attacker->battleDodgeRate += 10;"),
+    _aura("Charm", "ally", 2, "Charm: Allies within 2[NL]tiles deal +3 attack.", "attacker->battleAttack += 3;"),
+    _aura("DriveStr", "ally", 2, "Drive Str:[NL]Allies within 2 tiles[NL]receive +4 STR.",
+          f"if (!{_MAGIC % 'attacker'}) attacker->battleAttack += 4;"),
+    _aura("DriveMag", "ally", 2, "Drive Mag:[NL]Allies within 2 tiles[NL]receive +4 MAG.",
+          f"if ({_MAGIC % 'attacker'}) attacker->battleAttack += 4;"),
+    _aura("DriveSpd", "ally", 2, "Drive Spd:[NL]Allies within 2 tiles[NL]receive +4 SPD.", "attacker->battleSpeed += 4;"),
+    _aura("DriveDef", "ally", 2, "Drive Def:[NL]Allies within 2 tiles[NL]receive +4 DEF.",
+          f"if (!{_MAGIC % 'defender'}) attacker->battleDefense += 4;"),
+    _aura("DriveRes", "ally", 2, "Drive Res:[NL]Allies within 2 tiles[NL]receive +4 RES.",
+          f"if ({_MAGIC % 'defender'}) attacker->battleDefense += 4;"),
+    _aura("Inspiration", "ally", 2, "Inspir: Allies within 2 tiles[NL]deal +2 damage and[NL]receive -2 damage.",
+          "attacker->battleAttack += 2;\n            attacker->battleDefense += 2;"),
+    # C-SkillSys tests `UNIT_CATTRIBUTES(...) && CA_FEMALE` (always true): written after their descriptions
+    _aura("Gentilhomme", "ally", 2, "Gentilhomme:[NL]Female allies within 2 tiles[NL]receive -2 damage.",
+          "if (UNIT_CATTRIBUTES(&attacker->unit) & CA_FEMALE) attacker->battleDefense += 2;"),
+    _aura("Demoiselle", "ally", 2, "Demoiselle:[NL]Male allies within 2 tiles[NL]receive -2 damage.",
+          "if (!(UNIT_CATTRIBUTES(&attacker->unit) & CA_FEMALE)) attacker->battleDefense += 2;"),
+    # Bond: +3 as its description (SkillExtraInfo.c says 2)
+    _aura("Bond", "ally", 3, "Bond:[NL]+10 Hit, +3 damage to all[NL]allies within 3 tiles.",
+          "attacker->battleAttack += 3;\n            attacker->battleHitRate += 10;"),
+    _aura("Charisma", "ally", 3, "Charisma:[NL]Grants +10 Hit/Avoid to all[NL]allies within three tiles.",
+          "attacker->battleHitRate += 10;\n            attacker->battleAvoidRate += 10;"),
+    _aura("Hex", "foe", 1, "Hex:[NL]-15 Avoid to all[NL]adjacent enemies.", "attacker->battleAvoidRate -= 15;"),
+    _aura("Intimidate", "foe", 2, "Intimidate:[NL]-10 Avoid to all[NL]enemies within 2 tiles.",
+          "attacker->battleAvoidRate -= 10;"),
+    _aura("VoiceOfPeace", "foe", 2, "V-Peace: Enemies within[NL]2 tiles deal -2 damage.", "attacker->battleAttack -= 2;"),
+    _aura("Peacebringer", "both", 2, "Peacebringer:[NL]Allies and enemies within[NL]2 tiles deal -2 damage.",
+          "attacker->battleAttack -= 2;"),
+    _aura("MaleficAura", "foe", 2, "Malefic Aura:[NL]Enemies within 2 tiles[NL]receive +2 magic damage.",
+          f"if ({_MAGIC % 'defender'}) attacker->battleDefense -= 2;"),
+    _aura("Anathema", "foe", 3, "Anathema:[NL]-10 Avoid/Dodge to all[NL]enemies within 3 tiles.",
+          "attacker->battleAvoidRate -= 10;\n            attacker->battleDodgeRate -= 10;"),
+    _aura("Daunt", "foe", 3, "Daunt:[NL]-5 Hit and Crit to all enemy[NL]units in a 3-tile radius.",
+          "attacker->battleHitRate -= 5;\n            attacker->battleCritRate -= 5;"),
+    # the holder's own, by the units around it
+    _aura("Tantivy", "self", 3, "Tantivy:[NL]+10 Hit/Avoid if there are[NL]no allies within 3 tiles.",
+          "if (allies3 == 0) {\n            attacker->battleHitRate += 10;\n"
+          "            attacker->battleAvoidRate += 10;\n        }"),
+    _aura("Focus", "self", 3, "Focus:[NL]+10 Crit if there are[NL]no allies within 3 tiles.",
+          "if (allies3 == 0) attacker->battleCritRate += 10;"),
+    _aura("Infiltrator", "self", 2, "Infilt: If within 2 spaces[NL]of two or more enemies,[NL]gain +3 damage and +15% Hit.",
+          "if (foes2 >= 2) {\n            attacker->battleAttack += 3;\n            attacker->battleHitRate += 15;\n        }"),
+    _aura("InnerFlame1", "self", 3, "Inner Flame: ATK +10 if[NL]no ally within 3 tiles.",
+          "if (allies3 == 0) attacker->battleAttack += 10;"),
+    _aura("InnerFlame2", "self", 2, "Inner Flame: ATK +7 if[NL]no ally within 2 tiles.",
+          "if (allies2 == 0) attacker->battleAttack += 7;"),
+    _aura("InnerFlame3", "self", 1, "Inner Flame: ATK +5 if[NL]no ally within 1 tile.",
+          "if (allies1 == 0) attacker->battleAttack += 5;"),
 )
 
 # The game's class abilities, shown as skills: their engine stays the game's (texts written for FE8's own rules).
@@ -906,7 +994,10 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         "    } else if (attacker != &gBattleTarget || !attacker->unit.pClassData)\n"
         "        ComputeBattleUnitBaseStatsFem(attacker, defender);\n"
         "    ApplyBattleSkillsFem(attacker, defender);\n"
-        "    ClampBattleStatsFem(attacker);\n}\n"), rel)
+        + ("    ApplyAuraSkillsFem(attacker, defender);\n" if any(s.kind == "aura" for s in skills) else "")
+        + "    ClampBattleStatsFem(attacker);\n}\n"), rel)
+    if any(s.kind == "aura" for s in skills):
+        battle = _replace(battle, start, _aura_function(skills) + start, rel)
     battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", (
         "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n"
         "static void ClampBattleStatsFem(struct BattleUnit* bu)\n{\n"   # PreBattleCalcEnd
@@ -1725,6 +1816,88 @@ static u8 MoveSkillEffectFem(int skill)
     return out
 
 
+def _aura_function(skills) -> str:
+    """Batch 9, auras (C-SkillSys's PreBattleCalcAuraEffect): the units within 3 tiles of the unit in battle, from the
+    map's unit layer; each holder's aura acts within its reach, then the unit's own skills counting the units around."""
+    def lines(side, indent):
+        pad = " " * indent
+        return "".join(f"{pad}if (d <= {s.reach} && SkillTesterFem(unit, SKILL_FEM_{s.id}))\n{pad}    {s.code}\n"
+                       for s in skills if s.kind == "aura" and s.side in (side, "both"))
+    own = "".join(f"    if (SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
+                  for s in skills if s.kind == "aura" and s.side == "self")
+    return (
+        "/* FE Maker: auras (C-SkillSys, PreBattleCalcAuraEffect) */\n"
+        "s8 AreUnitsAllied(int left, int right);\n\n"
+        "static void ApplyAuraSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender)\n{\n"
+        "    int dx, dy, d, x, y;\n"
+        "    int allies1 = 0, allies2 = 0, allies3 = 0, foes1 = 0, foes2 = 0, foes3 = 0;\n"
+        "    struct Unit* unit;\n\n"
+        "    if (gBattleStats.config & (BATTLE_CONFIG_ARENA | BATTLE_CONFIG_BIT2))\n        return;\n"
+        "    for (dy = -3; dy <= 3; dy++) {\n"
+        "        for (dx = -3; dx <= 3; dx++) {\n"
+        "            d = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);\n"
+        "            x = attacker->unit.xPos + dx;\n"
+        "            y = attacker->unit.yPos + dy;\n"
+        "            if (d == 0 || d > 3 || x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y"
+        " || gBmMapUnit[y][x] == 0)\n                continue;\n"
+        "            unit = GetUnit(gBmMapUnit[y][x]);\n"
+        "            if (!UNIT_IS_VALID(unit) || unit->index == attacker->unit.index\n"
+        "                || (unit->state & (US_HIDDEN | US_DEAD | US_RESCUED | US_BIT16)))\n"
+        "                continue;\n"
+        "            if (AreUnitsAllied(attacker->unit.index, unit->index)) {\n"
+        "                allies3++;\n                allies2 += d <= 2;\n                allies1 += d == 1;\n"
+        f"{lines('ally', 16)}"
+        "            } else {\n"
+        "                foes3++;\n                foes2 += d <= 2;\n                foes1 += d == 1;\n"
+        f"{lines('foe', 16)}"
+        "            }\n        }\n    }\n"
+        f"{own}"
+        "    (void) defender; (void) allies1; (void) allies2; (void) allies3;"
+        " (void) foes1; (void) foes2; (void) foes3;\n}\n\n")
+
+
+# batch 9: C-SkillSys's PrePhaseHeal.c, the % of max HP healed at the start of the phase (Imbue: its Magic)
+HEAL_SKILLS = {
+    "Renewal": "30",
+    "Imbue": "",
+    "Forager": "(terrain == TERRAIN_PLAINS || terrain == TERRAIN_FOREST || terrain == TERRAIN_MOUNTAIN) ? 20 : 0",
+    "RainDish": "gPlaySt.chapterWeatherId == WEATHER_RAIN ? 30 : 0",
+    "Relief": "allies == 0 ? 20 : 0",
+    "Camaraderie": "allies != 0 ? 10 : 0",
+}
+
+
+def _heal_function(heals) -> str:
+    """The heal skills of `unit`, and Amaterasu (an ally's within 2 tiles), added up as C-SkillSys does; C-SkillSys
+    looks at the first ally found only, for Amaterasu: here, any."""
+    def line(sid):
+        add = "GetUnitMagicFem(unit)" if sid == "Imbue" else f"GetUnitMaxHp(unit) * ({HEAL_SKILLS[sid]}) / 100"
+        return f"    if (SkillTesterFem(unit, SKILL_FEM_{sid}))\n        ret += {add};\n"
+    amaterasu = "Amaterasu" in heals
+    return (
+        "/* FE Maker: heal skills at the start of the phase (C-SkillSys, PrePhaseHeal.c) */\n"
+        "static int PrePhaseHealFem(struct Unit* unit)\n{\n"
+        "    int dx, dy, x, y, allies = 0, amaterasu = 0, ret = 0;\n"
+        "    int terrain = gBmMapTerrain[unit->yPos][unit->xPos];\n"
+        "    struct Unit* other;\n\n"
+        "    for (dy = -2; dy <= 2; dy++) {\n"
+        "        for (dx = -2; dx <= 2; dx++) {\n"
+        "            x = unit->xPos + dx;\n            y = unit->yPos + dy;\n"
+        "            if ((dx == 0 && dy == 0) || (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy) > 2 || x < 0 || y < 0\n"
+        "                || x >= gBmMapSize.x || y >= gBmMapSize.y || gBmMapUnit[y][x] == 0)\n"
+        "                continue;\n"
+        "            other = GetUnit(gBmMapUnit[y][x]);\n"
+        "            if (!UNIT_IS_VALID(other) || (other->state & (US_HIDDEN | US_DEAD | US_RESCUED | US_BIT16))\n"
+        "                || !AreUnitsAllied(unit->index, other->index))\n"
+        "                continue;\n"
+        "            allies++;\n"
+        + ("            if (SkillTesterFem(other, SKILL_FEM_Amaterasu))\n                amaterasu = 1;\n" if amaterasu else "")
+        + "        }\n    }\n"
+        + "".join(line(sid) for sid in heals if sid in HEAL_SKILLS)
+        + ("    if (amaterasu)\n        ret += GetUnitMaxHp(unit) * 20 / 100;\n" if amaterasu else "")
+        + "    (void) terrain; (void) allies; (void) amaterasu;\n    return ret;\n}\n\n")
+
+
 GALEFORCE_USED = "0x02028E30"   # free RAM after the popups: 8 bytes, a bit per player unit, then the turn they are for
 
 
@@ -1733,21 +1906,22 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
     battle or a staff too), Renewal (with the terrain's heal at the start of the phase), Galeforce (the unit acts
     again after defeating an enemy, once a turn, every time: user's choice, C-SkillSys rolls Skill %)."""
     out = {}
-    if "Renewal" in numbers:
+    heals = [sid for sid in (*HEAL_SKILLS, "Amaterasu") if sid in numbers]
+    if heals:
         rel = "src/bmtarget.c"
-        out[rel] = _replace(_read(files, decomp_dir, rel), """\
+        text = _replace(_read(files, decomp_dir, rel), """\
         if (GetTerrainHealAmount(terrainId) != 0 && (GetUnitCurrentHp(unit) != GetUnitMaxHp(unit))) {
             amount = (GetTerrainHealAmount(terrainId) * GetUnitMaxHp(unit)) / 100;
             AddTarget(unit->xPos, unit->yPos, unit->index, amount);
         }
-""", """        if (GetUnitCurrentHp(unit) != GetUnitMaxHp(unit)) { /* FE Maker: Renewal with the terrain (C-SkillSys) */
-            amount = (GetTerrainHealAmount(terrainId) * GetUnitMaxHp(unit)) / 100;
-            if (SkillTesterFem(unit, SKILL_FEM_Renewal))
-                amount += GetUnitMaxHp(unit) * 30 / 100;
+""", """        if (GetUnitCurrentHp(unit) != GetUnitMaxHp(unit)) { /* FE Maker: heal skills with the terrain (C-SkillSys) */
+            amount = (GetTerrainHealAmount(terrainId) * GetUnitMaxHp(unit)) / 100 + PrePhaseHealFem(unit);
             if (amount != 0)
                 AddTarget(unit->xPos, unit->yPos, unit->index, amount);
         }
 """, rel)
+        start = "void MakeTerrainHealTargetList(int faction) {\n"
+        out[rel] = _replace(text, start, _heal_function(heals) + start, rel)
     if "CantoPlus" not in numbers and "Galeforce" not in numbers:
         return out
     rel = "src/playerphase.c"

@@ -10,7 +10,7 @@ PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   #
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     magic = {s["id"] for s in skills.catalogue() if s["magic"]}
-    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade"}
+    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade", "Imbue"}
     assert all(s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
     assert skills.icon_path("NoGuard").name == "_placeholder.png"   # no icon at the pinned commit: a "?"
     game = {g["id"]: g for g in skills.game_catalogue()}
@@ -152,6 +152,42 @@ def test_batch_8_statuses_survival_and_weapons(monkeypatch):
     assert battle.index("SKILL_FEM_Petrify") < battle.index("SKILL_FEM_PoisonPoint")      # C-SkillSys's order
     assert "&& !ApplyHitEffectSkillsFem(attacker, defender)) { /* FE Maker: skills (lot 8) */" in battle
     assert battle.index("static int ApplyHitEffectSkillsFem") < battle.index("void BattleGenerateHitEffects(")
+
+
+def test_batch_9_auras_by_distance_and_side(monkeypatch):
+    """An aura acts on the units on its side within its reach; the holder's own skills count the units around."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Charm", "Hex", "Peacebringer"]},
+                  {"id": "CHARACTER_SETH", "skills": ["Tantivy"]}]
+    used = skills.used(characters, [], False)
+    battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    aura = battle[battle.index("static void ApplyAuraSkillsFem"):battle.index("ApplyAuraSkillsFem(attacker, defender);")]
+    allies, foes = aura.split("} else {")[0], aura.split("} else {")[1]
+    assert "if (d <= 2 && SkillTesterFem(unit, SKILL_FEM_Charm))" in allies and "SKILL_FEM_Charm" not in foes
+    assert "if (d <= 1 && SkillTesterFem(unit, SKILL_FEM_Hex))" in foes and "SKILL_FEM_Hex" not in allies
+    assert "SKILL_FEM_Peacebringer" in allies and "SKILL_FEM_Peacebringer" in foes
+    assert "if (SkillTesterFem(&attacker->unit, SKILL_FEM_Tantivy))\n        if (allies3 == 0) {" in aura
+    wrath = [{"id": "CHARACTER_EIRIKA", "skills": ["Wrath"]}]
+    texts = {**PAGE, **{s.id: 2 for s in skills.used(wrath, [], False)}}
+    plain = skills.apply(DECOMP, {}, wrath, [], texts, False)["src/bmbattle.c"]
+    assert "ApplyAuraSkillsFem" not in plain
+
+
+def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):
+    if not (DECOMP / "src/bmtarget.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Renewal", "Relief", "Amaterasu"]}]
+    used = skills.used(characters, [], False)
+    target = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmtarget.c"]
+    assert "/ 100 + PrePhaseHealFem(unit);" in target
+    heal = target[target.index("static int PrePhaseHealFem"):target.index("void MakeTerrainHealTargetList")]
+    assert "ret += GetUnitMaxHp(unit) * (allies == 0 ? 20 : 0) / 100;" in heal
+    assert "if (SkillTesterFem(other, SKILL_FEM_Amaterasu))" in heal and "SKILL_FEM_Forager" not in heal
 
 
 def test_triggered_skills_go_into_each_hit(monkeypatch):

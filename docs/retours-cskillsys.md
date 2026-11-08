@@ -39,4 +39,12 @@ description. Listed here in case they are not intended:
 - **Vengeance**: it has a text ("Add damage taken to attack. (Skill % activation)"), an icon and an animation entry,
   but no effect in the battle code.
 
+- **Gentilhomme / Demoiselle** (`PreBattleCalcAuraEffect`): the test is `UNIT_CATTRIBUTES(&attacker->unit) && CA_FEMALE`
+  (logical and), true for any unit with an attribute: Gentilhomme acts on every ally, Demoiselle on almost none.
+  `&` was surely meant.
+- **Bond**: its text says "+3 damage", `SkillExtraInfo.c` gives 2.
+- **Amaterasu** (`PrePhaseHeal.c`, `has_ally`): the loop returns at the first ally found, so Amaterasu heals only when
+  that first ally has it, not when another ally within 2 tiles does.
+- **Rain Dish** (`PrePhaseHeal.c`): heals `SKILL_EFF0(SID_Renewal)`, Renewal's value instead of its own.
+
 <!-- Ajouter ici les écarts des lots suivants, au même format. -->
