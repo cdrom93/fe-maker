@@ -148,7 +148,7 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("PassionsFlow", "order", "PassionsFlow", "Passions Flow:[NL]Unit doubles if currently[NL]gaining support bonuses."),
     Skill("PridefulWarrior", "order", "PridefulWarrior",
           "Prideful Warrior:[NL]Unit always attacks last in[NL]the round, but always doubles."),
-    Skill("LastWord", "order", "LastWord", "Last Word:[NL]If the enemy doubles,[NL]this unit doubles."),
+    Skill("LastWord", "order", "", "Last Word:[NL]If the enemy doubles,[NL]this unit doubles."),
     Skill("GaleWings", "order", "GaleWings", "Gale Wings:[NL]When unit is defender while[NL]their HP is 100%, attack first."),
     Skill("YngviAscendant", "order", "YngviAscendant",
           "Yngvi Ascendant:[NL]Follow-up attack cannot be nullified[NL]and occurs immediately if exists."),
@@ -641,7 +641,39 @@ def icon_path(skill_id: str) -> Path:
         raise SkillError("unknownSkill")
     if not skill.icon:
         return _placeholder()
-    return _download(ICON_URL.format(skill.icon), _cache() / f"{skill.icon}.png")
+    path = _download(ICON_URL.format(skill.icon), _cache() / f"{skill.icon}.png")
+    return _retouched(skill.icon, path) if skill.icon in RETOUCHED else path
+
+
+# Icons retouched so that all have the frame most of C-SkillSys's icons have (ticket 31): the stat bonuses' square grey
+# frame replaced by it, and stray corner pixels made transparent. Their inside is left as drawn.
+STANDARD_FRAME = (   # "." keeps the icon's pixel; else the palette index of the frame (Swap's and Canto's)
+    "0001111111111900", "091..........190", "91............14", "1..............4", "1..............4",
+    "1..............4", "1..............4", "1..............4", "1..............4", "1..............4",
+    "1..............4", "1..............4", "1..............4", "21............40", "421..........400",
+    "0444444444444000")
+RETOUCHED = {**{f"{s}Bonus": "frame" for s in ("Str", "Mag", "Skl", "Spd", "Luk", "Def", "Res")},
+             **{name: "corners" for name in ("FaireAxe", "FaireBMag", "FaireBow", "FaireLance", "FaireSword",
+                                             "InfinityEdge", "StanceMirror")}}
+
+
+def _retouched(icon: str, original: Path) -> Path:
+    path = _cache().parent / "SkillIconFem" / f"{icon}.png"
+    if path.is_file():
+        return path
+    from PIL import Image
+    image = Image.open(original)
+    pixels = image.load()
+    for y, row in enumerate(STANDARD_FRAME):
+        for x, ch in enumerate(row):
+            corner = x in (0, 15) and y in (0, 15)
+            if RETOUCHED[icon] == "frame" and ch != ".":
+                pixels[x, y] = int(ch, 16)
+            elif corner:
+                pixels[x, y] = 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, bits=4)
+    return path
 
 
 # The "?" icon of skills without one (FE Maker's own drawing, in the frame style of C-SkillSys's icons), in the

@@ -234,3 +234,21 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
     picker = [{"id": "CHARACTER_EIRIKA", "skills": ["LockTouch"]}]
     files = skills.apply(DECOMP, {}, picker, [], {**PAGE, **{s.id: 2 for s in skills.used(picker, [], False)}}, False)
     assert "!= CLASS_ROGUE && !SkillTesterFem(gActiveUnit, SKILL_FEM_LockTouch))" in files["src/bmmenu.c"]
+
+
+def test_odd_icons_get_the_common_frame(tmp_path, monkeypatch):
+    """Ticket 31: the stat bonuses' square frame replaced by the common one, stray corner pixels cleared, the inside
+    kept; Last Word's empty icon is the "?"."""
+    from PIL import Image
+
+    monkeypatch.setattr(skills, "_cache", lambda: tmp_path / "SkillIcon")
+    for name, fill in (("StrBonus", 6), ("FaireSword", 4)):
+        image = Image.new("P", (16, 16), fill)
+        image.putpalette([c for rgb in skills.ICON_PALETTE for c in rgb])
+        image.save(tmp_path / f"{name}.png", bits=4)
+    frame = Image.open(skills._retouched("StrBonus", tmp_path / "StrBonus.png")).load()
+    assert [frame[x, 0] for x in range(16)] == [int(c, 16) for c in skills.STANDARD_FRAME[0]]
+    assert frame[0, 0] == 0 and frame[15, 15] == 0 and frame[7, 7] == 6
+    corners = Image.open(skills._retouched("FaireSword", tmp_path / "FaireSword.png")).load()
+    assert corners[0, 0] == 0 and corners[1, 0] == 4 and corners[7, 7] == 4
+    assert skills.BY_ID["LastWord"].icon == ""
