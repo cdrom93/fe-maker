@@ -19,7 +19,7 @@ Every commit that changes what FE Maker can do updates the docs in the same comm
 
 Docs are written in French (README in French and English, this file and `docs/architecture.md` in English); code and comments in English; UI in French and English
 for now (`ui/src/locales/fr.json`, `en.json`): every new UI string goes into both (`tests/server/test_locales.py`).
-Spanish and Italian (`es.json`, `it.json`) are set aside, frozen and not loaded, until a more complete version.
+Spanish and Italian (`es.json`, `it.json`): frozen, not loaded, for later.
 
 ### Doc cleanup routine
 
@@ -46,7 +46,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - To illustrate, use the game's own visuals first (weapon type and item icons, portraits, map sprites, terrain tiles, read from the decomp by `assets.py`), before an emoji or a drawn icon.
 - Credit everything copied, integrated or largely inspired from others (code, data and values, patch behaviors, hack ideas; FEBuilderGBA, GPL-3.0, free to use) in `CREDITS.md`, same commit, authors named (user's rule: FE Maker binds others' work).
 - Don't write things from scratch when an existing resource saves time and tokens: before coding a feature (engine behavior, ASM hack, event command, map/tile tool, data format reader, editor logic...), look at what already exists and reuse or adapt it when it fits. First FEBuilderGBA as a whole (its patches in `config/patch2/FE8U/`, its source code, its data/config files), then any other resource: FE-Repo / FEU (Fire Emblem Universe) hacks and tools, Event Assembler and its libraries, the decomp itself, Python/JS libraries. Check the license allows reuse and credit it in `CREDITS.md`.
-- Where to look: FEU's "Getting Started" index of tutorials and FEBuilder docs (https://feuniverse.us/t/getting-started/10320); laqieer's FEBuilderGBA fork (https://github.com/laqieer/FEBuilderGBA, GPL-3.0, archived 20/10/2026: cross-platform core, CLI, decomp support preview, headless mGBA playtests).
+- Where to look: FEU's "Getting Started" index of tutorials and FEBuilder docs (https://feuniverse.us/t/getting-started/10320); laqieer's FEBuilderGBA fork (https://github.com/laqieer/FEBuilderGBA, GPL-3.0, archived: CLI, decomp support, headless playtests).
 - An unmodified project must rebuild the original ROM byte for byte: only write what changed (`changed_files()`, cparse re-renders only edited entries).
 - Version: `__version__` in `server/fe_maker/__init__.py`, `0.1.0-prealpha.N`; each push to main asked by the user bumps N in its last commit (tag `v0.1.0-prealpha.N` only on the user's word). Tickets carry it, plus `+<commit>`.
 - Patches are `.ups`. BUGFIX build option exists but is off by default (3 decomp BUGFIX blocks don't compile).
@@ -55,12 +55,12 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 
 - Every module, data format and build step, one line each: `docs/architecture.md`. Read the lines of what you are about to change there; a new module or architecture fact goes there.
 - `server/fe_maker/decomp/`: reading and writing the decomp, one module per subject; `gamedata.py` holds `DecompData`.
-- `server/fe_maker/` (Python, FastAPI): `api.py` endpoints, `project.py` (project folder: `fe-maker.json` + `data/*.json`, migrations, build), `builder.py` (Docker build), `validation.py` (problems shown in the UI), `emulator.py` (mGBA launch and controls), `ups.py`.
+- `server/fe_maker/` (Python, FastAPI): `api.py` endpoints, `project.py` (project folder: `fe-maker.json` + `data/*.json`, migrations, build), `builder.py` (build: native or Docker), `validation.py` (problems shown in the UI), `emulator.py` (mGBA launch and controls), `ups.py`.
 - `changed_files()` values are text, or bytes for binary files (`.mar` map layouts); the overlay writer handles both.
 - Workflow (30/10/2026): a project opens on Campaign; top tabs follow the work (`Workspace.TABS`), the Chapters tab has three views (`CHAPTER_VIEWS`: chapters, maps, dialogues) on one `currentChapter`. Explanations go in tooltips (`Help.svelte`, a small "i"), not in paragraphs; keep visible text short. UI words (FEBuilder's): an event (« évènement », never "scene") has a trigger, a sequence (« déroulé ») and dialogues; quotes (« répliques ») are not events.
 - UI theme (25/10/2026, from the clickable mockups https://claude.ai/artifact/MKewiQUGuDhGbfbYt1UGsL): colors, radii and the header colors are CSS variables in `ui/src/app.css` (`--header*`, `--radius-big`, light and dark); the font is Nunito, bundled with `@fontsource-variable/nunito` (no network). Use the variables, not new hard-coded colors; `button.play` is the green "Test" button. The screens' layouts follow the mockups one by one, when each screen is redone.
 - `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab (the dialogue editor has a "conversation" view, `ConversationThread.svelte` + `FacePicker.svelte`, and the steps view) (`MapEditor.svelte` paints on a canvas from the tileset sheet `/api/maps/{id}/tileset.png`), `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
-- Before every commit, run what CI runs: `server/.venv/Scripts/python -m ruff check server tests docker` (lines up to 130 characters), `pytest tests/server`, and `npm run check` in `ui/`. CI failed silently for a dozen commits on 23/10/2026 because ruff was not run locally.
+- Before every commit, run what CI runs: `server/.venv/Scripts/python -m ruff check server tests docker` (lines up to 130 characters), `pytest tests/server`, and `npm run check` in `ui/`. (CI once failed silently: ruff not run locally.)
 - Testing beside the user's running app: start a second server with `FE_MAKER_HOME=<scratch home>` (own settings, a copy of the `rom/` folder; projects still go to the real `FE Maker Projects` unless a path is given), `FE_MAKER_UI_DIST=<scratch build>` (`npx vite build --outDir <dir>`) and `--port 8766`. The user's server, project and `ui/dist` stay untouched.
 - Tests: `tests/server` (no ROM, fictional fixtures in `tests/server/fixtures/decomp`); `tests/local` (needs the ROM and Docker, never in public CI).
 - In-game checks: headless playtests (`server/fe_maker/playtest.py`, `Game(rom, map_path)`) on the test bench `_bench` in `tests/local/test_playtest.py`; details in `docs/architecture.md`.

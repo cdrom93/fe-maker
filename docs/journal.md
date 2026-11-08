@@ -244,3 +244,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 08/11/2026 : ticket 31, cadre commun des icônes de compétence (7 bonus de stat retouchés, 7 pixels parasites, Last Word en « ? »).
 - 08/11/2026 : lot 9 des compétences, première partie : 35 auras (unités à 3 cases au plus) et 6 soins au début du tour additionnés avec Renouveau ; playtests.
 - 08/11/2026 : lot 9, IA : Shade, Shade+, Provoke (choix de la cible de l'ennemi) ; playtest de Shade+.
+- 08/11/2026 : doc nettoyée (cahier resserré : compétences, relais, compilation sans Docker ; README, CHANGELOG, CLAUDE.md sous 9 Ko), version 0.1.0-prealpha.4 poussée.
