@@ -240,3 +240,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 07/11/2026 : ticket 30 (durée des compilations) noté au cahier, section 4.
 - 08/11/2026 : ticket 30 fait (durée de chaque compilation, précédente et historique dans le panneau de compilation).
 - 08/11/2026 : compilation sans Docker accélérée (asmdeps.py remplace ~170 scaninc, règles intégrées de make annulées dans win.mk) : make ~25 s -> ~2 s sans changement ; ROM identique à l'original vérifiée.
+- 08/11/2026 : ticket 23 (éclair de Galeforce qui restait : la phase du joueur n'attendait pas l'effet), ticket 32 (validation des corrections par les testeurs) noté au cahier.

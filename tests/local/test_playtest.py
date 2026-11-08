@@ -1992,6 +1992,32 @@ def test_renewal_and_galeforce_on_the_map(tmp_path):
         assert not state & 0x2                     # not grayed: it can act again
 
 
+def test_galeforce_flash_after_a_battle_animation(tmp_path):
+    """Ticket 23: after a kill in a battle animation, Galeforce's flash plays and ends (the unit shown again, the light
+    column gone): Seth, with Galeforce and Strength 60, attacks in the prologue."""
+    project = Project.create(tmp_path / "galeanim", "GaleAnim")
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Galeforce"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        base = game.address("gUnitArrayBlue")
+        seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
+                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
+        game.write(seth, 60, 0x14)           # Strength 60: one hit kills
+        enemy = _seth_attacks(game)
+        for k in range(16):
+            game.run(60)
+            game.screenshot().convert("RGB").save(tmp_path / f"gale{k}.png")
+        print("screenshots:", tmp_path, "enemy", enemy)
+        state = game.read(seth, 0xC, width=32)
+        print("state", hex(state))
+        assert not state & 0x2               # not grayed: it can act again
+        assert not state & 0x1               # shown again (US_HIDDEN cleared by the flash's end)
+
+
 def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     """Skills lot 1: the soldier's class has Vantage, the lord Desperation; both under half of their HP. The soldier
     strikes first, then the lord twice in a row (its follow-up before any counter)."""

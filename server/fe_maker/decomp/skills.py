@@ -1756,7 +1756,7 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
         HideUnitSprite(gActiveUnit);
         return;
     }
-""", """    if (TryGaleforceFem()) {
+""", """    if (!ShouldCallEndEvent() && TryGaleforceFem()) {   /* not when the chapter is won */
         RefreshUnitSprites();
         EndAllMus();
         StartStatusHealEffect(gActiveUnit, proc);   /* its flash and sound, as C-SkillSys */
@@ -1767,6 +1767,12 @@ def _map_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
         return;
     }
 """, rel)
+        # ticket 23: a proc stops on its blocking child only when it yields; without this yield, the player phase
+        # went on to its cursor and side windows (drawn on BG0, as the flash) during the flash, whose light column
+        # then stayed on screen and the unit hidden
+        text = _replace(text, "    PROC_CALL(PlayerPhase_FinishAction),\n\n    PROC_GOTO(0),\n",
+                        "    PROC_CALL(PlayerPhase_FinishAction),\n    PROC_YIELD, /* FE Maker: Galeforce's flash */\n\n"
+                        "    PROC_GOTO(0),\n", rel)
         text = _replace(text, "//! FE8U = 0x0801D344\nvoid PlayerPhase_FinishAction(ProcPtr proc)\n", f"""\
 /* FE Maker: Galeforce (C-SkillSys's Tsuzuku.c): after a battle won, the unit acts again, once a turn (every time) */
 #define sGaleforceUsedFem ((vu8*) {GALEFORCE_USED})
