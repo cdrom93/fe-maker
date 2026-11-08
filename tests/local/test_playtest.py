@@ -1854,6 +1854,39 @@ def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
         assert game.read(friend, 0x13) == 1
 
 
+@pytest.mark.parametrize("shaded", [0, 1])
+def test_batch_9_shade_plus_is_never_targeted(tmp_path, shaded):
+    """Skills batch 9: an armed soldier halfway between the lord and its friend goes for the one without Shade+."""
+    middle = ((BENCH_SPOTS[0][0] + BENCH_SPOTS[1][0]) // 2, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch9ai", [["ITEM_SWORD_IRON"], ["ITEM_SWORD_IRON"]], enemy_at=middle)
+    project.set_game_options({**project.game_options, "skills": True})
+    chapters = project.load("chapters")
+    for units in chapters["unitGroups"].values():
+        for unit in units:
+            if unit.get("character") == "CHARACTER_SOLDIER_83":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    holder = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][shaded]["character"]
+    next(c for c in characters if c["id"] == holder)["skills"] = ["ShadePlus"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _bench_units(game)
+        game.move_cursor(0, 0)                     # End the turn from the map menu
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        game.run(120)
+        red = game.address("gUnitArrayRed")
+        x, y = game.read(red, 0x10), game.read(red, 0x11)
+        print("soldier at", (x, y))
+        other = BENCH_SPOTS[1 - shaded]
+        assert abs(x - other[0]) + abs(y - other[1]) == 1      # next to the unit without Shade+
+        assert (x, y) != middle
+
+
 def test_learned_skill_counts_in_battle(tmp_path):
     """Skills batch 3: a skill in the lord's learned list (the RAM table at skills.LEARNED_TABLE) counts as its own;
     the soldier's sheet has Str+2 so that the skill is compiled."""

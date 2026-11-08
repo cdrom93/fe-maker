@@ -223,6 +223,10 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Camaraderie", "map", "Camaraderie",
           "Camaraderie:[NL]Restore 10% of max HP at the start[NL]of turn, if allies within 2 tiles."),
     Skill("Amaterasu", "map", "Amaterasu", "Amaterasu:[NL]Allies within 2 tiles[NL]recover 20% HP each turn."),
+    # batch 9, the enemy AI's targets (_ai_skills)
+    Skill("Shade", "ai", "Shade", "Shade: Enemies are less[NL]likely to target this unit."),
+    Skill("ShadePlus", "ai", "ShadePlus", "Shade+: Enemies won't[NL]target this unit."),
+    Skill("Provoke", "ai", "Provoke", "Provoke: Enemies are more[NL]likely to target this unit."),
     # batch 4, unit menu commands (_menu_skills): C-SkillSys's MenuSkills/HerosMovement
     Skill("Pivot", "menu", "Pivot", "Pivot:[NL]Unit can move to the other[NL]side of an adjacent ally.", menu="Pivot"),
     Skill("Reposition", "menu", "Reposition", "Reposition:[NL]Moves an adjacent ally to[NL]the other side of the unit.",
@@ -1058,6 +1062,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     files.update(_map_skills(decomp_dir, files, numbers))
+    files.update(_ai_skills(decomp_dir, files, numbers))
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
@@ -1854,6 +1859,50 @@ def _aura_function(skills) -> str:
         f"{own}"
         "    (void) defender; (void) allies1; (void) allies2; (void) allies3;"
         " (void) foes1; (void) foes2; (void) foes3;\n}\n\n")
+
+
+def _ai_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
+    """Batch 9, the enemy AI's choice of a target (C-SkillSys's AiOptimization.c and MiscAiSkills.c): Shade+ is never
+    chosen, Shade is passed over at Luck %, Provoke adds 50 to the score of attacking its holder."""
+    if not any(sid in numbers for sid in ("Shade", "ShadePlus", "Provoke")):
+        return {}
+    rel = "src/cp_battle.c"
+    text = _read(files, decomp_dir, rel)
+    skip = "".join((
+        "            if (SkillTesterFem(unit, SKILL_FEM_ShadePlus)) /* FE Maker: Shade+ (C-SkillSys) */\n"
+        "                continue;\n" if "ShadePlus" in numbers else "",
+        "            if (SkillTesterFem(unit, SKILL_FEM_Shade) && Roll1RN(unit->lck)) /* FE Maker: Shade (C-SkillSys) */\n"
+        "                continue;\n" if "Shade" in numbers else ""))
+    if skip:
+        text = _replace(text, """            if (unit->state & (US_HIDDEN | US_DEAD | US_RESCUED | US_BIT16))
+                continue;
+
+            if (!isEnemy(unit))
+                continue;
+""", f"""            if (unit->state & (US_HIDDEN | US_DEAD | US_RESCUED | US_BIT16))
+                continue;
+
+{skip}
+            if (!isEnemy(unit))
+                continue;
+""", rel)
+        text = _replace(text, '#include "cp_utility.h"\n', '#include "cp_utility.h"\n#include "rng.h"\n', rel)
+    if "Provoke" in numbers:
+        text = _replace(text, """    if (score > 40)
+        score = 40;
+
+    return score;
+}
+""", """    if (score > 40)
+        score = 40;
+
+    if (SkillTesterFem(&gBattleTarget.unit, SKILL_FEM_Provoke)) /* FE Maker: Provoke (C-SkillSys) */
+        score += 50;
+
+    return score;
+}
+""", rel)
+    return {rel: text}
 
 
 # batch 9: C-SkillSys's PrePhaseHeal.c, the % of max HP healed at the start of the phase (Imbue: its Magic)

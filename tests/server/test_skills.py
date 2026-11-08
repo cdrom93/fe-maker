@@ -190,6 +190,19 @@ def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):
     assert "if (SkillTesterFem(other, SKILL_FEM_Amaterasu))" in heal and "SKILL_FEM_Forager" not in heal
 
 
+def test_batch_9_shade_and_provoke_in_the_ai(monkeypatch):
+    if not (DECOMP / "src/cp_battle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Shade", "Provoke"]}]
+    used = skills.used(characters, [], False)
+    ai = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/cp_battle.c"]
+    assert "if (SkillTesterFem(unit, SKILL_FEM_Shade) && Roll1RN(unit->lck))" in ai and "ShadePlus" not in ai
+    assert ai.index("SKILL_FEM_Shade)") < ai.index("if (!isEnemy(unit))")
+    assert "if (SkillTesterFem(&gBattleTarget.unit, SKILL_FEM_Provoke))" in ai and '#include "rng.h"' in ai
+
+
 def test_triggered_skills_go_into_each_hit(monkeypatch):
     if not (DECOMP / "src/bmbattle.c").is_file():
         pytest.skip("no decomp")
