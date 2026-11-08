@@ -196,6 +196,7 @@ ROM vérifiée, création de projet, éditeurs d'objets et de personnages, compi
 - Idées de l'utilisateur reprises de son Trello (tickets fermés le 07/11/2026, à faire après l'alpha) :
   - **Forge** (#12) : proposer les forges des jeux officiels (préférées : Fates, Three Houses, Engage) ou les outils pour faire la sienne, de quoi refaire chacune.
     Référence trouvée par l'utilisateur (08/11/2026) : FE3H Recomp (https://gitlab.com/onerag90/fe3h-recomp, MIT), recompilation statique de Three Houses (Switch) en programme Windows, sans les fichiers du jeu. Son README ne décrit ni la forge, ni le monastère, ni les formats de données : utile surtout pour observer le jeu en marche (forge, base) et, très loin, pour un autre moteur que FE8 ; rien à reprendre tel quel pour la GBA.
+    Même chose pour Fates (08/11/2026) : 3dsrecomp (https://github.com/fearkov/3dsrecomp, recompilateur statique 3DS, sans licence : code non réutilisable) et son émulateur Zakuro (https://github.com/fearkov/zakuro, MIT) ; Fates « Special Edition » USA marquée « Playable » dans sa liste de compatibilité (le post de l'auteur parle encore de bugs). Outil générique, aucune donnée de Fates documentée : sert à observer la forge et le château de Fates en marche.
   - **Sous-objectifs** dans les chapitres (#13).
   - **Défis de partie** (challenge runs, #16).
   - **Portraits selon la classe** : changer de portrait à la promotion ou selon la classe (#17).

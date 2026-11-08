@@ -246,3 +246,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 08/11/2026 : lot 9, IA : Shade, Shade+, Provoke (choix de la cible de l'ennemi) ; playtest de Shade+.
 - 08/11/2026 : doc nettoyée (cahier resserré : compétences, relais, compilation sans Docker ; README, CHANGELOG, CLAUDE.md sous 9 Ko), version 0.1.0-prealpha.4 poussée.
 - 08/11/2026 : référence FE3H Recomp notée au cahier (forge, base, autre moteur).
+- 08/11/2026 : référence 3dsrecomp / Zakuro (Fates) notée au cahier, à côté de FE3H Recomp.
