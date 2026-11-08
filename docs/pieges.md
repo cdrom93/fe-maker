@@ -26,6 +26,10 @@ piège dans sa section.
 - `Proc_StartBlocking(child, parent)` appelé depuis un `PROC_CALL` ne bloque le parent qu'à son prochain `PROC_YIELD` / `PROC_SLEEP` : les commandes suivantes du script s'exécutent d'abord. L'éclair de Galeforce lancé dans `PlayerPhase_FinishAction` laissait la phase du joueur rouvrir curseur et fenêtres (sur BG0, comme l'éclair) : colonne de lumière restée à l'écran, unité cachée (ticket 23 ; `PROC_YIELD` ajouté après `FinishAction`).
 - Compilation sans Docker lente même sans rien à refaire (~25 s, ticket 30) : le Makefile lance `scaninc` une fois par fichier assembleur (~170 processus, lents à démarrer sous Windows), et make cherche une règle implicite intégrée (RCS, SCCS…) pour chacune des ~5000 dépendances. `asmdeps.py` fait le travail de scaninc en une passe (lu par `win.mk`, `NODEP=1`) et `win.mk` annule les règles intégrées de make (`.SUFFIXES:`, règles RCS/SCCS) sauf `%.o: %.s`, dont se servent les animations de combat (avec `make -r`, la compilation complète échoue : « No rule to make target ...motion.o ») : moins de 2 s pour make.
 
+- Recompilation complète (~266 fichiers C) à chaque petit changement (ticket 34) : un en-tête inclus partout (`bmunit.h`, `global.h`...) qui change avec les données du projet. Ce qui varie (numéros des compétences) va dans un en-tête à part (`skills_fem.h`), inclus seulement par les fichiers qui s'en servent.
+
+- Animation de combat : le jeu n'affiche un statut infligé par un coup que pour le poison (teinte violette, `BATTLE_HIT_ATTR_POISON`) et la pétrification, toujours sur le défenseur du coup. Un statut donné par une compétence (sommeil, silence, folie, ou sur l'attaquant comme Effect Spore) passe par `SetUnitEfxDebuff` de la bonne unité (ticket 33).
+
 ## Données du jeu (personnages, classes, objets, textes)
 
 - Bâtons et objets agissent par leur numéro dans le moteur (`switch (GetItemIndex(item))`, `== ITEM_X`, tables de l'IA `{ ITEM_X, fonction }`) : une copie n'agit que si elle est ajoutée à ces tests (`_copy_item_behaviour`). Un numéro écrit en dur dans `asm/` ne serait pas suivi.

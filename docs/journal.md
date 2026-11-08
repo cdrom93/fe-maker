@@ -249,3 +249,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 08/11/2026 : référence 3dsrecomp / Zakuro (Fates) notée au cahier, à côté de FE3H Recomp.
 - 08/11/2026 : idée long terme notée au cahier : d'autres moteurs (Fates sur 3DS, puis Switch), avec mon avis.
 - 08/11/2026 : partie « autres moteurs » (Fates, Switch) résumée dans docs/moteur-fates.md, cahier réduit à un renvoi.
+- 08/11/2026 : ticket 33 (statut d'une compétence montré en animation de combat sur la bonne unité : Effect Spore, sommeil, silence, folie ; playtest) et ticket 34 (numéros des compétences dans skills_fem.h : plus de recompilation complète quand on change une compétence).

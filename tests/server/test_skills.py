@@ -148,10 +148,35 @@ def test_batch_8_statuses_survival_and_weapons(monkeypatch):
     used = skills.used(characters, [], False)
     battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
     assert "ShowSkillFem(defender, SKILL_FEM_Sturdy);" in battle
-    assert "status = UNIT_STATUS_PETRIFY;" in battle and "InjectStatusFem(attacker, spores[NextRN_N(3)]);" in battle
+    assert "status = UNIT_STATUS_PETRIFY;" in battle and "InjectStatusFem(attacker, spores[NextRN_N(3)], FALSE);" in battle
+    # ticket 33: the status flashes the unit that got it in battle animations (Effect Spore: the hit's attacker)
+    assert "InjectStatusFem(defender, status, TRUE);" in battle and "void StatusHitFem(" in battle
+    utils = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/banim-ekrutils.c"]
+    assert "StatusHitFem(anim, animr7); /* FE Maker: skills */" in utils
     assert battle.index("SKILL_FEM_Petrify") < battle.index("SKILL_FEM_PoisonPoint")      # C-SkillSys's order
     assert "&& !ApplyHitEffectSkillsFem(attacker, defender)) { /* FE Maker: skills (lot 8) */" in battle
     assert battle.index("static int ApplyHitEffectSkillsFem") < battle.index("void BattleGenerateHitEffects(")
+
+
+def test_skill_numbers_header_spares_bmunit_h(monkeypatch):
+    """Ticket 34: the skills' numbers live in skills_fem.h, included by the C files using them; bmunit.h, included almost
+    everywhere, stays the same when a character gets another skill (no full rebuild)."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+
+    def build(names):
+        characters = [{"id": "CHARACTER_EIRIKA", "skills": names}]
+        used = skills.used(characters, [], False)
+        return skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+
+    one, two = build(["Vantage"]), build(["Forager", "Vantage"])
+    assert one["include/bmunit.h"] == two["include/bmunit.h"] and "SKILL_FEM_" not in one["include/bmunit.h"]
+    assert one["include/skills_fem.h"] != two["include/skills_fem.h"]
+    for rel, text in two.items():
+        if rel.endswith(".c") and isinstance(text, str) and "SKILL_FEM_" in text:
+            assert '#include "skills_fem.h"' in text, rel
 
 
 def test_batch_9_auras_by_distance_and_side(monkeypatch):

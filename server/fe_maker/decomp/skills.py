@@ -476,7 +476,7 @@ CATALOGUE: tuple[Skill, ...] = (
           effect="if (status == -1 && allowed && !DebuffedFem(attacker)\n"
                  "            && SkillProcRateFem(defender, SKILL_FEM_EffectSpore, 50)) {\n"
                  "            static const u8 spores[] = { UNIT_STATUS_POISON, UNIT_STATUS_SILENCED, UNIT_STATUS_SLEEP };\n"
-                 "            InjectStatusFem(attacker, spores[NextRN_N(3)]);\n            status = -2;\n        }"),
+                 "            InjectStatusFem(attacker, spores[NextRN_N(3)], FALSE);\n            status = -2;\n        }"),
     Skill("BlackMagic", "proc", "BlackMagic",
           "Black Magic:[NL]Inflict a random bad status on the enemy.[NL](Skill % activation).", group="status",
           effect="if (status == -1 && allowed && SkillProcFem(attacker, SKILL_FEM_BlackMagic)) {\n"
@@ -895,9 +895,16 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
             "int SkillAttributesFem(struct Unit* unit); /* FE Maker: game abilities given as skills */\n"
             "#define UNIT_CATTRIBUTES(aUnit) ((aUnit)->pCharacterData->attributes | (aUnit)->pClassData->attributes"
             " | SkillAttributesFem(aUnit))\n"), rel)
-    files[rel] = _replace(header, "\n#endif // GUARD_BM_UNIT_H", (
-        "\n/* FE Maker: skills (docs/competences.md, from C-SkillSys) */\n#define SKILLS_FEM 1\n" + defines +
+    # what changes with the skills used goes to its own header, included only by the files that use it (ticket 34: in
+    # bmunit.h, adding a skill to a character recompiled ~266 files)
+    files[NUMBERS_HEADER] = (
+        "#ifndef GUARD_SKILLS_FEM_H\n#define GUARD_SKILLS_FEM_H\n\n"
+        "/* FE Maker: the numbers of the skills this project uses (docs/competences.md) */\nstruct Unit;\n\n" + defines +
         f"#define SKILL_COUNT_FEM {len(skills)}\n"
+        + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in _raised(skills, magic_split))
+        + "\n#endif // GUARD_SKILLS_FEM_H\n")
+    files[rel] = _replace(header, "\n#endif // GUARD_BM_UNIT_H", (
+        "\n/* FE Maker: skills (docs/competences.md, from C-SkillSys); their numbers: skills_fem.h */\n#define SKILLS_FEM 1\n"
         f"extern const u8 gCharacterSkillsFem[0x100][{MAX_PER_SHEET}];\n"
         f"extern const u8 gClassSkillsFem[0x100][{MAX_PER_SHEET}];\n"
         "int SkillTesterFem(struct Unit* unit, int skill);\nint SkillStatBonusFem(struct Unit* unit, int stat);\n"
@@ -906,8 +913,6 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
         "void LearnLevelSkillsFem(struct Unit* unit);\nvoid LearnedPopupsClearFem(void);\n"
         "void LearnedPopupsFem(void* proc);\n"
-        + "".join(f"int {GETTERS[k]}BaseFem(struct Unit* unit);\n" for k in _raised(skills, magic_split))
-        +
         "\n#endif // GUARD_BM_UNIT_H"), rel)
 
     # bmunit.c: tables, tester, stat bonuses, getters
@@ -1032,7 +1037,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         battle = _hit_skills(battle, [s for s in skills if s.kind in ("proc", "hits")], rel)
     battle = _replace(battle, "void BattleUnwind(void) {\n    ClearBattleHits();\n",
                       "void BattleUnwind(void) {\n    ClearBattleHits();\n"
-                      "    CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM);\n", rel)
+                      "    CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM);\n"
+                      f"    CpuFill16(0, (void*) {STATUS_HITS}, BATTLE_HIT_MAX + 1);\n", rel)
     files[rel] = battle
 
     # icons: after the game's, their lookup table in free RAM
@@ -1067,6 +1073,21 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
                           texts, base))
+    return _include_numbers(files)
+
+
+NUMBERS_HEADER = "include/skills_fem.h"
+_NUMBERS_USE = re.compile(r"\bSKILL_FEM_\w+|\bSKILL_COUNT_FEM\b|\w+BaseFem\(")
+
+
+def _include_numbers(files: dict) -> dict:
+    """Ticket 34: each C file using the skills' numbers includes skills_fem.h, after its first include."""
+    for rel, text in files.items():
+        if not rel.endswith(".c") or not isinstance(text, str) or not _NUMBERS_USE.search(text):
+            continue
+        first = re.search(r'^#include "[^"]+"\n', text, re.M)
+        line = f'#include "{NUMBERS_HEADER.removeprefix("include/")}" /* FE Maker: skills */\n'
+        files[rel] = text[:first.end()] + line + text[first.end():] if first else line + text
     return files
 
 
@@ -1075,6 +1096,9 @@ ASTRA_FLAG = "0x02028D81"   # the next one: Astra triggered in this battle (the 
 # then the triggered skills to show, 2 bytes per hit (the actor's, the target's), and the last round shown: 0x02028D82-91
 SHOWN_SKILLS = "0x02028D82"
 SHOWN_SIZE = 0x10
+# then the status a skill inflicted on each hit (one byte per hit: the status, bit 7 when it is on the battle's target), shown
+# by the battle animation's status flashing: 0x02028D92-98
+STATUS_HITS = "0x02028D92"
 
 
 def _hit_effects(battle: str, effects: str, rel: str) -> str:
@@ -1082,10 +1106,14 @@ def _hit_effects(battle: str, effects: str, rel: str) -> str:
     BattleHit_ConsumeWeapon): one status at most, none against the Demon King or with a poison or stone weapon (the
     game's own); the weapon use kept by Armsthrift. Called where the game consumes the attacker's weapon."""
     battle = _replace(battle, "void BattleGenerateHitEffects(struct BattleUnit* attacker, struct BattleUnit* defender) {\n",
-                      """/* FE Maker: a status inflicted by a skill (C-SkillSys's InjectNegativeStatusExt) */
-static void InjectStatusFem(struct BattleUnit* bu, int status)
+                      """/* FE Maker: a status inflicted by a skill (C-SkillSys's InjectNegativeStatusExt); foe: on the hit's
+   defender (the game's own poison and stone effects), else on its attacker (Effect Spore) */
+#define sStatusHitFem ((vu8*) """ + STATUS_HITS + """)
+
+static void InjectStatusFem(struct BattleUnit* bu, int status, int foe)
 {
     int old = bu->statusOut >= 0 ? bu->statusOut : bu->unit.statusIndex;
+    int hit = gBattleHitIterator - gBattleHitArray;
 
     if (old == UNIT_STATUS_PETRIFY || old == UNIT_STATUS_13)
         bu->unit.state &= ~US_UNSELECTABLE;   /* "ungray" a petrified unit, as the game's poison does */
@@ -1094,8 +1122,13 @@ static void InjectStatusFem(struct BattleUnit* bu, int status)
         if (UNIT_FACTION(&bu->unit) == gPlaySt.faction)
             bu->statusOut = UNIT_STATUS_13;
         gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PETRIFY;
-    } else if (status == UNIT_STATUS_POISON)
+        return;
+    }
+    if (status == UNIT_STATUS_POISON && foe)
         gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_POISON;
+    /* the battle animation flashes the unit in its status's color from this hit on (banim-ekrutils.c) */
+    if (hit >= 0 && hit < BATTLE_HIT_MAX)
+        sStatusHitFem[hit] = status | (bu == &gBattleTarget ? 0x80 : 0);
 }
 
 static int DebuffedFem(struct BattleUnit* bu)
@@ -1115,7 +1148,7 @@ static int ApplyHitEffectSkillsFem(struct BattleUnit* attacker, struct BattleUni
     int status = -1, keep = FALSE;
 
 """ + effects + """    if (status >= 0)
-        InjectStatusFem(defender, status);
+        InjectStatusFem(defender, status, TRUE);
     (void) DebuffedFem; (void) hit; (void) allowed;
     return keep;
 }
@@ -1276,6 +1309,7 @@ def _skill_name_in_battle(decomp_dir: Path, files: dict, skills: list[Skill], te
 #include "icon.h"
 #include "functions.h"
 #include "hardware.h"
+#include "efxbattle.h"
 
 /* FE Maker: the triggered skill's name and icon in battle (Huichelaar's SkillProcDisplay, Skill System, CC0) */
 #define sSkillRoundFem (*(vu8*) ({SHOWN_SKILLS} + 2 * BATTLE_HIT_MAX))
@@ -1449,6 +1483,23 @@ void StartSkillNameFem(struct Anim* anim)
     proc->right = right;
 }}
 
+/* When a hit lands (banim-ekrutils.c): the status a skill inflicted on it flashes its unit in the status's color, as the
+   game does for a poison weapon's target; also on the hit's attacker (Effect Spore), sleep, silence and berserk */
+void StatusHitFem(struct Anim* anim, struct Anim* foe)
+{{
+    int round = anim->nextRoundId - 1, status, target;
+    struct Anim* who;
+
+    if (round < 0 || round >= BATTLE_HIT_MAX || ((vu8*) {STATUS_HITS})[round] == 0)
+        return;
+    status = ((vu8*) {STATUS_HITS})[round] & 0x7F;
+    target = ((vu8*) {STATUS_HITS})[round] >> 7;
+    /* is anim the battle's target's? */
+    who = ((GetAnimPosition(anim) == POS_L) != (gpEkrBattleUnitLeft == &gBattleActor)) == target ? anim : foe;
+    if (GetUnitEfxDebuff(who) == UNIT_STATUS_NONE)
+        SetUnitEfxDebuff(who, status);
+}}
+
 /* Battles on the map: the icon beside the info box for 30 frames (Huichelaar's SPD_Map, Skill System, CC0) */
 #include "mapanim.h"
 
@@ -1564,6 +1615,14 @@ void StartSkillIconMapFem(ProcPtr parent)
     out[rel] = _replace(main, "                case 0x07:\n",
                         "                case 0x07:\n                    if (GetAISLayerId(anim) == 0)\n"
                         "                        StartSkillNameFem(anim); /* FE Maker */\n", rel)
+    rel = "src/banim-ekrutils.c"
+    start = "void StartBattleAnimHitEffects(struct Anim *anim, int type, int a, int b)\n{"
+    utils = _replace(_read(files, decomp_dir, rel), start,
+                     "void StatusHitFem(struct Anim* anim, struct Anim* foe); /* FE Maker: skills.py, in bmbattle.c */\n\n"
+                     + start, rel)
+    out[rel] = _replace(utils, "    case EKR_HITTED:\n        roundt1 = GetRoundFlagByAnim(animr7);\n",
+                        "    case EKR_HITTED:\n        StatusHitFem(anim, animr7); /* FE Maker: skills */\n"
+                        "        roundt1 = GetRoundFlagByAnim(animr7);\n", rel)
     return out
 
 
@@ -2478,7 +2537,7 @@ void FemSkillEvent(void)
     rel = "include/eventscript.h"
     out[rel] = _read(files, decomp_dir, rel).rstrip("\n") + (
         "\n\n/* FE Maker: skills for the events' GiveSkill / RemoveSkill */\n#define SKILLS_FEM_EVENTS 1\n"
-        + "".join(f"#define SKILL_FEM_{s.id} {numbers[s.id]}\n" for s in skills) + "void FemSkillEvent(void);\n")
+        f'#include "{NUMBERS_HEADER.removeprefix("include/")}"\nvoid FemSkillEvent(void);\n')
     rel = "src/bmio.c"
     out[rel] = _replace(_read(files, decomp_dir, rel), "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n",
                         "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n"

@@ -2275,6 +2275,53 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
         assert game.read("gAnimRoundData", 2, width=16) & 0x800   # ANIM_ROUND_SURE_SHOT on Seth's side (right)
 
 
+def test_effect_spore_status_flashes_the_attacker_in_battle_animation(tmp_path):
+    """Ticket 33: Seth has Effect Spore; when the enemy's counter hits him, the status it gets (poison, silence or sleep)
+    flashes the enemy (the hit's attacker) in its color in the battle animation, never Seth. 50%: tried with other seeds."""
+    project = Project.create(tmp_path / "spore", "Spore")
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["EffectSpore"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    seen = []
+    for seed in range(12):
+        with Game(out.rom_path, out.map_path) as game:
+            _on_map(game)
+            for k in range(3):   # gRNSeeds (static in rng.c: first in its .bss, at the start of IWRAM)
+                game.write(0x03000000, (0x1234 + 0x9E37 * (seed + 1) * (k + 1)) & 0xFFFF, 2 * k, width=16)
+            base = game.address("gUnitArrayBlue")
+            seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
+                        and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
+            game.write(seth, 0, 0x16)        # Speed 0, Luck 0: the counter hits more often
+            game.write(seth, 0, 0x19)
+            game.write(seth, 60, 0x12)       # 60 HP: he survives
+            game.write(seth, 60, 0x13)
+            _seth_attacks(game)
+            statuses = [game.read(0x02028D92 + k) for k in range(7)]
+            print("seed", seed, "statuses", statuses)
+            hit = next((s for s in statuses if s), 0)
+            if not hit:
+                continue
+            assert hit & 0x80 and (hit & 0x7F) in (1, 2, 3)          # on the battle's target, poison / sleep / silence
+            procs = game.address("gpProcEfxStatusUnits")
+
+            def debuff(pos):
+                proc = game.read(procs + 4 * pos, width=32)
+                return game.read(proc, 0x4C, width=32) if proc else 0
+
+            assert game.wait_until(lambda: debuff(0) or debuff(1), seconds=30, step=2)
+            game.screenshot().convert("RGB").save(tmp_path / f"spore{seed}.png")
+            enemy_left = game.read("gpEkrBattleUnitLeft", width=32) == game.address("gBattleTarget")
+            enemy, seth_side = (0, 1) if enemy_left else (1, 0)
+            print("debuffs", debuff(0), debuff(1), "enemy left", enemy_left)
+            assert debuff(enemy) == hit & 0x7F and debuff(seth_side) == 0
+            seen.append(hit & 0x7F)
+            print("screenshots:", tmp_path)
+            break
+    assert seen, "Effect Spore never triggered"
+
+
 def test_damage_and_heal_numbers_in_battle_animation(tmp_path):
     """Ticket 169 (option battleNumbers, C-SkillSys's AnimNumber): Seth with Sol attacks in the prologue; a red "-n"
     rises over the unit hit, a green "+n" over Seth when Sol heals him."""
