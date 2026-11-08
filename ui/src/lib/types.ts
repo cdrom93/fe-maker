@@ -611,6 +611,19 @@ export interface BuildStatus {
   error: string | null
   patch: string | null
   launch: boolean
+  /** this build's duration once done, and the previous one of the same kind (ticket 30) */
+  timing?: BuildTime
+  previous?: BuildTime | null
+}
+
+export interface BuildTime {
+  date: string
+  project: string
+  seconds: number
+  native: boolean
+  test: boolean
+  compiled: number
+  lines: number
 }
 
 export type TicketKind = 'bug' | 'idea' | 'question'

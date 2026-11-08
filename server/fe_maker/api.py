@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, decompfetch, emulator, ferepo, native, newchapter, scope, validation
+from . import __version__, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, validation
 from . import tickets as ticketing
 from .builder import BuildError
 from .checks import run_checks
@@ -2366,6 +2366,11 @@ def _run_build(project: Project, launch: bool) -> None:
             state.settings.rom_path, on_output=lambda line: st["log"].append(line.rstrip("\n")), for_test=launch
         )
         st["patch"] = str(output.patch_path) if output.patch_path else None
+        # ticket 30: its duration, beside the previous build of the same kind (same way, test or patch)
+        st["previous"] = next((e for e in buildtimes.recent() if e["native"] == output.native and e["test"] == launch),
+                              None)
+        st["timing"] = buildtimes.record(project.name, output.seconds, output.native, launch, output.compiled,
+                                         len(st["log"]))
         if launch:
             state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys)
         st["state"] = "done"
@@ -2403,6 +2408,12 @@ def start_build(body: BuildIn):
 def build_status(since: int = 0):
     st = state.build_status
     return {**st, "log": st["log"][since:], "logSize": len(st["log"])}
+
+
+@app.get("/api/build-times")
+def build_times(count: int = 20):
+    """The last builds' durations, most recent first (ticket 30)."""
+    return buildtimes.recent(count)
 
 
 @app.get("/api/project/patch")

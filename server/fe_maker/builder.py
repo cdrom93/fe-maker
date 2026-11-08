@@ -42,6 +42,8 @@ class BuildResult:
     rom_path: Path
     matches_original: bool
     log: str
+    seconds: float = 0.0   # the build itself, without waiting for another one (ticket 30)
+    native: bool = False   # built without Docker
 
 
 def _try_lock(file) -> bool:
@@ -164,12 +166,15 @@ def build(
         raise BuildError(f"Overlay directory not found: {overlay}")
     if native.available():   # Windows without Docker (docs/sans-docker.md); Docker stays the fallback
         with build_lock(on_output, where=native.work_dir(bugfix).parent):
+            start = time.monotonic()
             try:
                 log = native.build(rom.resolve(), out_dir, DECOMP_DIR, overlay.resolve() if overlay else None, bugfix,
                                    on_output)
             except native.NativeBuildError as e:
                 raise BuildError("Build failed:\n" + str(e)) from e
-        return BuildResult(rom_path=out_dir / "fireemblem8.gba", matches_original="fireemblem8.gba: OK" in log, log=log)
+            seconds = time.monotonic() - start
+        return BuildResult(rom_path=out_dir / "fireemblem8.gba", matches_original="fireemblem8.gba: OK" in log, log=log,
+                           seconds=seconds, native=True)
     docker = find_docker()
 
     # Separate caches: make does not notice a change of compiler flags.
@@ -190,6 +195,7 @@ def build(
 
     log_lines: list[str] = []
     with build_lock(on_output):
+        start = time.monotonic()
         process = subprocess.Popen(
             [*args, ensure_image(docker, on_output)],
             stdout=subprocess.PIPE,
@@ -205,10 +211,12 @@ def build(
                 on_output(line)
         if process.wait() != 0:
             raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
+        seconds = time.monotonic() - start
 
     log = "".join(log_lines)
     return BuildResult(
         rom_path=out_dir / "fireemblem8.gba",
         matches_original="fireemblem8.gba: OK" in log,
         log=log,
+        seconds=seconds,
     )

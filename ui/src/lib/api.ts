@@ -1,6 +1,6 @@
 import { iconVersion, mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { SkillCatalogue } from './skills.svelte'
-import type { BattleColors, BuildStatus, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn, AdminTicket } from './types'
+import type { BattleColors, BuildStatus, BuildTime, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn, AdminTicket } from './types'
 
 /** What a project keeps of the game (server: scope.py) */
 export type ScopeRow = { id: string | number; name: string; kept: boolean }
@@ -215,6 +215,7 @@ export const api = {
   setWorldMap: (worldMap: boolean) => request<{ worldMap: boolean }>('PUT', '/api/project/world-map', { worldMap }),
   startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
+  buildTimes: () => request<BuildTime[]>('GET', '/api/build-times'),
   tickets: () => request<Ticket[]>('GET', '/api/tickets'),
   createTicket: (ticket: TicketIn) => request<Ticket>('POST', '/api/tickets', ticket),
   updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
