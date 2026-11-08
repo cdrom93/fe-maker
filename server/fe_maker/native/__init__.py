@@ -21,6 +21,8 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
+from . import asmdeps
+
 NATIVE_DIR = Path(__file__).resolve().parent
 TOOLCHAIN_VERSION = "1"
 TOOLCHAIN_URL = ("https://github.com/cdrom93/fe-maker/releases/download/"
@@ -220,6 +222,7 @@ def make_command(toolchain: Path, bugfix: bool) -> list[str]:
         str(toolchain / "bin" / "make.exe"), f"-j{os.cpu_count() or 4}",
         "-f", "Makefile", "-f", str(NATIVE_DIR / "win.mk").replace("\\", "/"),
         f"FEM_NATIVE={_quoted(NATIVE_DIR)}", f"PYTHON={_quoted(sys.executable)}", f"CPP={cpp}",
+        "NODEP=1",   # the assembly files' dependencies come from asmdeps.py, read by win.mk
         "fireemblem8.gba",
     ]
 
@@ -239,6 +242,7 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
     say("[fe-maker] Syncing decomp into working copy...\n")
     sync(decomp, work, overlay)
     _prepare(work, toolchain, rom)
+    asmdeps.write(work)   # what scaninc would find, in one pass: make runs with NODEP=1 (ticket 30)
     if bugfix:
         say("[fe-maker] BUGFIX enabled\n")
     say("[fe-maker] Building ROM...\n")

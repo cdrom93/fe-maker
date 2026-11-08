@@ -5,6 +5,25 @@
 $(OBJECTS_LST): $(ALL_OBJECTS)
 	$(file >$@,$(ALL_OBJECTS))
 
+# The assembly files' dependencies, found by asmdeps.py in one pass instead of one scaninc process per file
+# (make runs with NODEP=1): about 19 seconds less on every build (ticket 30).
+-include .fem-asmdeps.mk
+
+# make's built-in rules (version control checkouts, Fortran, Pascal, yacc...) made it try each of them on the ~5000
+# dependencies. All cancelled (.SUFFIXES: and the built-in pattern rules), but the one the decomp uses: a battle
+# animation's motion .s assembled into its .o, with the built-in recipe (COMPILE.s, OUTPUT_OPTION).
+.SUFFIXES:
+%:: %,v
+%:: RCS/%,v
+%:: RCS/%
+%:: s.%
+%:: SCCS/s.%
+%.c: %.w %.ch
+%.tex: %.w %.ch
+%.out: %
+%.o: %.s
+	$(COMPILE.s) $(OUTPUT_OPTION) $<
+
 # tools/jsonproc has no license, so it is not shipped: same output from a Python script of FE Maker.
 JSONPROC := $(PYTHON) $(FEM_NATIVE)/jsonproc.py
 

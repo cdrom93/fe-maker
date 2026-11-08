@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from fe_maker import native
-from fe_maker.native import banim_link, jsonproc
+from fe_maker.native import asmdeps, banim_link, jsonproc
 
 
 def write(path: Path, text: str) -> Path:
@@ -66,6 +66,29 @@ def test_make_command_quotes_paths_and_sets_bugfix(tmp_path):
     assert command[0].endswith("make.exe")
     assert "CPP=arm-none-eabi-cpp -DBUGFIX=1" in command
     assert any(arg.startswith('PYTHON="') and arg.endswith('"') for arg in command)
+    assert "NODEP=1" in command   # ticket 30: no scaninc (asmdeps.py)
+
+
+def test_asmdeps_finds_what_scaninc_finds(tmp_path):
+    """Ticket 30: includes searched in include/, the working copy, then the including file's folder, recursively;
+    incbins as written; comments and strings skipped."""
+    write(tmp_path / "include/macro.inc", '.include "inner.inc"\n')
+    write(tmp_path / "include/inner.inc", "@ nothing\n")
+    write(tmp_path / "asm/local.inc", '.incbin "graphics/x.4bpp.lz"\n')
+    write(tmp_path / "asm/a.s", (
+        '\t.include "macro.inc"\n'
+        '.include "local.inc"\n'
+        '.include "missing.inc"\n'
+        '; .include "commented.inc"\n'
+        '/* .incbin "hidden.bin"\n.incbin "hidden2.bin" */\n'
+        '.string ".include \\"no\\""\n'
+        '#incbin "baserom.gba"\n'))
+    write(tmp_path / "data/b.s", "nop\n")
+    assert asmdeps.dependencies(tmp_path, "asm/a.s") == [
+        "asm/local.inc", "baserom.gba", "graphics/x.4bpp.lz", "include/inner.inc", "include/macro.inc"]
+    assert asmdeps.write(tmp_path) == 2
+    rules = (tmp_path / asmdeps.DEPS_FILE).read_text(encoding="utf-8")
+    assert "asm/a.o: asm/local.inc baserom.gba" in rules and "data/b.o: \n" in rules
 
 
 def test_jsonproc_renders_loops_conditions_and_header(tmp_path):
