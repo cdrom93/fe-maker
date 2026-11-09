@@ -1,7 +1,7 @@
 {
   "app.tagline": "Make your own Fire Emblem",
   "app.language": "Language",
-  "file.menu": "File",
+  "file.menu": "File: projects, options, help",
   "file.new": "New project",
   "file.open": "Open",
   "file.options": "Options",

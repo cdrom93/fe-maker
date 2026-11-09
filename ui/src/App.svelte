@@ -61,7 +61,6 @@
   <div class="left">
   <FileMenu {status} onChanged={refresh} onQuit={() => (stopped = true)} />
   <div class="brand">
-    <strong>FE Maker</strong>
     {#if status?.version}<span class="version" title={t('app.version')}>{status.version}</span>{/if}
     <span class="muted">{t('app.tagline')}</span>
   </div>
@@ -117,9 +116,8 @@
     top: 0;
     z-index: 20;
   }
-  .left { display: flex; gap: 1rem; align-items: center; }
+  .left { display: flex; gap: 0.6rem; align-items: center; }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
-  .brand strong { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
   .brand .muted { color: var(--header-muted); }
   .brand .version { color: var(--header-muted); font-size: 0.75rem; }
   #header-actions { margin-left: auto; margin-right: 1.25rem; }

@@ -251,3 +251,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 08/11/2026 : partie « autres moteurs » (Fates, Switch) résumée dans docs/moteur-fates.md, cahier réduit à un renvoi.
 - 08/11/2026 : ticket 33 (statut d'une compétence montré en animation de combat sur la bonne unité : Effect Spore, sommeil, silence, folie ; playtest) et ticket 34 (numéros des compétences dans skills_fem.h : plus de recompilation complète quand on change une compétence).
 - 09/11/2026 : menu Fichier en haut à gauche, à la manière des logiciels de bureautique (`FileMenu.svelte`) : nouveau, ouvrir (projets récents), enregistrer, enregistrer sous, renommer, dossier, exporter le patch, fermer, options (touches de l'émulateur), aide (guide, version), quitter ; il remplace le menu « Projet » ; la langue reste en haut à droite.
+- 09/11/2026 : le menu Fichier s'ouvre en cliquant sur le nom « FE Maker » (plus de bouton « Fichier » à part).

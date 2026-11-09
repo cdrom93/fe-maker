@@ -229,7 +229,7 @@ Inspirations :
 - **Autres** : déclencheurs en phrases de Warcraft III et StarCraft II, Battle for Wesnoth, Game Builder Garage, Levelhead, éditeurs de Heroes III et d'Age of Empires II ; RPG Maker MZ, aussi pour ce qu'il ne faut pas faire (listes de commandes lourdes).
 
 Choix de l'utilisateur :
-- **Menu Fichier** (09/11) : en haut à gauche, présentation classique des logiciels de bureautique (commandes à gauche, projets récents, options ou aide à droite) : projets, options de l'émulateur, aide, quitter ; la langue reste en haut à droite. Fait, vérifié dans l'appli de test ; à valider par lui.
+- **Menu Fichier** (09/11) : ouvert par le nom « FE Maker » en haut à gauche, présentation classique des logiciels de bureautique (commandes à gauche, projets récents, options ou aide à droite) : projets, options de l'émulateur, aide, quitter ; la langue reste en haut à droite. Fait, vérifié dans l'appli de test ; à valider par lui.
 - **Campagne** : accueil en graphe des chapitres, avec des routes différentes possibles.
 - **Carte** : mode simple par défaut, qui doit couvrir environ 80 % des besoins.
 - **Conversations** : la scène sur une frise.

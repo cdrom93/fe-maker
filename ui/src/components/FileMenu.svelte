@@ -77,7 +77,9 @@
 <svelte:window onkeydown={onKey} />
 
 <div class="file-menu">
-  <button class="file" class:open aria-expanded={open} aria-haspopup="menu" onclick={toggle}>{t('file.menu')}</button>
+  <!-- The app's name is the menu's button, like an office suite's File tab -->
+  <button class="file" class:open title={t('file.menu')} aria-label={t('file.menu')} aria-expanded={open} aria-haspopup="menu"
+          onclick={toggle}>FE Maker<span class="caret">▾</span></button>
   {#if open}
     <div class="backdrop" role="presentation" onclick={() => (open = false)}></div>
     <div class="sheet" role="menu">
@@ -143,9 +145,14 @@
 
 <style>
   .file-menu { position: relative; }
-  /* Like a tab of the top bar, in the accent color: where everything about files and settings is. */
-  .file { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 800; padding: 0.25em 0.9em; font-size: 0.85rem; }
-  .file:hover, .file.open { filter: brightness(1.1); }
+  /* The app's name in the top bar, clickable: where everything about files and settings is. */
+  .file {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin-left: -0.5rem; padding: 0.2em 0.5em;
+    background: transparent; color: var(--header-text); border-color: transparent;
+    font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em;
+  }
+  .file:hover, .file.open { background: #ffffff1a; border-color: #ffffff33; }
+  .caret { font-size: 0.7rem; color: var(--header-muted); }
   .backdrop { position: fixed; inset: 0; z-index: 40; }
   .sheet {
     position: absolute; z-index: 41; top: calc(100% + 0.45rem); left: 0;
