@@ -323,7 +323,10 @@ class Project:
         result = builder.build(rom, out_dir, overlay, bugfix=self.meta.get("bugfix", False), on_output=on_output)
         if for_test:
             game_rom = out_dir / "test.gba"
-            result.rom_path.replace(game_rom)
+            try:
+                result.rom_path.replace(game_rom)
+            except PermissionError as e:   # an mGBA still playing the last test holds it (ticket 42)
+                raise ProjectError("build.romLocked") from e
             return BuildOutput(game_rom, None, result.matches_original, out_dir / "fireemblem8.map", **_timing(result))
         game_rom = out_dir / f"{slugify(self.name)}.gba"
         result.rom_path.replace(game_rom)

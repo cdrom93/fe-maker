@@ -158,6 +158,7 @@
   "build.waiting": "Another build is running (another FE Maker window or a test): this one starts as soon as it ends.",
   "build.done": "Game built!",
   "build.launched": "The game is starting in mGBA.",
+  "build.romLocked": "The test ROM is still open in mGBA: close the running game, then test again.",
   "build.error": "The build failed",
   "build.showLog": "Show technical details",
   "build.close": "Close",

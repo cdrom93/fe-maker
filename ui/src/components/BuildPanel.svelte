@@ -88,7 +88,7 @@
       {/if}
     {:else if status.state === 'error'}
       <h2 class="bad">{t('build.error')}</h2>
-      <pre class="mono">{status.error}</pre>
+      <pre class="mono">{status.error?.startsWith('build.') ? t(status.error) : status.error}</pre>
     {/if}
 
     {#if log.length}

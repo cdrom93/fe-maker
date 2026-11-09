@@ -2393,6 +2393,8 @@ def expected_build_lines() -> int:
 def _run_build(project: Project, launch: bool) -> None:
     st = state.build_status
     try:
+        if launch:   # the last test's mGBA holds test.gba: Windows would refuse to replace it
+            state.emulator.close_previous()
         output = project.build(
             state.settings.rom_path, on_output=lambda line: st["log"].append(line.rstrip("\n")), for_test=launch
         )
