@@ -1615,7 +1615,7 @@
   "banim.importedLabel": "Imported animation:",
   "banim.reopenHint": "Open it again in the library below",
   "ws.back": "Back",
-  "ws.backHint": "Back to the previous screen (Alt + left arrow)",
+  "ws.backHint": "Back to the previous screen (Alt + left arrow, or the mouse's back button)",
   "options.gameDefaultHint": "•: the original game's setting.",
   "maps.obj.close": "Close",
   "options.showOriginal": "Show the ways back to the original game",

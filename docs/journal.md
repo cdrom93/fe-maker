@@ -261,3 +261,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : idée « appliquer des patchs dans FE Maker » notée au cahier (ups.py sait déjà appliquer un .ups).
 - 09/11/2026 : principe 10 du cahier : tout faire depuis FE Maker (objectif final de l'utilisateur).
 - 09/11/2026 : plan de tests automatiques (testeurs humains sur le ressenti) validé par l'utilisateur, noté au cahier, étape 9 de l'alpha.
+- 09/11/2026 : tickets 35 (« Nouveau projet » sans effet après un changement de projet : l'ancien espace de travail effaçait les commandes du menu Fichier du nouveau) et 36 (bouton « précédent » de la souris = Retour).

@@ -259,7 +259,7 @@
   }
 
   // The File menu, top left in the app's bar, acts on this project.
-  fileMenu.project = {
+  const commands = {
     flush: flushAll,
     saveAs: () => (identity = 'saveAs'),
     rename: () => (identity = 'rename'),
@@ -268,7 +268,19 @@
     canExport: () => errors.length === 0,
     close,
   }
-  onDestroy(() => (fileMenu.project = null))
+  fileMenu.project = commands
+  // Another project opened from the File menu: its Workspace is created before this one is destroyed, so only
+  // clear the commands if they are still ours (ticket 35: the menu had lost the new project's commands).
+  onDestroy(() => {
+    if (fileMenu.project === commands) fileMenu.project = null
+  })
+
+  /** The mouse's side "back" button (ticket 36); preventDefault keeps the browser from leaving the page. */
+  function onMouseUp(e: MouseEvent) {
+    if (e.button !== 3) return
+    e.preventDefault()
+    back()
+  }
 
   function onKey(e: KeyboardEvent) {
     if (e.altKey && e.key === 'ArrowLeft') {
@@ -291,7 +303,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onmouseup={onMouseUp} />
 
 
 <div class="toolbar">

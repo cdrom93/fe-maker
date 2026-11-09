@@ -1615,7 +1615,7 @@
   "banim.importedLabel": "Animation importée :",
   "banim.reopenHint": "La rouvrir dans la bibliothèque ci-dessous",
   "ws.back": "Retour",
-  "ws.backHint": "Revenir à l'écran précédent (Alt + flèche gauche)",
+  "ws.backHint": "Revenir à l'écran précédent (Alt + flèche gauche, ou bouton « précédent » de la souris)",
   "options.gameDefaultHint": "• : réglage du jeu d'origine.",
   "maps.obj.close": "Fermer",
   "options.showOriginal": "Montrer les retours au jeu d'origine",
