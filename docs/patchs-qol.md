@@ -24,7 +24,7 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 | Passer l'avertissement de santé, les logos et l'animation d'ouverture | `SYSTEM/OPENING_CUT`, `SYSTEM/SKIP_OPENING`, `Mode Coefficient EXP fix/Skip H_S screen`, `Skip Intro cutscene` | C : FE Maker a déjà la mécanique (modes de test « au menu », « sur la carte ») ; en faire une option du jeu final |
 | Option de jeu : animations des bâtons et des danses coupées | `SYSTEM/Dance animation off`, `ForceBattleOffWithDanceAndStaff`, `SYSTEM/Staff that ignores battle animation` | C |
 | Statistiques des armes de monstre | `SYSTEM/Monster Weapon display fix` | C |
-| R pour accélérer, L pour passer les animations de combat | `SpeedUpAnims`, `FastBattleAnimation` | C |
+| R pour accélérer, L pour passer les animations de combat | `SpeedUpAnims`, `FastBattleAnimation` | C ; L accélère déjà (`holdLBattleSpeed`). Reporté : l'utilisateur veut que le créateur choisisse les touches (cahier, idées, 09/11) |
 | Écrans plus rapides : titre de chapitre sans attente d'une seconde, combats sur la carte sans délai, barre d'expérience rapide | `SYSTEM/Omission of 1-second wait when displaying chapter titles`, `Remove delay at start of map battle`, `Remove Round delay in map battle`, `Display bar quickly when getting exp in map anime`, `Acceleration of growth status display of level up` | C : constantes de durée |
 | A maintenu accélère les déplacements | `Mode Coefficient EXP fix/Hold A to speed up movement` | C |
 | Correctifs de bugs du jeu d'origine (#ESSENTIAL dans FEBuilder) | `BattleForecastFix`, `FE8-Staff Range Fix`, `Enemy Control Glitch Fix`, `MNC2Fix`, `HP Bar and Cloud Fix`, `FillAIDangerMap` (lenteurs de l'IA), `Fix_*`… | Option BUGFIX de la décomp (déjà prévue, désactivée par défaut) plus les correctifs un par un ; à trier |
@@ -76,3 +76,10 @@ Ensuite : barres de PV sur la carte, mode débutant, barre d'expérience et gain
 2. Les patchs de priorité 1 qui sont des constantes (vitesse du texte, curseur, ouverture, délais) : quelques lignes de C chacun, compilés et vérifiés avec le playtest sans fenêtre.
 3. Les affichages (barres de PV, chiffres des combats, soins, boîte d'infos).
 4. C-SkillSys comme option du projet (séparation force/magie, compétences), après étude de sa licence et de son intégration au build.
+
+## Lot suivant (choisi le 09/11/2026, d'après le guide QoL d'UltraxBlade sur FEU)
+
+1. Alertes sur les barres de PV : un ennemi qui a une arme critique ou efficace contre l'unité choisie est signalé (comme `HPbars` de FEBuilder).
+2. Statistiques des armes de monstre (`SYSTEM/Monster Weapon display fix`).
+3. Correctifs « #ESSENTIAL » de FEBuilder : les trier un par un (bug du jeu d'origine ou simple avis), faire ceux qui corrigent un vrai bug, cochés d'office.
+4. Ensuite : sauvegarde en début de tour en option réglable par le joueur ; unités obligatoires déplaçables unité par unité pendant la préparation.
