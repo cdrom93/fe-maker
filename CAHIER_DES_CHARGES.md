@@ -125,6 +125,12 @@ Public : FE Universe ; dépôt public depuis le 07/11/2026 (prealpha, sans tag n
 9. **À faire, dans l'ordre choisi le 06/11** (viser une alpha qui donne envie, même incomplète) :
    - **musique** (phase 5) ;
    - **compilation sans Docker sous Windows** : faite le 07/11 (`docs/sans-docker.md`, `server/fe_maker/native/`), Docker en secours ; même ROM qu'avec Docker ; première compilation ~8 min en arrière-plan dès l'installation, ensuite ~10 s à 2 min (accélérée le 08/11) ; chaîne téléchargeable depuis que le dépôt est public ;
+   - **tests automatiques, pour que les testeurs humains se concentrent sur le ressenti** (plan validé par l'utilisateur le 09/11, sobre en tokens), dans cet ordre :
+     1. mes vérifications moins coûteuses : tests rangés par domaine (je ne lance que ceux du domaine touché), sortie limitée aux échecs, ROM des playtests en cache ;
+     2. tests de l'interface sans moi : Playwright dans la CI GitHub sur la décomp fictive (créer un projet, personnage, carte, dialogue, placement, export, réouverture) et captures de référence des écrans clés ;
+     3. tickets qui se suffisent : les dernières actions et erreurs jointes au ticket ;
+     4. missions pour les testeurs à chaque version (tirées du CHANGELOG, trois questions de ressenti chacune) ;
+     5. avant l'alpha : vérification en jeu complète par un script sur sa machine (playtests et hack témoin joué de bout en bout), rapport d'une ligne par test ;
    - **test fermé** avec quelques personnes choisies : FE Maker et les tickets sur d'autres machines ;
    - pour l'annonce : **vidéo de démonstration** de 2-3 min (carte, unités, dialogue, classe et compétence, « Tester ») et **hack témoin** partagé par l'utilisateur sur FEU, qui ne ressemble pas à FE8 ;
    - dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (`[AI]` dans le titre).

@@ -260,3 +260,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : réglages de mGBA dans Options > Émulateur (pause hors de la fenêtre, avance rapide : son et vitesse, taille de la fenêtre, plein écran, retour en arrière, lissage), écrits dans config.ini de mGBA à chaque test, « Réglage de mGBA » par défaut ; noms vérifiés dans mGBA 0.10.5 ; pas vus dans mGBA lui-même.
 - 09/11/2026 : idée « appliquer des patchs dans FE Maker » notée au cahier (ups.py sait déjà appliquer un .ups).
 - 09/11/2026 : principe 10 du cahier : tout faire depuis FE Maker (objectif final de l'utilisateur).
+- 09/11/2026 : plan de tests automatiques (testeurs humains sur le ressenti) validé par l'utilisateur, noté au cahier, étape 9 de l'alpha.
