@@ -102,6 +102,50 @@ def write_sound(volume: int | None, mute: bool, config_path: Path | None = None)
         parser.write(f, space_around_delimiters=False)
 
 
+# mGBA settings FE Maker can set for tests (FE Maker > Options), by order of use; each is written to [ports.qt] at
+# every launch, and one the user never set is left to mGBA. Names checked in mGBA 0.10.5.
+MGBA_OPTIONS: dict[str, tuple] = {
+    "pauseOnFocusLost": (False, True),       # pause when the game window is not in front
+    "fastForwardMute": (False, True),
+    "fastForwardRatio": (2, 3, 4, -1),       # -1: as fast as possible
+    "scale": (1, 2, 3, 4, 5, 6),             # window size, times the GBA's 240 x 160 (width / height)
+    "fullscreen": (False, True),
+    "rewindEnable": (False, True),           # go back a few seconds (mGBA's rewind key)
+    "resampleVideo": (False, True),          # smooth the picture instead of sharp pixels
+}
+
+
+def validate_options(options: dict) -> dict:
+    """Keep the known settings with an allowed value; None removes one (left to mGBA)."""
+    bad = [k for k, v in options.items() if v is not None and (k not in MGBA_OPTIONS or v not in MGBA_OPTIONS[k])]
+    if bad:
+        raise EmulatorError(f"Unknown mGBA settings: {', '.join(bad)}")
+    return {k: v for k, v in options.items() if v is not None}
+
+
+def write_options(options: dict, config_path: Path | None = None) -> None:
+    """Write the chosen mGBA settings in [ports.qt], leaving the others untouched."""
+    if not options:
+        return
+    path = config_path or mgba_config_path()
+    parser = configparser.RawConfigParser(strict=False)
+    parser.optionxform = str
+    if path.is_file():
+        parser.read(path, encoding="utf-8")
+    section = "ports.qt"
+    if not parser.has_section(section):
+        parser.add_section(section)
+    for key, value in options.items():
+        if key == "scale":
+            parser.set(section, "width", str(240 * value))
+            parser.set(section, "height", str(160 * value))
+        else:
+            parser.set(section, key, ("1" if value else "0") if isinstance(value, bool) else str(value))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        parser.write(f, space_around_delimiters=False)
+
+
 class Emulator:
     """Keeps track of the game window FE Maker opened, so a new test replaces it."""
 
@@ -118,12 +162,13 @@ class Emulator:
         self._process = None
 
     def launch(self, mgba_path: str | None, rom: Path, keys: dict[str, str], volume: int | None = None,
-               mute: bool = False) -> None:
+               mute: bool = False, options: dict | None = None) -> None:
         if not mgba_path or not Path(mgba_path).exists():
             raise EmulatorError("mGBA not found. Install it or set its path in the settings.")
         self.close_previous()
         write_key_bindings(keys)
         write_sound(volume, mute)
+        write_options(options or {})
         # Detached from FE Maker: closing or restarting the server must not close the game being played.
         if sys.platform == "win32":
             detach = {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}

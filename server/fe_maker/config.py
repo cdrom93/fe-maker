@@ -74,6 +74,7 @@ class Settings:
     keys: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_KEYS))  # GBA button -> keyboard key
     volume: int | None = None   # mGBA's volume in percent for tests; None: left to mGBA
     mute: bool = False          # written with the volume only
+    mgba_options: dict = field(default_factory=dict)   # emulator.MGBA_OPTIONS the user set; the others left to mGBA
 
     @property
     def rom_path(self) -> Path:

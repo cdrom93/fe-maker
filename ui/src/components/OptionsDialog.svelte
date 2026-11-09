@@ -29,6 +29,25 @@
     }
   }
 
+  /** One mGBA setting; null gives it back to mGBA. */
+  async function setOption(key: string, raw: string) {
+    error = ''
+    const value = raw === '' ? null : raw === 'true' ? true : raw === 'false' ? false : Number(raw)
+    try {
+      await api.updateSettings({ mgbaOptions: { [key]: value } })
+      onChanged()
+    } catch (e) {
+      error = e instanceof ApiError ? e.detail : String(e)
+    }
+  }
+
+  function choiceLabel(key: string, v: number | boolean): string {
+    if (typeof v === 'boolean') return t(v ? 'file.yes' : 'file.no')
+    if (key === 'fastForwardRatio') return v < 0 ? t('file.mgba.unbounded') : `×${v}`
+    if (key === 'scale') return `×${v} (${240 * v} × ${160 * v})`
+    return String(v)
+  }
+
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape' && !showKeys) onClose()
   }
@@ -62,6 +81,16 @@
                      onchange={(e) => setSound({ mute: (e.target as HTMLInputElement).checked })} /> {t('file.mute')}</label>
             </span>
           </div>
+          {#each Object.entries(status.mgbaChoices) as [key, values] (key)}
+            <div class="option">
+              <span>{t(`file.mgba.${key}`)} <Help text={t(`file.mgba.${key}Hint`)} /></span>
+              <select value={key in status.mgbaOptions ? String(status.mgbaOptions[key]) : ''} aria-label={t(`file.mgba.${key}`)}
+                      onchange={(e) => setOption(key, (e.target as HTMLSelectElement).value)}>
+                <option value="">{t('file.mgba.default')}</option>
+                {#each values as v (String(v))}<option value={String(v)}>{choiceLabel(key, v)}</option>{/each}
+              </select>
+            </div>
+          {/each}
         {:else}
           <h3>{t('file.category.project')} <Help text={t('options.editorHint')} /></h3>
           <ProjectSettings />

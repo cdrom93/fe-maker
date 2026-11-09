@@ -132,6 +132,7 @@ class SettingsIn(BaseModel):
     keys: dict[str, str] | None = None
     volume: int | None = None
     mute: bool | None = None
+    mgbaOptions: dict | None = None   # changes only; a None value gives a setting back to mGBA
 
 
 @app.get("/api/status")
@@ -145,6 +146,8 @@ def status():
         "keys": s.keys,
         "volume": s.volume,
         "mute": s.mute,
+        "mgbaOptions": s.mgba_options,
+        "mgbaChoices": {k: list(v) for k, v in emulator.MGBA_OPTIONS.items()},
         "gbaButtons": emulator.GBA_BUTTONS,
         "recentProjects": s.recent_projects,
         "defaultProjectsDir": str(default_projects_dir()),
@@ -199,6 +202,11 @@ def update_settings(body: SettingsIn):
         state.settings.volume = max(0, min(100, body.volume))
     if body.mute is not None:
         state.settings.mute = body.mute
+    if body.mgbaOptions is not None:
+        try:
+            state.settings.mgba_options = emulator.validate_options({**state.settings.mgba_options, **body.mgbaOptions})
+        except emulator.EmulatorError as e:
+            raise HTTPException(400, str(e))
     if body.keys is not None:
         try:
             state.settings.keys = emulator.validate_keys(body.keys)
@@ -2396,7 +2404,7 @@ def _run_build(project: Project, launch: bool) -> None:
                                          len(st["log"]))
         if launch:
             state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys,
-                                  state.settings.volume, state.settings.mute)
+                                  state.settings.volume, state.settings.mute, state.settings.mgba_options)
         st["state"] = "done"
         try:
             _build_lines_file().parent.mkdir(parents=True, exist_ok=True)

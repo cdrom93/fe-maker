@@ -53,3 +53,22 @@ def test_sound_goes_to_mgba_config_and_keeps_the_rest(tmp_path):
     assert "volume=128" in text and "mute=1" in text and "width=480" in text
     write_sound(None, False, config)   # left to mGBA: nothing written
     assert config.read_text(encoding="utf-8") == text
+
+
+def test_mgba_options_written_and_checked(tmp_path):
+    import pytest
+
+    from fe_maker.emulator import EmulatorError, validate_options, write_options
+
+    config = tmp_path / "config.ini"
+    config.write_text("[ports.qt]\nshader=x\n", encoding="utf-8")
+    options = validate_options({"pauseOnFocusLost": True, "scale": 3, "fastForwardRatio": -1, "fullscreen": None})
+    assert options == {"pauseOnFocusLost": True, "scale": 3, "fastForwardRatio": -1}
+    write_options(options, config)
+    text = config.read_text(encoding="utf-8")
+    assert "pauseOnFocusLost=1" in text and "width=720" in text and "height=480" in text
+    assert "fastForwardRatio=-1" in text and "shader=x" in text
+    with pytest.raises(EmulatorError):
+        validate_options({"scale": 9})
+    with pytest.raises(EmulatorError):
+        validate_options({"rm -rf": True})

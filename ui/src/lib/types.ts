@@ -599,6 +599,10 @@ export interface Status {
   /** mGBA's volume for tests, in percent; null: left to mGBA */
   volume: number | null
   mute: boolean
+  /** mGBA settings the user set for tests; the others are left to mGBA */
+  mgbaOptions: Record<string, number | boolean>
+  /** each setting FE Maker can set, with its allowed values, by order of use */
+  mgbaChoices: Record<string, (number | boolean)[]>
   gbaButtons: string[]
   recentProjects: string[]
   defaultProjectsDir: string
