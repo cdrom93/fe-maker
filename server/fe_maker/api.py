@@ -130,6 +130,8 @@ class SettingsIn(BaseModel):
     language: str | None = None
     mgbaPath: str | None = None
     keys: dict[str, str] | None = None
+    volume: int | None = None
+    mute: bool | None = None
 
 
 @app.get("/api/status")
@@ -141,6 +143,8 @@ def status():
         "language": s.language,
         "mgbaPath": s.mgba_path,
         "keys": s.keys,
+        "volume": s.volume,
+        "mute": s.mute,
         "gbaButtons": emulator.GBA_BUTTONS,
         "recentProjects": s.recent_projects,
         "defaultProjectsDir": str(default_projects_dir()),
@@ -191,6 +195,10 @@ def update_settings(body: SettingsIn):
         state.settings.language = body.language
     if body.mgbaPath is not None:
         state.settings.mgba_path = body.mgbaPath or None
+    if body.volume is not None:
+        state.settings.volume = max(0, min(100, body.volume))
+    if body.mute is not None:
+        state.settings.mute = body.mute
     if body.keys is not None:
         try:
             state.settings.keys = emulator.validate_keys(body.keys)
@@ -2387,7 +2395,8 @@ def _run_build(project: Project, launch: bool) -> None:
         st["timing"] = buildtimes.record(project.name, output.seconds, output.native, launch, output.compiled,
                                          len(st["log"]))
         if launch:
-            state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys)
+            state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys,
+                                  state.settings.volume, state.settings.mute)
         st["state"] = "done"
         try:
             _build_lines_file().parent.mkdir(parents=True, exist_ok=True)

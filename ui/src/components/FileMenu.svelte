@@ -71,6 +71,17 @@
     onQuit()
   })
 
+  /** mGBA's sound for the next tests: once set here, FE Maker writes the volume too (it stays 100 % until moved). */
+  async function setSound(change: { volume?: number; mute?: boolean }) {
+    error = ''
+    try {
+      await api.updateSettings({ volume: status?.volume ?? 100, ...change })
+      onChanged()
+    } catch (e) {
+      error = message(e)
+    }
+  }
+
   function onKey(e: KeyboardEvent) {
     if (open && e.key === 'Escape') open = false
   }
@@ -130,6 +141,18 @@
             <span>{t('file.emulator')}</span>
             <button onclick={() => { open = false; showKeys = true }}>{t('file.keys')}</button>
           </div>
+          {#if status}
+            <div class="option">
+              <span>{t('file.sound')} <Help text={t('file.soundHint')} /></span>
+              <span class="sound">
+                <input type="range" min="0" max="100" step="5" value={status.volume ?? 100} disabled={status.mute}
+                       aria-label={t('file.sound')} onchange={(e) => setSound({ volume: Number((e.target as HTMLInputElement).value) })} />
+                <span class="pct">{status.volume ?? 100} %</span>
+                <label class="mute"><input type="checkbox" checked={status.mute}
+                       onchange={(e) => setSound({ mute: (e.target as HTMLInputElement).checked })} /> {t('file.mute')}</label>
+              </span>
+            </div>
+          {/if}
           {#if project}
             <h3 class="sub-title">{t('file.projectOptions')} <Help text={t('options.editorHint')} /></h3>
             <ProjectSettings />
@@ -187,6 +210,10 @@
   .row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.25rem; }
   .option { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.25rem 0; }
   .option > span { font-weight: 600; }
+  .sound { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .sound input[type='range'] { width: 8rem; }
+  .pct { min-width: 3.2em; text-align: right; color: var(--muted); font-size: 0.85rem; }
+  .mute { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; flex-direction: row; }
   .error { color: var(--bad); margin: 0; }
   @media (max-width: 700px) {
     .sheet { grid-template-columns: 1fr; position: fixed; left: 0.5rem; right: 0.5rem; }

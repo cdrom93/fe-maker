@@ -72,6 +72,8 @@ class Settings:
     mgba_path: str | None = None
     recent_projects: list[str] = field(default_factory=list)
     keys: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_KEYS))  # GBA button -> keyboard key
+    volume: int | None = None   # mGBA's volume in percent for tests; None: left to mGBA
+    mute: bool = False          # written with the volume only
 
     @property
     def rom_path(self) -> Path:

@@ -41,3 +41,15 @@ def test_validate_rejects_duplicates_and_missing():
     del keys["Start"]
     with pytest.raises(EmulatorError):
         validate_keys(keys)
+
+
+def test_sound_goes_to_mgba_config_and_keeps_the_rest(tmp_path):
+    from fe_maker.emulator import write_sound
+
+    config = tmp_path / "config.ini"
+    config.write_text("[ports.qt]\nwidth=480\n", encoding="utf-8")
+    write_sound(50, True, config)
+    text = config.read_text(encoding="utf-8")
+    assert "volume=128" in text and "mute=1" in text and "width=480" in text
+    write_sound(None, False, config)   # left to mGBA: nothing written
+    assert config.read_text(encoding="utf-8") == text

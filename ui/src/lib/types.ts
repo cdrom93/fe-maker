@@ -596,6 +596,9 @@ export interface Status {
   language: 'fr' | 'en' | 'es' | 'it'
   mgbaPath: string | null
   keys: Record<string, string>
+  /** mGBA's volume for tests, in percent; null: left to mGBA */
+  volume: number | null
+  mute: boolean
   gbaButtons: string[]
   recentProjects: string[]
   defaultProjectsDir: string

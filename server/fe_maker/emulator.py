@@ -83,6 +83,25 @@ def write_key_bindings(keys: dict[str, str], config_path: Path | None = None) ->
         parser.write(f, space_around_delimiters=False)
 
 
+def write_sound(volume: int | None, mute: bool, config_path: Path | None = None) -> None:
+    """Set mGBA's volume (percent of its 0-256 scale, 256 = 100 %) and mute, in [ports.qt]; None leaves mGBA's own."""
+    if volume is None:
+        return
+    path = config_path or mgba_config_path()
+    parser = configparser.RawConfigParser(strict=False)
+    parser.optionxform = str
+    if path.is_file():
+        parser.read(path, encoding="utf-8")
+    section = "ports.qt"
+    if not parser.has_section(section):
+        parser.add_section(section)
+    parser.set(section, "volume", str(round(max(0, min(100, volume)) * 256 / 100)))
+    parser.set(section, "mute", "1" if mute else "0")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        parser.write(f, space_around_delimiters=False)
+
+
 class Emulator:
     """Keeps track of the game window FE Maker opened, so a new test replaces it."""
 
@@ -98,11 +117,13 @@ class Emulator:
                 self._process.kill()
         self._process = None
 
-    def launch(self, mgba_path: str | None, rom: Path, keys: dict[str, str]) -> None:
+    def launch(self, mgba_path: str | None, rom: Path, keys: dict[str, str], volume: int | None = None,
+               mute: bool = False) -> None:
         if not mgba_path or not Path(mgba_path).exists():
             raise EmulatorError("mGBA not found. Install it or set its path in the settings.")
         self.close_previous()
         write_key_bindings(keys)
+        write_sound(volume, mute)
         # Detached from FE Maker: closing or restarting the server must not close the game being played.
         if sys.platform == "win32":
             detach = {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
