@@ -119,7 +119,7 @@
   .left { display: flex; gap: 0.6rem; align-items: center; }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand .muted { color: var(--header-muted); }
-  .brand .version { color: var(--header-muted); font-size: 0.75rem; }
+  .brand .version { color: var(--header-muted); font-size: 0.75rem; white-space: nowrap; }
   #header-actions { margin-left: auto; margin-right: 1.25rem; }
   .tools { display: flex; gap: 0.75rem; align-items: center; }
   .tools button { background: transparent; color: var(--header-text); border-color: #ffffff33; }

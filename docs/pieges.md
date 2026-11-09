@@ -101,6 +101,7 @@ piège dans sa section.
 - Deux compilations en même temps partagent la copie de travail du volume Docker : « Build failed » sans erreur du compilateur, ou pire, une ROM qui marche en mélangeant les fichiers de deux projets (ticket 57 : carte et portrait d'origine dans le projet de l'utilisateur, pendant un de mes playtests). `builder.build_lock` les fait attendre, entre tous les programmes.
 
 ## Outils et interface
+- **Choisir un dossier** : une page web ne peut pas donner le chemin complet d'un dossier (`<input type="file">` ne donne que des noms). La fenêtre de choix vient du serveur local (`folderpick.py`, tkinter, au premier plan avec `-topmost`) ; un Python installé sans Tk renvoie `pickerUnavailable`. Ne pas la déclencher pendant mes vérifications : elle s'ouvre sur l'écran de l'utilisateur.
 
 - Options du jeu : la page renvoyait toute la liste chargée à son ouverture ; une page restée ouverte (autre onglet, version d'avant une mise à jour) décochait ce qui avait changé depuis, et un serveur d'une autre version jetait les options qu'il ne connaissait pas. Désormais la page n'envoie que l'option touchée (`change_game_options`) et les options inconnues restent dans `fe-maker.json` (07/11/2026).
 - `pytest ... | tail` rend le code de sortie de `tail` : un test rouge n'arrête pas un `&&`. Mettre `set -o pipefail` avant de chaîner un commit. Un test qui crée un projet passe `decomp_dir=decomp_dir` : sinon il lit la décomp installée sur la machine, absente de la CI.

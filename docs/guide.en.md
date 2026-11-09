@@ -35,13 +35,13 @@ A project opens on **Campaign**, the graph of your chapters. A chapter's sheet g
 | Campaign | How chapters follow each other, add a chapter, end the game, the "To do" list |
 | Chapters | One chapter in three views: units and objective, map, dialogues; its settings (weather, battle background, camera, fog...) are folded at the bottom |
 | Characters, Classes, Items, Combat | The game's sheets; add characters, weapons, classes; a character's battle colours, drawn from their portrait or painted on the sprite |
-| Game options | Rules (Strength and Magic split, skills...), starting settings, comfort, unit screens, test options, what the project keeps |
+| Game options | Rules (Strength and Magic split, skills...), starting settings, comfort, unit screens, what the project keeps (test options are in **FE Maker** > **Options**) |
 
 In a chapter, an **event** is a moment of the game: its trigger says when it happens ("Start of turn 3"), its **sequence** what happens in order, and its **dialogues** the text shown. An event can come on a turn or over several turns, on Talk, when a unit stops in an area, or from a memory. **Quotes** (in battle, on death) are not events.
 
 A small **i** next to a title or an option holds its explanation: hover over it.
 
-**▶ Test** compiles and starts the game in mGBA. The **File** menu, opened by clicking **FE Maker** at the top left as in office software, holds **Export patch**, which gives the `.ups` to share. Everything is saved as you go (Ctrl+S saves at once); the same menu also offers **New project**, **Open** (recent projects), **Save as…** (a copy in another folder), **Rename…**, **Open the project's folder**, **Close project**, the **Options** (emulator controls), **Help** and **Quit**.
+**▶ Test** compiles and starts the game in mGBA. The **File** menu, opened by clicking **FE Maker** at the top left as in office software, holds **Export patch**, which gives the `.ups` to share. Everything is saved as you go (Ctrl+S saves at once); the same menu also offers **New project**, **Open** (recent projects, or **Open another project…**, which opens the folder picker: no path to type), **Save as…** (a copy in another folder), **Rename…**, **Open the project's folder**, **Close project**, the **Options** (emulator controls; for the open project: going back to the original game, where tests start, simplified prologue), **Help** and **Quit**.
 
 The **Ticket** button in the header reports a problem or suggests an idea: the ticket goes to FE Maker's developers, with no account to create, with your screenshots (and your project if you tick "Attach the project"). Their replies show under the ticket. Offline, it stays on your PC and "Send again" sends it later. A ticket sent turns "Done" when the developers close it; "Withdraw" puts it away when it is no longer needed (they are told), and you can reply to a closed ticket if the problem comes back.
 

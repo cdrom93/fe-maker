@@ -65,6 +65,8 @@ export const api = {
   saveProjectAs: (folder: string, name: string) => request<ProjectInfo>('POST', '/api/project/save-as', { folder, name }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
   shutdown: () => request<unknown>('POST', '/api/shutdown'),
+  /** the system's folder picker, opened by the local server; null when cancelled */
+  pickFolder: (title: string, initial?: string) => request<{ path: string | null }>('POST', '/api/pick-folder', { title, initial }),
   checks: () => request<Check[]>('GET', '/api/checks'),
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),
   setShowOriginal: (show: boolean) => request<{ show: boolean }>('PUT', '/api/project/show-original', { show }),

@@ -4,6 +4,8 @@
   import type { Status } from '../lib/types'
   import Checks from './Checks.svelte'
   import Help from './Help.svelte'
+  import FolderPickButton from './FolderPickButton.svelte'
+  import { inFolder } from '../lib/paths'
 
   let { status, onOpened }: { status: Status; onOpened: () => void } = $props()
 
@@ -13,7 +15,6 @@
   let blank = $state(false)
   /** where it goes (ticket 174): empty, a new folder named after it in the projects folder */
   let folder = $state('')
-  let path = $state('')
   let busy = $state(false)
   let error = $state('')
 
@@ -49,7 +50,10 @@
     <form onsubmit={(e) => { e.preventDefault(); create() }}>
       <label>{t('home.name')}<input bind:value={name} required maxlength="60" /></label>
       <label>{t('home.author')}<input bind:value={author} maxlength="60" /></label>
-      <label>{t('home.folder')}<input bind:value={folder} placeholder={status.defaultProjectsDir} /></label>
+      <label>{t('home.folder')}
+        <span class="pick"><input bind:value={folder} placeholder={status.defaultProjectsDir} />
+          <FolderPickButton initial={status.defaultProjectsDir} onpick={(p) => (folder = inFolder(p, name))} /></span>
+      </label>
       <label class="choice"><input type="checkbox" bind:checked={blank} /> {t('home.blank')} <Help text={t('home.blankHint')} /></label>
       <button class="primary" disabled={busy || !name.trim()}>{t('home.create')}</button>
       <p class="muted hint">{t('home.createHint', { dir: status.defaultProjectsDir })}</p>
@@ -67,10 +71,10 @@
         {/each}
       </ul>
     {/if}
-    <form class="row" onsubmit={(e) => { e.preventDefault(); run(() => api.openProject(path)) }}>
-      <input bind:value={path} placeholder={t('home.openPath')} aria-label={t('home.openPath')} />
-      <button disabled={busy || !path.trim()}>{t('home.open')}</button>
-    </form>
+    <div class="row">
+      <FolderPickButton label={t('file.openOther')} title={t('file.pickProject')} initial={status.defaultProjectsDir}
+                        disabled={busy} onpick={(p) => run(() => api.openProject(p))} />
+    </div>
   </section>
 
   {#if error}<p class="error">{error}</p>{/if}
@@ -80,8 +84,9 @@
   .choice { color: var(--text); font-weight: 600; }
   .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; max-width: 900px; margin: 2rem auto; }
   form { display: flex; flex-direction: column; gap: 0.75rem; }
-  form.row { flex-direction: row; margin-top: 1rem; }
-  form.row input { flex: 1; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 1rem; }
+  .pick { display: flex; gap: 0.4rem; }
+  .pick input { flex: 1; }
   .hint { font-size: 0.85rem; margin: 0; word-break: break-all; }
   ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
   .link { border: none; background: none; padding: 0.2em 0; color: var(--accent); text-align: left; word-break: break-all; }

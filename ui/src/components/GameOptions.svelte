@@ -3,7 +3,6 @@
   // can change them in the game's Options menu) and comfort changes taken from FEBuilderGBA's patches.
   import Help from './Help.svelte'
   import { api } from '../lib/api'
-  import { projectView } from '../lib/appContext.svelte'
   import { magicSplit } from '../lib/magic.svelte'
   import { skillsOption } from '../lib/skills.svelte'
   import { t } from '../lib/i18n.svelte'
@@ -11,9 +10,8 @@
 
   type Reference = { options: Record<string, number | boolean | string>; groups: Record<string, string[]>; choices: Record<string, string[]>; defaults: Record<string, { game: number; values: number[] }> }
 
-  let { onteststart, onscope, scopeFirst = false }: {
-    /** where test builds now start */
-    onteststart: (start: string) => void
+  // FE Maker's own settings (show original, tests) are in File > Options (ProjectSettings.svelte).
+  let { onscope, scopeFirst = false }: {
     /** the project's lists changed */
     onscope: () => void
     /** a project just created blank starts with what it keeps */
@@ -21,24 +19,12 @@
   } = $props()
 
   let data = $state<Reference | null>(null)
-  let test = $state<{ start: string; simplePrologue: boolean } | null>(null)
   let error = $state('')
   let saving = $state(false)
 
   $effect(() => {
     api.gameOptions().then((d) => (data = d)).catch((e) => (error = String(e)))
-    api.testOptions().then((o) => (test = o)).catch((e) => (error = String(e)))
   })
-
-  async function setTest(change: { start?: string; simplePrologue?: boolean }) {
-    error = ''
-    try {
-      test = await api.setTestOptions(change)
-      onteststart(test.start)
-    } catch (e) {
-      error = String(e)
-    }
-  }
 
   async function set(key: string, value: number | boolean | string) {
     if (!data) return
@@ -55,44 +41,11 @@
     }
   }
 
-  async function setShowOriginal(show: boolean) {
-    try {
-      await api.setShowOriginal(show)
-      projectView.showOriginal = show
-    } catch (e) {
-      error = String(e)
-    }
-  }
-
   const value = (key: string) => (data?.options[key] ?? data?.defaults[key]?.game) as number
 </script>
 
 <div class="options">
   {#if error}<p class="bad small">{error}</p>{/if}
-  <!-- FE Maker's own settings, by category like the game options below (ticket 168) -->
-  <section class="panel">
-    <h3>{t('options.editorTitle')} <Help text={t('options.editorHint')} /></h3>
-    <h4>{t('options.group.interface')}</h4>
-    <label class="switch">
-      <input type="checkbox" checked={projectView.showOriginal} onchange={(e) => setShowOriginal((e.target as HTMLInputElement).checked)} />
-      <span><strong>{t('options.showOriginal')}</strong> <Help text={t('options.showOriginalHint')} /></span>
-    </label>
-    {#if test}
-      <h4>{t('options.testTitle')}</h4>
-      <label class="switch">
-        <span><strong>{t('options.testStart')}</strong> <Help text={t('ws.startHint')} /></span>
-        <select value={test.start} onchange={(e) => setTest({ start: (e.target as HTMLSelectElement).value })}>
-          <option value="map">{t('ws.start.map')}</option>
-          <option value="menu">{t('ws.start.menu')}</option>
-          <option value="normal">{t('ws.start.normal')}</option>
-        </select>
-      </label>
-      <label class="switch">
-        <input type="checkbox" checked={test.simplePrologue} onchange={(e) => setTest({ simplePrologue: (e.target as HTMLInputElement).checked })} />
-        <span><strong>{t('ws.simplePrologue')}</strong> <Help text={t('ws.simplePrologueHint')} /></span>
-      </label>
-    {/if}
-  </section>
   {#if scopeFirst}<ProjectScope onchanged={onscope} />{/if}
   {#if data}
     <section class="panel">

@@ -4,6 +4,9 @@
   import { i18n, t } from '../lib/i18n.svelte'
   import type { Status } from '../lib/types'
   import KeysDialog from './KeysDialog.svelte'
+  import Help from './Help.svelte'
+  import ProjectSettings from './ProjectSettings.svelte'
+  import FolderPickButton from './FolderPickButton.svelte'
 
   /** The File menu, top left like in office software: projects, FE Maker's settings, help, quit (languages stay
    * as flags at the top right, the user's choice). */
@@ -16,7 +19,6 @@
   type Pane = 'recent' | 'options' | 'help'
   let open = $state(false)
   let pane = $state<Pane>('recent')
-  let path = $state('')
   let busy = $state(false)
   let error = $state('')
   let showKeys = $state(false)
@@ -118,16 +120,20 @@
               {/each}
             </ol>
           {/if}
-          <form class="row" onsubmit={(e) => { e.preventDefault(); openProject(path.trim()) }}>
-            <input bind:value={path} placeholder={t('home.openPath')} aria-label={t('home.openPath')} disabled={!ready} />
-            <button disabled={!ready || busy || !path.trim()}>{t('home.open')}</button>
-          </form>
+          <div class="row">
+            <FolderPickButton label={t('file.openOther')} title={t('file.pickProject')} initial={status?.defaultProjectsDir}
+                              disabled={!ready || busy} onpick={openProject} />
+          </div>
         {:else if pane === 'options'}
           <h3>{t('file.options')}</h3>
           <div class="option">
             <span>{t('file.emulator')}</span>
             <button onclick={() => { open = false; showKeys = true }}>{t('file.keys')}</button>
           </div>
+          {#if project}
+            <h3 class="sub-title">{t('file.projectOptions')} <Help text={t('options.editorHint')} /></h3>
+            <ProjectSettings />
+          {/if}
         {:else}
           <h3>{t('file.help')}</h3>
           <a class="entry" href={guide} target="_blank" rel="noreferrer">{t('file.guide')}</a>
@@ -149,7 +155,7 @@
   .file {
     display: inline-flex; align-items: center; gap: 0.35rem; margin-left: -0.5rem; padding: 0.2em 0.5em;
     background: transparent; color: var(--header-text); border-color: transparent;
-    font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em;
+    font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
   }
   .file:hover, .file.open { background: #ffffff1a; border-color: #ffffff33; }
   .caret { font-size: 0.7rem; color: var(--header-muted); }
@@ -170,6 +176,7 @@
   .commands button span { color: var(--muted); font-size: 0.75rem; }
   .commands hr { width: 100%; margin: 0.3rem 0; border: none; border-top: 1px solid var(--border); }
   .pane { padding: 0.75rem 1rem; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+  .pane h3.sub-title { margin-top: 0.75rem; }
   .pane h3 { margin: 0 0 0.25rem; font-size: 0.95rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
   ol { list-style: none; margin: 0; padding: 0; }
   .entry { display: flex; gap: 0.6rem; width: 100%; border: none; border-radius: var(--radius); background: none; color: var(--text); padding: 0.35rem 0.5rem; text-align: left; text-decoration: none; }
@@ -177,8 +184,7 @@
   .num { color: var(--muted); min-width: 1.2em; }
   .where { display: flex; flex-direction: column; min-width: 0; }
   .path { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row { display: flex; gap: 0.4rem; margin-top: 0.25rem; }
-  .row input { flex: 1; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.25rem; }
   .option { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.25rem 0; }
   .option > span { font-weight: 600; }
   .error { color: var(--bad); margin: 0; }

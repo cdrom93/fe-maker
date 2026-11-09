@@ -88,6 +88,7 @@ from .decomp.gamedata import (
     DecompData,
     GameDataError,
 )
+from .folderpick import PickerUnavailable, pick_folder
 from .paths import DECOMP_DIR, REPO_ROOT
 from .project import ANIMATIONS_DIR, DATA_FILES, PORTRAITS_DIR, Project, ProjectError, slugify
 from .rom import InvalidRomError
@@ -226,6 +227,20 @@ class CreateProjectIn(BaseModel):
 
 class OpenProjectIn(BaseModel):
     path: str
+
+
+class PickFolderIn(BaseModel):
+    title: str = ""
+    initial: str | None = None
+
+
+@app.post("/api/pick-folder")
+def pick_folder_endpoint(body: PickFolderIn):
+    """The system's folder picker (folderpick.py); {"path": null} when cancelled, 501 when Tk is missing."""
+    try:
+        return {"path": pick_folder(body.title, body.initial)}
+    except PickerUnavailable:
+        raise HTTPException(501, "pickerUnavailable")
 
 
 def _project_info(p: Project) -> dict:

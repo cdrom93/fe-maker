@@ -381,7 +381,7 @@
   {:else if tab === 'maps'}
     {#key added}<MapEditor list={lists.maps} chapterList={lists.chapters} items={lists.items.records} characters={lists.characters.records} {problems} />{/key}
   {:else if tab === 'options'}
-    <GameOptions onteststart={(s) => (start = s)} onscope={loadAll} scopeFirst={startsBlank} />
+    <GameOptions onscope={loadAll} scopeFirst={startsBlank} />
   {:else}
     {#key added}<DialogueEditor list={lists.dialogues} chapterList={lists.chapters} characters={lists.characters.records} {problems} />{/key}
   {/if}

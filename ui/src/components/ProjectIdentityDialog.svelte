@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FolderPickButton from './FolderPickButton.svelte'
+  import { inFolder } from '../lib/paths'
   import { untrack } from 'svelte'
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
@@ -55,7 +57,10 @@
       {#if mode === 'rename'}
         <label>{t('identity.author')}<input bind:value={author} maxlength="60" /></label>
       {:else}
-        <label>{t('identity.folder')}<input bind:value={folder} required /></label>
+        <label>{t('identity.folder')}
+          <span class="pick"><input bind:value={folder} required />
+            <FolderPickButton initial={project.path} onpick={(p) => (folder = inFolder(p, name))} /></span>
+        </label>
       {/if}
       {#if error}<p class="bad small">{error}</p>{/if}
       <div class="actions">
@@ -67,6 +72,8 @@
 </div>
 
 <style>
+  .pick { display: flex; gap: 0.4rem; }
+  .pick input { flex: 1; }
   .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; padding: 1rem; z-index: 10; }
   .dialog { width: min(560px, 100%); max-height: 90vh; overflow: auto; }
   form { display: flex; flex-direction: column; gap: 0.75rem; }
