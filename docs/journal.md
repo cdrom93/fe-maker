@@ -258,3 +258,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : son de mGBA validé par lui ; idée d'une fenêtre Options à catégories notée au cahier (idées).
 - 09/11/2026 : FE Maker > Options… ouvre une fenêtre à catégories (`OptionsDialog.svelte` : Émulateur, Ce projet) à la place du volet du menu.
 - 09/11/2026 : réglages de mGBA dans Options > Émulateur (pause hors de la fenêtre, avance rapide : son et vitesse, taille de la fenêtre, plein écran, retour en arrière, lissage), écrits dans config.ini de mGBA à chaque test, « Réglage de mGBA » par défaut ; noms vérifiés dans mGBA 0.10.5 ; pas vus dans mGBA lui-même.
+- 09/11/2026 : idée « appliquer des patchs dans FE Maker » notée au cahier (ups.py sait déjà appliquer un .ups).
