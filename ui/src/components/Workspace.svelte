@@ -18,7 +18,7 @@
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import GameOptions from './GameOptions.svelte'
-  import KeysDialog from './KeysDialog.svelte'
+  import { fileMenu } from '../lib/filemenu.svelte'
   import ProjectIdentityDialog from './ProjectIdentityDialog.svelte'
   import MapEditor from './MapEditor.svelte'
   import AddChapter from './AddChapter.svelte'
@@ -56,7 +56,6 @@
   let reference = $state<Reference | null>(null)
   let problems = $state<Problem[]>([])
   let build = $state<{ launch: boolean } | null>(null)
-  let showKeys = $state(false)
   /** ticket 174: the Rename and Save as dialogs */
   let identity = $state<'rename' | 'saveAs' | null>(null)
   let start = $state('map')
@@ -85,16 +84,10 @@
     navigator.open(view, chapter ? (view === 'maps' ? chapter.map : String(chapter.index)) : null)
   }
 
-  let projectMenu = $state<HTMLDetailsElement>()
   /** The project's actions go in the app's top bar (ticket 145): one line less on every screen. */
   function toHeader(node: HTMLElement) {
     document.getElementById('header-actions')?.appendChild(node)
     return { destroy: () => node.remove() }
-  }
-
-  function fromMenu(action: () => void) {
-    if (projectMenu) projectMenu.open = false
-    action()
   }
 
   const navigator = {
@@ -265,13 +258,25 @@
     onClosed()
   }
 
+  // The File menu, top left in the app's bar, acts on this project.
+  fileMenu.project = {
+    flush: flushAll,
+    saveAs: () => (identity = 'saveAs'),
+    rename: () => (identity = 'rename'),
+    openFolder: () => api.revealProject(),
+    exportPatch: () => startBuild(false),
+    canExport: () => errors.length === 0,
+    close,
+  }
+  onDestroy(() => (fileMenu.project = null))
+
   function onKey(e: KeyboardEvent) {
     if (e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault()
       back()
       return
     }
-    if (showKeys || identity || !(e.ctrlKey || e.metaKey)) return
+    if (fileMenu.keysOpen || identity || !(e.ctrlKey || e.metaKey)) return
     const key = e.key.toLowerCase()
     if (key === 's') {
       e.preventDefault()   // the browser's own "save the page"
@@ -314,18 +319,6 @@
       <button class="play" onclick={() => testFrom(currentChapter!)} disabled={errors.length > 0} title={t('flow.testHint')}>▶ {t('ws.testChapter')}</button>
     {/if}
     <button class:play={!CHAPTER_VIEWS.includes(tab) || currentChapter === null} onclick={testFromStart} disabled={errors.length > 0}>▶ {t('ws.test')}</button>
-    <details class="menu" bind:this={projectMenu}>
-      <summary>{t('ws.project')}</summary>
-      <div class="menu-items">
-        <button onclick={() => fromMenu(flushAll)} title="Ctrl+S">{t('ws.save')}</button>
-        <button onclick={() => fromMenu(async () => { await flushAll(); identity = 'saveAs' })}>{t('ws.saveAs')}</button>
-        <button onclick={() => fromMenu(() => (identity = 'rename'))}>{t('ws.rename')}</button>
-        <button onclick={() => fromMenu(() => api.revealProject())}>{t('ws.openFolder')}</button>
-        <button onclick={() => fromMenu(() => startBuild(false))} disabled={errors.length > 0}>{t('ws.exportPatch')}</button>
-        <button onclick={() => fromMenu(() => (showKeys = true))}>{t('keys.title')}</button>
-        <button onclick={() => fromMenu(close)}>{t('ws.close')}</button>
-      </div>
-    </details>
   </div>
 </div>
 
@@ -397,9 +390,6 @@
 {#if identity}
   <ProjectIdentityDialog {project} mode={identity} onClose={() => (identity = null)} onSaved={onRenamed} />
 {/if}
-{#if showKeys}
-  <KeysDialog onClose={() => (showKeys = false)} />
-{/if}
 
 {#if build}
   <BuildPanel launch={build.launch} onClose={() => (build = null)} />
@@ -408,11 +398,10 @@
 <style>
   /* In the app's top bar (App.svelte), on its dark background */
   .actions { flex-wrap: nowrap; gap: 0.4rem; }
-  .actions button:not(.play), .actions .menu summary { background: transparent; color: var(--header-text); border-color: #ffffff33; padding: 0.25em 0.7em; font-size: 0.85rem; }
-  .actions button:not(.play):hover:not(:disabled), .actions .menu summary:hover { border-color: var(--header-text); }
+  .actions button:not(.play) { background: transparent; color: var(--header-text); border-color: #ffffff33; padding: 0.25em 0.7em; font-size: 0.85rem; }
+  .actions button:not(.play):hover:not(:disabled) { border-color: var(--header-text); }
   .actions button.play { padding: 0.25em 0.8em; font-size: 0.85rem; }
   .actions .changes summary { color: var(--header-muted); }
-  .actions .menu-items button { color: var(--text); border-color: var(--border); }
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
   .title { display: flex; align-items: baseline; gap: 0.75rem; }
   .changes { position: relative; font-size: 0.8rem; align-self: center; }
@@ -420,9 +409,6 @@
   .changes ol { position: absolute; z-index: 30; right: 0; min-width: 14rem; margin: 0.3rem 0 0; padding: 0.4rem 0.6rem; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   .title h1 { margin: 0; }
   .small { font-size: 0.8rem; }
-  .menu { position: relative; }
-  .menu summary { list-style: none; cursor: pointer; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); font-weight: 700; }
-  .menu-items { position: absolute; z-index: 30; right: 0; margin-top: 0.3rem; min-width: 14rem; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
   .views { display: flex; gap: 0.3rem; margin: -0.5rem 0 0.75rem; }
   .view-add { margin-left: auto; }
   .view-add :global(button) { border: 1px solid var(--border); color: var(--text); }

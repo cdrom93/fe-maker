@@ -64,6 +64,7 @@ export const api = {
   renameProject: (identity: { name: string; author: string }) => request<ProjectInfo>('PUT', '/api/project/identity', identity),
   saveProjectAs: (folder: string, name: string) => request<ProjectInfo>('POST', '/api/project/save-as', { folder, name }),
   closeProject: () => request<Status>('POST', '/api/projects/close'),
+  shutdown: () => request<unknown>('POST', '/api/shutdown'),
   checks: () => request<Check[]>('GET', '/api/checks'),
   projectScope: () => request<ProjectScope>('GET', '/api/project/scope'),
   setShowOriginal: (show: boolean) => request<{ show: boolean }>('PUT', '/api/project/show-original', { show }),

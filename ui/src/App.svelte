@@ -8,6 +8,7 @@
   import Home from './components/Home.svelte'
   import Workspace from './components/Workspace.svelte'
   import TicketPanel from './components/TicketPanel.svelte'
+  import FileMenu from './components/FileMenu.svelte'
 
   let status = $state<Status | null>(null)
   let loadError = $state('')
@@ -32,6 +33,8 @@
     }
   }
   let openTickets = $state(0)
+  /** FE Maker stopped from File > Quit: only the tab is left to close */
+  let stopped = $state(false)
 
   async function refresh() {
     try {
@@ -55,10 +58,13 @@
 </script>
 
 <header bind:clientHeight={headerHeight}>
+  <div class="left">
+  <FileMenu {status} onChanged={refresh} onQuit={() => (stopped = true)} />
   <div class="brand">
     <strong>FE Maker</strong>
     {#if status?.version}<span class="version" title={t('app.version')}>{status.version}</span>{/if}
     <span class="muted">{t('app.tagline')}</span>
+  </div>
   </div>
   <!-- The open project's actions (Workspace.svelte moves them here, ticket 145) -->
   <div id="header-actions"></div>
@@ -83,7 +89,9 @@
 {/if}
 
 <main class:with-side={showTickets} style="--header-height: {headerHeight}px">
-  {#if loadError}
+  {#if stopped}
+    <p class="panel">{t('file.stopped')}</p>
+  {:else if loadError}
     <p class="panel">{loadError}</p>
   {:else if !status}
     <p class="muted">…</p>
@@ -92,7 +100,7 @@
   {:else if !status.project}
     <Home {status} onOpened={refresh} />
   {:else}
-    <Workspace project={status.project} onClosed={refresh} onRenamed={refresh} />
+    {#key status.project.path}<Workspace project={status.project} onClosed={refresh} onRenamed={refresh} />{/key}
   {/if}
 </main>
 
@@ -109,6 +117,7 @@
     top: 0;
     z-index: 20;
   }
+  .left { display: flex; gap: 1rem; align-items: center; }
   .brand { display: flex; gap: 0.75rem; align-items: baseline; }
   .brand strong { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
   .brand .muted { color: var(--header-muted); }
