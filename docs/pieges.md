@@ -120,3 +120,4 @@ piège dans sa section.
 - Python sous Windows : le magasin de certificats peut contenir un certificat expiré (« certificate has expired » vers le relais des tickets). Les appels HTTPS passent par `ferepo._ssl_context()` (certifi).
 - Relais des tickets : une erreur GitHub ne se voit que dans les journaux du Worker (`npx.cmd wrangler@4 tail`) ; un 401 « Bad credentials » = valeur du secret `GITHUB_TOKEN` fausse (jeton régénéré entre-temps), à remettre avec `secret put`.
 - Un état partagé rempli par un composant sous `{#key}` (ex. `fileMenu.project` de `Workspace`) : le nouveau composant est créé avant que l'ancien soit détruit ; le `onDestroy` de l'ancien ne doit effacer l'état que s'il est encore le sien (ticket 35).
+- Le bouton « précédent » de la souris n'arrive pas à la page comme un clic (le navigateur en fait un retour d'historique) : l'attraper par `popstate`, avec une entrée d'historique de garde (`armBack` dans `Workspace`, ticket 36).

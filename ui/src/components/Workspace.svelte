@@ -275,19 +275,19 @@
     if (fileMenu.project === commands) fileMenu.project = null
   })
 
-  /** The mouse's side "back" button (ticket 36); preventDefault keeps the browser from leaving the page. */
-  function onMouseUp(e: MouseEvent) {
-    if (e.button !== 3) return
-    e.preventDefault()
+  /** The browser's own "back" (the mouse's side button, Alt + left arrow, ticket 36) is "Back": a guard entry in the
+   * page's history catches it, so the page is never left; it is put back after each use. */
+  const GUARD = { feMakerBack: true }
+  function armBack() {
+    if (!history.state?.feMakerBack) history.pushState(GUARD, '')
+  }
+  function onPopState() {
+    armBack()
     back()
   }
+  onMount(armBack)
 
   function onKey(e: KeyboardEvent) {
-    if (e.altKey && e.key === 'ArrowLeft') {
-      e.preventDefault()
-      back()
-      return
-    }
     if (fileMenu.keysOpen || identity || !(e.ctrlKey || e.metaKey)) return
     const key = e.key.toLowerCase()
     if (key === 's') {
@@ -303,7 +303,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} onmouseup={onMouseUp} />
+<svelte:window onkeydown={onKey} onpopstate={onPopState} />
 
 
 <div class="toolbar">
