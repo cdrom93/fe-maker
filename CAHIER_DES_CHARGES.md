@@ -34,6 +34,7 @@ En une phrase : *faire ce que fait FEBuilderGBA, mais en beaucoup plus facile à
 7. Interface **en français et en anglais** (fichiers de traduction).
 8. **Tout ce qui est mentionné est cliquable** : une arme, une classe, un personnage, une liste… cité n'importe où (rappel, puce, liste déroulante, message d'erreur) ouvre directement sa fiche, sans aller-retour entre les onglets.
 9. **Illustrer avec les visuels du jeu** : icônes d'armes et d'objets, portraits, sprites de carte, tuiles, avant tout emoji ou icône dessinée. Un emoji seulement s'il sert d'icône (outils de la carte, types d'objectif, repères ⚠ ⭐ ✎), jamais devant le texte d'un bouton, d'un lien, d'un titre ou d'une phrase.
+10. **Tout faire depuis FE Maker** (objectif final, choix de l'utilisateur du 09/11/2026) : créer, tester, régler l'émulateur, appliquer et partager des patchs, sans autre outil à ouvrir ni chemin à taper. Ce qui demande encore un outil extérieur est une tâche à reprendre dans FE Maker.
 
 ---
 
