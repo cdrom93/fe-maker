@@ -59,6 +59,7 @@ ITEM_ICONS_FILE = "data/data_item_icon.s"
 BATTLE_ANIM_CONF_FILE = "src/data_banimconf.c"
 BATTLE_ANIM_TABLE_FILE = "src/banim_data.c"
 CHARACTER_CONSTANTS_FILE = "include/constants/characters.h"
+CHARACTER_INCLUDE = '#include "constants/characters.h"'
 # A character the project adds takes a free entry of the table (the game's are numbered 1-0xFF, no room
 # to grow): "CHARACTER_NEW_1B" is entry 0x1B, given that constant in characters.h at build time.
 NEW_CHARACTER_PREFIX = "CHARACTER_NEW_"
@@ -1181,7 +1182,14 @@ class DecompData:
         block = "".join(f"{indent}{line}\n" for line in lines)
         body = body[: m.start()] + block + body[m.start():] if m else body + block
         declaration = source.rfind("\n", 0, start) + 1
-        self.event_sources[rel] = source[:declaration] + script + source[declaration:start] + body + source[end:]
+        source = source[:declaration] + script + source[declaration:start] + body + source[end:]
+        # A script naming a character in a file without the characters' names (prologue-eventinfo.h is included first
+        # in events_info.c; the files after it get them from ch1-eventinfo.h)
+        if "CHARACTER_" in script and CHARACTER_INCLUDE not in source:
+            includes = list(re.finditer(r"^#include .*$", source, re.M))
+            at = includes[-1].end() if includes else 0
+            source = source[:at] + ("\n" if includes else "") + CHARACTER_INCLUDE + ("" if includes else "\n") + source[at:]
+        self.event_sources[rel] = source
 
     def _free_flag(self, rel: str, first: int) -> int:
         prefix = rel.rsplit("-", 1)[0] + "-"

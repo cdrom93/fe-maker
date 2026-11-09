@@ -91,6 +91,8 @@ piège dans sa section.
 
 - L'introduction d'une nouvelle partie a deux morceaux : `StartIntroMonologue` (sous-titres) et, surtout, le récit sur Magvel, qui est l'événement de carte du monde `EventScrWM_Prologue_Beginning` : il tourne même sans carte du monde (ticket 115). Une option « compilée seulement » n'est pas vérifiée : jouer une vraie nouvelle partie.
 
+- `prologue-eventinfo.h` n'inclut pas `constants/characters.h` et passe le premier dans `events_info.c` (les suivants ont les noms par `ch1-eventinfo.h`) : une scène du Prologue qui nomme un personnage (Donner une compétence...) ne compilait pas. `_add_to_list` ajoute l'include quand le script nomme un personnage.
+
 ## Tests en jeu (playtest)
 
 - Dans le prologue du jeu, le menu d'une unité change selon ses voisins (Seth peut porter Eirika : « Porter » passe avant « Objet ») et les ennemis attaquent. Pour tester une action, utiliser le banc d'essai `_bench` de `tests/local/test_playtest.py` : projet vierge, unités seules sur une plaine, un ennemi sans arme au loin (ou à côté, `enemy_at`), menu toujours « Objet, Attendre ». Une unité seule qui a agi finit le tour d'elle-même, et l'ennemi bouge pendant sa phase : garder une seconde unité inactive. L'héroïne du projet vierge n'a pas le rang D (pas d'Épée d'acier). Après « Interrompre », la mémoire garde unités et tour : un test de reprise qui ne les efface pas passe sans rien prouver (`_bench_suspend_and_resume` les efface avant « Reprendre le chapitre »). Le chapitre vierge du banc n'affiche pas les icônes des unités (barres de PV, bulles) : les tester sur le prologue.

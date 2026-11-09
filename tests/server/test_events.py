@@ -149,3 +149,23 @@ def test_a_new_scene_with_its_own_sequence(decomp_dir):
     assert "TEXTSHOW(0x900)\n    TEXTSHOW(0x901)\n    ENDA" in script and commands[0]["args"] == ["0x900"]
     # without a sequence: the message alone, as before (ticket 151)
     assert "TEXTSHOW(0x900)" in d._scene_script("EventScr_FEM_Turn_0_0", {}, 0x900, {})[0]
+
+
+def test_a_script_naming_a_character_brings_the_characters_names():
+    """A prologue scene giving a skill to CHARACTER_EIRIKA: prologue-eventinfo.h has no characters' names and comes
+    first in events_info.c, so FE Maker adds the include (blank project's build failure, 09/11/2026)."""
+    d = DecompData.__new__(DecompData)
+    src = ('#include "global.h"\n#include "constants/event-flags.h"\n\n'
+           "CONST_DATA EventListScr EventListScr_Test_Turn[] = {\n    END_MAIN\n};\n")
+    start = src.index("CONST_DATA")
+    d.event_sources = {"src/events/test-eventinfo.h": src}
+    found = ("src/events/test-eventinfo.h", start, len(src))
+    script = "CONST_DATA EventListScr S[] = {\n    SVAL(EVT_SLOT_1, CHARACTER_EIRIKA)\n};\n\n"
+    d._add_to_list(found, script, ["TURN(0, S, 1, 0, 0)"])
+    out = d.event_sources["src/events/test-eventinfo.h"]
+    assert '#include "constants/event-flags.h"\n#include "constants/characters.h"\n' in out
+    assert out.count("constants/characters.h") == 1
+    # a script without a character leaves the includes alone
+    d.event_sources = {"src/events/test-eventinfo.h": src}
+    d._add_to_list(found, "CONST_DATA EventListScr S[] = {\n    ENDA\n};\n\n", ["TURN(0, S, 1, 0, 0)"])
+    assert "characters.h" not in d.event_sources["src/events/test-eventinfo.h"]
