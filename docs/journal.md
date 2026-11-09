@@ -264,3 +264,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : tickets 35 (« Nouveau projet » sans effet après un changement de projet : l'ancien espace de travail effaçait les commandes du menu Fichier du nouveau) et 36 (bouton « précédent » de la souris = Retour).
 - 09/11/2026 : ticket 36 revu : le retour de la souris passe par l'historique du navigateur (popstate), le clic n'arrivait pas à la page.
 - 09/11/2026 : compilation cassée par une scène du Prologue qui nomme un personnage (Donner une compétence) : l'include des personnages est ajouté au fichier d'évènements quand il manque.
+- 09/11/2026 : ticket 41 : le chapitre d'un projet vierge se termine par un retour à l'écran titre (MNTS) au lieu de rester sur la carte ; pas vu en jeu.

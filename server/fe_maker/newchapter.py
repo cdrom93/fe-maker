@@ -147,7 +147,9 @@ def start_blank(project, characters: bool, title: str, hero: str) -> None:
         army = None
     group, loads = _clear_chapter(project, data, 0, 15, 10, title, chapters, maps_data, army)
     scripts[group["beginningSceneEvents"]] = _opening(loads)
-    scripts[group["endingSceneEvents"]] = [{"op": "ENDA"}]
+    # The only chapter goes back to the title screen once won (ticket 41: with ENDA alone the game stayed on the
+    # map); a chapter added after it takes this link over (add_chapter).
+    scripts[group["endingSceneEvents"]] = [{"op": "MNTS", "args": ["0"]}, {"op": "ENDA"}]
     if characters:
         removed = data.blank_dropped_characters()
         kept = [c for c in project.load("characters") if c["id"] not in removed]
