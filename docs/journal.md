@@ -256,3 +256,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : guide QoL d'UltraxBlade comparé à FE Maker ; lot suivant noté dans docs/patchs-qol.md (alertes des barres de PV, armes de monstre, correctifs #ESSENTIAL) ; touches des raccourcis au choix du créateur notée au cahier (idées).
 - 09/11/2026 : son de mGBA réglé depuis FE Maker > Options (volume, coupé), écrit dans config.ini de mGBA à chaque test ; curseur pas vu à l'écran, test unitaire.
 - 09/11/2026 : son de mGBA validé par lui ; idée d'une fenêtre Options à catégories notée au cahier (idées).
+- 09/11/2026 : FE Maker > Options… ouvre une fenêtre à catégories (`OptionsDialog.svelte` : Émulateur, Ce projet) à la place du volet du menu.

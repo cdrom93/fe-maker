@@ -3,9 +3,7 @@
   import { fileMenu } from '../lib/filemenu.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
   import type { Status } from '../lib/types'
-  import KeysDialog from './KeysDialog.svelte'
-  import Help from './Help.svelte'
-  import ProjectSettings from './ProjectSettings.svelte'
+  import OptionsDialog from './OptionsDialog.svelte'
   import FolderPickButton from './FolderPickButton.svelte'
 
   /** The File menu, top left like in office software: projects, FE Maker's settings, help, quit (languages stay
@@ -16,13 +14,12 @@
     onQuit: () => void
   } = $props()
 
-  type Pane = 'recent' | 'options' | 'help'
+  type Pane = 'recent' | 'help'
   let open = $state(false)
   let pane = $state<Pane>('recent')
   let busy = $state(false)
   let error = $state('')
-  let showKeys = $state(false)
-  $effect(() => { fileMenu.keysOpen = showKeys })
+  let showOptions = $state(false)
 
   const project = $derived(fileMenu.project)
   const ready = $derived(!!status?.hasRom)
@@ -71,17 +68,6 @@
     onQuit()
   })
 
-  /** mGBA's sound for the next tests: once set here, FE Maker writes the volume too (it stays 100 % until moved). */
-  async function setSound(change: { volume?: number; mute?: boolean }) {
-    error = ''
-    try {
-      await api.updateSettings({ volume: status?.volume ?? 100, ...change })
-      onChanged()
-    } catch (e) {
-      error = message(e)
-    }
-  }
-
   function onKey(e: KeyboardEvent) {
     if (open && e.key === 'Escape') open = false
   }
@@ -108,8 +94,7 @@
         <button role="menuitem" disabled={!project || busy || !project.canExport()} onclick={() => run(() => project!.exportPatch())}>{t('ws.exportPatch')}</button>
         <button role="menuitem" disabled={!project || busy} onclick={() => run(() => project!.close())}>{t('ws.close')}</button>
         <hr />
-        <button role="menuitem" class="sub" class:here={pane === 'options'}
-                onmouseenter={() => (pane = 'options')} onclick={() => (pane = 'options')}>{t('file.options')}<span>▸</span></button>
+        <button role="menuitem" onclick={() => { open = false; showOptions = true }}>{t('file.optionsMenu')}</button>
         <button role="menuitem" class="sub" class:here={pane === 'help'}
                 onmouseenter={() => (pane = 'help')} onclick={() => (pane = 'help')}>{t('file.help')}<span>▸</span></button>
         <hr />
@@ -135,28 +120,6 @@
             <FolderPickButton label={t('file.openOther')} title={t('file.pickProject')} initial={status?.defaultProjectsDir}
                               disabled={!ready || busy} onpick={openProject} />
           </div>
-        {:else if pane === 'options'}
-          <h3>{t('file.options')}</h3>
-          <div class="option">
-            <span>{t('file.emulator')}</span>
-            <button onclick={() => { open = false; showKeys = true }}>{t('file.keys')}</button>
-          </div>
-          {#if status}
-            <div class="option">
-              <span>{t('file.sound')} <Help text={t('file.soundHint')} /></span>
-              <span class="sound">
-                <input type="range" min="0" max="100" step="5" value={status.volume ?? 100} disabled={status.mute}
-                       aria-label={t('file.sound')} onchange={(e) => setSound({ volume: Number((e.target as HTMLInputElement).value) })} />
-                <span class="pct">{status.volume ?? 100} %</span>
-                <label class="mute"><input type="checkbox" checked={status.mute}
-                       onchange={(e) => setSound({ mute: (e.target as HTMLInputElement).checked })} /> {t('file.mute')}</label>
-              </span>
-            </div>
-          {/if}
-          {#if project}
-            <h3 class="sub-title">{t('file.projectOptions')} <Help text={t('options.editorHint')} /></h3>
-            <ProjectSettings />
-          {/if}
         {:else}
           <h3>{t('file.help')}</h3>
           <a class="entry" href={guide} target="_blank" rel="noreferrer">{t('file.guide')}</a>
@@ -168,8 +131,8 @@
   {/if}
 </div>
 
-{#if showKeys}
-  <KeysDialog onClose={() => (showKeys = false)} />
+{#if showOptions && status}
+  <OptionsDialog {status} {onChanged} onClose={() => (showOptions = false)} />
 {/if}
 
 <style>
@@ -199,7 +162,6 @@
   .commands button span { color: var(--muted); font-size: 0.75rem; }
   .commands hr { width: 100%; margin: 0.3rem 0; border: none; border-top: 1px solid var(--border); }
   .pane { padding: 0.75rem 1rem; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
-  .pane h3.sub-title { margin-top: 0.75rem; }
   .pane h3 { margin: 0 0 0.25rem; font-size: 0.95rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
   ol { list-style: none; margin: 0; padding: 0; }
   .entry { display: flex; gap: 0.6rem; width: 100%; border: none; border-radius: var(--radius); background: none; color: var(--text); padding: 0.35rem 0.5rem; text-align: left; text-decoration: none; }
@@ -208,12 +170,6 @@
   .where { display: flex; flex-direction: column; min-width: 0; }
   .path { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.25rem; }
-  .option { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.25rem 0; }
-  .option > span { font-weight: 600; }
-  .sound { display: inline-flex; align-items: center; gap: 0.5rem; }
-  .sound input[type='range'] { width: 8rem; }
-  .pct { min-width: 3.2em; text-align: right; color: var(--muted); font-size: 0.85rem; }
-  .mute { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; flex-direction: row; }
   .error { color: var(--bad); margin: 0; }
   @media (max-width: 700px) {
     .sheet { grid-template-columns: 1fr; position: fixed; left: 0.5rem; right: 0.5rem; }

@@ -84,7 +84,7 @@
 </div>
 
 <style>
-  .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; padding: 1rem; z-index: 10; }
+  .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; padding: 1rem; z-index: 50; }
   .dialog { width: min(420px, 100%); max-height: 90vh; overflow: auto; }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-weight: 500; padding: 0.25rem 0; }
