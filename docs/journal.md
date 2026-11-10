@@ -269,3 +269,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : force / magie : montée de niveau sur la carte (sans animation) validée par l'utilisateur.
 - 10/11/2026 : validés par l'utilisateur : compétences (hors tickets ouverts), #165-#166, options du 07/11, options de mGBA, menu Fichier ; CLAUDE.md allégé (détails de l'UI dans docs/architecture.md).
 - 10/11/2026 : cahier : piste pour le mode 2 joueurs (#14), synchronisation par les ordres, d'après coop-anything.
+- 10/11/2026 : audit : code de l'arène en lien de FE8 (src/sio_*.c), base possible du mode 2 joueurs (#14).
