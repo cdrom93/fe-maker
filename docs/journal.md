@@ -267,3 +267,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 09/11/2026 : ticket 41 : le chapitre d'un projet vierge se termine par un retour à l'écran titre (MNTS) au lieu de rester sur la carte ; pas vu en jeu.
 - 09/11/2026 : test relancé pendant une partie mGBA : FE Maker ferme le mGBA qu'il a lancé avant de remplacer test.gba, sinon message clair (ROM ouverte dans mGBA).
 - 09/11/2026 : force / magie : montée de niveau sur la carte (sans animation) validée par l'utilisateur.
+- 10/11/2026 : validés par l'utilisateur : compétences (hors tickets ouverts), #165-#166, options du 07/11, options de mGBA, menu Fichier ; CLAUDE.md allégé (détails de l'UI dans docs/architecture.md).

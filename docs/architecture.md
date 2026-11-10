@@ -70,6 +70,12 @@ One line per module: what it does, where its data lives, what to watch out for. 
 - `server/fe_maker/decomp/music.py`: MIDI imported for a chapter's player phase: a free row of `gSongTable` (dummy_song), its `songs.mk` rule (mid2agb, the game's instruments), its `linker_script_sound.txt` line; files `song<n>_fem_<key>` (`docker/entrypoint.sh` removes leftovers: a .mid without rule stops the build); project `data/music.json` + `assets/music/`.
 - `server/fe_maker/decomp/chaptitle.py`: title strips (256 x 16 pictures, `chap_title_data`) of the chapters the project adds, drawn with the game's own letters, read at build time from the strips of the user's decomp (never stored), the talk font for the letters no title has; rows from 0x58, `chapTitleId` in the chapter settings, `DecompData._add_title_images`.
 
+## UI
+
+- `ui/` (Svelte 5 runes + TypeScript, Vite): one editor component per tab. The dialogue editor has a "conversation" view (`ConversationThread.svelte` + `FacePicker.svelte`) and the steps view; `MapEditor.svelte` paints on a canvas from the tileset sheet `/api/maps/{id}/tileset.png`; `EditableList` (undo + autosave), `RecordList` (list with icon/suffix snippets).
+- Workflow (30/10/2026): a project opens on Campaign; top tabs follow the work (`Workspace.TABS`), the Chapters tab has three views (`CHAPTER_VIEWS`: chapters, maps, dialogues) on one `currentChapter`.
+- Theme (25/10/2026, from the clickable mockups https://claude.ai/artifact/MKewiQUGuDhGbfbYt1UGsL): colors, radii and header colors are CSS variables in `ui/src/app.css` (`--header*`, `--radius-big`, light and dark); font Nunito, bundled with `@fontsource-variable/nunito` (no network); `button.play` is the green "Test" button. Screens follow the mockups one by one, when each is redone.
+
 ## Build, test and release
 
 - `server/fe_maker/playtest.py` + `docker/playtest/` (image `fe-maker-playtest`: mGBA 0.10.5 static lib + `driver.c`, a stdin/stdout line protocol): play a built ROM without any window, about 100 times faster than real time. `Game(rom, map_path)` holds keys for N frames, reads/writes memory by decomp symbol (`BuildOutput.map_path`, the build's `fireemblem8.map`), takes screenshots; `chapter()`, `turn()`, `phase()`, `units()`. In-game checks, on its test bench (`_bench` in `tests/local/test_playtest.py`): it works while the user is on the PC.
