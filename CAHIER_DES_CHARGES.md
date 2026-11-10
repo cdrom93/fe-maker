@@ -131,7 +131,7 @@ Public : FE Universe ; dépôt public depuis le 07/11/2026 (prealpha, sans tag n
      3. tickets qui se suffisent : les dernières actions et erreurs jointes au ticket ;
      4. missions pour les testeurs à chaque version (tirées du CHANGELOG, trois questions de ressenti chacune) ;
      5. avant l'alpha : vérification en jeu complète par un script sur sa machine (playtests et hack témoin joué de bout en bout), rapport d'une ligne par test ;
-   - **test fermé** avec quelques personnes choisies : FE Maker et les tickets sur d'autres machines ;
+   - **test fermé** avec quelques personnes choisies : FE Maker et les tickets sur d'autres machines ; juste avant, **premier tag** (décidé le 10/11/2026) sur la version vérifiée par l'utilisateur : il lance `release.yml` (paquet sans Node) et donne aux testeurs un lien stable à télécharger ;
    - pour l'annonce : **vidéo de démonstration** de 2-3 min (carte, unités, dialogue, classe et compétence, « Tester ») et **hack témoin** partagé par l'utilisateur sur FEU, qui ne ressemble pas à FE8 ;
    - dépôt public, vérification des workflows, test sur une machine vierge, tag, annonce sur FEU (`[AI]` dans le titre).
 
