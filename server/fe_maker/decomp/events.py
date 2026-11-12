@@ -237,7 +237,8 @@ def render_command(c: dict) -> str:
     if c.get("op") in ("GiveSkill", "RemoveSkill"):
         character, skill = c["args"]
         return (f"#ifdef SKILLS_FEM_EVENTS\n    SVAL(EVT_SLOT_1, {character})\n    SVAL(EVT_SLOT_2, SKILL_FEM_{skill})\n"
-                f"    SVAL(EVT_SLOT_3, {1 if c['op'] == 'GiveSkill' else 0})\n    ASMC(FemSkillEvent)\n#endif")
+                f"    SVAL(EVT_SLOT_3, {1 if c['op'] == 'GiveSkill' else 0})\n    ASMC(FemSkillEvent)\n"
+                + ("    STAL(1)\n" if c["op"] == "GiveSkill" else "") + "#endif")   # STAL: the popup shows (ticket 39)
     if "args" in c:
         return f"{c['op']}({', '.join(str(a) for a in c['args'])})"
     return c["op"]

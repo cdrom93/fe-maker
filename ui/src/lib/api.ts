@@ -217,6 +217,7 @@ export const api = {
   worldMap: () => request<{ worldMap: boolean }>('GET', '/api/project/world-map'),
   setWorldMap: (worldMap: boolean) => request<{ worldMap: boolean }>('PUT', '/api/project/world-map', { worldMap }),
   startBuild: (launch: boolean) => request<BuildStatus>('POST', '/api/project/build', { launch }),
+  cancelBuild: () => request<{ ok: boolean }>('POST', '/api/project/build/cancel'),
   buildStatus: (since: number) => request<BuildStatus>('GET', `/api/project/build?since=${since}`),
   buildTimes: () => request<BuildTime[]>('GET', '/api/build-times'),
   tickets: () => request<Ticket[]>('GET', '/api/tickets'),

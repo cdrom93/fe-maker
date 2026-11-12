@@ -1060,6 +1060,36 @@ def test_an_event_changes_a_units_stats(tmp_path):
         assert game.read(unit, 0x1D) == 2     # the move bonus
 
 
+def test_an_event_gives_a_skill_with_its_popup(tmp_path):
+    """Ticket 39: the prologue's opening event gives Eirika Luna: "Eirika learned Luna." shows (the popup of a skill
+    learned in battle), Luna goes into her learned list, and the chapter goes on to the player's turn."""
+    from fe_maker.decomp import skills
+
+    project = Project.create(tmp_path / "giveskill", "GiveSkill")
+    project.set_test_options({"start": "map", "simplePrologue": False})
+    project.set_game_options({**project.game_options, "skills": True})
+    script = "EventScr_Prologue_BeginningScene"
+    original = DecompData(project.decomp_dir).script_commands(script)
+    end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
+    give = [{"op": "GiveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]}]
+    project.save("dialogues", {"scripts": {script: original[:end] + give + original[end:]}})
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        def popup():
+            return bytes(game.read(int(skills.LEARNED_NAME, 16) + k) for k in range(5)) == b"Luna\0"
+
+        assert game.wait_until(popup, seconds=240, step=10, tap="START")
+        for k in range(6):
+            game.run(15)
+            game.screenshot().convert("RGB").save(tmp_path / f"popup{k}.png")
+        print("screenshot:", tmp_path)
+        assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player" and game.units(), seconds=120,
+                               step=20, tap="START")
+        index = next(i for i, u in enumerate(game.units()) if u["character"] == 1)
+        number = game.read(game.read(game.address("gUnitArrayBlue") + index * UNIT_SIZE, width=32), 4)
+        assert game.read(int(skills.LEARNED_TABLE, 16) + number * skills.LEARNED_MAX)   # Luna, her first learned skill
+
+
 def test_select_shows_the_danger_zone(tmp_path):
     project = Project.create(tmp_path / "danger", "Danger")
     project.set_game_options({"dangerZone": True})
@@ -2353,6 +2383,36 @@ def test_damage_and_heal_numbers_in_battle_animation(tmp_path):
             game.screenshot().convert("RGB").save(tmp_path / f"numbers{k}.png")
             game.run(8)
         print("screenshots:", tmp_path)
+
+
+def test_sol_heal_shows_in_battle_animation(tmp_path):
+    """Ticket 44: Seth, with Sol and 100 Skill at 10 HP, attacks in the prologue: his HP gauge rises in the battle
+    animation (the drain's bars, as Nosferatu's), not only after it."""
+    project = Project.create(tmp_path / "solheal", "SolHeal")
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        base = game.address("gUnitArrayBlue")
+        seth = next(base + n * UNIT_SIZE for n in range(20) if game.read(base + n * UNIT_SIZE, width=32)
+                    and game.read(game.read(base + n * UNIT_SIZE, width=32), 4) == 2)
+        game.write(seth, 100, 0x15)          # Skill 100: Sol always triggers
+        game.write(seth, 10, 0x13)           # 10 HP: Sol has something to heal
+        _seth_attacks(game)
+        assert game.wait_until(lambda: game.read("gpEkrBattleUnitLeft", width=32), seconds=20, step=5)
+        side = 0 if game.read("gpEkrBattleUnitLeft", width=32) == game.address("gBattleActor") else 1
+        gauge = []
+
+        def healed():
+            gauge.append(game.read("gEkrGaugeHp", 2 * side, width=16, signed=True))
+            return gauge[-1] > 10
+
+        assert game.wait_until(healed, seconds=30, step=2), gauge
+        game.screenshot().convert("RGB").save(tmp_path / "sol.png")
+        print("gauge", gauge[-5:], "screenshot:", tmp_path)
 
 
 def test_triggered_skill_icon_in_map_battle(tmp_path):

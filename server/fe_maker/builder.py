@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import native
+from . import buildcancel, native
 from .paths import DECOMP_DIR, DOCKER_DIR
 from .rom import check_rom
 
@@ -74,6 +74,7 @@ def build_lock(on_output: Callable[[str], None] | None = None, poll: float = 1.0
     with open(folder / "fe-maker-build.lock", "a+b") as file:
         waited = False
         while not _try_lock(file):
+            buildcancel.check()
             if not waited and on_output:
                 on_output("[fe-maker] Another build is running, waiting for it...\n")
             waited = True
@@ -193,23 +194,38 @@ def build(
             raise BuildError(f"Overlay directory not found: {overlay}")
         args += ["-v", f"{overlay}:/overlay:ro"]
 
+    container = f"fe-maker-build-{os.getpid()}"   # named, to stop it on a cancel (ticket 40)
+    args[3:3] = ["--name", container]
     log_lines: list[str] = []
     with build_lock(on_output):
+        buildcancel.check()
         start = time.monotonic()
+        image = ensure_image(docker, on_output)
         process = subprocess.Popen(
-            [*args, ensure_image(docker, on_output)],
+            [*args, image],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
             errors="replace",
+            start_new_session=os.name != "nt",
         )
+        buildcancel.register(process, container)
         assert process.stdout is not None
         for line in process.stdout:
             log_lines.append(line)
             if on_output:
                 on_output(line)
-        if process.wait() != 0:
+        code = process.wait()
+        buildcancel.register(None)
+        if buildcancel.requested():   # what make was writing may be cut short: the next build makes it again
+            minutes = int((time.monotonic() - start) / 60) + 2
+            subprocess.run([docker, "run", "--rm", "-v", f"{volume}:/work", "--entrypoint", "sh", image, "-c",
+                            f"find /work -type f -mmin -{minutes} \\( -name '*.o' -o -name '*.gba' -o -name '*.elf' \\)"
+                            f" -delete; for s in $(find /work/src -name '*.s' -mmin -{minutes}); do"
+                            ' [ -f "${s%.s}.c" ] && rm -f "$s"; done'], capture_output=True)
+            raise buildcancel.BuildCancelled()
+        if code != 0:
             raise BuildError("Build failed:\n" + "".join(log_lines[-40:]))
         seconds = time.monotonic() - start
 

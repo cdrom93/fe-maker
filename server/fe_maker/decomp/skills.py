@@ -1547,6 +1547,15 @@ void StatusHitFem(struct Anim* anim, struct Anim* foe)
         SetUnitEfxDebuff(who, status);
 }}
 
+/* A hit that drains HP (Sol, Aether; banim-ekrutils.c): its HP bars as Nosferatu's, the foe's then the attacker's
+   (ticket 44: else the attacker's healing was never shown and its next HP values came one step late) */
+int DrainHitFem(struct Anim* anim)
+{{
+    int round = anim->nextRoundId - 1;
+
+    return round >= 0 && round < BATTLE_HIT_MAX && (gBattleHitArray[round].attributes & BATTLE_HIT_ATTR_HPSTEAL);
+}}
+
 /* Battles on the map: the icon beside the info box for 30 frames (Huichelaar's SPD_Map, Skill System, CC0) */
 #include "mapanim.h"
 
@@ -1665,11 +1674,18 @@ void StartSkillIconMapFem(ProcPtr parent)
     rel = "src/banim-ekrutils.c"
     start = "void StartBattleAnimHitEffects(struct Anim *anim, int type, int a, int b)\n{"
     utils = _replace(_read(files, decomp_dir, rel), start,
-                     "void StatusHitFem(struct Anim* anim, struct Anim* foe); /* FE Maker: skills.py, in bmbattle.c */\n\n"
+                     "void StatusHitFem(struct Anim* anim, struct Anim* foe); /* FE Maker: skills.py, in bmbattle.c */\n"
+                     "int DrainHitFem(struct Anim* anim);\n\n"
                      + start, rel)
-    out[rel] = _replace(utils, "    case EKR_HITTED:\n        roundt1 = GetRoundFlagByAnim(animr7);\n",
-                        "    case EKR_HITTED:\n        StatusHitFem(anim, animr7); /* FE Maker: skills */\n"
-                        "        roundt1 = GetRoundFlagByAnim(animr7);\n", rel)
+    utils = _replace(utils, "    case EKR_HITTED:\n        roundt1 = GetRoundFlagByAnim(animr7);\n",
+                     "    case EKR_HITTED:\n        StatusHitFem(anim, animr7); /* FE Maker: skills */\n"
+                     "        roundt1 = GetRoundFlagByAnim(animr7);\n", rel)
+    out[rel] = _replace(utils, "        if (val1 != val2) {\n            NewEfxHpBar(animr5);\n",
+                        "        if (val1 != val2) {\n"
+                        "            if (DrainHitFem(anim)) /* FE Maker: Sol, Aether (ticket 44) */\n"
+                        "                NewEfxHpBarResire(animr5);\n"
+                        "            else\n"
+                        "                NewEfxHpBar(animr5);\n", rel)
     return out
 
 
@@ -2483,26 +2499,15 @@ static void LearnedInstFem(int i, int opcode, u32 data)
     sLearnedInstFem[i].data = data;
 }}
 
-/* PROC_REPEAT: one popup per learned skill (each blocks the proc), then on */
-void LearnedPopupsFem(ProcPtr proc)
+/* "Eirika learned Luna.", blocking the proc */
+void LearnedPopupFem(ProcPtr proc, struct Unit* unit, int skill)
 {{
     const char* str;
-    int i, skill;
+    int i;
 
-    if (sLearnedCountFem == 0 || sLearnedCountFem > 4) {{
-        sLearnedCountFem = 0;
-        Proc_Break(proc);
-        return;
-    }}
-    skill = sLearnedQueueFem[1];
-    SetPopupUnit(GetUnit(sLearnedQueueFem[0]));
-    for (i = 1; i < sLearnedCountFem; i++) {{
-        sLearnedQueueFem[2 * i - 2] = sLearnedQueueFem[2 * i];
-        sLearnedQueueFem[2 * i - 1] = sLearnedQueueFem[2 * i + 1];
-    }}
-    sLearnedCountFem--;
     if (skill <= 0 || skill > SKILL_COUNT_FEM)
         return;
+    SetPopupUnit(unit);
     str = GetStringFromIndex(sLearnedTextFem[skill]);
     for (i = 0; str[i] && str[i] != ':' && i < 0x1F; i++)   /* the help text up to its colon */
         sLearnedNameFem[i] = str[i];
@@ -2520,6 +2525,27 @@ void LearnedPopupsFem(ProcPtr proc)
     LearnedInstFem(9, POPUP_OP_STR, (u32) sLearnedDotFem);
     LearnedInstFem(10, POPUP_OP_END, 0);
     NewPopup_Simple(sLearnedInstFem, 0x60, 0x0, proc);
+}}
+
+/* PROC_REPEAT: one popup per learned skill (each blocks the proc), then on */
+void LearnedPopupsFem(ProcPtr proc)
+{{
+    struct Unit* unit;
+    int i, skill;
+
+    if (sLearnedCountFem == 0 || sLearnedCountFem > 4) {{
+        sLearnedCountFem = 0;
+        Proc_Break(proc);
+        return;
+    }}
+    skill = sLearnedQueueFem[1];
+    unit = GetUnit(sLearnedQueueFem[0]);
+    for (i = 1; i < sLearnedCountFem; i++) {{
+        sLearnedQueueFem[2 * i - 2] = sLearnedQueueFem[2 * i];
+        sLearnedQueueFem[2 * i - 1] = sLearnedQueueFem[2 * i + 1];
+    }}
+    sLearnedCountFem--;
+    LearnedPopupFem(proc, unit, skill);
 }}
 """
     rel = "src/bmbattle.c"
@@ -2566,25 +2592,31 @@ void LearnedPopupsFem(ProcPtr proc)
             LoadIconPalette(1, proc->iconPalId);
 """, rel)
     out[rel] += """
-/* Batch 3: events give or take a skill: slot 1 the character, slot 2 the skill, slot 3 1 to give, 0 to take */
+/* Batch 3: events give or take a skill: slot 1 the character, slot 2 the skill, slot 3 1 to give, 0 to take; a skill
+   given shows the popup of a skill learned in battle (ticket 39), the event waiting for it (a STAL follows the call) */
 #include "event.h"
 
-void FemSkillEvent(void)
+void LearnedPopupFem(ProcPtr proc, struct Unit* unit, int skill);
+
+void FemSkillEvent(ProcPtr proc)
 {
     struct Unit* unit = GetUnitStructFromEventParameter(gEventSlots[1]);
 
     if (!unit)
         return;
-    if (gEventSlots[3])
-        LearnSkillFem(unit, gEventSlots[2]);
-    else
+    if (!gEventSlots[3])
         ForgetSkillFem(unit, gEventSlots[2]);
+    else if (!SkillTesterFem(unit, gEventSlots[2])) {
+        LearnSkillFem(unit, gEventSlots[2]);
+        if (SkillTesterFem(unit, gEventSlots[2]))
+            LearnedPopupFem(proc, unit, gEventSlots[2]);
+    }
 }
 """
     rel = "include/eventscript.h"
     out[rel] = _read(files, decomp_dir, rel).rstrip("\n") + (
         "\n\n/* FE Maker: skills for the events' GiveSkill / RemoveSkill */\n#define SKILLS_FEM_EVENTS 1\n"
-        f'#include "{NUMBERS_HEADER.removeprefix("include/")}"\nvoid FemSkillEvent(void);\n')
+        f'#include "{NUMBERS_HEADER.removeprefix("include/")}"\nvoid FemSkillEvent(void* proc);\n')
     rel = "src/bmio.c"
     out[rel] = _replace(_read(files, decomp_dir, rel), "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n",
                         "    CpuFill16(0, &gPlaySt, sizeof(gPlaySt));\n"

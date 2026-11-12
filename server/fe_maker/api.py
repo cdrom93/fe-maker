@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, validation
+from . import __version__, buildcancel, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, validation
 from . import tickets as ticketing
 from .builder import BuildError
 from .checks import run_checks
@@ -2413,6 +2413,8 @@ def _run_build(project: Project, launch: bool) -> None:
             _build_lines_file().write_text(str(len(st["log"])), encoding="utf-8")
         except OSError:
             pass
+    except buildcancel.BuildCancelled:
+        st["state"] = "cancelled"   # ticket 40
     except (ProjectError, BuildError, InvalidRomError, emulator.EmulatorError) as e:
         st["error"] = str(e)
         st["state"] = "error"
@@ -2434,8 +2436,17 @@ def start_build(body: BuildIn):
         "state": "running", "log": [], "error": None, "patch": None, "launch": body.launch,
         "expected": expected_build_lines(),
     }
+    buildcancel.reset()
     threading.Thread(target=_run_build, args=(project, body.launch), daemon=True).start()
     return state.build_status
+
+
+@app.post("/api/project/build/cancel")
+def cancel_build():
+    """Stop the running build (ticket 40): its process is killed, the build ends as "cancelled"."""
+    if state.build_status.get("state") == "running":
+        buildcancel.cancel()
+    return {"ok": True}
 
 
 @app.get("/api/project/build")

@@ -58,6 +58,7 @@ piège dans sa section.
 - **Rangs d'armes et montée automatique** : une unité en montée automatique reçoit, pour chaque arme ou bâton qu'elle ne peut pas utiliser, le rang exact que l'objet demande, si elle a déjà un rang dans ce type (`UnitAutolevelWExp`, src/bmunit.c). Ne pas avertir d'un rang trop bas dans ce cas (ticket 157). La portée « Mag/2 » d'un bâton vaut au moins 5 (`GetUnitMagBy2Range`).
 - **Malus de stat à l'écran de statut** : le jeu n'y dessine que des bonus (`PutNumberBonus`) ; un -3 donne le glyphe des gros chiffres « 7 » (« +7 »). Tout nouveau malus (objet, compétence) passe par `skills.show_malus`, et les getters ne doivent pas rendre de valeur négative (ticket 50).
 - Ce qu'on retient pour un combat (compétences à afficher par assaut) doit aussi être vidé dans `BattleInitItemEffect` : objets et bâtons passent par les mêmes assauts de l'animation sur la carte, sans `BattleUnwind` (ticket 48).
+- Un coup qui vole des PV (`BATTLE_HIT_ATTR_HPSTEAL`) sans Nosferatu : l'animation de combat prévoit deux valeurs de PV (cible, puis attaquant) mais seul le sort de Nosferatu lance les barres qui consomment la seconde ; ailleurs, lancer `NewEfxHpBarResire` (ticket 44).
 
 ## Cartes
 
@@ -95,6 +96,7 @@ piège dans sa section.
 - L'introduction d'une nouvelle partie a deux morceaux : `StartIntroMonologue` (sous-titres) et, surtout, le récit sur Magvel, qui est l'événement de carte du monde `EventScrWM_Prologue_Beginning` : il tourne même sans carte du monde (ticket 115). Une option « compilée seulement » n'est pas vérifiée : jouer une vraie nouvelle partie.
 
 - `prologue-eventinfo.h` n'inclut pas `constants/characters.h` et passe le premier dans `events_info.c` (les suivants ont les noms par `ch1-eventinfo.h`) : une scène du Prologue qui nomme un personnage (Donner une compétence...) ne compilait pas. `_add_to_list` ajoute l'include quand le script nomme un personnage.
+- Un `ASMC` qui lance un proc bloquant (popup) ne suspend pas l'évènement : le moteur enchaîne les commandes dans la même image (`EVC_ADVANCE_CONTINUE`). Le faire suivre d'un `STAL(1)` : l'évènement rend la main et reste bloqué tant que le popup vit (ticket 39).
 
 ## Tests en jeu (playtest)
 

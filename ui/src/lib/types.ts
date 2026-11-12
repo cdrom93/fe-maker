@@ -610,7 +610,7 @@ export interface Status {
 }
 
 export interface BuildStatus {
-  state: 'idle' | 'running' | 'done' | 'error'
+  state: 'idle' | 'running' | 'done' | 'error' | 'cancelled'
   log: string[]
   logSize: number
   /** lines the last finished build printed: a guess of this one's length (ticket 156) */

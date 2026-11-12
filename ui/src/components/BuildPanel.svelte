@@ -10,6 +10,7 @@
   let log = $state<string[]>([])
   let error = $state('')
   let showLog = $state(false)
+  let cancelling = $state(false)   // ticket 40
   let history = $state<BuildTime[] | null>(null)   // the last builds' durations, once asked (ticket 30)
   let timer: ReturnType<typeof setTimeout> | undefined
   // Progress guessed from the lines printed against the last build's count; past it, the bar has no value (ticket 156).
@@ -33,6 +34,15 @@
     try {
       status = await api.startBuild(launch)
       poll()
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
+  async function cancel() {
+    cancelling = true
+    try {
+      await api.cancelBuild()
     } catch (e) {
       error = String(e)
     }
@@ -65,7 +75,7 @@
       <h2 class="bad">{t('build.error')}</h2>
       <p>{error}</p>
     {:else if !status || status.state === 'running'}
-      <h2>{t('build.running')}</h2>
+      <h2>{cancelling ? t('build.cancelling') : t('build.running')}</h2>
       {#if waiting}
         <progress></progress>
         <p>{t('build.waiting')}</p>
@@ -86,6 +96,8 @@
           · {t('build.compiled', { n: status.timing.compiled })}
         </p>
       {/if}
+    {:else if status.state === 'cancelled'}
+      <h2>{t('build.cancelled')}</h2>
     {:else if status.state === 'error'}
       <h2 class="bad">{t('build.error')}</h2>
       <pre class="mono">{status.error?.startsWith('build.') ? t(status.error) : status.error}</pre>
@@ -116,6 +128,9 @@
     {/if}
 
     <div class="actions">
+      {#if status?.state === 'running'}
+        <button onclick={cancel} disabled={cancelling}>{t('build.cancel')}</button>
+      {/if}
       <button onclick={onClose} disabled={status?.state === 'running'}>{t('build.close')}</button>
     </div>
   </div>
@@ -135,7 +150,7 @@
   .times { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.3rem; }
   .times td { padding: 0.15rem 0.4rem; border-bottom: 1px solid var(--border); }
   .times .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
+  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
   .good { color: var(--good); }
   .bad { color: var(--bad); }
 </style>

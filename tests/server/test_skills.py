@@ -284,7 +284,7 @@ def test_event_skill_commands_render_and_count_as_used():
 
     text = render_command({"op": "GiveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]})
     assert "SVAL(EVT_SLOT_2, SKILL_FEM_Luna)" in text and "SVAL(EVT_SLOT_3, 1)" in text
-    assert "ASMC(FemSkillEvent)" in text and text.startswith("#ifdef SKILLS_FEM_EVENTS")
+    assert "ASMC(FemSkillEvent)\n    STAL(1)\n" in text and text.startswith("#ifdef SKILLS_FEM_EVENTS")   # the popup
     assert "SVAL(EVT_SLOT_3, 0)" in render_command({"op": "RemoveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]})
     assert skills.event_skills([text]) == {"Luna"}
     assert "Luna" in [s.id for s in skills.used([], [], False, {"Luna"})]

@@ -17,11 +17,13 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
+from .. import buildcancel
 from . import asmdeps
 
 NATIVE_DIR = Path(__file__).resolve().parent
@@ -260,6 +262,7 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
             on_output(line)
 
     say("[fe-maker] Syncing decomp into working copy...\n")
+    buildcancel.check()
     sync(decomp, work, overlay)
     _prepare(work, toolchain, rom)
     asmdeps.write(work)   # what scaninc would find, in one pass: make runs with NODEP=1 (ticket 30)
@@ -267,6 +270,7 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
         say("[fe-maker] BUGFIX enabled\n")
     say("[fe-maker] Building ROM...\n")
     env = {**os.environ, "PATH": str(toolchain / "bin") + os.pathsep + os.environ.get("PATH", "")}
+    start = time.time()
     for attempt in range(2):
         # Windows sometimes holds a file just written (the antivirus): `sed -i` then fails with "Permission denied", or
         # an assembly file is left half written. make starts again from the failed targets: one more try.
@@ -275,10 +279,16 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
         process = subprocess.Popen(make_command(toolchain, bugfix), cwd=work, env=env, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        buildcancel.register(process)
         assert process.stdout is not None
         for line in process.stdout:
             say(line)
-        if process.wait() == 0:
+        code = process.wait()
+        buildcancel.register(None)
+        if buildcancel.requested():   # ticket 40: what make was writing may be cut short
+            buildcancel.forget_outputs(work, start)
+            raise buildcancel.BuildCancelled()
+        if code == 0:
             break
         # a dependency list naming a file gone in an earlier build (#51): forget those lists, then the retry rewrites them
         _forget_dependencies(work, set(_NO_RULE.findall("".join(log))))
