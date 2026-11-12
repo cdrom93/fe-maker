@@ -51,7 +51,7 @@
     <section class="panel">
       <h3>{t('options.defaultsTitle')} <Help text={`${t('options.defaultsHint')} ${t('options.gameDefaultHint')}`} /></h3>
       <div class="config">
-        {#each Object.entries(data.defaults) as [key, d] (key)}
+        {#each Object.entries(data.defaults).filter(([key]) => key !== 'staffDance' || data?.options.noSupportAnimations) as [key, d] (key)}
           <span class="option">{t(`options.${key}`)}</span>
           <div class="choices" role="radiogroup" aria-label={t(`options.${key}`)}>
             {#each d.values as v (v)}

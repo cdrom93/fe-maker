@@ -34,6 +34,8 @@ MAP_SPRITES_FILE = "src/bmudisp.c"
 # 1 normal, 2 fast, 3 max; game speed 0 normal, 1 fast).
 DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "animation": ("animationType", 0, (0, 3, 1, 2)),
+    # only with noSupportAnimations (ticket 43): written by apply(), the game has no such line; 1 = staves on the map
+    "staffDance": ("unk41_6", 1, (0, 1)),
     "gameSpeed": ("gameSpeed", 0, (0, 1)),
     "textSpeed": ("textSpeed", 1, (0, 1, 2, 3)),
     "terrainWindow": ("disableTerrainDisplay", 0, (0, 1)),
@@ -47,6 +49,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "soundEffects": ("disableSoundEffects", 0, (0, 1)),
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
+OWN_LINE_DEFAULTS = ("staffDance",)   # defaults of a menu line FE Maker adds, set by apply()
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange", "healPreview"),
@@ -463,7 +466,7 @@ def with_defaults(source: str, options: dict) -> str:
         raise TweakError(f"The new game options do not match this version of the decomp ({CONFIG_FILE})")
     body = m.group(0)
     for key, (field, _game, _allowed) in DEFAULTS.items():
-        if key in options:
+        if key in options and key not in OWN_LINE_DEFAULTS:
             body, n = re.subn(rf"(gPlaySt\.config\.{field} = )\d+;", rf"\g<1>{int(options[key])};", body)
             if n != 1 and field != "disableGoalDisplay":   # the only one the game leaves at the 0 of the cleared state
                 raise TweakError(f"Option {field} not found in InitPlayConfig ({CONFIG_FILE})")
@@ -617,7 +620,7 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
     def current(rel: str) -> str:
         return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
 
-    if any(key in options and options[key] != DEFAULTS[key][1] for key in DEFAULTS):
+    if any(key in options and options[key] != DEFAULTS[key][1] for key in DEFAULTS if key not in OWN_LINE_DEFAULTS):
         files[CONFIG_FILE] = with_defaults(current(CONFIG_FILE), {k: v for k, v in options.items() if k in DEFAULTS})
     rule = CHOICES["tempBonusRule"].index(options.get("tempBonusRule", "strongest"))
     if rule and _TEMP_RULE in files.get(TEMP_RULE_FILE, ""):   # only when a Pure Water copy uses the bonuses
@@ -702,5 +705,6 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
                                            "        gPlaySt.config.unk41_6 = newValue;\n\n        break;\n", OPTION_MENU_FILE)
         start = "    gPlaySt.config.unk41_5 = 0;\n"
         files[CONFIG_FILE] = _replace(current(CONFIG_FILE), start,
-                                      start + "    gPlaySt.config.unk41_6 = 1; /* FE Maker: staves on the map */\n", CONFIG_FILE)
+                                      start + f"    gPlaySt.config.unk41_6 = {int(options.get('staffDance', 1))};"
+                                      " /* FE Maker: 1 staves on the map (ticket 43) */\n", CONFIG_FILE)
     return files
