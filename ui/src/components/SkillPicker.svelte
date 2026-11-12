@@ -9,12 +9,15 @@
     placeholder,
     disabled = false,
     title = '',
+    heading = '',
     onpick,
   }: {
     skills: SkillEntry[]
     placeholder: string
     disabled?: boolean
     title?: string
+    /** the window's title, when the button shows the current skill (ticket 42); else the placeholder */
+    heading?: string
     onpick: (id: string) => void
   } = $props()
 
@@ -83,9 +86,9 @@
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="backdrop" onclick={(e) => e.target === e.currentTarget && (open = false)}>
-    <div class="panel dialog" role="dialog" aria-modal="true" aria-label={placeholder}>
+    <div class="panel dialog" role="dialog" aria-modal="true" aria-label={heading || placeholder}>
       <div class="head">
-        <h2>{placeholder}</h2>
+        <h2>{heading || placeholder}</h2>
         <button type="button" onclick={() => (open = false)}>{t('build.close')}</button>
       </div>
       <input bind:this={search} bind:value={query} placeholder={t('skill.search')} oninput={() => (active = 0)} onkeydown={key} />
@@ -110,7 +113,7 @@
               </button>
             </li>
           {:else}
-            <li class="empty">{t('items.noMatch')}</li>
+            <li class="empty">{t('skill.noMatch')}</li>
           {/each}
         </ul>
       </div>

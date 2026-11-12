@@ -7,9 +7,10 @@
   import type { EditableList } from '../lib/history.svelte'
   import { problemText, t } from '../lib/i18n.svelte'
   import { statLabel } from '../lib/magic.svelte'
-  import { loadSkills, offeredSkills, skillsOption } from '../lib/skills.svelte'
+  import { loadSkills, offeredSkills, skillIcon, skillsOption } from '../lib/skills.svelte'
   import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
+  import SkillPicker from './SkillPicker.svelte'
   import { AI_PRESETS } from '../lib/ai'
 
   let {
@@ -125,6 +126,15 @@
   }
   let selected = $state<number | null>(null)
   let adding = $state('')
+  // ticket 38: a command found by typing; the list keeps the matching ones, the first one chosen
+  let findOp = $state('')
+  const foldOp = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const opText = (op: string) => (MEMORY_ACTIONS.includes(op) || conditions.includes(op) ? t(`ev.${op.replace(':', '.')}`) : label(op))
+  const shown = (ops: readonly string[]) => (findOp.trim() ? ops.filter((op) => foldOp(opText(op)).includes(foldOp(findOp.trim()))) : ops)
+  function onFind() {
+    const first = [...shown(conditions), ...shown(MEMORY_ACTIONS), ...shown(offered)][0]
+    adding = findOp.trim() ? (first ?? '') : adding
+  }
   /** The memory whose name is being typed (its flag). */
   let renaming = $state<number | null>(null)
 
@@ -692,10 +702,12 @@
                       {#each STATS as stat (stat)}<option value={stat}>{statLabel(stat)}</option>{/each}
                     </select>
                   {:else if a.kind === 'skill'}
-                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
-                      {#if !offeredSkills().some((s) => s.id === v)}<option value={v}>{v}</option>{/if}
-                      {#each offeredSkills() as s (s.id)}<option value={s.id}>{t(`skill.${s.id}`)}</option>{/each}
-                    </select>
+                    <!-- ticket 42: the sheets' skill chooser (icons, search, categories) -->
+                    <span class="inline">
+                      <img class="pixel" src={skillIcon(v)} alt="" width="16" height="16" />
+                      <SkillPicker skills={offeredSkills()} placeholder={t(`skill.${v}`)} heading={t('skill.choose')} title={t(`skill.${v}Hint`)}
+                        onpick={(id) => setArg(i, k, id)} />
+                    </span>
                   {:else if a.kind === 'character' && (v.startsWith('CHARACTER_') || !v)}
                     <span class="inline">
                       <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
@@ -816,16 +828,18 @@
 
   {#if reference}
     <div class="add">
+      <input class="find" bind:value={findOp} placeholder={t('ev.find')} aria-label={t('ev.find')} oninput={onFind}
+             onkeydown={(e) => { if (e.key === 'Enter' && adding) { e.preventDefault(); add(); findOp = '' } }} />
       <select bind:value={adding} aria-label={t('ev.add')}>
         <option value="">{t('ev.add')}</option>
         <optgroup label={t('ev.conditions')}>
-          {#each conditions as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
+          {#each shown(conditions) as op (op)}<option value={op}>❓ {t(`ev.${op.replace(':', '.')}`)}</option>{/each}
         </optgroup>
         <optgroup label={t('ev.memories')}>
-          {#each MEMORY_ACTIONS as op (op)}<option value={op}>{t(`ev.${op.replace(':', '.')}`)}</option>{/each}
+          {#each shown(MEMORY_ACTIONS) as op (op)}<option value={op}>{t(`ev.${op.replace(':', '.')}`)}</option>{/each}
         </optgroup>
         <optgroup label={t('ev.commands')}>
-          {#each offered as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
+          {#each shown(offered) as op (op)}<option value={op}>{ICONS[op] ?? ''} {label(op)}</option>{/each}
         </optgroup>
       </select>
       <button onclick={add} disabled={!adding}>＋ {commands[selected ?? -1]?.op === 'LABEL' && !inCondition ? t('ev.addAfterBlock') : inCondition ? t('ev.addInside') : selected !== null ? t('ev.addAfter', { n: selected + 1 }) : t('ev.addEnd')}</button>
@@ -861,6 +875,7 @@
   .actions { display: flex; gap: 0.15rem; flex-shrink: 0; }
   .actions button { padding: 0 0.35rem; font-size: 0.8rem; }
   .add { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .add .find { width: 13rem; }
   .view { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
   .blocks li.step { align-items: center; }
   .blocks li.step[draggable='true'] { cursor: grab; }

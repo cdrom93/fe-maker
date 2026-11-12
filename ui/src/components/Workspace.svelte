@@ -104,6 +104,7 @@
   // "Back" (ticket 62): the places seen, a place being a tab and its record.
   type Place = { tab: Tab; id: string }
   let trail = $state<Place[]>([])
+  let ahead = $state<Place[]>([])   // the places left by Back, for Forward (ticket 36)
   let changes = $state<HTMLDetailsElement>()
   let here: Place = { tab: 'characters', id: '' }
   let settle: ReturnType<typeof setTimeout> | undefined
@@ -114,6 +115,7 @@
     settle = setTimeout(() => {
       if (place.tab === here.tab && place.id === here.id) return
       if (place.tab !== here.tab || here.id) trail = [...trail, here].slice(-50)
+      ahead = []
       here = place
     }, 150)
   })
@@ -123,8 +125,26 @@
     const place = trail.at(-1)
     if (!place) return
     trail = trail.slice(0, -1)
+    ahead = [...ahead, here].slice(-50)
     here = place
     navigator.open(place.tab, place.id || null)
+  }
+
+  function forward() {
+    const place = ahead.at(-1)
+    if (!place) return
+    ahead = ahead.slice(0, -1)
+    trail = [...trail, here].slice(-50)
+    here = place
+    navigator.open(place.tab, place.id || null)
+  }
+
+  /** The mouse's "forward" side button and Alt + right arrow (ticket 36): the guard entry leaves the browser no
+   * forward page, so they are caught here. */
+  function onMouseUp(e: MouseEvent) {
+    if (e.button !== 4) return
+    e.preventDefault()
+    forward()
   }
 
   async function save(kind: DataKind, data: unknown) {
@@ -303,7 +323,8 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} onpopstate={onPopState} />
+<svelte:window onkeydown={(e) => { if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); forward() } else onKey(e) }}
+               onpopstate={onPopState} onmouseup={onMouseUp} />
 
 
 <div class="toolbar">
@@ -313,6 +334,7 @@
   </div>
   <div class="row actions" use:toHeader>
     <button onclick={back} disabled={!trail.length} title={t('ws.backHint')}>← {t('ws.back')}</button>
+    <button onclick={forward} disabled={!ahead.length} title={t('ws.forwardHint')}>{t('ws.forward')} →</button>
     <button onclick={() => active?.undo()} disabled={!active?.canUndo} title="Ctrl+Z">↶ {t('ws.undo')}</button>
     {#if allSteps.length}
       <details class="changes" bind:this={changes}>

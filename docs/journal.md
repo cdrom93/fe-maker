@@ -281,3 +281,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 12/11/2026 : #50 : la compilation échouait avec les taux de croissance à l'écran de statut (ligne de la barre présente deux fois) ; ancre rendue unique, test ajouté.
 - 12/11/2026 : ticket #43 : réglage « Bâtons et danses animés » dans les réglages d'une nouvelle partie, visible avec la ligne Staff & Dance du menu du jeu.
 - 12/11/2026 : tickets idée et question #54-#68 notés au cahier (Après l'alpha) avec mon avis, puis fermés ; #67 ajouté aux patchs de confort.
+- 12/11/2026 : tickets #36 (bouton Suivant, Alt + flèche droite, bouton « suivant » de la souris), #37 (filtre des classes par tier : recrues, base, promues), #38 (chercher une commande en tapant dans le déroulé), #42 (sélecteur de compétences avec icônes dans les commandes du déroulé), #45 (la recherche des compétences portait déjà sur les descriptions ; message « Aucune compétence trouvée »). Vérifiés dans l'interface.

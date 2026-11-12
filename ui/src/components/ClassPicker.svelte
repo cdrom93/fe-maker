@@ -15,16 +15,27 @@
 
   let open = $state(false)
   let query = $state('')
+  let tier = $state<Tier | null>(null)   // ticket 37: one tier shown, null for all
   let active = $state(0)
   let root = $state<HTMLDivElement>()
   let search = $state<HTMLInputElement>()
   let listEl = $state<HTMLUListElement>()
 
+  // Tiers (ticket 37): promoted (the class's "promoted" ability), trainee (promotes into a class that is not
+  // promoted: Journeyman, Recruit, Pupil), else base
+  type Tier = 'trainee' | 'base' | 'promoted'
+  const TIERS: Tier[] = ['trainee', 'base', 'promoted']
+  const tierOf = (k: ClassView): Tier => {
+    if (k.abilities.includes('promoted')) return 'promoted'
+    const next = k.promotions.map((id) => classes.find((c) => c.id === id)).filter((c) => c)
+    return next.some((c) => !c!.abilities.includes('promoted')) ? 'trainee' : 'base'
+  }
   const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   const current = $derived(classes.find((k) => k.id === value))
   const choices = $derived.by(() => {
     const q = fold(query.trim())
-    const found = q ? classes.filter((k) => fold(k.name || '').includes(q) || fold(k.id).includes(q)) : classes
+    const searched = q ? classes.filter((k) => fold(k.name || '').includes(q) || fold(k.id).includes(q)) : classes
+    const found = tier ? searched.filter((k) => tierOf(k) === tier) : searched
     return [...found.filter((k) => k.usedInGame), ...found.filter((k) => !k.usedInGame)]
   })
   const firstUnused = $derived(choices.findIndex((k) => !k.usedInGame))
@@ -79,6 +90,13 @@
   {#if open}
     <div class="popup">
       <input bind:this={search} bind:value={query} placeholder={t('classes.search')} oninput={() => (active = 0)} onkeydown={key} />
+      <div class="tiers">
+        {#each [null, ...TIERS] as k (k ?? 'all')}
+          <button type="button" class:active={tier === k} onclick={() => { tier = k; active = 0; search?.focus() }}>
+            {t(`classes.tier.${k ?? 'all'}`)}
+          </button>
+        {/each}
+      </div>
       <ul role="listbox" bind:this={listEl}>
         {#each choices as k, i (k.id)}
           {#if i === firstUnused}<li class="section">{t('list.unusedClassesGroup')}</li>{/if}
@@ -105,6 +123,10 @@
   .sprite { width: 16px; height: 16px; object-fit: contain; image-rendering: pixelated; flex-shrink: 0; }
   .popup { position: absolute; z-index: 30; top: calc(100% + 2px); left: 0; width: max(100%, 16rem); background: var(--panel, var(--bg)); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgb(0 0 0 / 0.35); padding: 0.3rem; }
   .popup input { width: 100%; box-sizing: border-box; margin-bottom: 0.25rem; }
+  /* as the skill picker's categories */
+  .tiers { display: flex; flex-wrap: wrap; gap: 0.15rem; margin-bottom: 0.25rem; }
+  .tiers button { border: 1px solid transparent; background: none; padding: 0.1rem 0.45rem; border-radius: 6px; font: inherit; font-size: 0.8rem; color: inherit; }
+  .tiers button.active { border-color: var(--accent); background: var(--accent-soft); }
   ul { list-style: none; margin: 0; padding: 0; max-height: 20rem; overflow-y: auto; }
   li button { display: flex; align-items: center; gap: 0.4rem; width: 100%; text-align: left; border: none; background: none; padding: 0.15rem 0.3rem; font: inherit; color: inherit; border-radius: 4px; }
   li.active button { background: var(--accent-soft); }
