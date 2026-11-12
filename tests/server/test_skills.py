@@ -347,3 +347,24 @@ def test_a_malus_with_the_growth_rates(monkeypatch):
     screen = files["src/statscreen.c"]
     start = screen.index("void DrawStatWithBar(int num")
     assert screen.index("if (growth >= 0)", start) < screen.index("if (diff < 0)", start)
+
+
+def test_drain_hp_bars_at_a_plain_hits_pace():
+    """Ticket 44: Sol's drain shows Nosferatu's HP bars, from a copy of their script waiting 0x1E frames, not 0x54."""
+    from fe_maker.decomp import battlenumbers
+
+    if not (DECOMP / "src/banim-efxhpbar.c").is_file():
+        pytest.skip("decomp submodule not checked out")
+    characters = [{"id": "CHARACTER_SETH", "skills": ["Sol"]}]
+    used = skills.used(characters, [], False)
+    texts = {**PAGE, **{s.id: 2 for s in used}}
+    files = skills.apply(DECOMP, {}, characters, [], texts, False)
+    assert "NewEfxHpBarDrainFem(animr5);" in files["src/banim-ekrutils.c"]
+    bar = files["src/banim-efxhpbar.c"]
+    copy = bar[bar.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]"):]
+    assert "PROC_REPEAT(EfxHpBarDrainWaitFem)," in copy and "EfxHpBarResire_WaitOnCurrentSide" not in copy
+    assert "proc->timer2 == 0x1E && proc->finished == true" in bar
+    # with the battle numbers option, the copy keeps their step
+    numbered = skills.apply(DECOMP, battlenumbers.apply(DECOMP, {}), characters, [], texts, False)["src/banim-efxhpbar.c"]
+    copy = numbered[numbered.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]"):]
+    assert "PROC_REPEAT(EfxHpBarResireNumberFem)," in copy

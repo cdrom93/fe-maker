@@ -2404,15 +2404,20 @@ def test_sol_heal_shows_in_battle_animation(tmp_path):
         _seth_attacks(game)
         assert game.wait_until(lambda: game.read("gpEkrBattleUnitLeft", width=32), seconds=20, step=5)
         side = 0 if game.read("gpEkrBattleUnitLeft", width=32) == game.address("gBattleActor") else 1
-        gauge = []
+        gauge, foe = [], []
 
         def healed():
             gauge.append(game.read("gEkrGaugeHp", 2 * side, width=16, signed=True))
+            foe.append(game.read("gEkrGaugeHp", 2 * (1 - side), width=16, signed=True))
             return gauge[-1] > 10
 
         assert game.wait_until(healed, seconds=30, step=2), gauge
         game.screenshot().convert("RGB").save(tmp_path / "sol.png")
-        print("gauge", gauge[-5:], "screenshot:", tmp_path)
+        # the foe's bar stops falling, then Seth's rises: no long pause between them (Nosferatu's wait is 0x54 frames)
+        last_fall = max(k for k in range(1, len(foe)) if foe[k] < foe[k - 1])
+        pause = 2 * (len(gauge) - 1 - last_fall)
+        print("gauge", gauge[-5:], "pause", pause, "frames; screenshot:", tmp_path)
+        assert pause < 60
 
 
 def test_triggered_skill_icon_in_map_battle(tmp_path):

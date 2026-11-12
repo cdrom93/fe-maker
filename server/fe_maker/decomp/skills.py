@@ -1675,7 +1675,7 @@ void StartSkillIconMapFem(ProcPtr parent)
     start = "void StartBattleAnimHitEffects(struct Anim *anim, int type, int a, int b)\n{"
     utils = _replace(_read(files, decomp_dir, rel), start,
                      "void StatusHitFem(struct Anim* anim, struct Anim* foe); /* FE Maker: skills.py, in bmbattle.c */\n"
-                     "int DrainHitFem(struct Anim* anim);\n\n"
+                     "int DrainHitFem(struct Anim* anim);\nvoid NewEfxHpBarDrainFem(struct Anim* anim);\n\n"
                      + start, rel)
     utils = _replace(utils, "    case EKR_HITTED:\n        roundt1 = GetRoundFlagByAnim(animr7);\n",
                      "    case EKR_HITTED:\n        StatusHitFem(anim, animr7); /* FE Maker: skills */\n"
@@ -1683,10 +1683,80 @@ void StartSkillIconMapFem(ProcPtr parent)
     out[rel] = _replace(utils, "        if (val1 != val2) {\n            NewEfxHpBar(animr5);\n",
                         "        if (val1 != val2) {\n"
                         "            if (DrainHitFem(anim)) /* FE Maker: Sol, Aether (ticket 44) */\n"
-                        "                NewEfxHpBarResire(animr5);\n"
+                        "                NewEfxHpBarDrainFem(animr5);\n"
                         "            else\n"
                         "                NewEfxHpBar(animr5);\n", rel)
+    out.update(_drain_bars(decomp_dir, files))
     return out
+
+
+def _drain_bars(decomp_dir: Path, files: dict) -> dict:
+    """Ticket 44: a drain without Nosferatu (Sol, Aether) uses Nosferatu's HP bars (the foe's, then the attacker's), at
+    a plain hit's pace: Nosferatu's wait for its spell (0x54 frames before the attacker's bar) paused the battle. The
+    script is a copy of the game's as it is in the file (with the battle numbers' step when that option is on)."""
+    rel = "src/banim-efxhpbar.c"
+    bar = _read(files, decomp_dir, rel)
+    start = bar.find("CONST_DATA struct ProcCmd ProcScr_EfxHpBarResire[] = {\n")
+    if start < 0:
+        raise SkillError(f"Skills: {rel} does not match this version of the decomp (efxHPBarResire)")
+    script = bar[start:bar.index("};\n", start) + 3]
+    wait = "    PROC_REPEAT(EfxHpBarResire_WaitOnCurrentSide),\n"
+    if script.count(wait) != 1:
+        raise SkillError(f"Skills: {rel} does not match this version of the decomp (efxHPBarResire)")
+    script = (script.replace("CONST_DATA struct ProcCmd ProcScr_EfxHpBarResire[]",
+                             "static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]")
+              .replace('PROC_NAME("efxHPBarResire")', 'PROC_NAME("efxHPBarDrainFem")')
+              .replace(wait, "    PROC_REPEAT(EfxHpBarDrainWaitFem),\n"))
+    return {rel: bar + """
+/* FE Maker (skills.py, ticket 44): Sol's and Aether's HP bars, Nosferatu's at a plain hit's pace (efxHPBar's 0x1E) */
+static void EfxHpBarDrainWaitFem(struct ProcEfxHpBar * proc)
+{
+    if (proc->finished == false)
+    {
+        if (++proc->timer == 2)
+        {
+            proc->timer = 0;
+            proc->cur += proc->diff;
+            gEkrGaugeHp[GetAnimPosition(proc->anim_main_this)] += proc->diff;
+
+            if (proc->cur == proc->next)
+                proc->finished = true;
+        }
+    }
+
+    if (proc->timer2 == 0x1E && proc->finished == true)
+    {
+        gEfxHpLutOff[GetAnimPosition(proc->anim_main_this)]++;
+        gEkrHitNow[GetAnimPosition(proc->anim_main_this)] = 0;
+
+        if (proc->next == 0)
+            proc->death = true;
+
+        proc->timer = 0;
+        proc->cur = 10;
+        gEfxHpBarResireFlag = 1;
+
+        Proc_Break(proc);
+        return;
+    }
+
+    if (++proc->timer2 >= 0x1Eu)
+        proc->timer2 = 0x1E;
+}
+
+""" + script + """
+void NewEfxHpBarDrainFem(struct Anim * anim)
+{
+    ProcPtr proc;
+
+    if (gEkrHpBarCount != 0)
+        return;
+    NewEfxHpBarResire(anim);
+    proc = Proc_Find(ProcScr_EfxHpBarResire);
+    if (proc)
+        Proc_GotoScript(proc, ProcScr_EfxHpBarDrainFem);
+}
+"""}
 
 
 MENU_SKILL = "0x02028E3C"   # free RAM after Galeforce's: the menu command whose targets are being listed
