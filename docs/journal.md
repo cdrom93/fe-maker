@@ -276,3 +276,5 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 12/11/2026 : tri de 15 ressources FEU (à intégrer, référence, sans intérêt) dans docs/ressources.md, renvoi au cahier §7.
 - 12/11/2026 : tri des listes « awesome », dont awesome-gbadev en premier (mGBA, SkyEmu, câble link, klo-gba.js, GBATEK), puis musique dans le navigateur, tests Playwright, recherche, graphismes GBA, traductions, dans docs/ressources.md.
 - 12/11/2026 : ticket #50 : malus en rouge à l'écran de statut (sa demande), plus en gris.
+- 12/11/2026 : ticket #51 : barres de PV et bulle écrites sur le portrait du message de sauvegarde (tuiles partagées avec l'emplacement 0 des portraits) : plus écrites sous un portrait, rechargées après.
+- 12/11/2026 : compilation native : après un projet avec compétences, un projet sans s'arrêtait (« No rule to make target include/skills_fem.h », listes .dep/*.d périmées) ; sync efface les .d qui citent un fichier supprimé. Retour de Gemini noté au cahier (Après l'alpha) avec mon avis.

@@ -37,6 +37,20 @@ def test_sync_copies_overlay_then_restores_decomp(tmp_path):
     assert not (work / "sound/songs/midi/song1_fem_x.mid").exists()
 
 
+def test_sync_forgets_dependencies_on_a_removed_header(tmp_path):
+    """A header only the previous project added (skills_fem.h): the .d files naming it go, make writes them again."""
+    decomp, work, overlay = tmp_path / "decomp", tmp_path / "work", tmp_path / "overlay"
+    write(decomp / "src/a.c", "original")
+    write(decomp / "src/b.c", "original")
+    write(overlay / "include/skills_fem.h", "numbers")
+    native.sync(decomp, work, overlay)
+    write(work / ".dep/src/a.d", "src/a.o: src/a.c include/eventscript.h \\\n include/skills_fem.h\n")
+    write(work / ".dep/src/b.d", "src/b.o: src/b.c include/global.h\n")
+    native.sync(decomp, work, None)
+    assert not (work / "include/skills_fem.h").exists()
+    assert not (work / ".dep/src/a.d").exists() and (work / ".dep/src/b.d").is_file()
+
+
 def test_sync_leaves_unchanged_files_alone(tmp_path):
     decomp, work = tmp_path / "decomp", tmp_path / "work"
     write(decomp / "src/a.c", "same")
@@ -123,3 +137,11 @@ def test_banim_link_reads_the_script_and_names_labels_like_the_original(tmp_path
     assert banim_link.label_for("graphics/a.agbpal.lz") == "a_agbpal"
     assert banim_link.label_for("data/a_motion.o.bin.lz") == "a_motion_o"
     assert banim_link.label_for("data/a_modes.bin") == "a_modes_bin"
+
+
+def test_a_missing_header_in_the_log_forgets_its_dependency_lists(tmp_path):
+    """A working copy left with stale lists (#51): make's "No rule to make target" names the file to forget."""
+    write(tmp_path / ".dep/src/a.d", "src/a.o: src/a.c include/skills_fem.h\n")
+    log = "make: *** No rule to make target 'include/skills_fem.h', needed by 'src/a.o'.  Stop.\n"
+    native._forget_dependencies(tmp_path, set(native._NO_RULE.findall(log)))
+    assert not (tmp_path / ".dep/src/a.d").exists()

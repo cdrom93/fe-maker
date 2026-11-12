@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -175,6 +176,22 @@ def _files(root: Path) -> list[Path]:
     return found
 
 
+_NO_RULE = re.compile(r"No rule to make target '([^']+)', needed by '[^']+\.o'")
+
+
+def _forget_dependencies(work: Path, gone: set[str]) -> None:
+    """The C files' dependency lists (.dep/*.d) naming a removed file are deleted, for make to write them again: they
+    are remade only when their C file changes, and a header gone (skills_fem.h, included by eventscript.h, without the
+    skills) otherwise stops the build with "No rule to make target" (ticket 51's playtest)."""
+    names = [name.encode() for name in gone if not name.endswith(".d")]
+    if not names or not (work / ".dep").is_dir():
+        return
+    for deps in (work / ".dep").rglob("*.d"):
+        text = deps.read_bytes()
+        if any(name in text for name in names):
+            deps.unlink()
+
+
 def sync(decomp: Path, work: Path, overlay: Path | None) -> int:
     """Like `rsync --checksum` of the decomp then of the overlay (entrypoint.sh): only files whose content differs
     are copied. A decomp file is compared by content only when it may differ: newer than its copy, or written by the
@@ -190,9 +207,12 @@ def sync(decomp: Path, work: Path, overlay: Path | None) -> int:
         copied += _copy_if_changed(decomp / relative, work / relative, relative.as_posix() in previous)
     for relative in overlay_files:
         copied += _copy_if_changed(overlay / relative, work / relative, True)
-    for name in previous:   # a file only the previous project added (an imported song, animation...)
+    gone = set()
+    for name in previous:   # a file only the previous project added (an imported song, animation, header...)
         if Path(name) not in overlay_files and not (decomp / name).exists():
             (work / name).unlink(missing_ok=True)
+            gone.add(name)
+    _forget_dependencies(work, gone)
     record.write_text("\n".join(sorted(p.as_posix() for p in overlay_files)), encoding="utf-8")
     return copied
 
@@ -260,6 +280,8 @@ def build(rom: Path, out_dir: Path, decomp: Path, overlay: Path | None = None, b
             say(line)
         if process.wait() == 0:
             break
+        # a dependency list naming a file gone in an earlier build (#51): forget those lists, then the retry rewrites them
+        _forget_dependencies(work, set(_NO_RULE.findall("".join(log))))
     else:
         raise NativeBuildError("".join(log[-40:]))
     rom_out = work / "fireemblem8.gba"

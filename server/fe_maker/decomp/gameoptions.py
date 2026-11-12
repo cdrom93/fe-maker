@@ -168,14 +168,19 @@ def _menu_line(label: int, on_help: int) -> str:
 # 16 x 8 pictures in free object tiles (rows 0 and 1, from column 0x12), drawn at each load of the map's object
 # graphics; colors of the first object palette. Under the windows (object layer 2, as the units), ticket 114.
 _OBJ_UI_LOAD = "void LoadObjUIGfx(void) {\n"
-_OBJ_UI_LOAD_BARS = """int IsBattleDeamonActive(void);
+_OBJ_UI_LOAD_BARS = """#include "face.h"
+
+int IsBattleDeamonActive(void);
 
 /* FE Maker: the HP bars' tiles */
-static void FemLoadHpBars(void) {
+void FemLoadHpBars(void) {
     int length, x;
 
     if (IsBattleDeamonActive())
         return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
+    for (x = 0; x < FACE_SLOT_COUNT; ++x)
+        if (gFaces[x])
+            return; /* a portrait's tiles sit on these (slot 0 at 0x300, ticket 51): reloaded once it is gone */
 
     for (length = 1; length <= 11; ++length) {
         u32 fill[2] = { 0, 0 };
@@ -201,6 +206,8 @@ void LoadObjUIGfx(void) {
 _ICONS = "void PutUnitSpriteIconsOam(void)\n{\n"
 _ICONS_BARS = """#include "face.h"
 
+void FemLoadHpBars(void);
+
 /* FE Maker: a bar under a wounded unit */
 static void FemPutHpBar(struct Unit * unit)
 {
@@ -211,6 +218,8 @@ static void FemPutHpBar(struct Unit * unit)
     for (i = 0; i < FACE_SLOT_COUNT; ++i)
         if (gFaces[i])
             return; /* a portrait is shown: the bar would cover it (ticket 161) */
+    if (((u32*) (0x06010000 + 0x342 * 0x20))[4] != 0xFFFFFFF0)
+        FemLoadHpBars(); /* a portrait took the bars' tiles (ticket 51): the first bar's top border is gone */
 
     if (x < -16 || x > DISPLAY_WIDTH || y < -16 || y > DISPLAY_HEIGHT)
         return;
@@ -235,7 +244,8 @@ _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
 # in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. HP bars and bubble sit in object tiles
 # 0x340-0x37F, which nothing uses on the map (ticket 142: the weathers' particles take 0x12-0x7F of the first rows).
 # A battle animation puts its right fighter's sheet on 0x300-0x3FF, and its talks (battle quotes) reload the object UI
-# graphics: the tiles are not written while one runs (ticket 161).
+# graphics: the tiles are not written while one runs (ticket 161). A portrait (face slot 0, 0x300-0x3FF) too: not
+# written under one, reloaded at the first frame without one (ticket 51).
 # Colors of the first object palette: # border, y yellow, d dark.
 _BUBBLE = ("...########.....", "..#yyyyyyyy#....", ".#yyyyyyyyyy#...", ".#yydyydyydy#...",
            ".#yyyyyyyyyy#...", "..#yyyyyyyy#....", "...####yy###....", ".....#yy#.......",
@@ -255,17 +265,25 @@ def _bubble_tiles() -> str:
     return "".join(tiles)
 
 
+
+_BUBBLE_ROW = _bubble_tiles().split(", ")[1]   # its first tile's row 1: written by FemLoadBubble
+
 _OBJ_UI_LOAD_BUBBLE = """/* FE Maker: the talk bubble's tiles */
 static const u32 sFemBubble[4][8] = {
 """ + _bubble_tiles() + """};
 
+#include "face.h"
+
 int IsBattleDeamonActive(void);
 
-static void FemLoadBubble(void) {
+void FemLoadBubble(void) {
     int tile, y;
 
     if (IsBattleDeamonActive())
         return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
+    for (y = 0; y < FACE_SLOT_COUNT; ++y)
+        if (gFaces[y])
+            return; /* a portrait's tiles sit on these (ticket 51): reloaded once it is gone */
 
     for (tile = 0; tile < 4; ++tile)
         for (y = 0; y < 8; ++y)
@@ -277,6 +295,8 @@ _ICONS_BUBBLE = """#include "eventinfo.h"
 #include "face.h"
 #include "bmreliance.h"
 
+void FemLoadBubble(void);
+
 /* FE Maker: a bubble on a unit the selected one can talk to, or support with */
 static void FemPutBubble(struct Unit * unit)
 {
@@ -287,6 +307,8 @@ static void FemPutBubble(struct Unit * unit)
     for (i = 0; i < FACE_SLOT_COUNT; ++i)
         if (gFaces[i])
             return; /* a portrait is shown: the bubble would cover it (ticket 161) */
+    if (((u32*) (0x06010000 + """ + str(_BUBBLE_TILE) + """ * 0x20))[1] != """ + _BUBBLE_ROW + """)
+        FemLoadBubble(); /* a portrait took the bubble's tiles (ticket 51) */
     if (!gActiveUnit || gActiveUnit == unit || !(gActiveUnit->state & US_HIDDEN)
         || UNIT_FACTION(gActiveUnit) != FACTION_BLUE || !gActiveUnit->pCharacterData)
         return;

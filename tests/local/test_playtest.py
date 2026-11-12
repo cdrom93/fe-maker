@@ -1509,6 +1509,12 @@ def test_hp_bars_hide_under_a_portrait(tmp_path):
         game.press("UP", wait=15)
         game.press("A", wait=120)      # Suspend: a portrait asks whether to quit
         game.screenshot().save(tmp_path / "face.png")
+        bar_row = 0x06010000 + 0x342 * 0x20 + 16   # the first bar's top border, in tiles a portrait shares (ticket 51)
+        assert game.read(bar_row, width=32) != 0xFFFFFFF0, "the bars' tiles were written over the portrait"
+        game.press("B", wait=30)
+        game.press("B", wait=120)      # No: the portrait leaves, the bars' tiles come back
+        game.screenshot().save(tmp_path / "after.png")
+        assert game.read(bar_row, width=32) == 0xFFFFFFF0
         print("screenshots:", tmp_path)
 
 
