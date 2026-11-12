@@ -300,6 +300,7 @@ Choix de l'utilisateur :
 - [gba-recomp](https://github.com/JRickey/gba-recomp) et [FFTARecomp](https://github.com/Jorge262007/FFTARecomp) : recompilation statique, piste principale de la phase 7.
 - [Fork de FEBuilderGBA par laqieer](https://github.com/laqieer/FEBuilderGBA) (GPL-3.0, archivé) : version multiplateforme, ligne de commande, prise en charge de la décomp en aperçu, tests en jeu sans fenêtre.
 - [REA](https://github.com/morluto/rea) (MIT) : rétro-ingénierie pilotée par des agents IA (Ghidra, IDA, Hopper), utile au **développement** pour les 6,7 % de données encore binaires. Prudence : popularité affichée inhabituelle, et son README met en garde contre les copies non officielles. À n'installer qu'après vérification, depuis sa source officielle.
+- Ressources FEU triées le 12/11/2026 (C-SkillSys 3.3, ASM de Vesly, Modular Minimug Box, sorts au format CSA, PR « shiftability » de la décomp…) : `docs/ressources.md`.
 
 ---
 
