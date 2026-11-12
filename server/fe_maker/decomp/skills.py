@@ -1079,24 +1079,37 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     return _include_numbers(files)
 
 
-_MALUS_PATCHES = {
-    "src/fontgrp.c": ("    if (number == 0)\n        return;\n\n",
-                      "    if (number == 0)\n        return;\n\n"
-                      "    if (number < 0) { /* FE Maker: a malus */\n"
-                      "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
-                      "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
-                      "        return;\n    }\n\n"),
-    "src/statscreen.c": ("    DrawStatBarGfx(0x401 + num*6, 6,\n",
-                         "    if (diff < 0) { /* FE Maker: a malus, the bar shows the total */\n"
-                         "        base = total;\n        diff = 0;\n    }\n\n"
-                         "    DrawStatBarGfx(0x401 + num*6, 6,\n"),
-}
+_STAT_BAR = "void DrawStatWithBar(int num, int x, int y, int base, int total, int max)\n{\n"
+_MALUS_PALETTE = "    ApplyPalette(Pal_StatscreenEquipmentText, STATSCREEN_BGPAL_EQUIPMENT_LABEL);\n"
+_MALUS_PATCHES = [
+    ("src/fontgrp.c", "    if (number == 0)\n        return;\n\n",
+     "    if (number == 0)\n        return;\n\n"
+     "    if (number < 0) { /* FE Maker: a malus, drawn in the gray group (the status screen turns it red) */\n"
+     "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
+     "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
+     "        return;\n    }\n\n"),
+    # red: the gray group's colors 4-6 in a free palette (10), red as the MSS Display Growths options' lowest step
+    ("src/statscreen.c", _STAT_BAR,
+     "/* FE Maker: a malus in red (ticket 50), palette 10 being free on this screen */\n"
+     "#define STATSCREEN_BGPAL_MALUS_FEM 10\n"
+     "static const u16 sMalusColorsFem[16] = { 0, 0, 0, 0, 0x3133, 0x211F, 0x106A };\n\n" + _STAT_BAR),
+    ("src/statscreen.c", _MALUS_PALETTE,
+     _MALUS_PALETTE + "    ApplyPalette(sMalusColorsFem, STATSCREEN_BGPAL_MALUS_FEM); /* FE Maker: a malus in red */\n"),
+    ("src/statscreen.c", "    DrawStatBarGfx(0x401 + num*6, 6,\n",
+     "    if (diff < 0) { /* FE Maker: a malus in red, the bar shows the total */\n"
+     "        u16* tm = gUiTmScratchA + TILEMAP_INDEX(x + 1, y);\n        int i;\n\n"
+     "        for (i = 0; i <= (diff <= -10 ? 2 : 1); i++) {\n"
+     "            tm[i] = (tm[i] & 0xFFF) | (STATSCREEN_BGPAL_MALUS_FEM << 12);\n"
+     "            tm[i + 0x20] = (tm[i + 0x20] & 0xFFF) | (STATSCREEN_BGPAL_MALUS_FEM << 12);\n        }\n"
+     "        base = total;\n        diff = 0;\n    }\n\n"
+     "    DrawStatBarGfx(0x401 + num*6, 6,\n"),
+]
 
 
 def show_malus(files: dict, read) -> None:
-    """The status screen shows a malus too, "-N" in gray, the bar down to the total: the game draws bonuses only (a -3
+    """The status screen shows a malus too, "-N" in red, the bar down to the total: the game draws bonuses only (a -3
     read "+7", ticket 50). For the items' temporary bonuses and the skills; written once. `read(rel)`: the file now."""
-    for rel, (old, new) in _MALUS_PATCHES.items():
+    for rel, old, new in _MALUS_PATCHES:
         text = read(rel)
         if new not in text:
             files[rel] = _replace(text, old, new, rel)

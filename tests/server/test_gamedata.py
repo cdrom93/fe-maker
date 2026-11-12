@@ -330,7 +330,9 @@ def test_a_pure_water_copy_can_raise_another_stat_for_a_few_turns(decomp_dir):
                                   "            unit->barrierDuration--;\n}\n",
         "src/bmio.c": "void Reset(struct Unit* unit) {\n            unit->barrierDuration = 0;\n}\n",
         "src/fontgrp.c": "void PutNumberBonus(int number, u16 *tm)\n{\n    if (number == 0)\n        return;\n\n}\n",
-        "src/statscreen.c": "void DrawStatWithBar(void)\n{\n    DrawStatBarGfx(0x401 + num*6, 6,\n        0);\n}\n",
+        "src/statscreen.c": "void DrawStatWithBar(int num, int x, int y, int base, int total, int max)\n{\n"
+                            "    DrawStatBarGfx(0x401 + num*6, 6,\n        0);\n}\n"
+                            "    ApplyPalette(Pal_StatscreenEquipmentText, STATSCREEN_BGPAL_EQUIPMENT_LABEL);\n",
         "src/bmsave.c": "void WriteSuspendSave(int slot)\n{\n    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n}\n"
                         "void ReadSuspendSave(int slot)\n{\n"
                         "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n}\n",
