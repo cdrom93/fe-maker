@@ -34,6 +34,7 @@ from . import (
     prep,
     quotes,
     seize,
+    skills,
     story,
     supports,
     tileedit,
@@ -2462,16 +2463,7 @@ class DecompData:
         patch("src/bmio.c", [("            unit->barrierDuration = 0;\n",
                               "            unit->barrierDuration = 0;\n            SET_TEMP_BONUSES_FEM(unit, 0);\n")])
         # the status screen shows a malus too: "-N" in gray, the bar down to the total (the game shows bonuses only)
-        patch("src/fontgrp.c", [("    if (number == 0)\n        return;\n\n",
-                                  "    if (number == 0)\n        return;\n\n"
-                                  "    if (number < 0) { /* FE Maker: a malus */\n"
-                                  "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
-                                  "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
-                                  "        return;\n    }\n\n")])
-        patch("src/statscreen.c", [("    DrawStatBarGfx(0x401 + num*6, 6,\n",
-                                    "    if (diff < 0) { /* FE Maker: a malus, the bar shows the total */\n"
-                                    "        base = total;\n        diff = 0;\n    }\n\n"
-                                    "    DrawStatBarGfx(0x401 + num*6, 6,\n")])
+        skills.show_malus(out, lambda rel: out.get(rel) or self._read(rel))
         patch("src/bmsave.c", [
             ("void WriteSuspendSave(int slot)\n{", TEMP_BONUS_SAVE.lstrip("\n") + "void WriteSuspendSave(int slot)\n{"),
             ("    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n",

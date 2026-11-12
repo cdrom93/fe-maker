@@ -272,4 +272,5 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 10/11/2026 : audit : code de l'arène en lien de FE8 (src/sio_*.c), base possible du mode 2 joueurs (#14).
 - 10/11/2026 : cahier : mode 2 joueurs (#14), vraie GBA et jeu en ligne par échange des ordres.
 - 10/11/2026 : cahier : premier tag juste avant le test fermé.
+- 12/11/2026 : ticket #50 : le malus d'une compétence (Fortress, -3 en Force et Magie) s'affichait « +7 » à l'écran de statut ; il s'écrit « -3 » en gris (code partagé avec les bonus temporaires) et les stats ne descendent plus sous 0.
 - 12/11/2026 : tri de 15 ressources FEU (à intégrer, référence, sans intérêt) dans docs/ressources.md, renvoi au cahier §7.

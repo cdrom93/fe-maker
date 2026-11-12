@@ -55,6 +55,7 @@ piège dans sa section.
 - Une arme de contact à portée 2 frappe de loin seulement si l'animation de la classe appelle le sort dans son mode à distance (`banim.casts_at_range`) : les haches ordinaires ne le font pas, d'où l'avertissement `noRangedAnimation`.
 
 - **Rangs d'armes et montée automatique** : une unité en montée automatique reçoit, pour chaque arme ou bâton qu'elle ne peut pas utiliser, le rang exact que l'objet demande, si elle a déjà un rang dans ce type (`UnitAutolevelWExp`, src/bmunit.c). Ne pas avertir d'un rang trop bas dans ce cas (ticket 157). La portée « Mag/2 » d'un bâton vaut au moins 5 (`GetUnitMagBy2Range`).
+- **Malus de stat à l'écran de statut** : le jeu n'y dessine que des bonus (`PutNumberBonus`) ; un -3 donne le glyphe des gros chiffres « 7 » (« +7 »). Tout nouveau malus (objet, compétence) passe par `skills.show_malus`, et les getters ne doivent pas rendre de valeur négative (ticket 50).
 
 ## Cartes
 

@@ -50,7 +50,7 @@ def test_skills_match_the_decomp(monkeypatch):
     files = skills.apply(DECOMP, {}, characters, classes, texts, False)
     unit = files["src/bmunit.c"]
     assert "    [0x01] = { 1, 4, 2 }," in unit   # StrBonus, Vantage, DefiantSpd: numbered in catalogue order
-    assert "return GetUnitPowerBaseFem(unit) + SkillStatBonusFem(unit, 0);" in unit
+    assert "int value = GetUnitPowerBaseFem(unit) + SkillStatBonusFem(unit, 0);" in unit
     assert "if (defiant && SkillTesterFem(unit, SKILL_FEM_DefiantSpd))" in unit
     assert "GetUnitDefenseBaseFem(unit) +" not in unit   # no Defense skill: its getter stays
     battle = files["src/bmbattle.c"]
@@ -86,6 +86,9 @@ def test_batch_5_passives_see_the_foe_and_several_stats(monkeypatch):
     unit = files["src/bmunit.c"]
     assert "if (full && SkillTesterFem(unit, SKILL_FEM_PushSpeed))\n            bonus += 5;" in unit
     assert "bonus += -3;" in unit and "GetUnitMagicFem" not in unit   # Fortress: Str -3, Def +5, no Magic
+    assert "return value < 0 ? 0 : value;" in unit                    # ticket 50: never under 0
+    screen = files["src/fontgrp.c"] + files["src/statscreen.c"]       # ticket 50: "-3", not "+7"
+    assert "TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH" in screen and "a malus, the bar shows the total" in screen
     battle = files["src/bmbattle.c"]
     calc = battle[battle.index("void ComputeBattleUnitStats("):]
     assert calc.index("ComputeBattleUnitBaseStatsFem(defender, attacker);") < calc.index("ApplyBattleSkillsFem(")

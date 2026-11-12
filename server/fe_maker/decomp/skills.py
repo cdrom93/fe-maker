@@ -965,9 +965,12 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         head = f"int {name}(struct Unit* unit) {{"
         prefix = "inline " if f"inline {head}" in unit else ""
         unit = _replace(unit, prefix + head, (
-            f"{prefix}{head}\n    return {name}BaseFem(unit) + SkillStatBonusFem(unit, {k});\n}}\n\n"
+            f"{prefix}{head}\n    int value = {name}BaseFem(unit) + SkillStatBonusFem(unit, {k});\n\n"
+            f"    return value < 0 ? 0 : value; /* ticket 50: a malus never takes a stat under 0 */\n}}\n\n"
             f"int {name}BaseFem(struct Unit* unit) {{"), rel)
     files[rel] = unit
+    if any(value < 0 for s in skills for _, value in s.stats):   # ticket 50: Fortress's -3 read "+7"
+        show_malus(files, lambda rel_screen: _read(files, decomp_dir, rel_screen))
 
     # bmbattle.c: battle skills after the game's own computations, and the order of the rounds
     rel = "src/bmbattle.c"
@@ -1074,6 +1077,29 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
                           texts, base))
     return _include_numbers(files)
+
+
+_MALUS_PATCHES = {
+    "src/fontgrp.c": ("    if (number == 0)\n        return;\n\n",
+                      "    if (number == 0)\n        return;\n\n"
+                      "    if (number < 0) { /* FE Maker: a malus */\n"
+                      "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
+                      "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
+                      "        return;\n    }\n\n"),
+    "src/statscreen.c": ("    DrawStatBarGfx(0x401 + num*6, 6,\n",
+                         "    if (diff < 0) { /* FE Maker: a malus, the bar shows the total */\n"
+                         "        base = total;\n        diff = 0;\n    }\n\n"
+                         "    DrawStatBarGfx(0x401 + num*6, 6,\n"),
+}
+
+
+def show_malus(files: dict, read) -> None:
+    """The status screen shows a malus too, "-N" in gray, the bar down to the total: the game draws bonuses only (a -3
+    read "+7", ticket 50). For the items' temporary bonuses and the skills; written once. `read(rel)`: the file now."""
+    for rel, (old, new) in _MALUS_PATCHES.items():
+        text = read(rel)
+        if new not in text:
+            files[rel] = _replace(text, old, new, rel)
 
 
 NUMBERS_HEADER = "include/skills_fem.h"
