@@ -1691,70 +1691,122 @@ void StartSkillIconMapFem(ProcPtr parent)
 
 
 def _drain_bars(decomp_dir: Path, files: dict) -> dict:
-    """Ticket 44: a drain without Nosferatu (Sol, Aether) uses Nosferatu's HP bars (the foe's, then the attacker's), at
-    a plain hit's pace: Nosferatu's wait for its spell (0x54 frames before the attacker's bar) paused the battle. The
-    script is a copy of the game's as it is in the file (with the battle numbers' step when that option is on)."""
+    """Ticket 44: a drain without Nosferatu (Sol, Aether): the foe's HP bar falls and the attacker's rises together, as
+    the blow lands (Nosferatu's bars, efxHPBarResire, wait for its spell: one bar after the other, 0x54 frames apart);
+    with the battle numbers option, the "+n" shows at once too."""
     rel = "src/banim-efxhpbar.c"
     bar = _read(files, decomp_dir, rel)
-    start = bar.find("CONST_DATA struct ProcCmd ProcScr_EfxHpBarResire[] = {\n")
-    if start < 0:
-        raise SkillError(f"Skills: {rel} does not match this version of the decomp (efxHPBarResire)")
-    script = bar[start:bar.index("};\n", start) + 3]
-    wait = "    PROC_REPEAT(EfxHpBarResire_WaitOnCurrentSide),\n"
-    if script.count(wait) != 1:
-        raise SkillError(f"Skills: {rel} does not match this version of the decomp (efxHPBarResire)")
-    script = (script.replace("CONST_DATA struct ProcCmd ProcScr_EfxHpBarResire[]",
-                             "static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]")
-              .replace('PROC_NAME("efxHPBarResire")', 'PROC_NAME("efxHPBarDrainFem")')
-              .replace(wait, "    PROC_REPEAT(EfxHpBarDrainWaitFem),\n"))
+    number = ("        NewEfxAnimNumberFem(proc->anim_main_other, *next - *cur); /* the battle numbers' \"+n\" */\n"
+              if "EfxHpBarResireNumberFem" in bar else "")
     return {rel: bar + """
-/* FE Maker (skills.py, ticket 44): Sol's and Aether's HP bars, Nosferatu's at a plain hit's pace (efxHPBar's 0x1E) */
-static void EfxHpBarDrainWaitFem(struct ProcEfxHpBar * proc)
+/* FE Maker (skills.py, ticket 44): Sol's and Aether's HP bars, both at once, at a plain hit's pace (efxHPBar's); the
+   attacker's bar in the proc's free bytes (0x30-0x47): its current HP, target HP, step, timer, done, started */
+static void EfxHpBarDrainBothFem(struct ProcEfxHpBar * proc)
 {
-    if (proc->finished == false)
-    {
-        if (++proc->timer == 2)
-        {
-            proc->timer = 0;
-            proc->cur += proc->diff;
-            gEkrGaugeHp[GetAnimPosition(proc->anim_main_this)] += proc->diff;
+    s16 * other = (s16 *) ((u8 *) proc + 0x30);
+    s16 * cur = &other[0], * next = &other[1], * diff = &other[2], * timer = &other[3], * done = &other[4];
+    struct Anim * anim_f = gAnims[GetAnimPosition(proc->anim_main_this) * 2];
+    struct Anim * anim_b = gAnims[GetAnimPosition(proc->anim_main_this) * 2 + 1];
+    int side = GetAnimPosition(proc->anim_main_other);
 
-            if (proc->cur == proc->next)
-                proc->finished = true;
-        }
+    if (other[5] == 0)
+    {
+        other[5] = 1;
+        *cur = GetEfxHp(gEfxHpLutOff[side] * 2 + side);
+        *next = GetEfxHp((gEfxHpLutOff[side] + 1) * 2 + side);
+        *diff = *cur > *next ? -1 : 1;
+        *timer = 0;
+        *done = *cur == *next;
+        gEkrHitNow[side] = 2;
+""" + number + """    }
+
+    if (proc->finished == false && ++proc->timer == 2)
+    {
+        proc->timer = 0;
+        proc->cur += proc->diff;
+        gEkrGaugeHp[GetAnimPosition(proc->anim_main_this)] += proc->diff;
+        if (proc->cur == proc->next)
+            proc->finished = true;
     }
 
-    if (proc->timer2 == 0x1E && proc->finished == true)
+    if (*done == false && ++*timer == 2)
+    {
+        *timer = 0;
+        *cur += *diff;
+        gEkrGaugeHp[side] += *diff;
+        EfxPlaySE(SONG_75, 0x100);
+        M4aPlayWithPostionCtrl(SONG_75, gAnims[side * 2]->xPosition, 1);
+        if (*cur == *next)
+            *done = true;
+    }
+
+    if (proc->timer2 == 0x1E && proc->finished == true && *done == true)
     {
         gEfxHpLutOff[GetAnimPosition(proc->anim_main_this)]++;
         gEkrHitNow[GetAnimPosition(proc->anim_main_this)] = 0;
+        gEfxHpLutOff[side]++;
+        gEkrHitNow[side] = 0;
 
-        if (proc->next == 0)
-            proc->death = true;
+        if (proc->next == 0)   /* as efxHPBar */
+        {
+            int ret;
+            if (GetBanimLinkArenaFlag() == true)
+                ret = 0;
+            else
+                ret = CheckBattleDefeatTalk(gEkrPids[GetAnimPosition(anim_f)]);
 
-        proc->timer = 0;
-        proc->cur = 10;
-        gEfxHpBarResireFlag = 1;
+            if (ret == true)
+                NewEfxDeadEvent(anim_f, anim_b);
+            else
+            {
+                PlayDeathSoundForArena();
+                NewEfxDead(anim_f, anim_b);
+                gBanimValid[GetAnimPosition(proc->anim_main_this)] = false;
+            }
+        }
 
         Proc_Break(proc);
         return;
     }
 
-    if (++proc->timer2 >= 0x1Eu)
+    if (++proc->timer2 >= 0x1E)
         proc->timer2 = 0x1E;
 }
 
-""" + script + """
+static const struct ProcCmd ProcScr_EfxHpBarDrainFem[] = {
+    PROC_NAME("efxHPBarDrainFem"),
+    PROC_REPEAT(EfxHpBarDrainBothFem),
+    PROC_REPEAT(EfxHpBar_MoveCameraOnEnd),
+    PROC_REPEAT(EfxHpBar_WaitCameraMove),
+    PROC_END
+};
+
+/* as NewEfxHpBar (the unit hit: anim), with the attacker's bar too */
 void NewEfxHpBarDrainFem(struct Anim * anim)
 {
-    ProcPtr proc;
+    struct ProcEfxHpBar * proc;
+    int i;
 
     if (gEkrHpBarCount != 0)
         return;
-    NewEfxHpBarResire(anim);
-    proc = Proc_Find(ProcScr_EfxHpBarResire);
-    if (proc)
-        Proc_GotoScript(proc, ProcScr_EfxHpBarDrainFem);
+
+    gEkrHpBarCount = 1;
+
+    proc = Proc_Start(ProcScr_EfxHpBarDrainFem, PROC_TREE_3);
+    proc->anim_this = anim;
+    proc->anim_main_this = gAnims[GetAnimPosition(anim) * 2];
+    proc->anim_main_other = gAnims[(1 - GetAnimPosition(anim)) * 2];
+    proc->this = GetEfxHp(gEfxHpLutOff[GetAnimPosition(anim)] * 2 + GetAnimPosition(anim));
+    proc->next = GetEfxHp((gEfxHpLutOff[GetAnimPosition(anim)] + 1) * 2 + GetAnimPosition(anim));
+    proc->diff = proc->this > proc->next ? -1 : 1;
+    proc->death = false;
+    proc->timer = 0;
+    proc->cur = proc->this;
+    proc->timer2 = 0;
+    proc->finished = false;
+    for (i = 0; i < 12; i++)
+        ((s16 *) ((u8 *) proc + 0x30))[i] = 0;
+    gEkrHitNow[GetAnimPosition(anim)] = 1;
 }
 """}
 
