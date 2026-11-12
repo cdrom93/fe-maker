@@ -54,6 +54,7 @@ def test_skills_match_the_decomp(monkeypatch):
     assert "if (defiant && SkillTesterFem(unit, SKILL_FEM_DefiantSpd))" in unit
     assert "GetUnitDefenseBaseFem(unit) +" not in unit   # no Defense skill: its getter stays
     battle = files["src/bmbattle.c"]
+    assert battle.count("CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM);") == 2   # each battle, each item use
     assert "ApplyBattleSkillsFem(attacker, defender);" in battle and "attacker->battleSpeed += 6;" in battle
     assert "SkillTesterFem(&(t)->unit, SKILL_FEM_Vantage)" in battle and "BattleDoublesFem(a)" in battle
     assert "#define DrawnIconLookupTable ((struct IconStruct*) 0x02028900)" in files["src/icon.c"]

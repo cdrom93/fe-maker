@@ -1042,6 +1042,12 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                       "void BattleUnwind(void) {\n    ClearBattleHits();\n"
                       "    CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM);\n"
                       f"    CpuFill16(0, (void*) {STATUS_HITS}, BATTLE_HIT_MAX + 1);\n", rel)
+    # an item's or a staff's map animation goes through the same rounds: without this, the last battle's skills
+    # showed again when a unit used an item (ticket 48)
+    battle = _replace(battle, "    gBattleTarget.statusOut = -1;\n\n    ClearBattleHits();\n}",
+                      "    gBattleTarget.statusOut = -1;\n\n    ClearBattleHits();\n"
+                      "    CpuFill16(0, (void*) sSkillShownFem, SKILL_SHOWN_SIZE_FEM); /* FE Maker (ticket 48) */\n"
+                      f"    CpuFill16(0, (void*) {STATUS_HITS}, BATTLE_HIT_MAX + 1);\n}}", rel)
     files[rel] = battle
 
     # icons: after the game's, their lookup table in free RAM
