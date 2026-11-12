@@ -139,14 +139,6 @@
     navigator.open(place.tab, place.id || null)
   }
 
-  /** The mouse's "forward" side button and Alt + right arrow (ticket 36): the guard entry leaves the browser no
-   * forward page, so they are caught here. */
-  function onMouseUp(e: MouseEvent) {
-    if (e.button !== 4) return
-    e.preventDefault()
-    forward()
-  }
-
   async function save(kind: DataKind, data: unknown) {
     problems = (await api.saveData(kind, data)).problems
   }
@@ -295,17 +287,28 @@
     if (fileMenu.project === commands) fileMenu.project = null
   })
 
-  /** The browser's own "back" (the mouse's side button, Alt + left arrow, ticket 36) is "Back": a guard entry in the
-   * page's history catches it, so the page is never left; it is put back after each use. */
-  const GUARD = { feMakerBack: true }
-  function armBack() {
-    if (!history.state?.feMakerBack) history.pushState(GUARD, '')
+  /** The browser's own "back" and "forward" (the mouse's side buttons, Alt + arrows, ticket 36) are "Back" and
+   * "Forward": the page sits on a middle entry of its history, between two guard entries; going to either one calls
+   * Back or Forward, then the browser is sent back to the middle one, so the page is never left. (The forward
+   * button's own mouse event does not reach the page in every browser.) */
+  function armHistory() {
+    if (history.state?.feMaker === 'middle') return
+    history.replaceState({ feMaker: 'back' }, '')
+    history.pushState({ feMaker: 'middle' }, '')
+    history.pushState({ feMaker: 'forward' }, '')
+    history.back()
   }
-  function onPopState() {
-    armBack()
-    back()
+  function onPopState(e: PopStateEvent) {
+    const at = e.state?.feMaker
+    if (at === 'back') {
+      history.forward()
+      back()
+    } else if (at === 'forward') {
+      history.back()
+      forward()
+    }
   }
-  onMount(armBack)
+  onMount(armHistory)
 
   function onKey(e: KeyboardEvent) {
     if (fileMenu.keysOpen || identity || !(e.ctrlKey || e.metaKey)) return
@@ -323,8 +326,7 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); forward() } else onKey(e) }}
-               onpopstate={onPopState} onmouseup={onMouseUp} />
+<svelte:window onkeydown={onKey} onpopstate={onPopState} />
 
 
 <div class="toolbar">

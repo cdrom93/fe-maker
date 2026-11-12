@@ -1088,11 +1088,12 @@ _MALUS_PATCHES = [
      "        PutSpecialChar(tm, TEXT_COLOR_SYSTEM_GRAY, TEXT_SPECIAL_DASH);\n"
      "        PutNumberSmall(tm + ((number <= -10) ? 2 : 1), TEXT_COLOR_SYSTEM_GRAY, -number);\n"
      "        return;\n    }\n\n"),
-    # red: the gray group's colors 4-6 in a free palette (10), red as the MSS Display Growths options' lowest step
+    # red: the gray group's colors 4-6 in a free palette (10), the bonus green's three colors (text palette 13-15:
+    # main, highlight, shadow) turned red, so a malus looks like a bonus
     ("src/statscreen.c", _STAT_BAR,
      "/* FE Maker: a malus in red (ticket 50), palette 10 being free on this screen */\n"
      "#define STATSCREEN_BGPAL_MALUS_FEM 10\n"
-     "static const u16 sMalusColorsFem[16] = { 0, 0, 0, 0, 0x3133, 0x211F, 0x106A };\n\n" + _STAT_BAR),
+     "static const u16 sMalusColorsFem[16] = { 0, 0, 0, 0, 0x18F8, 0x6F7F, 0x0C6B };\n\n" + _STAT_BAR),
     ("src/statscreen.c", _MALUS_PALETTE,
      _MALUS_PALETTE + "    ApplyPalette(sMalusColorsFem, STATSCREEN_BGPAL_MALUS_FEM); /* FE Maker: a malus in red */\n"),
     # "\n" first: the growth rates' branch (ticket 166) has the same call, further indented
