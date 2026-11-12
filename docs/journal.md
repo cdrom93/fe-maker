@@ -280,3 +280,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 12/11/2026 : compilation native : après un projet avec compétences, un projet sans s'arrêtait (« No rule to make target include/skills_fem.h », listes .dep/*.d périmées) ; sync efface les .d qui citent un fichier supprimé. Retour de Gemini noté au cahier (Après l'alpha) avec mon avis.
 - 12/11/2026 : #50 : la compilation échouait avec les taux de croissance à l'écran de statut (ligne de la barre présente deux fois) ; ancre rendue unique, test ajouté.
 - 12/11/2026 : ticket #43 : réglage « Bâtons et danses animés » dans les réglages d'une nouvelle partie, visible avec la ligne Staff & Dance du menu du jeu.
+- 12/11/2026 : tickets idée et question #54-#68 notés au cahier (Après l'alpha) avec mon avis, puis fermés ; #67 ajouté aux patchs de confort.

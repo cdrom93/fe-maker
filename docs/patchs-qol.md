@@ -83,3 +83,4 @@ Ensuite : barres de PV sur la carte, mode débutant, barre d'expérience et gain
 2. Statistiques des armes de monstre (`SYSTEM/Monster Weapon display fix`).
 3. Correctifs « #ESSENTIAL » de FEBuilder : les trier un par un (bug du jeu d'origine ou simple avis), faire ceux qui corrigent un vrai bug, cochés d'office.
 4. Ensuite : sauvegarde en début de tour en option réglable par le joueur ; unités obligatoires déplaçables unité par unité pendant la préparation.
+- Voir les ennemis qui lâchent un objet (ticket #67, demande de l'utilisateur du 10/11/2026) : une icône sur l'unité qui porte un objet à lâcher ; chercher le patch existant (FEBuilder, Skill System) avant de l'écrire.
