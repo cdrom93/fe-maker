@@ -349,8 +349,9 @@ def test_a_malus_with_the_growth_rates(monkeypatch):
     assert screen.index("if (growth >= 0)", start) < screen.index("if (diff < 0)", start)
 
 
-def test_drain_hp_bars_move_together():
-    """Ticket 44: Sol's drain: the foe's bar falls and the attacker's rises in one proc, as the blow lands."""
+def test_drain_hp_bars_without_nosferatus_wait():
+    """Ticket 44: Sol's drain shows Nosferatu's HP bars (the foe's, then the attacker's), from a copy of their script
+    without the wait for Nosferatu's spell (C-SkillSys's BanimHpDrainFix)."""
     from fe_maker.decomp import battlenumbers
 
     if not (DECOMP / "src/banim-efxhpbar.c").is_file():
@@ -361,8 +362,11 @@ def test_drain_hp_bars_move_together():
     files = skills.apply(DECOMP, {}, characters, [], texts, False)
     assert "NewEfxHpBarDrainFem(animr5);" in files["src/banim-ekrutils.c"]
     bar = files["src/banim-efxhpbar.c"]
-    assert "PROC_REPEAT(EfxHpBarDrainBothFem)," in bar and "NewEfxAnimNumberFem" not in bar
-    assert "proc->timer2 == 0x1E && proc->finished == true && *done == true" in bar
-    # with the battle numbers option, the "+n" shows at once
+    copy = bar[bar.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]"):]
+    assert "PROC_REPEAT(EfxHpBarDrainWaitFem)," in copy and "PROC_REPEAT(EfxHpBarResire_SetAnotherSide)," in copy
+    wait = bar[bar.index("static void EfxHpBarDrainWaitFem"):bar.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem")]
+    assert "timer2" not in wait
+    # with the battle numbers option, the copy keeps their step
     numbered = skills.apply(DECOMP, battlenumbers.apply(DECOMP, {}), characters, [], texts, False)["src/banim-efxhpbar.c"]
-    assert "NewEfxAnimNumberFem(proc->anim_main_other, *next - *cur);" in numbered
+    copy = numbered[numbered.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]"):]
+    assert "PROC_REPEAT(EfxHpBarResireNumberFem)," in copy

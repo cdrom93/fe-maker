@@ -2387,7 +2387,7 @@ def test_damage_and_heal_numbers_in_battle_animation(tmp_path):
 
 def test_sol_heal_shows_in_battle_animation(tmp_path):
     """Ticket 44: Seth, with Sol and 100 Skill at 10 HP, attacks in the prologue: his HP gauge rises in the battle
-    animation (the drain's bars, as Nosferatu's), not only after it."""
+    animation (Nosferatu's bars: the foe's, then his), right after the foe's."""
     project = Project.create(tmp_path / "solheal", "SolHeal")
     project.set_game_options({**project.game_options, "skills": True})
     characters = project.load("characters")
@@ -2413,11 +2413,11 @@ def test_sol_heal_shows_in_battle_animation(tmp_path):
 
         assert game.wait_until(healed, seconds=30, step=2), gauge
         game.screenshot().convert("RGB").save(tmp_path / "sol.png")
-        # both bars move together, as the blow lands (Nosferatu's: one after the other, 0x54 frames apart)
-        first_fall = min(k for k in range(1, len(foe)) if foe[k] < foe[k - 1])
-        delay = 2 * (len(gauge) - 1 - first_fall)
-        print("gauge", gauge[-5:], "foe", foe[-5:], "heal", delay, "frames after the first damage; screenshot:", tmp_path)
-        assert delay <= 4
+        # the foe's bar stops falling, then Seth's rises 10 frames later, as C-SkillSys (Nosferatu's wait: 0x54 frames)
+        last_fall = max(k for k in range(1, len(foe)) if foe[k] < foe[k - 1])
+        pause = 2 * (len(gauge) - 1 - last_fall)
+        print("gauge", gauge[-5:], "foe", foe[-5:], "pause", pause, "frames; screenshot:", tmp_path)
+        assert pause <= 16
 
 
 def test_triggered_skill_icon_in_map_battle(tmp_path):
