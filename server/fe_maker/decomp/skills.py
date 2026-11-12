@@ -1095,8 +1095,9 @@ _MALUS_PATCHES = [
      "static const u16 sMalusColorsFem[16] = { 0, 0, 0, 0, 0x3133, 0x211F, 0x106A };\n\n" + _STAT_BAR),
     ("src/statscreen.c", _MALUS_PALETTE,
      _MALUS_PALETTE + "    ApplyPalette(sMalusColorsFem, STATSCREEN_BGPAL_MALUS_FEM); /* FE Maker: a malus in red */\n"),
-    ("src/statscreen.c", "    DrawStatBarGfx(0x401 + num*6, 6,\n",
-     "    if (diff < 0) { /* FE Maker: a malus in red, the bar shows the total */\n"
+    # "\n" first: the growth rates' branch (ticket 166) has the same call, further indented
+    ("src/statscreen.c", "\n    DrawStatBarGfx(0x401 + num*6, 6,\n",
+     "\n    if (diff < 0) { /* FE Maker: a malus in red, the bar shows the total */\n"
      "        u16* tm = gUiTmScratchA + TILEMAP_INDEX(x + 1, y);\n        int i;\n\n"
      "        for (i = 0; i <= (diff <= -10 ? 2 : 1); i++) {\n"
      "            tm[i] = (tm[i] & 0xFFF) | (STATSCREEN_BGPAL_MALUS_FEM << 12);\n"

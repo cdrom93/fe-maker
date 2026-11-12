@@ -329,3 +329,20 @@ def test_odd_icons_get_the_common_frame(tmp_path, monkeypatch):
     corners = Image.open(skills._retouched("FaireSword", tmp_path / "FaireSword.png")).load()
     assert corners[0, 0] == 0 and corners[1, 0] == 4 and corners[7, 7] == 4
     assert skills.BY_ID["LastWord"].icon == ""
+
+
+def test_a_malus_with_the_growth_rates(monkeypatch):
+    """Ticket 50: with the growth rates on the status screen (ticket 166), the bar's call is there twice; the malus goes
+    in the stats' path, after the growths' branch."""
+    if not (DECOMP / "src/statscreen.c").is_file():
+        pytest.skip("no decomp")
+    from fe_maker.decomp import gameoptions
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["FortressDef"]}]
+    used = skills.used(characters, [], False)
+    files = gameoptions.apply(DECOMP, {"statusGrowths": True}, {})
+    files = skills.apply(DECOMP, files, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    screen = files["src/statscreen.c"]
+    start = screen.index("void DrawStatWithBar(int num")
+    assert screen.index("if (growth >= 0)", start) < screen.index("if (diff < 0)", start)
