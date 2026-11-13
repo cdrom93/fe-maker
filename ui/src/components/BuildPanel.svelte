@@ -2,9 +2,21 @@
   import { onDestroy } from 'svelte'
   import { api, patchUrl } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
+  import { useNavigator, type NavKind } from '../lib/navigation.svelte'
   import type { BuildStatus, BuildTime } from '../lib/types'
 
   let { launch, onClose }: { launch: boolean; onClose: () => void } = $props()
+  const nav = useNavigator()
+  // The tab holding the part of the project a failing file comes from (server: builderrors.AREAS).
+  const AREA_TABS: Record<string, NavKind> = {
+    characters: 'characters', portraits: 'characters', classes: 'classes', animations: 'classes', items: 'items',
+    events: 'chapters', chapters: 'chapters', maps: 'maps', texts: 'dialogues', music: 'music', skills: 'options',
+  }
+
+  function openArea(area: string) {
+    onClose()
+    nav?.open(AREA_TABS[area])
+  }
 
   let status = $state<BuildStatus | null>(null)
   let log = $state<string[]>([])
@@ -100,12 +112,47 @@
       <h2>{t('build.cancelled')}</h2>
     {:else if status.state === 'error'}
       <h2 class="bad">{t('build.error')}</h2>
-      <pre class="mono">{status.error?.startsWith('build.') ? t(status.error) : status.error}</pre>
+      {#if status.why}
+        {@const why = status.why}
+        <div class="why">
+          {#if why.kind === 'problems'}
+            <p>{t('build.why.problems')}</p>
+            <ul>{#each why.problems ?? [] as p, i (i)}<li>{p}</li>{/each}</ul>
+          {:else if why.kind === 'text'}
+            <p>{t('build.why.text', { text: why.text ?? '?', line: why.line ?? 0, message: why.message ?? '' })}</p>
+          {:else if why.kind === 'code'}
+            <p>{t('build.why.code', { file: why.file ?? '', line: why.line ?? 0, message: why.message ?? '' })}</p>
+            {#if why.written}<p class="muted">{t('build.why.written')}</p>{/if}
+          {:else if why.kind === 'missingFile'}
+            <p>{t('build.why.missingFile', { file: why.file ?? '' })}</p>
+          {:else if why.kind === 'undefined'}
+            <p>{t('build.why.undefined', { symbol: why.symbol ?? '' })}</p>
+          {:else if why.kind === 'romFull'}
+            <p>{why.bytes ? t('build.why.romFullBy', { kb: Math.ceil(why.bytes / 1024) }) : t('build.why.romFull')}</p>
+          {:else if why.kind === 'image'}
+            <p>{t('build.why.image', { message: why.message ?? '' })}</p>
+          {:else if why.kind === 'locked'}
+            <p>{t('build.why.locked', { file: why.file ?? '' })}</p>
+          {:else if why.kind === 'decompMismatch'}
+            <p>{t('build.why.decompMismatch', { detail: why.detail ?? '' })}</p>
+          {:else if why.kind === 'diskFull'}
+            <p>{t('build.why.diskFull')}</p>
+          {/if}
+          {#if why.area && AREA_TABS[why.area]}
+            <button class="link" onclick={() => openArea(why.area!)}>{t('build.why.open', { area: t(`build.area.${why.area}`) })}</button>
+          {/if}
+        </div>
+      {:else}
+        <pre class="mono">{status.error?.startsWith('build.') ? t(status.error) : status.error}</pre>
+      {/if}
     {/if}
 
-    {#if log.length}
+    {#if log.length || status?.why}
       <button class="link" onclick={() => (showLog = !showLog)}>{t('build.showLog')}</button>
-      {#if showLog}<pre class="mono log">{log.slice(-200).join('\n')}</pre>{/if}
+      {#if showLog}
+        {#if status?.why}<pre class="mono log">{status.error}</pre>{/if}
+        <pre class="mono log">{log.slice(-200).join('\n')}</pre>
+      {/if}
     {/if}
     {#if status && status.state !== 'running'}
       <button class="link" onclick={toggleHistory}>{t('build.history')}</button>
@@ -137,6 +184,8 @@
 </div>
 
 <style>
+  .why { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+  .why p, .why ul { margin: 0; }
   .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; padding: 1rem; z-index: 10; }
   .dialog { width: min(640px, 100%); max-height: 90vh; overflow: auto; }
   progress { width: 100%; }

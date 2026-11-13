@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from . import (
     __version__,
     buildcancel,
+    builderrors,
     buildtimes,
     decompfetch,
     emulator,
@@ -2740,6 +2741,17 @@ def expected_build_lines() -> int:
         return FIRST_BUILD_LINES
 
 
+def _build_failed(project: Project, error: str) -> None:
+    """The build's error, with what it means when it is a known one (builderrors.py), then its state."""
+    st = state.build_status
+    st["error"] = error
+    try:
+        st["why"] = builderrors.explain(error, st["log"], project.root / "build" / "overlay", project.decomp_dir)
+    except Exception:  # never hide the error itself
+        st["why"] = None
+    st["state"] = "error"
+
+
 def _run_build(project: Project, launch: bool) -> None:
     st = state.build_status
     try:
@@ -2766,11 +2778,9 @@ def _run_build(project: Project, launch: bool) -> None:
     except buildcancel.BuildCancelled:
         st["state"] = "cancelled"   # ticket 40
     except (ProjectError, BuildError, InvalidRomError, emulator.EmulatorError) as e:
-        st["error"] = str(e)
-        st["state"] = "error"
+        _build_failed(project, str(e))
     except Exception as e:  # keep the server alive and report
-        st["error"] = f"{type(e).__name__}: {e}"
-        st["state"] = "error"
+        _build_failed(project, f"{type(e).__name__}: {e}")
     finally:
         state.build_lock.release()
 

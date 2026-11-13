@@ -618,9 +618,25 @@ export interface BuildStatus {
   error: string | null
   patch: string | null
   launch: boolean
+  /** a known failure said plainly (server: builderrors.py): its kind and the data in question */
+  why?: BuildWhy | null
   /** this build's duration once done, and the previous one of the same kind (ticket 30) */
   timing?: BuildTime
   previous?: BuildTime | null
+}
+
+export interface BuildWhy {
+  kind: 'problems' | 'decompMismatch' | 'text' | 'code' | 'undefined' | 'romFull' | 'missingFile' | 'image' | 'locked' | 'diskFull'
+  problems?: string[]
+  detail?: string
+  line?: number
+  message?: string
+  text?: string | null
+  file?: string
+  area?: string | null
+  written?: boolean
+  symbol?: string
+  bytes?: number | null
 }
 
 export interface BuildTime {
