@@ -1,3 +1,3 @@
 """FE Maker local server."""
 
-__version__ = "0.1.0-prealpha.12"   # prealpha.N: one more on each push to main (CLAUDE.md)
+__version__ = "0.1.0-prealpha.13"   # prealpha.N: one more on each push to main (CLAUDE.md)
