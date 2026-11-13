@@ -321,6 +321,7 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
     assert "static int SupplySkillFem(int x, int y)" in menu
     usability = menu.split("u8 SupplyUsability(")[1]
     assert usability.index("CLASS_PHANTOM") < usability.index("SupplySkillFem(gActiveUnit->xPos")
+    assert "SkillTesterFem(gActiveUnit, SKILL_FEM_Supply) ||" in usability   # itself: off the map of units as it moves
     assert {"id": "Supply", "kind": "menu", "magic": False} in skills.catalogue()
     # a class without dance frames dances on the map (its battle animation, or its map sprite's frame 5, froze)
     assert "(CA_DANCE | CA_PLAY))) && sub_8055BC4()) {" in files["src/bmbattle.c"]

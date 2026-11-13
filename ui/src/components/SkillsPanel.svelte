@@ -33,7 +33,8 @@
 
   $effect(() => { loadSkills() })
 
-  const game = $derived(gameSkills(abilities, classId, characterId))
+  // a game skill the sheet (or its class) also lists is shown once, as the listed one
+  const game = $derived(gameSkills(abilities, classId, characterId).filter((id) => !skills.includes(id) && !fromClass.includes(id)))
   const offered = $derived(offeredSkills().filter((s) => !skills.includes(s.id) && !fromClass.includes(s.id) && !game.includes(s.id)))
   const full = $derived(skills.length >= skillCatalogue.maxPerSheet)
 

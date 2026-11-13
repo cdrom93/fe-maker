@@ -638,9 +638,9 @@ GAME_SKILLS: tuple[Skill, ...] = (
           game="UNIT_CATTRIBUTES(unit) & CA_THIEF"),
     Skill("Dance", "game", "Dance", "Dance:[NL]Unit can use the[NL]Dance command.",
           game="UNIT_CATTRIBUTES(unit) & (CA_DANCE | CA_PLAY)"),
-    # the convoy: the supply class, or the route's lord (SupplyUsability, bmmenu.c)
+    # the convoy: the route's lord (SupplyUsability, bmmenu.c); not CA_SUPPLY, FE7's convoy carrier (convoy.py)
     Skill("Supply", "game", "Supply", "Supply:[NL]Unit can use the[NL]Supply command.",
-          game="(UNIT_CATTRIBUTES(unit) & CA_SUPPLY) || unit->pCharacterData->number =="
+          game="unit->pCharacterData->number =="
                " (gPlaySt.chapterModeIndex == CHAPTER_MODE_EPHRAIM ? CHARACTER_EPHRAIM : CHARACTER_EIRIKA)"),
     Skill("Crit", "game", "Crit", "Crit +15:[NL]Crit rate +15%.", game="UNIT_CATTRIBUTES(unit) & CA_CRITBONUS"),
     Skill("Lethality", "game", "Lethality", "Lethality:[NL]May kill in one hit.[NL](Skill % activation)",
@@ -674,7 +674,7 @@ def catalogue() -> list[dict]:
 
 # The game skills in FE Maker's words: the abilities (gamedata.ABILITIES) or the classes that give them
 GAME_SOURCES = {"Canto": (["canto"], []), "Steal": (["steal"], []), "LockTouch": (["thiefSkills"], []),
-                "Dance": (["dance", "play"], []), "Supply": (["supply"], []), "Crit": (["critBonus"], []),
+                "Dance": (["dance", "play"], []), "Supply": ([], []), "Crit": (["critBonus"], []),
                 "Lethality": (["lethality"], []), "Summon": (["summon"], []),
                 "SureShot": ([], ["CLASS_SNIPER", "CLASS_SNIPER_F"]),
                 "Pierce": ([], ["CLASS_WYVERN_KNIGHT", "CLASS_WYVERN_KNIGHT_F"]),
@@ -962,10 +962,13 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         menu = _read(files, decomp_dir, rel_menu)
         phantom = "    if (gActiveUnit->pClassData->number == CLASS_PHANTOM)\n    {\n        return MENU_NOTSHOWN;\n    }\n"
         at = menu.index(phantom, menu.index("u8 SupplyUsability(")) + len(phantom)
-        menu = (menu[:at] + "\n    if (SupplySkillFem(gActiveUnit->xPos, gActiveUnit->yPos)) /* FE Maker: the Supply skill */\n"
+        # the unit itself by its skills: the map of units leaves it out while it moves
+        menu = (menu[:at] + "\n    if (SkillTesterFem(gActiveUnit, SKILL_FEM_Supply)"
+                " || SupplySkillFem(gActiveUnit->xPos, gActiveUnit->yPos)) /* FE Maker: the Supply skill */\n"
                 "    {\n        return MENU_ENABLED;\n    }\n" + menu[at:])
         files[rel_menu] = _replace(menu, "u8 SupplyUsability(", (
-            "/* FE Maker: a player unit with the Supply skill on this square (ticket 46); no table: the link script drops"
+            "/* FE Maker: a player unit with the Supply skill on this square (ticket 46), next to the active one; no table:"
+            " the link script drops"
             " this file's .rodata */\n"
             "static int SupplySkillAtFem(int x, int y)\n{\n    struct Unit* unit;\n\n"
             "    if (x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y || !gBmMapUnit[y][x])\n"
@@ -973,7 +976,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
             "    unit = GetUnit(gBmMapUnit[y][x]);\n"
             "    return UNIT_FACTION(unit) == FACTION_BLUE && SkillTesterFem(unit, SKILL_FEM_Supply);\n}\n\n"
             "static int SupplySkillFem(int x, int y)\n{\n"
-            "    return SupplySkillAtFem(x, y) || SupplySkillAtFem(x + 1, y) || SupplySkillAtFem(x - 1, y)\n"
+            "    return SupplySkillAtFem(x + 1, y) || SupplySkillAtFem(x - 1, y)\n"
             "        || SupplySkillAtFem(x, y + 1) || SupplySkillAtFem(x, y - 1);\n}\n\nu8 SupplyUsability("), rel_menu)
     if "Dance" in abilities:   # ticket 46: only the dancer classes' battle animations can dance; others hang there
         rel_battle = "src/bmbattle.c"

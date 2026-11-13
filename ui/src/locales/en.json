@@ -281,6 +281,7 @@
   "ability.hint": "They add to the class abilities (greyed boxes). A weapon lock gives access to the reserved weapons shown in brackets.",
   "ability.fromClass": "Given by the class",
   "ability.fromClassShort": "class",
+  "ability.fromSkillShort": "skill",
   "ability.fromAnimations": "from its animations",
   "ability.group.movement": "Movement",
   "ability.group.role": "Role",

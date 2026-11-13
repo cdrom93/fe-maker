@@ -29,4 +29,10 @@ export const gameSkills = (abilities: string[], classId?: string, characterId?: 
     || (!!characterId && (g.characters ?? []).includes(characterId)))
     .map((g) => g.id)
 
+/** The ability boxes a unit's skills tick (ticket 46): the first ability of each game skill (Dance gives Dance, not Play);
+ *  Supply opens the convoy ('convoy', the sheet's "Opens the convoy" box). */
+export const abilitiesFromSkills = (skills: string[]) =>
+  [...new Set(skills.flatMap((id) => (id === 'Supply' ? ['convoy']
+    : (skillCatalogue.game.find((g) => g.id === id)?.abilities ?? []).slice(0, 1))))]
+
 export const skillIcon = (id: string) => `/api/skills/${encodeURIComponent(id)}/icon.png`

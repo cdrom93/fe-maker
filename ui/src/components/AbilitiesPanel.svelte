@@ -9,6 +9,7 @@
     fixed = {},
     convoy,
     seize,
+    fromSkills = [],
   }: {
     abilities: string[]
     fromClass: string[]
@@ -19,6 +20,8 @@
     convoy?: { on: boolean; onchange: (on: boolean) => void }
     /** character sheets: "Can seize", shown next to the lord */
     seize?: { on: boolean; onchange: (on: boolean) => void }
+    /** the abilities the unit's skills give ('convoy' for Supply): ticked and greyed, as the class's (ticket 46) */
+    fromSkills?: string[]
   } = $props()
 
   // Common abilities, grouped by meaning. Weapon locks are not here: weapons are
@@ -48,10 +51,11 @@
 {#snippet ability(key: string)}
   {@const inherited = fromClass.includes(key)}
   {@const isFixed = key in fixed}
-  <label class="ability" class:inherited={inherited || isFixed}>
-    <input type="checkbox" checked={isFixed ? fixed[key] : inherited || abilities.includes(key)} disabled={inherited || isFixed} onchange={(e) => toggle(key, (e.target as HTMLInputElement).checked)} />
+  {@const bySkill = !inherited && !isFixed && fromSkills.includes(key)}
+  <label class="ability" class:inherited={inherited || isFixed || bySkill}>
+    <input type="checkbox" checked={isFixed ? fixed[key] : inherited || bySkill || abilities.includes(key)} disabled={inherited || isFixed || bySkill} onchange={(e) => toggle(key, (e.target as HTMLInputElement).checked)} />
     <span>
-      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{:else if isFixed}<span class="muted tag"> · {t('ability.fromAnimations')}</span>{/if} <Help text={t(`ability.desc.${key}`)} /></span>
+      <span class="name">{t(`ability.${key}`)}{#if inherited}<span class="muted tag"> · {t('ability.fromClassShort')}</span>{:else if isFixed}<span class="muted tag"> · {t('ability.fromAnimations')}</span>{:else if bySkill}<span class="muted tag"> · {t('ability.fromSkillShort')}</span>{/if} <Help text={t(`ability.desc.${key}`)} /></span>
     </span>
   </label>
 {/snippet}
@@ -73,10 +77,11 @@
             </label>
           {/if}
           {#if key === 'supply' && convoy}
-            <label class="ability">
-              <input type="checkbox" checked={convoy.on} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />
+            {@const bySkill = fromSkills.includes('convoy')}
+            <label class="ability" class:inherited={bySkill}>
+              <input type="checkbox" checked={convoy.on || bySkill} disabled={bySkill} onchange={(e) => convoy.onchange((e.target as HTMLInputElement).checked)} />
               <span>
-                <span class="name">{t('field.convoyAccess')} <Help text={t('field.convoyAccessHint')} /></span>
+                <span class="name">{t('field.convoyAccess')}{#if bySkill}<span class="muted tag"> · {t('ability.fromSkillShort')}</span>{/if} <Help text={t('field.convoyAccessHint')} /></span>
               </span>
             </label>
           {/if}

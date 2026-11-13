@@ -2616,6 +2616,12 @@ def test_dance_and_supply_given_as_skills(tmp_path):
         assert game.read(lord, 0x0C, width=32) & 0x2
         game.move_cursor(*BENCH_SPOTS[1])
         game.press("A")
+        game.press("A", wait=60)       # stays, far from the lord: Supply by its own skill
+        game.screenshot().save(tmp_path / "own_menu.png")
+        game.press("B", wait=30)
+        game.press("B", wait=30)
+        game.move_cursor(*BENCH_SPOTS[1])
+        game.press("A")
         game.move_cursor(BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
         game.press("A", wait=60)       # next to the lord
         game.screenshot().save(tmp_path / "dance_menu.png")

@@ -31,6 +31,7 @@ piège dans sa section.
 
 - Animation de combat : le jeu n'affiche un statut infligé par un coup que pour le poison (teinte violette, `BATTLE_HIT_ATTR_POISON`) et la pétrification, toujours sur le défenseur du coup. Un statut donné par une compétence (sommeil, silence, folie, ou sur l'attaquant comme Effect Spore) passe par `SetUnitEfxDebuff` de la bonne unité (ticket 33).
 - `sub_8055BC4` (`BeginBattleAnimations`) prépare déjà l'animation de combat : une condition qui veut la carte à la place se teste avant lui, sinon l'animation sur la carte reste figée. Seules les classes danseuses ont l'image de danse (animation 5 du sprite de carte) et une animation de combat qui danse : chez une autre classe, le jeu se fige (Danse donnée comme compétence, #46).
+- Pendant le choix de son déplacement et dans son menu, l'unité active n'est plus dans `gBmMapUnit` : la tester elle-même (`gActiveUnit`), pas par sa case. Un playtest de commande de convoi se fait loin du seigneur de la route, qui l'ouvre déjà à ses voisins (#46).
 
 ## Données du jeu (personnages, classes, objets, textes)
 

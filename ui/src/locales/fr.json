@@ -281,6 +281,7 @@
   "ability.hint": "Elles s'ajoutent à celles de la classe (cases grisées). Un verrou d'arme donne accès aux armes réservées indiquées entre parenthèses.",
   "ability.fromClass": "Apportée par la classe",
   "ability.fromClassShort": "classe",
+  "ability.fromSkillShort": "compétence",
   "ability.fromAnimations": "d'après ses animations",
   "ability.group.movement": "Déplacement",
   "ability.group.role": "Rôle",
