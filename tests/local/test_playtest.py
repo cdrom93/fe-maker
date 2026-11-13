@@ -1879,6 +1879,65 @@ def test_batch_9_auras_in_battle(tmp_path):
         assert stat(target, 0x62) == t_spd * 2 + game.read(target, 0x57, signed=True) + t_lck + 10   # Tantivy
 
 
+def test_batch_10_mangs_list_first_part(tmp_path):
+    """Skills batch 10: the lord (level 10, one item) with Light Weight (+3 Spd), Critical Force (crit Skl * 1.5) and
+    Outdoor Fighter, its class's Elbow Room and Battle Veteran (+1 attack, +5 hit); the soldier's Swordbreaker (lance
+    against a sword: +20 hit and avoid), Blue Flame (+2 attack, no ally with it) and Loyalty (no lord of its side)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch10", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=0, might=20, crit=0)
+    next(i for i in items if i["id"] == "ITEM_LANCE_IRON").update(might=0, hit=0, weight=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    for units in chapters["unitGroups"].values():
+        for unit in units:
+            if unit.get("character") == "CHARACTER_SOLDIER_83":
+                unit["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord_unit = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    next(c for c in characters if c["id"] == lord_unit["character"])["skills"] = ["LightWeight", "CriticalForce",
+                                                                                   "OutdoorFighter"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 60
+    soldier["skills"] = ["SwordBreaker", "BlueFlame", "Loyalty"]
+    project.save("characters", characters)
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == lord_unit["class"])["skills"] = ["ElbowRoom", "BattleVeteran"]
+    project.save("classes", classes)
+    from fe_maker.decomp import skills
+    terrains = {}
+    for line in (REPO_ROOT / "decomp/include/constants/terrains.h").read_text().splitlines():
+        if "TERRAIN_" in line and "=" in line:
+            name, value = line.split("=")
+            terrains[int(value.split(",")[0], 16)] = name.strip()[len("TERRAIN_"):]
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        attacker, _idle = _bench_units(game)
+        game.write(attacker, 10, 0x08)                                  # level 10
+        pow_, skl, spd, lck = (game.read(attacker, k) for k in (0x14, 0x15, 0x16, 0x19))
+        _bench_attack(game, attacker)
+        game.run(240)
+        actor, target = game.address("gBattleActor"), game.address("gBattleTarget")
+
+        def stat(unit, offset):
+            return game.read(unit, offset, width=16, signed=True)
+        terrain = [game.read(actor, k, signed=True) for k in (0x56, 0x57, 0x58)]
+        outdoor = 10 if terrains.get(game.read(actor, 0x55)) in skills.OUTDOOR_TERRAINS else 0
+        elbow = 3 if terrain == [0, 0, 0] else 0
+        assert game.read(actor, 0x16) == spd + 3                                # Light Weight
+        assert stat(actor, 0x66) == skl * 3 // 2                                # Critical Force
+        assert stat(actor, 0x5A) == pow_ + 20 + game.read(actor, 0x54, signed=True) + elbow + 1
+        assert stat(actor, 0x60) == skl * 2 + lck // 2 + game.read(actor, 0x53, signed=True) + 5 + outdoor
+        assert stat(actor, 0x62) == (spd + 3) * 2 + terrain[1] + lck + outdoor
+        t_pow, t_skl, t_spd, t_lck = (game.read(target, k) for k in (0x14, 0x15, 0x16, 0x19))
+        assert stat(target, 0x5A) == t_pow + game.read(target, 0x54, signed=True) + 2           # Blue Flame alone
+        assert stat(target, 0x60) == t_skl * 2 + t_lck // 2 + game.read(target, 0x53, signed=True) + 20
+        assert stat(target, 0x62) == t_spd * 2 + game.read(target, 0x57, signed=True) + t_lck + 20
+
+
 def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
     """Skills batch 9: the lord, its friend two tiles away, both at 1 HP. On turn 2 the lord gets Camaraderie (10 %,
     an ally within 2) and the friend's Amaterasu (20 %), not Relief (no ally within 2); the friend, with Relief and

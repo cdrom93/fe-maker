@@ -58,7 +58,7 @@ class Skill:
     icon: str             # C-SkillSys's icon file
     text: str             # in-game help text, its name first
     stats: tuple = ()     # (stat, value) pairs added by the stat getters: 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res, 5 Lck, 6 Mag
-    when: str = ""        # stats: "low" (under 25 % of HP), "full" (HP full)
+    when: str = ""        # stats: "low" (under 25 % of HP), "full" (HP full), "light" (3 items or less)
     code: str = ""        # battle skills: C run in ComputeBattleUnitStats once both units' stats are computed (attacker,
     # defender); late skills: at the start of ComputeBattleUnitEffectiveStats (comparisons with the foe, as C-SkillSys's
     # BattleCalcReal); proc skills: C run on a hit before its damage (attacker, defender, magic, *attack, *defense)
@@ -107,6 +107,7 @@ _HALF = "(attacker->unit.maxHP > attacker->unit.curHP * 2)"
 _FIRST = "(attacker == &gBattleActor)"
 _TARGET = "(attacker == &gBattleTarget)"
 _MAGIC = "((%s)->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE))"
+_TOME = "({0}->weaponType == ITYPE_ANIMA || {0}->weaponType == ITYPE_LIGHT || {0}->weaponType == ITYPE_DARK)"
 
 CATALOGUE: tuple[Skill, ...] = (
     _stat("StrBonus", "StrBonus", 0, 2, False, "Str+2:[NL]Unit is granted STR +2."),
@@ -247,6 +248,11 @@ CATALOGUE: tuple[Skill, ...] = (
     _push("PushSpectrum", None, "Push Spectrum:[NL]+5 to all stats[NL]if HP is full."),
     Skill("FortressDef", "stat", "FortressDef", "Fortress Def:[NL]STR/MAG -3, DEF +5.", ((0, -3), (6, -3), (3, 5))),
     Skill("FortressRes", "stat", "FortressRes", "Fortress Res:[NL]STR/MAG -3, RES +5.", ((0, -3), (6, -3), (4, 5))),
+    # batch 10 (Mangs' list, docs/rapport-competences.md), from C-SkillSys's status getters
+    Skill("LifeAndDeath", "stat", "LifeAndDeath", "Life and Death:[NL]STR/MAG/SKL/SPD +5,[NL]DEF/RES -5.",
+          ((0, 5), (6, 5), (1, 5), (2, 5), (3, -5), (4, -5))),
+    Skill("LightWeight", "stat", "LightWeight", "Light Weight:[NL]SPD +3 if unit has[NL]3 items or less.", ((2, 3),),
+          "light"),
     # when the unit attacks
     _b("BlowFiendish", "initiative", "Fiendish Blow:[NL]If unit initiates combat,[NL]grants +6 MAG during combat.",
        f"if ({_FIRST} && {_MAGIC % 'attacker'}) attacker->battleAttack += 6;"),
@@ -363,6 +369,20 @@ CATALOGUE: tuple[Skill, ...] = (
        "if (defender->unit.ranks[ITYPE_ANIMA] || defender->unit.ranks[ITYPE_LIGHT] || defender->unit.ranks[ITYPE_DARK]"
        " || defender->unit.ranks[ITYPE_STAFF]) {\n            attacker->battleAttack += 2;\n"
        "            attacker->battleCritRate += 10;\n        }"),
+    # batch 10: the breakers, from C-SkillSys's weapon triangle confs (Data/BattleSys/Source/WeaponTriangle.c): only
+    # with the weapon that beats the foe's (C-SkillSys's choice; the official games' breakers work with any weapon)
+    *(_b(sid, "foe", f"{name}:[NL]Hit and Avoid +20 using[NL]{mine} against {theirs}.",
+         f"if ({own} && {foe}) {{\n            attacker->battleHitRate += 20;\n"
+         "            attacker->battleAvoidRate += 20;\n        }", icon="" if sid == "BMagBreaker" else None)
+      for sid, name, mine, theirs, own, foe in (
+          ("SwordBreaker", "Swordbreaker", "a Lance", "a Sword", "attacker->weaponType == ITYPE_LANCE",
+           "defender->weaponType == ITYPE_SWORD"),
+          ("LanceBreaker", "Lancebreaker", "an Axe", "a Lance", "attacker->weaponType == ITYPE_AXE",
+           "defender->weaponType == ITYPE_LANCE"),
+          ("AxeBreaker", "Axebreaker", "a Sword", "an Axe", "attacker->weaponType == ITYPE_SWORD",
+           "defender->weaponType == ITYPE_AXE"),
+          ("BowBreaker", "Bowbreaker", "a tome", "a Bow", _TOME.format("attacker"), "defender->weaponType == ITYPE_BOW"),
+          ("BMagBreaker", "Tomebreaker", "a Bow", "a tome", "attacker->weaponType == ITYPE_BOW", _TOME.format("defender")))),
     _b("HeavyBlade", "foe", "Heavy Blade:[NL]If attack is higher than[NL]the foe's, crit +15%.",
        "if (attacker->battleAttack > defender->battleAttack) attacker->battleCritRate += 15;", kind="late"),
     Skill("HeavyBladePlus", "late", "HeavyBladePlus",
@@ -398,6 +418,19 @@ CATALOGUE: tuple[Skill, ...] = (
        "if (attacker->unit.statusIndex != UNIT_STATUS_NONE) attacker->battleAttack += 5;"),
     _b("StrongCon", "situation", "Strong Con:[NL]+5 Def/Res if afflicted[NL]by any status condition.",
        "if (attacker->unit.statusIndex != UNIT_STATUS_NONE) attacker->battleDefense += 5;"),
+    _b("ElbowRoom", "situation", "Elbow Room:[NL]+3 damage dealt[NL]on open terrain.",
+       "if (attacker->terrainDefense == 0 && attacker->terrainAvoid == 0 && attacker->terrainResistance == 0)\n"
+       "            attacker->battleAttack += 3;"),
+    _b("OutdoorFighter", "situation", "Outdoor Fighter:[NL]+10 Hit and Avoid when[NL]fighting outdoors.",
+       "if (OutdoorTerrainFem(attacker->terrainId)) {\n            attacker->battleHitRate += 10;\n"
+       "            attacker->battleAvoidRate += 10;\n        }"),
+    # C-SkillSys's levels of the unit's earlier classes (GetUnitHiddenLevel) are not kept: 20 for a promoted unit
+    _b("BattleVeteran", "battle", "Battle Veteran:[NL]+1 damage and +5 Hit[NL]per 10 levels.",
+       "{\n            int tens = (attacker->unit.level"
+       " + (UNIT_CATTRIBUTES(&attacker->unit) & CA_PROMOTED ? 20 : 0)) / 10;\n\n"
+       "            attacker->battleAttack += tens;\n            attacker->battleHitRate += 5 * tens;\n        }"),
+    _b("CriticalForce", "hit", "Critical Force:[NL]Base critical is[NL]SKL * 1.5, not SKL / 2.",
+       "attacker->battleCritRate += attacker->unit.skl * 3 / 2 - attacker->unit.skl / 2;"),
     # always
     _b("Avoid", "battle", "Avoid +10:[NL]Avoid rate +10%.", "attacker->battleAvoidRate += 10;"),
     _b("Vigilance", "battle", "Vigilance:[NL]Gain +20 Avoid.", "attacker->battleAvoidRate += 20;"),
@@ -620,6 +653,12 @@ CATALOGUE: tuple[Skill, ...] = (
           "            attacker->battleAvoidRate += 10;\n        }"),
     _aura("Focus", "self", 3, "Focus:[NL]+10 Crit if there are[NL]no allies within 3 tiles.",
           "if (allies3 == 0) attacker->battleCritRate += 10;"),
+    # batch 10: a real lord (C-SkillSys tests `UNIT_CATTRIBUTES(unit) && CA_LORD`: any ally), and Blue Flame's +2 next
+    # to an ally that has it too, as its text says (C-SkillSys: next to any ally)
+    _aura("Loyalty", "self", 2, "Loyalty:[NL]Within 2 spaces of a Lord,[NL]-3 damage taken, +15 Hit.",
+          "if (lords2) {\n            attacker->battleHitRate += 15;\n            attacker->battleDefense += 3;\n        }"),
+    _aura("BlueFlame", "self", 1, "Blue Flame:[NL]Attack +2; +2 more next[NL]to an ally with this skill.",
+          "attacker->battleAttack += flames1 ? 4 : 2;"),
     _aura("Infiltrator", "self", 2, "Infilt: If within 2 spaces[NL]of two or more enemies,[NL]gain +3 damage and +15% Hit.",
           "if (foes2 >= 2) {\n            attacker->battleAttack += 3;\n            attacker->battleHitRate += 15;\n        }"),
     _aura("InnerFlame1", "self", 3, "Inner Flame: ATK +10 if[NL]no ally within 3 tiles.",
@@ -929,7 +968,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     for s in skills:
         for k, value in s.stats:
             if k in _raised(skills, magic_split):
-                cond = {"low": "defiant && ", "full": "full && "}.get(s.when, "")
+                cond = {"low": "defiant && ", "full": "full && ", "light": "!unit->items[3] && "}.get(s.when, "")
                 bonuses[k].append(f"        if ({cond}SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
                                   f"            bonus += {value};\n")
     cases = "".join(f"    case {k}:\n{''.join(lines)}        break;\n" for k, lines in bonuses.items() if lines)
@@ -1055,7 +1094,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         "static void ClampBattleStatsFem(struct BattleUnit* bu)\n{\n"   # PreBattleCalcEnd
         + "".join(f"    if (bu->{f} < 0)\n        bu->{f} = 0;\n" for f in (
             "battleAttack", "battleDefense", "battleSpeed", "battleHitRate", "battleAvoidRate", "battleCritRate"))
-        + "}\n\n"), rel)
+        + "}\n\n"
+        + (_OUTDOOR if any(s.id == "OutdoorFighter" for s in skills) else "")), rel)
     if any(s.kind == "eff" for s in skills):   # batch 6: hit and crit, after the game's effective rates
         special = "    ComputeBattleUnitSpecialWeaponStats(attacker, defender);\n}\n"
         battle = _replace(battle, special, special.replace("}\n", (
@@ -2051,6 +2091,18 @@ static u8 MoveSkillEffectFem(int skill)
     return out
 
 
+# Batch 10, Outdoor Fighter: C-SkillSys's CheckOutdoorTerrain (KernelLib/Source/map.c), the terrains that are not indoors
+OUTDOOR_TERRAINS = (
+    "PLAINS", "ROAD", "VILLAGE_REGULAR", "VILLAGE_CLOSED", "HOUSE", "ARMORY", "VENDOR", "ARENA_REGULAR", "C_ROOM_09",
+    "GATE_CASTLE", "FOREST", "THICKET", "SAND", "DESERT", "RIVER", "MOUNTAIN", "PEAK", "BRIDGE_REGULAR", "BRIDGE_14",
+    "SEA", "LAKE", "GATE_REGULAR", "CHURCH", "RUINS_REGULAR", "CLIFF", "BALLISTA_REGULAR", "BALLISTA_LONG",
+    "BALLISTA_KILLER", "SHIP_FLAT", "SHIP_WRECK", "TILE_2C", "ARENA_30", "VALLEY", "FENCE_32", "SNAG", "BRIDGE_SNAG", "SKY",
+    "DEEPS", "RUINS_VILLAGE", "INN", "BARREL", "BONE", "DARK", "WATER", "DECK", "BRACE", "MAST")
+_OUTDOOR = ("static int OutdoorTerrainFem(int terrain)\n{\n    switch (terrain) {\n"
+            + "".join(f"    case TERRAIN_{t}:\n" for t in OUTDOOR_TERRAINS)
+            + "        return TRUE;\n    default:\n        return FALSE;\n    }\n}\n\n")
+
+
 def _aura_function(skills) -> str:
     """Batch 9, auras (C-SkillSys's PreBattleCalcAuraEffect): the units within 3 tiles of the unit in battle, from the
     map's unit layer; each holder's aura acts within its reach, then the unit's own skills counting the units around."""
@@ -2058,6 +2110,9 @@ def _aura_function(skills) -> str:
         pad = " " * indent
         return "".join(f"{pad}if (d <= {s.reach} && SkillTesterFem(unit, SKILL_FEM_{s.id}))\n{pad}    {s.code}\n"
                        for s in skills if s.kind == "aura" and s.side in (side, "both"))
+    # batch 10, Blue Flame: the allies next to the unit that have it too
+    flames = ("                flames1 += d == 1 && SkillTesterFem(unit, SKILL_FEM_BlueFlame);\n"
+              if any(s.id == "BlueFlame" for s in skills) else "")
     own = "".join(f"    if (SkillTesterFem(&attacker->unit, SKILL_FEM_{s.id}))\n        {s.code}\n"
                   for s in skills if s.kind == "aura" and s.side == "self")
     return (
@@ -2065,7 +2120,7 @@ def _aura_function(skills) -> str:
         "s8 AreUnitsAllied(int left, int right);\n\n"
         "static void ApplyAuraSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender)\n{\n"
         "    int dx, dy, d, x, y;\n"
-        "    int allies1 = 0, allies2 = 0, allies3 = 0, foes1 = 0, foes2 = 0, foes3 = 0;\n"
+        "    int allies1 = 0, allies2 = 0, allies3 = 0, foes1 = 0, foes2 = 0, foes3 = 0, lords2 = 0, flames1 = 0;\n"
         "    struct Unit* unit;\n\n"
         "    if (gBattleStats.config & (BATTLE_CONFIG_ARENA | BATTLE_CONFIG_BIT2))\n        return;\n"
         "    for (dy = -3; dy <= 3; dy++) {\n"
@@ -2081,6 +2136,8 @@ def _aura_function(skills) -> str:
         "                continue;\n"
         "            if (AreUnitsAllied(attacker->unit.index, unit->index)) {\n"
         "                allies3++;\n                allies2 += d <= 2;\n                allies1 += d == 1;\n"
+        "                lords2 += d <= 2 && (UNIT_CATTRIBUTES(unit) & CA_LORD) != 0;\n"
+        f"{flames}"
         f"{lines('ally', 16)}"
         "            } else {\n"
         "                foes3++;\n                foes2 += d <= 2;\n                foes1 += d == 1;\n"
@@ -2088,7 +2145,7 @@ def _aura_function(skills) -> str:
         "            }\n        }\n    }\n"
         f"{own}"
         "    (void) defender; (void) allies1; (void) allies2; (void) allies3;"
-        " (void) foes1; (void) foes2; (void) foes3;\n}\n\n")
+        " (void) foes1; (void) foes2; (void) foes3; (void) lords2; (void) flames1;\n}\n\n")
 
 
 def _ai_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:

@@ -47,4 +47,11 @@ description. Listed here in case they are not intended:
   that first ally has it, not when another ally within 2 tiles does.
 - **Rain Dish** (`PrePhaseHeal.c`): heals `SKILL_EFF0(SID_Renewal)`, Renewal's value instead of its own.
 
+- **Loyalty** (`PreBattleCalcAuraEffect`): `UNIT_CATTRIBUTES(unit) && CA_LORD`, the same logical and as above: any ally
+  within 2 tiles counts as a lord.
+- **Blue Flame**: its text says "when adjacent to an ally with this skill", the code gives the +2 next to any ally.
+- **Battle Veteran** (`PreBattleCalc.c`): it reads `SKILL_EFF0/1(SID_RuinedBlade)` (hit -5, attack +5 per 10 levels)
+  instead of its own `SkillExtraInfo.c` values (1, 5).
+- **Life and Death**: its text says "for both unit and enemy", the status getters only change the holder's stats.
+
 <!-- Ajouter ici les écarts des lots suivants, au même format. -->

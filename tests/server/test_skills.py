@@ -205,6 +205,28 @@ def test_batch_9_auras_by_distance_and_side(monkeypatch):
     assert "ApplyAuraSkillsFem" not in plain
 
 
+def test_batch_10_breakers_outdoors_lords_and_light_weight(monkeypatch):
+    """Mangs' list, first part: breakers with the weapon that beats the foe's, outdoor terrains, a real lord, Blue
+    Flame next to an ally that has it, Light Weight on a free fourth item slot."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["SwordBreaker", "OutdoorFighter", "LightWeight"]},
+                  {"id": "CHARACTER_SETH", "skills": ["Loyalty", "BlueFlame", "BMagBreaker"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    battle = files["src/bmbattle.c"]
+    assert ("if (attacker->weaponType == ITYPE_LANCE && defender->weaponType == ITYPE_SWORD) {" in battle)
+    assert "(defender->weaponType == ITYPE_ANIMA || defender->weaponType == ITYPE_LIGHT" in battle
+    assert "static int OutdoorTerrainFem(int terrain)" in battle and "case TERRAIN_FOREST:" in battle
+    assert "case TERRAIN_FLOOR_REGULAR:" not in battle
+    assert "lords2 += d <= 2 && (UNIT_CATTRIBUTES(unit) & CA_LORD) != 0;" in battle
+    assert "flames1 += d == 1 && SkillTesterFem(unit, SKILL_FEM_BlueFlame);" in battle
+    assert "if (!unit->items[3] && SkillTesterFem(unit, SKILL_FEM_LightWeight))" in files["src/bmunit.c"]
+    assert skills.BY_ID["BMagBreaker"].icon == ""
+
+
 def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):
     if not (DECOMP / "src/bmtarget.c").is_file():
         pytest.skip("no decomp")

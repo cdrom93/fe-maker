@@ -16,14 +16,14 @@
 
 | Famille | Compétences | Ce qu'il faut |
 | :-- | :-- | :-- |
-| Breakers | Swordbreaker, Lancebreaker, Axebreaker, Bowbreaker (Tomebreaker = BMagBreaker) | simple : passives de combat (lot 5) |
+| Breakers | Swordbreaker, Lancebreaker, Axebreaker, Bowbreaker (Tomebreaker = BMagBreaker) | **faites (lot 10, 13/11)** |
 | Rally (commande) | Rally Strength, Magic, Skill, Speed, Luck, Defense, Resistance, Movement, Spectrum | une commande de menu et un bonus d'un tour (système de commandes, prévu) |
 | Sceaux après combat | Seal Attack (SealStrength), Magic, Skill, Speed, Luck, Defense, Resistance | malus qui remonte de 1 par tour : une table de malus à sauvegarder (comme Fury, Grisly Wound) |
 | Après le combat | Fury, Grisly Wound, Poison Strike, Savage Blow, Breath of Life, Lifetaker, Despoil, Lunge, Devil's Pact / Luck / Whim | effets après le combat (`BattleUnwind`), à faire en un lot |
 | Commandes de carte | Smite, Pass, Supply | Smite comme Shove ; Pass touche le déplacement ; Supply est déjà une capacité du jeu (`CA_SUPPLY`) : à ajouter aux capacités attribuables |
 | Croissances et expérience | Paragon, Blossom, Aptitude, Discipline | simples (calcul d'expérience et de montée de niveau) |
 | Déclenchements | Great Shield, Sure Shot, Deadeye, Killing Machine, Counter, Countermagic, Nihil, Nullify, Hero, Rightful King, Rightful God | simples à moyens (lots 6 et 8) |
-| Passives | Resolve, Life and Death, Thunderstorm, Lucky Seven, Triangle Adept, Light Weight, Elbow Room, Critical Force, Battle Veteran, Loyalty, Blue Flame, Outdoor Fighter, Skybreaker, Slayer, Celerity (MovBonus) | simples (lot 5) |
+| Passives | **faites (lot 10, 13/11)** : Life and Death, Light Weight, Elbow Room, Critical Force, Battle Veteran, Loyalty, Blue Flame, Outdoor Fighter. Restent : Resolve (+50 % d'une stat), Thunderstorm, Lucky Seven, Triangle Adept, Skybreaker, Slayer (efficacité), Celerity (MovBonus, déplacement) | moyennes : touchent aux calculs du jeu |
 | Portée des armes | Point Blank, Staff Savant | lot 9 suite (portée), reporté « plus tard » |
 | Déplacement, tour | Keep Up, Armor March, Nature Rush, Boon, Powerstaff | début de tour et déplacement (lot 9 suite) |
 | Divers | Bargain (prix des magasins), Axefaith | simples |
