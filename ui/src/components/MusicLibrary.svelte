@@ -2,21 +2,24 @@
   // The Music tab: the project's songs (MIDI files from the PC, with the instruments of one of the game's songs)
   // and the game's, all heard here with the game's instruments (lib/songplayer.svelte.ts). Chapters choose theirs in
   // their settings (ChapterMusic). Server: decomp/music.py.
-  import { api, type MusicLibrary } from '../lib/api'
+  import { api, type BattleMusic, type MusicLibrary, type SongRef } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import { songPlayer } from '../lib/songplayer.svelte'
   import Help from './Help.svelte'
   import NumberField from './NumberField.svelte'
+  import SongPicker from './SongPicker.svelte'
   import SongPlayButton from './SongPlayButton.svelte'
 
   let library = $state<MusicLibrary | null>(null)
+  let battle = $state<BattleMusic | null>(null)
+  const BATTLE_SLOTS = ['playerAttacks', 'enemyAttacks', 'healStaff', 'statusStaff', 'dance', 'promotion', 'arena']
   let error = $state('')
   let busy = $state(false)
   let input: HTMLInputElement | undefined = $state()
 
   async function load() {
     try {
-      library = await api.musicLibrary()
+      ;[library, battle] = await Promise.all([api.musicLibrary(), api.battleMusic()])
     } catch (e) {
       error = String(e)
     }
@@ -50,6 +53,16 @@
     try {
       await api.editMusic(key, body)
       await load()
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
+  async function setBattle(slot: string, song: SongRef | null) {
+    error = ''
+    try {
+      await api.setBattleMusic({ slot, song })
+      battle = await api.battleMusic()
     } catch (e) {
       error = String(e)
     }
@@ -106,6 +119,18 @@
   </section>
 
   <section class="panel">
+    <h3>{t('music.battleTitle')} <Help text={t('music.battleHint')} /></h3>
+    {#if library && battle}
+      <div class="battle">
+        {#each BATTLE_SLOTS.filter((slot) => slot in battle!.game) as slot (slot)}
+          <SongPicker label={t(`music.battle.${slot}`)} value={battle.chosen[slot] ?? null} gameValue={battle.game[slot]} {library}
+                      onchange={(song) => setBattle(slot, song)} />
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <section class="panel">
     <h3>{t('music.gameSongs')} <Help text={t('music.gameHint')} /></h3>
     {#if library}
       <ul class="game-songs">
@@ -129,6 +154,7 @@
   .icon:hover { color: var(--bad); }
   .game-songs { list-style: none; margin: 0.6rem 0 0; padding: 0; columns: 3 16rem; column-gap: 1.5rem; }
   .game-songs li { display: flex; align-items: center; gap: 0.4rem; padding: 0.12rem 0; break-inside: avoid; font-size: 0.9rem; }
+  .battle { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
   .bad { color: var(--bad); margin: 0.4rem 0 0; }
   .small { font-size: 0.8rem; }
   .tiny { font-size: 0.7rem; }

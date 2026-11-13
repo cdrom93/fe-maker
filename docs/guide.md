@@ -50,7 +50,7 @@ Le bouton **Ticket** de l'en-tête signale un problème ou propose une idée : l
 - Les chapitres ajoutés prennent des places libres du jeu : 21 dans un projet ordinaire, 41 dans un projet vierge.
 - Armes et objets ajoutés : copies d'un objet du jeu (49 places) ; une copie de potion ou de bâton garde l'effet d'un objet du jeu, avec ses propres quantités.
 - Une épée, une lance ou une hache qui frappe à distance demande une animation qui a le mouvement « Attaque à distance » : la plupart des haches du jeu ne l'ont pas. Le filtre « Frappe à distance » de la bibliothèque en trouve dans le FE-Repo.
-- Musique : musiques des chapitres (phases, ouverture, thème de victoire) ; pas encore celles des combats, des scènes et des écrans fixes, ni les patchs de pistes et d'instruments (MIDI de 10 pistes au plus, instruments du jeu seulement).
+- Musique : musiques des chapitres (phases, ouverture, thème de victoire), des combats et thèmes de chef ; pas encore celles des scènes et des écrans fixes, ni les patchs de pistes et d'instruments (MIDI de 10 pistes au plus, instruments du jeu seulement).
 - Carte du monde : on peut seulement la désactiver.
 - Compétences : 3 au plus par fiche personnage ou classe ; leurs noms et descriptions sont en anglais dans le jeu.
 - Couleurs du portrait : le résultat est approché, à retoucher au besoin ; une animation importée ne protège pas sa monture.

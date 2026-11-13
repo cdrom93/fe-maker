@@ -20,6 +20,7 @@
   import { characterMagic, classMagic, statLabel, withMagic } from '../lib/magic.svelte'
   import { abilitiesFromSkills, skillsOption } from '../lib/skills.svelte'
   import SkillsPanel from './SkillsPanel.svelte'
+  import BossTheme from './BossTheme.svelte'
 
   let {
     list,
@@ -345,6 +346,11 @@
         seize={{ on: ch.canSeize ?? CONVOY_OPENERS.includes(ch.id), onchange: (on) => edit((c) => (c.canSeize = on)) }}
         fromSkills={skillsOption.on ? abilitiesFromSkills([...(ch.skills ?? []), ...(cls?.skills ?? [])]) : []}
       />
+      </details>
+
+      <details class="panel fold">
+        <summary>{t('music.bossTitle')} <Help text={t('music.bossHint')} /></summary>
+        <BossTheme characterId={ch.id} />
       </details>
 
       {#if skillsOption.on}

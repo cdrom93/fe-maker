@@ -2454,5 +2454,17 @@
   "music.victory": "Victory theme at",
   "music.victoryHint": "When this many enemies or fewer are left, the player phase plays \"Grasp at victory\". 0: never.",
   "music.variants": "After the music change",
-  "music.variantsHint": "Played instead of the others once event flag 4 is set (\"Set a flag\" command of a sequence). Keep \"None\" only if this chapter never sets that flag."
+  "music.variantsHint": "Played instead of the others once event flag 4 is set (\"Set a flag\" command of a sequence). Keep \"None\" only if this chapter never sets that flag.",
+  "music.battleTitle": "Battle music",
+  "music.battleHint": "What the battle screen plays depending on the situation. A boss keeps their own theme (character sheet).",
+  "music.battle.playerAttacks": "Player attacks",
+  "music.battle.enemyAttacks": "Enemy attacks",
+  "music.battle.healStaff": "Healing staff",
+  "music.battle.statusStaff": "Status staff",
+  "music.battle.dance": "Dance",
+  "music.battle.promotion": "Promotion",
+  "music.battle.arena": "Arena",
+  "music.bossTitle": "Battle theme",
+  "music.bossHint": "Played by the battle screen when this character fights while not on the player's side. \"None\": the usual battle music.",
+  "music.bossTheme": "Boss theme"
 }

@@ -24,6 +24,10 @@ export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegr
 export type ChapterMusic = {
   game: Record<string, number>; chosen: Record<string, SongRef>; gameVictory: number; victory: number | null
 }
+/** Battle songs by situation and boss themes by character (server: music.BATTLE_SLOTS, gBanimBossBGMs) */
+export type BattleMusic = {
+  game: Record<string, number>; chosen: Record<string, SongRef>; gameBosses: Record<string, number>; bosses: Record<string, SongRef>
+}
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
 
 export class ApiError extends Error {
@@ -103,6 +107,9 @@ export const api = {
   setChapterMusic: (index: number, body: { slot?: string; song?: SongRef | null; victory?: number; resetVictory?: boolean }) =>
     request<{ problems: Problem[] }>('PUT', `/api/chapters/${index}/music`, body),
   musicLibrary: () => request<MusicLibrary>('GET', '/api/music'),
+  battleMusic: () => request<BattleMusic>('GET', '/api/music/battle'),
+  setBattleMusic: (body: { slot?: string; character?: string; song: SongRef | null }) =>
+    request<{ problems: Problem[] }>('PUT', '/api/music/battle', body),
   importMusic: (file: File) => {
     const form = new FormData()
     form.append('file', file)

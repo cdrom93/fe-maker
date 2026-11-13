@@ -8,7 +8,8 @@ chapters' "bgm" settings. Files are named song<number>_fem_<key> (docker/entrypo
 the working copy: the Makefile builds every .mid it finds, and one without its rule would stop the build).
 
 Project data: data/music.json {"songs": {key: {"name", "voicegroup", "volume"}}, "chapters": {index: {slot: song}},
-"victory": {index: enemies}}, a song being an imported key (str) or a game song number (int, NO_SONG for none);
+"victory": {index: enemies}, "battle": {slot: song}, "bosses": {character id: song}}, a song being an imported key
+(str) or a game song number (int, NO_SONG for none);
 files in the project's assets/music/<key>.mid. FE-Repo-Music songs mostly need the community instrument set NIMAP2,
 not in the game: later.
 
@@ -117,10 +118,91 @@ def apply_choices(settings: list[dict], data: dict, numbers: dict[str, int]) -> 
             settings[int(index)]["victorySongEnemyThreshold"] = max(0, min(int(enemies), 127))   # an s8
 
 
+# Battle music (src/banim-efxsound.c, EkrPlayMainBGM): the song the battle screen plays, by situation, and the
+# boss themes (gBanimBossBGMs: character, song pairs ended by -1; only for a unit not of the player's side, on the
+# left of the battle screen). A slot is the SONG_ constant written at that spot of the source; the project's choice
+# replaces it there with a number. FE8's Healing / Curing names are crossed: healing staves play SONG_CURING.
+BATTLE_FILE = "src/banim-efxsound.c"
+BATTLE_SLOTS = {
+    "playerAttacks": ("SONG_ATTACK", r"\? SONG_ATTACK :"),
+    "enemyAttacks": ("SONG_DEFENSE", r": SONG_DEFENSE;"),
+    "healStaff": ("SONG_CURING", r"songid = SONG_CURING;"),
+    "statusStaff": ("SONG_HEALING", r"songid = SONG_HEALING;"),
+    "dance": ("SONG_TETHYS", r"EfxOverrideBgm\(SONG_TETHYS,"),
+    "promotion": ("SONG_TO_A_HIGHER_PLACE", r"EfxOverrideBgm\(SONG_TO_A_HIGHER_PLACE,"),
+    "arena": ("SONG_IN_THE_COLOSSEUM", r"EfxOverrideBgm\(SONG_IN_THE_COLOSSEUM,"),
+}
+_BOSS_TABLE = re.compile(r"(CONST_DATA int gBanimBossBGMs\[)[^\]]*(\] = \{\n)(.*?)(\n\};)", re.DOTALL)
+
+
+def song_constants(decomp_dir: Path) -> dict[str, int]:
+    header = decomp_dir / SONGS_HEADER
+    if not header.is_file():
+        return {}
+    return {m.group(1): int(m.group(2), 0) for m in re.finditer(
+        r"^\s*(SONG_\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+)", header.read_text(encoding="utf-8"), re.MULTILINE)}
+
+
+def game_battle_songs(decomp_dir: Path) -> dict[str, int]:
+    """The game's song for each battle slot found in the source."""
+    path = decomp_dir / BATTLE_FILE
+    if not path.is_file():
+        return {}
+    source, numbers = path.read_text(encoding="utf-8"), song_constants(decomp_dir)
+    return {slot: numbers[name] for slot, (name, spot) in BATTLE_SLOTS.items()
+            if name in numbers and re.search(spot, source)}
+
+
+def game_boss_songs(decomp_dir: Path) -> dict[str, int]:
+    """The game's boss themes: character constant (or number) -> song number."""
+    path = decomp_dir / BATTLE_FILE
+    m = _BOSS_TABLE.search(path.read_text(encoding="utf-8")) if path.is_file() else None
+    if not m:
+        return {}
+    numbers = song_constants(decomp_dir)
+    pairs = re.findall(r"(\w+)\s*,\s*(\w+)\s*,", m.group(3))
+    return {who: numbers.get(song, int(song, 0) if song[:1].isdigit() else NO_SONG)
+            for who, song in pairs if who != "-1"}
+
+
+def with_battle_songs(source: str, slots: dict[str, int], bosses: dict[int, int] | None) -> str:
+    """The battle source with the chosen songs: slots by number, and, when bosses is given, the whole boss table
+    (character number -> song; NO_SONG: no theme) rewritten with numbers, as large as needed."""
+    for slot, number in slots.items():
+        name, spot = BATTLE_SLOTS[slot]
+        source = re.sub(spot, lambda m, n=name, v=number: m.group(0).replace(n, f"0x{v:X}"), source)
+    if bosses is not None:
+        m = _BOSS_TABLE.search(source)
+        if m:
+            rows = [f"    0x{who:X}, 0x{song:X}," for who, song in sorted(bosses.items()) if song != NO_SONG]
+            body = "\n".join([*rows, "    -1, -1"])
+            source = source[:m.start()] + f"{m.group(1)}{len(rows) + 1} * 2{m.group(2)}{body}{m.group(4)}" + source[m.end():]
+    return source
+
+
+def battle_choices(decomp_dir: Path, data: dict, numbers: dict[str, int], character_number) -> tuple[dict, dict | None]:
+    """The project's battle slots (song numbers) and, if any boss theme changed, the whole boss table."""
+    def number(ref):
+        return numbers.get(ref) if isinstance(ref, str) else ref
+
+    slots = {s: n for s, ref in data.get("battle", {}).items() if s in BATTLE_SLOTS and (n := number(ref)) is not None}
+    chosen = data.get("bosses", {})
+    if not chosen:
+        return slots, None
+    table = {character_number(who): song for who, song in game_boss_songs(decomp_dir).items()}
+    for who, ref in chosen.items():
+        n, pid = number(ref), character_number(who)
+        if n is not None and pid:
+            table[pid] = n
+    return slots, table
+
+
 def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[str, str | bytes], dict[str, int]]:
-    """Files of the songs the chapters use (decomp-relative path -> content) and each song's number."""
+    """Files of the songs the chapters and battles use (decomp-relative path -> content) and each song's number."""
     songs = data.get("songs", {})
-    used = sorted({key for slots in data.get("chapters", {}).values() for key in slots.values()
+    refs = [*(key for slots in data.get("chapters", {}).values() for key in slots.values()),
+            *data.get("battle", {}).values(), *data.get("bosses", {}).values()]
+    used = sorted({key for key in refs
                    if isinstance(key, str) and key in songs and (assets_dir / "music" / f"{key}.mid").is_file()})
     if not used:
         return {}, {}

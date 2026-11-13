@@ -173,3 +173,54 @@ def test_chapter_choices_go_to_the_chapter_settings():
 
 def test_a_decomp_without_sound_files_has_no_game_songs(tmp_path):
     assert music.game_songs(tmp_path) == [] and instruments.voicegroup_numbers(tmp_path) == []
+
+
+_BATTLE_SOURCE = """void EkrPlayMainBGM(void)
+{
+    songid = gBanimFactionPal[gEkrInitialHitSide] != 1 ? SONG_ATTACK : SONG_DEFENSE;
+    if (GetBattleAnimArenaFlag() == 1)
+        EfxOverrideBgm(SONG_IN_THE_COLOSSEUM, 0x100);
+    if (GetBanimLinkArenaFlag() == 1)
+        EfxOverrideBgm(SONG_IN_THE_COLOSSEUM, 0x100);
+    case 2:
+        songid = SONG_CURING;
+}
+
+CONST_DATA int gBanimBossBGMs[3 * 2] = {
+    CHARACTER_KING,             SONG_THE_THEME,
+    CHARACTER_QUEEN,            SONG_ATTACK,
+    -1, -1
+};
+"""
+
+
+def _battle_decomp(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "include" / "constants").mkdir(parents=True)
+    (tmp_path / "src" / "banim-efxsound.c").write_text(_BATTLE_SOURCE, encoding="utf-8")
+    (tmp_path / "include" / "constants" / "songs.h").write_text(
+        "    SONG_THE_THEME = 0x1B,\n    SONG_ATTACK = 0x19,\n    SONG_DEFENSE = 0x1A,\n    SONG_CURING = 0x22,\n"
+        "    SONG_IN_THE_COLOSSEUM = 0x39,\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_battle_songs_read_from_the_battle_source(tmp_path):
+    decomp = _battle_decomp(tmp_path)
+    assert music.game_battle_songs(decomp) == {"playerAttacks": 0x19, "enemyAttacks": 0x1A, "healStaff": 0x22,
+                                               "arena": 0x39}
+    assert music.game_boss_songs(decomp) == {"CHARACTER_KING": 0x1B, "CHARACTER_QUEEN": 0x19}
+
+
+def test_battle_songs_and_boss_themes_written_back(tmp_path):
+    decomp = _battle_decomp(tmp_path)
+    numbers = {"CHARACTER_KING": 5, "CHARACTER_QUEEN": 6, "CHARACTER_HERO": 1}
+    data = {"battle": {"playerAttacks": "theme", "arena": 9, "unknown": 3},
+            "bosses": {"CHARACTER_KING": music.NO_SONG, "CHARACTER_HERO": "theme"}}
+    slots, bosses = music.battle_choices(decomp, data, {"theme": 87}, lambda who: numbers.get(who, 0))
+    assert slots == {"playerAttacks": 87, "arena": 9}
+    assert bosses == {5: music.NO_SONG, 6: 0x19, 1: 87}
+    out = music.with_battle_songs(_BATTLE_SOURCE, slots, bosses)
+    assert "!= 1 ? 0x57 : SONG_DEFENSE;" in out
+    assert out.count("EfxOverrideBgm(0x9, 0x100);") == 2   # the arena and the link arena
+    assert "CONST_DATA int gBanimBossBGMs[3 * 2] = {\n    0x1, 0x57,\n    0x6, 0x19,\n    -1, -1\n};" in out
+    assert music.battle_choices(decomp, {"battle": {"arena": 9}}, {}, numbers.get)[1] is None   # table kept as is

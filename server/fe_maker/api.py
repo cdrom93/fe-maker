@@ -685,6 +685,9 @@ def remove_music(key: str):
             del slots[slot]
         if not slots:
             del stored["chapters"][index]
+    for group in (stored.get("battle", {}), stored.get("bosses", {})):
+        for slot in [s for s, song in group.items() if song == key]:
+            del group[slot]
     (project.root / "assets" / "music" / f"{key}.mid").unlink(missing_ok=True)
     return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
@@ -742,6 +745,44 @@ def music_sample(name: str):
     except instruments.InstrumentError as e:
         raise HTTPException(404, str(e)) from e
     return Response(instruments.to_wav(info), media_type="audio/wav", headers={"Cache-Control": "max-age=86400"})
+
+
+@app.get("/api/music/battle")
+def battle_music():
+    """Battle songs by situation and boss themes by character: the game's and the project's choices."""
+    project = state.require_project()
+    stored = project.load("music")
+    return {"game": music.game_battle_songs(project.decomp_dir), "chosen": stored.get("battle", {}),
+            "gameBosses": music.game_boss_songs(project.decomp_dir), "bosses": stored.get("bosses", {})}
+
+
+class BattleSongIn(BaseModel):
+    slot: str | None = None        # a battle situation (music.BATTLE_SLOTS)
+    character: str | None = None   # or a character's boss theme
+    song: int | str | None = None  # None: the game's; NO_SONG: none (boss theme only)
+
+
+@app.put("/api/music/battle")
+def set_battle_music(body: BattleSongIn):
+    project = state.require_project()
+    stored = project.load("music")
+    if body.slot is not None:
+        if body.slot not in music.BATTLE_SLOTS:
+            raise HTTPException(400, "unknownSlot")
+        if body.song == music.NO_SONG:
+            raise HTTPException(400, "songNeeded")
+        group, key = stored.setdefault("battle", {}), body.slot
+    elif body.character:
+        group, key = stored.setdefault("bosses", {}), body.character
+    else:
+        raise HTTPException(400, "slotOrCharacter")
+    if isinstance(body.song, str) and body.song not in stored.get("songs", {}):
+        raise HTTPException(404, "unknownSong")
+    if body.song is None:
+        group.pop(key, None)
+    else:
+        group[key] = body.song
+    return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
 
 def _chapter_settings(decomp_dir: Path, index: int) -> dict:
