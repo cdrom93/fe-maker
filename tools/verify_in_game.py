@@ -2,12 +2,13 @@
 machine (it needs the ROM and the build tools): every playtest of tests/local, then a reference hack played chapter
 by chapter, and a report of one line per test.
 
-    server/.venv/Scripts/python tools/verify_in_game.py [--hack <project folder>] [--chapters 0,1,2] [--skip-playtests] [-- <pytest arguments>]
+    server/.venv/Scripts/python tools/verify_in_game.py [--hack <project folder>] [--chapters 0,1,2] [--skip-playtests]
+        [-- <pytest arguments>]
 
 The ROM is FE_MAKER_ROM, else the one in FE Maker's settings, else rom/*.gba. The reference hack is copied first:
 its own folder is never changed. For each chapter its story reaches (or those given), a test build starting on that
-chapter must play its opening (texts passed with A, a preparations screen with START) and reach the player phase of turn 1 with units on the map. The report goes to
-verify-report.txt beside this script's working folder (or --report) and is printed.
+chapter must play its opening (texts passed with A, a preparations screen with START) and reach the player phase of
+turn 1 with units on the map. The report goes to verify-report.txt in the working folder (or --report) and is printed.
 """
 
 from __future__ import annotations
