@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
+  import { recentActivity } from '../lib/activity'
   import { adminFileUrl, api, ApiError, ticketImageUrl } from '../lib/api'
   import { appContext } from '../lib/appContext.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
@@ -21,6 +22,18 @@
   let hasProject = $state(false)
   api.status().then((s) => (hasProject = !!s.project)).catch(() => {})
   let attachProject = $state(false)
+  /** the last actions and errors joined to the ticket (server: activity.py, lib/activity.ts), shown on request */
+  let attachTrail = $state(true)
+  let trailPreview = $state<string[] | null>(null)
+
+  async function toggleTrailPreview() {
+    if (trailPreview) {
+      trailPreview = null
+      return
+    }
+    const server = await api.activity().catch(() => [] as string[])
+    trailPreview = [...server.map((e) => `[server] ${e}`), ...recentActivity().map((e) => `[ui] ${e}`)]
+  }
   /** the last ticket written: sent to the relay, or kept here with the reason */
   let sent = $state<Ticket | null>(null)
   let sending = $state(false)
@@ -158,12 +171,15 @@
     error = ''
     sending = true
     try {
-      sent = await api.createTicket({ body, kind, priority, context: $state.snapshot(context), images, attachProject })
+      sent = await api.createTicket({ body, kind, priority, context: $state.snapshot(context), images, attachProject,
+                                     attachTrail, trail: attachTrail ? recentActivity() : [] })
       body = ''
       images = []
       kind = 'bug'
       priority = 'normal'
       attachProject = false
+      attachTrail = true
+      trailPreview = null
       await load()
       await tick()
       textarea?.focus()
@@ -362,6 +378,11 @@
     {#if hasProject}
       <label class="check"><input type="checkbox" bind:checked={attachProject} /> {t('ticket.attachProject')} <Help text={t('ticket.attachProjectHint')} /></label>
     {/if}
+    <span class="trail-row">
+      <label class="check"><input type="checkbox" bind:checked={attachTrail} /> {t('ticket.attachTrail')} <Help text={t('ticket.attachTrailHint')} /></label>
+      <button type="button" class="link small" onclick={toggleTrailPreview}>{trailPreview ? t('ticket.trailHide') : t('ticket.trailShow')}</button>
+    </span>
+    {#if trailPreview}<pre class="trail">{trailPreview.join('\n') || t('ticket.trailEmpty')}</pre>{/if}
     {#if error}<p class="bad small">{error}</p>{/if}
     {#if sent?.remote}<p class="good small">{t('ticket.sent', { n: sent.number })}</p>
     {:else if sent}<p class="bad small">{t('ticket.notSent', { n: sent.number, reason: reason(sent.sendError ?? '') })}</p>{/if}
@@ -473,6 +494,8 @@
 </aside>
 
 <style>
+  .trail-row { display: flex; align-items: center; gap: 0.5rem; }
+  .trail { max-height: 10rem; overflow: auto; font-size: 0.7rem; margin: 0; white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;
     display: flex; flex-direction: column; gap: 0.7rem; overflow-y: auto; box-sizing: border-box;

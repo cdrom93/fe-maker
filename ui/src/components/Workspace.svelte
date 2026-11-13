@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { note } from '../lib/activity'
   import { onDestroy, onMount, tick } from 'svelte'
   import { appContext, resetAppContext } from '../lib/appContext.svelte'
   import { api, type DataKind } from '../lib/api'
@@ -64,6 +65,7 @@
 
   $effect(() => {
     appContext.tab = tab
+    note(`tab ${tab}`)
     appContext.detail = ''
   })
   onDestroy(resetAppContext)

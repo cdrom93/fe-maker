@@ -714,6 +714,9 @@ export interface TicketIn {
   /** screenshots as data URLs */
   images: string[]
   attachProject?: boolean
+  /** join the last actions and errors (server: activity.py), the interface's own in `trail` */
+  attachTrail?: boolean
+  trail?: string[]
 }
 
 /** Options of "Test" builds only (never in the exported patch). */

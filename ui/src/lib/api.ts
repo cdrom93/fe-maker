@@ -1,3 +1,4 @@
+import { note } from './activity'
 import { iconVersion, mapSpriteVersion, portraitVersion } from './portraits.svelte'
 import type { SkillCatalogue } from './skills.svelte'
 import type { BattleColors, BuildStatus, BuildTime, Character, Check, ClassData, Item, ItemIcons, ChapterInfo, ChapterLinks, TiledMap, ChapterUnits, MapChange, MapInfo, MapLayout, MapObjects, MapObjectSettings, MapPiece, ClassAnimation, FeRepoAnimation, MapsData, Objective, UnitGroup, TilesetEdits, DialogueFace, DialogueFont, DialogueScene, SupportPair, EventCommand, EventsReference, PortraitImport, PortraitInfo, FeRepoEntry, DialogueStep, Problem, ProjectInfo, Reference, Status, TestOptions, Ticket, TicketIn, AdminTicket } from './types'
@@ -41,6 +42,11 @@ export class ApiError extends Error {
   }
 }
 
+/** A failed request, for the tickets (lib/activity.ts); the ticket's own requests are not told. */
+function noteFailure(method: string, url: string, status: number) {
+  if (!url.startsWith('/api/tickets')) note(`${method} ${url.split('?')[0]} -> ${status}`)
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method }
   if (body instanceof FormData) {
@@ -51,6 +57,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   }
   const res = await fetch(url, init)
   if (!res.ok) {
+    noteFailure(method, url, res.status)
     let detail = res.statusText
     try {
       detail = (await res.json()).detail ?? detail
@@ -256,6 +263,7 @@ export const api = {
   buildTimes: () => request<BuildTime[]>('GET', '/api/build-times'),
   tickets: () => request<Ticket[]>('GET', '/api/tickets'),
   createTicket: (ticket: TicketIn) => request<Ticket>('POST', '/api/tickets', ticket),
+  activity: () => request<string[]>('GET', '/api/activity'),
   updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
     request<Ticket>('PATCH', `/api/tickets/${id}`, changes),
   deleteTicket: (id: string) => request<{ ok: boolean }>('DELETE', `/api/tickets/${id}`),

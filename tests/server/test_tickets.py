@@ -202,3 +202,28 @@ def test_the_admin_closing_a_sent_ticket_closes_its_issue(tmp_path, monkeypatch)
     api.update_ticket(ticket["id"], {"status": "open"})
     api.update_ticket(ticket["id"], {"priority": "high"})
     assert calls == [(7, "open")]
+
+
+def test_the_last_actions_and_errors_go_with_a_sent_ticket(tmp_path, monkeypatch):
+    """Spec, section 4, automatic tests point 3: activity.py notes the writing requests and the failures; a ticket
+    keeps them and sends them folded at the end of its text."""
+    from fe_maker import activity, tickets
+
+    activity.clear()
+    activity.request("GET", "/api/characters", 200)            # reading: not told
+    activity.request("PUT", "/api/characters/eirika", 200)
+    activity.request("GET", "/api/maps/3", 500)
+    activity.request("POST", "/api/tickets", 200)               # the ticket itself: not told
+    activity.error("build failed: code")
+    recent = activity.recent()
+    assert [e.split(" ", 1)[1] for e in recent] == ["PUT /api/characters/eirika -> 200", "GET /api/maps/3 -> 500",
+                                                    "ERROR build failed: code"]
+    calls = []
+    monkeypatch.setattr(tickets, "relay_call", lambda path, data=None, secret="": calls.append(data) or
+                        {"number": 3, "secret": "s" * 32})
+    store = TicketStore(tmp_path)
+    ticket = store.create("Crash", trail={"server": recent, "ui": ["10:00:00 tab maps"]})
+    store.send(ticket["id"])
+    body = calls[0]["body"]
+    assert body.startswith("Crash\n\n<details>") and "[server]" in body and "[ui] 10:00:00 tab maps" in body
+    assert "trail" not in store.create("Plain")

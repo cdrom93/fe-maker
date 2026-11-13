@@ -28,7 +28,7 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
-from . import __version__
+from . import __version__, activity
 from .config import config_dir
 from .paths import REPO_ROOT
 
@@ -166,7 +166,7 @@ class TicketStore:
             return sort_tickets(self._read())
 
     def create(self, body: str, kind: str = "bug", priority: str = "normal",
-               context: dict | None = None, images: list[str] | None = None) -> dict:
+               context: dict | None = None, images: list[str] | None = None, trail: dict | None = None) -> dict:
         body = body.strip()
         if not body:
             raise TicketError("bodyEmpty")
@@ -186,6 +186,7 @@ class TicketStore:
                 "context": {**(context or {}), "version": app_version()},
                 "images": [self._save_image(ticket_id, i, data) for i, data in enumerate(images or [])],
                 "comments": [],
+                **({"trail": trail} if trail else {}),
                 "createdAt": _now(),
                 "updatedAt": _now(),
             }
@@ -299,7 +300,9 @@ class TicketStore:
             raise KeyError(ticket_id)
         if ticket.get("remote"):
             return ticket
-        data = {"body": ticket["body"], "kind": ticket["kind"], "priority": ticket["priority"],
+        trail = ticket.get("trail") or {}
+        body = ticket["body"] + activity.trail_text(trail.get("server", []), trail.get("ui", []))
+        data = {"body": body, "kind": ticket["kind"], "priority": ticket["priority"],
                 "context": {k: v for k, v in ticket["context"].items() if k != "version"},
                 "version": ticket["context"].get("version", app_version()),
                 "images": [self._image_url(name) for name in ticket["images"][:RELAY_MAX_IMAGES]]}

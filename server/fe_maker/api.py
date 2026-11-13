@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from . import (
     __version__,
+    activity,
     buildcancel,
     builderrors,
     buildtimes,
@@ -116,6 +117,18 @@ from .tickets import TicketError, TicketStore, project_zip
 LANGUAGES = ("fr", "en")  # ui/src/locales (es.json and it.json are set aside for a later version)
 
 app = FastAPI(title="FE Maker")
+
+
+@app.middleware("http")
+async def _note_activity(request, call_next):
+    """The last actions and errors, joined to tickets (activity.py)."""
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        activity.error(f"{request.method} {request.url.path}: {type(e).__name__}: {e}")
+        raise
+    activity.request(request.method, request.url.path, response.status_code)
+    return response
 
 
 class _State:
@@ -2750,6 +2763,8 @@ def _build_failed(project: Project, error: str) -> None:
     except Exception:  # never hide the error itself
         st["why"] = None
     st["state"] = "error"
+    why = st.get("why") or {}
+    activity.error(f"build failed: {why.get('kind') or error.splitlines()[0][:200] if error else '?'}")
 
 
 def _run_build(project: Project, launch: bool) -> None:
@@ -2842,6 +2857,14 @@ class TicketIn(BaseModel):
     images: list[str] = []  # data URLs
     send: bool = True       # to the ticket relay (tickets.py)
     attachProject: bool = False
+    attachTrail: bool = True  # the last actions and errors (activity.py), the interface's own in `trail`
+    trail: list[str] = []
+
+
+@app.get("/api/activity")
+def recent_activity():
+    """What a ticket would join of the server's side (shown before sending)."""
+    return activity.recent()
 
 
 @app.get("/api/tickets")
@@ -2885,7 +2908,8 @@ def create_ticket(body: TicketIn):
     if state.project:
         context.setdefault("project", state.project.meta.get("name", ""))
     try:
-        ticket = tickets.create(body.body, body.kind, body.priority, context, body.images)
+        trail = {"server": activity.recent(), "ui": [str(x)[:300] for x in body.trail[-40:]]} if body.attachTrail else None
+        ticket = tickets.create(body.body, body.kind, body.priority, context, body.images, trail)
     except TicketError as e:
         raise HTTPException(400, str(e))
     return _send_ticket(ticket["id"], body.attachProject) if body.send else ticket
