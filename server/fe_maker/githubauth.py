@@ -17,7 +17,7 @@ import urllib.request
 from .config import config_dir
 
 # The public client id of FE Maker's OAuth App (device flow enabled). Empty: the sign-in is not offered.
-CLIENT_ID = ""
+CLIENT_ID = "Ov23lifYsWLKOXATcb3q"
 DEVICE_URL = "https://github.com/login/device/code"
 TOKEN_URL = "https://github.com/login/oauth/access_token"
 USER_URL = "https://api.github.com/user"
