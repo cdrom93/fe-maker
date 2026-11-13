@@ -244,27 +244,26 @@ _ICONS_LOOP = "        switch (unit->statusIndex) {\n        case UNIT_STATUS_PO
 _ICONS_LOOP_BARS = "        FemPutHpBar(unit);\n\n" + _ICONS_LOOP
 
 # A yellow bubble over the units the selected one can talk to, to recruit them or not, or support with (ticket 113, as
-# in Vision Quest): two 16 x 8 pictures in free object tiles, after the HP bars'. HP bars and bubble sit in object tiles
+# in Vision Quest): one 16 x 8 picture in free object tiles, after the HP bars'. HP bars and bubble sit in object tiles
 # 0x340-0x37F, which nothing uses on the map (ticket 142: the weathers' particles take 0x12-0x7F of the first rows).
 # A battle animation puts its right fighter's sheet on 0x300-0x3FF, and its talks (battle quotes) reload the object UI
 # graphics: the tiles are not written while one runs (ticket 161). A portrait (face slot 0, 0x300-0x3FF) too: not
 # written under one, reloaded at the first frame without one (ticket 51).
-# Colors of the first object palette: # border, y yellow, d dark.
-_BUBBLE = ("...########.....", "..#yyyyyyyy#....", ".#yyyyyyyyyy#...", ".#yydyydyydy#...",
-           ".#yyyyyyyyyy#...", "..#yyyyyyyy#....", "...####yy###....", ".....#yy#.......",
-           "......##........", "................", "................", "................",
-           "................", "................", "................", "................")
+# Vision Quest's bubble, redrawn pixel for pixel from a screenshot (ticket 69 of 10/11): a round one, its tail toward the
+# unit, at the upper left of its square. Colors of the first object palette (the same as Vision Quest's): o orange, y
+# yellow, l lilac.
+_BUBBLE = ("..ooooo.........", ".oyyyyyo........", "oyylllyyo.......", "oylllllyo.......",
+           "oylllllyo.......", "oyylllyyyo......", ".oyyyyyyoo......", "..oooooo........")
 _BUBBLE_TILE = 0x360
 
 
 def _bubble_tiles() -> str:
-    """The bubble as tiles: top left, top right, bottom left, bottom right; 4 bits a pixel, 8 rows of 32 bits."""
-    color = {".": 0, "y": 0x1, "#": 0xF, "d": 0xD}
+    """The bubble as tiles: left, right; 4 bits a pixel, 8 rows of 32 bits."""
+    color = {".": 0, "y": 0x1, "l": 0x8, "o": 0xC}
     tiles = []
-    for top in (0, 8):
-        for left in (0, 8):
-            rows = [sum(color[_BUBBLE[top + y][left + x]] << (x * 4) for x in range(8)) for y in range(8)]
-            tiles.append("    { " + ", ".join(f"0x{row:08X}" for row in rows) + " },\n")
+    for left in (0, 8):
+        rows = [sum(color[_BUBBLE[y][left + x]] << (x * 4) for x in range(8)) for y in range(8)]
+        tiles.append("    { " + ", ".join(f"0x{row:08X}" for row in rows) + " },\n")
     return "".join(tiles)
 
 
@@ -272,7 +271,7 @@ def _bubble_tiles() -> str:
 _BUBBLE_ROW = _bubble_tiles().split(", ")[1]   # its first tile's row 1: written by FemLoadBubble
 
 _OBJ_UI_LOAD_BUBBLE = """/* FE Maker: the talk bubble's tiles */
-static const u32 sFemBubble[4][8] = {
+static const u32 sFemBubble[2][8] = {
 """ + _bubble_tiles() + """};
 
 #include "face.h"
@@ -288,7 +287,7 @@ void FemLoadBubble(void) {
         if (gFaces[y])
             return; /* a portrait's tiles sit on these (ticket 51): reloaded once it is gone */
 
-    for (tile = 0; tile < 4; ++tile)
+    for (tile = 0; tile < 2; ++tile)
         for (y = 0; y < 8; ++y)
             ((u32*) (0x06010000 + (""" + str(_BUBBLE_TILE) + """ + tile) * 0x20))[y] = sFemBubble[tile][y];
 }
@@ -325,10 +324,8 @@ static void FemPutBubble(struct Unit * unit)
         show = GetUnitSupporterUnit(gActiveUnit, i) == unit && CanUnitSupportNow(gActiveUnit, i);
 
     if (show) {
-        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 3), OAM0_Y(0x100 + y - 9), gObject_16x8,
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x - 5), OAM0_Y(0x100 + y - 2), gObject_16x8,
             OAM2_CHR(""" + str(_BUBBLE_TILE) + """) + OAM2_LAYER(2));
-        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 3), OAM0_Y(0x100 + y - 1), gObject_16x8,
-            OAM2_CHR(""" + str(_BUBBLE_TILE + 2) + """) + OAM2_LAYER(2));
     }
 }
 

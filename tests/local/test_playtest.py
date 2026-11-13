@@ -1548,6 +1548,30 @@ def test_hp_bars_hide_under_a_portrait(tmp_path):
         print("screenshots:", tmp_path)
 
 
+def test_talk_bubble_is_vision_quests(tmp_path):
+    """Ticket 69 (10/11): Vision Quest's round bubble, at the upper left of the unit Eirika can support with."""
+    project = Project.create(tmp_path / "bubble", "Bubble")
+    project.set_game_options({"talkBubbles": True})
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(60)
+        base = game.address("gUnitArrayBlue")
+        units = game.units()
+        for index in range(len(units)):
+            for support in range(7):
+                game.write(base + index * UNIT_SIZE, 80, offset=0x32 + support)   # a C support ready
+        eirika = next(u for u in units if u["character"] == 1)
+        seth = next(u for u in units if u["character"] == 2)
+        game.move_cursor(eirika["x"], eirika["y"])
+        game.press("A", wait=30)       # her move range: the bubble shows on Seth
+        shot = game.screenshot()
+        shot.save(tmp_path / "bubble.png")
+        shot.resize((720, 480), Image.NEAREST).save(tmp_path / "bubble3x.png")
+        print("screenshot:", tmp_path / "bubble3x.png", "seth at", seth["x"], seth["y"])
+        assert game.read(0x06010000 + 0x360 * 0x20 + 4, width=32) == 0xC11111C0
+
+
 def test_magic_split_from_strength(tmp_path):
     """Ticket 27: with strMagSplit, a tome hits with Magic (the unit's byte 0x3A), a sword with Strength; Magic comes back
     after a suspend."""

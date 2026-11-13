@@ -289,3 +289,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 12/11/2026 : retour sur #44 (pause quand Sol se déclenche) : barres du drain au rythme d'un coup normal (copie du script de Nosferatu, attente 0x1E au lieu de 0x54) ; playtest : 14 images entre les deux barres.
 - 12/11/2026 : #44 encore : le soin de Sol et d'Aether se fait en même temps que le coup (les deux jauges ensemble, « +n » avec « -n ») ; playtests.
 - 12/11/2026 : #44 : retour à l'enchaînement du C-SkillSys (BanimHpDrainFix) : barre de l'ennemi, puis celle de l'attaquant avec le son de soin, sans l'attente du sort de Nosferatu ; playtest : 14 images entre les deux.
+- 13/11/2026 : #69 : la bulle de conversation sur la carte est celle de Vision Quest (ronde, bord orange, anneau jaune, centre lilas, en haut à gauche de l'unité), redessinée pixel par pixel d'après sa capture avec la palette du jeu ; playtest `test_talk_bubble_is_vision_quests`.
