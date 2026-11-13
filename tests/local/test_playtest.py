@@ -2412,6 +2412,34 @@ def test_experience_skills(tmp_path):
         assert hits >= 1 and game.read(lord, 0x28) == rank + 2 * hits
 
 
+def test_batch_10_counter(tmp_path):
+    """Skills batch 10: the enemy has Counter, the lord always hits (Hawkeye) at melee range: the damage goes back to
+    the lord, the enemy keeps its HP. The lord also has the batch's other triggered skills, built with them."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "counter", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = [
+        "Hawkeye", "Deadeye", "KillingMachine", "Nullify", "RightfulKing", "RightfulGod",
+        "Hero", "CounterMagic"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["skills"] = ["Counter"]
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        enemy = game.address("gUnitArrayRed")
+        foe_hp = game.read(enemy, 0x13)   # struct Unit: curHP
+        _bench_attack(game, lord)
+        # the lord's hits (gBattleHitArray: attributes on 19 bits, 0x80 = BATTLE_HIT_ATTR_DEVIL, then the HP change)
+        assert game.wait_until(lambda: game.read("gBattleHitArray", 0, width=32) != 0, seconds=30, step=10)
+        hits = [game.read("gBattleHitArray", 4 * i, width=32) for i in range(2)]
+        assert all(hit & 0x80 and hit >> 24 for hit in hits), [hex(hit) for hit in hits]
+        game.run(600)                     # the damage went back to the lord (who may die of it), not to the enemy
+        assert game.read(enemy, 0x13) == foe_hp
+
+
 def test_game_ability_given_as_a_skill(tmp_path):
     """Skills batch 4: Crit +15 (the game's CA_CRITBONUS) on the lord's sheet raises its crit rate in battle, through
     UNIT_CATTRIBUTES, as on a Swordmaster."""

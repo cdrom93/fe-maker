@@ -322,3 +322,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : OAuth App GitHub de l'utilisateur branchée (identifiant public) et relais des tickets déployé : la connexion GitHub des tickets est proposée.
 - 13/11/2026 : tickets #73 (portrait de l'unité qui agit dans les dialogues), #74 (musique de phase rangée sur le lecteur des combats : copiée sur celui de la carte), #76 (MIDI importés dans la salle du son), #77 (thème de personnage dans les deux camps), #79 (panneau Ticket compacté), #80 (vue Testeurs sans les dernières actions).
 - 14/11/2026 : compétences, lot 10 : croissances et expérience (Blossom, Aptitude, Paragon, Discipline).
+- 14/11/2026 : compétences, lot 10 : déclenchements (Deadeye, Counter, Counter Magic, Killing Machine, Nullify, Rightful King, Rightful God, Hero) ; playtest du contre.

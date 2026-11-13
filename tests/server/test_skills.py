@@ -470,3 +470,32 @@ def test_growth_and_experience_skills(monkeypatch):
     used = skills.used(paragon, [], False)
     battle = skills.apply(DECOMP, {}, paragon, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
     assert "GrowthFem" not in battle and "SKILL_FEM_Blossom" not in battle and "exp = exp * 2;" in battle
+
+
+def test_batch_10_triggered_skills(monkeypatch):
+    """Batch 10: Deadeye (on the hit roll; Deadeye's sleep among the statuses), Counter
+    and Counter Magic (the game's Devil effect), Killing Machine, Nullify, and the activation rate bonuses."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": [
+        "Deadeye", "Counter", "CounterMagic", "KillingMachine", "Nullify", "RightfulKing",
+        "Hero"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    battle = files["src/bmbattle.c"]
+    assert "BattleRoll2RN(HitRateSkillsFem(attacker, defender, gBattleStats.hitRate), TRUE)" in battle
+    assert "rate *= 2;" in battle and "status = UNIT_STATUS_SLEEP;" in battle
+    assert "if (CounterFem(attacker, defender) || ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)" in battle
+    assert "SKILL_FEM_RightfulKing))\n        rate += 10;" in battle and "SKILL_FEM_RightfulGod" not in battle
+    assert "attacker->battleCritRate *= 2;" in battle
+    assert "    if (SkillTesterFem(target, SKILL_FEM_Nullify)) /* FE Maker: Nullify */" in files["src/bmitem.c"]
+    assert battle.index("static int HitRateSkillsFem") < battle.index("void BattleGenerateHitAttributes(")
+
+
+def test_skill_ids_are_unique():
+    """Two skills of one id collide in the build (SKILL_FEM_ defines, icon symbols): C-SkillSys's Great Shield and Sure
+    Shot are the game's ones (GAME_SKILLS)."""
+    ids = [s.id for s in skills.CATALOGUE] + [s.id for s in skills.GAME_SKILLS]
+    assert len(ids) == len(set(ids))

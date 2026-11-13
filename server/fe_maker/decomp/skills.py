@@ -70,6 +70,7 @@ class Skill:
     # BattleCalcReal); proc skills: C run on a hit before its damage (attacker, defender, magic, *attack, *defense)
     after: str = ""       # proc skills: C run on the hit's damage, after the critical roll
     effect: str = ""      # proc skills: C run once the hit's HP change is done (hit, allowed, status, keep; _hit_skills)
+    roll: str = ""        # proc skills: C run before the hit roll (attacker, defender, rate: the hit rate; _hit_skills)
     game: str = ""        # game skills: the C condition on `unit`
     menu: str = ""        # menu skills: the command's name in the unit menu
     holder: str = "attacker"   # battle, late and eff skills: whose skill it is (the code reads attacker and defender)
@@ -208,6 +209,15 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Pavise", "proc", "Pavise", "Pavise:[NL]Nullifies a physical attack.[NL](Skill % activation).",
           code="if (!magic && SkillProcFem(defender, SKILL_FEM_Pavise))\n"
                "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_GREATSHLD;"),
+    # batch 10, triggered skills (C-SkillSys's BattleHit.c, BattleHitAttr.c, SkillActRate.c); its Great Shield and Sure
+    # Shot are the game's (GAME_SKILLS, Level %)
+    Skill("Counter", "proc", "Counter", "Counter:[NL]Reflect physical damage[NL]dealt at melee range."),
+    Skill("CounterMagic", "proc", "CounterMagic", "Counter Magic:[NL]Reflect magical damage[NL]dealt at range."),
+    Skill("RightfulKing", "proc", "RightfulKing",
+          "Rightful King:[NL]Add +10% to the activation[NL]rate of this unit's skills."),
+    Skill("RightfulGod", "proc", "RightfulGod",
+          "Rightful God:[NL]Add +30% to the activation[NL]rate of this unit's skills."),
+    Skill("Hero", "proc", "Hero", "Hero:[NL]If unit's HP < 50%, add +30%[NL]to its skills' activation rate."),
     Skill("Adept", "hits", "Adept", "Adept:[NL]Attacks one more time[NL]when HP is full.",
           code="if (SkillTesterFem(&unit->unit, SKILL_FEM_Adept) && unit->hpInitial == unit->unit.maxHP)\n"
                "            more += 1;"),
@@ -471,6 +481,9 @@ CATALOGUE: tuple[Skill, ...] = (
     _b("Vigilance", "battle", "Vigilance:[NL]Gain +20 Avoid.", "attacker->battleAvoidRate += 20;"),
     # batch 6: hit and crit (BattleCalcReal_ComputSkills, after the game's effective rates), damage on each hit
     # (SkillEffects/BattleDamage), applied to the game's own damage after the critical roll
+    Skill("Nullify", "map", "Nullify", "Nullify: Unit is protected[NL]from all effective attacks.", group="guard"),
+    _b("KillingMachine", "hit", "Killing Machine:[NL]Double this unit's[NL]total crit rate.",
+       "attacker->battleCritRate *= 2;", kind="late"),
     _b("Hawkeye", "hit", "Hawkeye:[NL]User will always hit[NL]the enemy.", "attacker->battleEffectiveHitRate = 100;",
        kind="eff"),
     _b("Merciless", "hit", "Merciless:[NL]Guaranteed critical hit[NL]against poisoned foes.",
@@ -533,6 +546,11 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Petrify", "proc", "Petrify", "Petrify:[NL]Inflict stone on the opponent.[NL](Skill % activation).",
           group="status", effect="if (status == -1 && allowed && SkillProcFem(attacker, SKILL_FEM_Petrify))\n"
                                  "            status = UNIT_STATUS_PETRIFY;"),
+    Skill("Deadeye", "proc", "Deadeye", "Deadeye:[NL]Doubles hit rate and inflict sleep.[NL](Skill % activation).",
+          group="status", roll="if (SkillProcFem(attacker, SKILL_FEM_Deadeye)) {\n"
+                               "            sHitFlagsFem |= HIT_DEADEYE_FEM;\n            rate *= 2;\n        }",
+          effect="if (status == -1 && allowed && (sHitFlagsFem & HIT_DEADEYE_FEM))\n"
+                 "            status = UNIT_STATUS_SLEEP;"),
     Skill("PoisonPoint", "proc", "", "Poison Point:[NL]Inflict poison[NL]on the opponent.", group="status",
           effect="if (status == -1 && allowed && SkillTesterFem(&attacker->unit, SKILL_FEM_PoisonPoint))\n"
                  "            status = UNIT_STATUS_POISON;"),
@@ -1200,6 +1218,15 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files.update(_post_action_skills(decomp_dir, files, numbers, base))
     files.update(_ai_skills(decomp_dir, files, numbers))
     files.update(_growth_skills(decomp_dir, files, numbers))
+    if "Nullify" in numbers:   # batch 10: no effective weapon or class against the unit (C-SkillSys's CheckEffective.c)
+        rel = "src/bmitem.c"
+        text = _read(files, decomp_dir, rel)
+        # after the declarations (C89)
+        for head, who in (("s8 IsItemEffectiveAgainst(u16 item, struct Unit* unit) {\n", "unit"),
+                          ("    const u8* effList = NULL;\n\n", "target")):
+            text = _replace(text, head, head + f"    if (SkillTesterFem({who}, SKILL_FEM_Nullify)) /* FE Maker: Nullify */\n"
+                            "        return FALSE;\n\n", rel)
+        files[rel] = text
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
@@ -1261,6 +1288,7 @@ def _include_numbers(files: dict) -> dict:
 
 
 DRAIN_FLAG = "0x02028D80"   # one byte after the icon table, in the same free RAM: Sol or Aether triggered on this hit
+HIT_FLAGS = "0x02028D99"    # after the statuses of the hits: Deadeye (1) triggered on this hit
 ASTRA_FLAG = "0x02028D81"   # the next one: Astra triggered in this battle (the attacker's hits are halved)
 # then the triggered skills to show, 2 bytes per hit (the actor's, the target's), and the last round shown: 0x02028D82-91
 SHOWN_SKILLS = "0x02028D82"
@@ -1338,13 +1366,30 @@ def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
     before the damage (defense, attack, Pavise and Aegis as the game's Great Shield, Luna and Corona as its Pierce),
     after the critical roll (Colossus, shown as a critical hit), and the HP drain of Sol and Aether, as Nosferatu's."""
     hits = [s for s in procs if s.kind == "hits"]
+    ids = {s.id for s in procs}
     before = "".join(f"    {{\n        {s.code}\n    }}\n" for s in procs if s.kind == "proc" and s.code)
+    rolls = "".join(f"    {{\n        {s.roll}\n    }}\n" for s in procs if s.roll)
+    # C-SkillSys's CheckSkillActivateExt: Rightful King and God, Hero (under half HP) raise the rate of all the unit's
+    bonus = "".join(line for sid, line in (
+        ("RightfulKing", "    if (SkillTesterFem(&unit->unit, SKILL_FEM_RightfulKing))\n        rate += 10;\n"),
+        ("RightfulGod", "    if (SkillTesterFem(&unit->unit, SKILL_FEM_RightfulGod))\n        rate += 30;\n"),
+        ("Hero", "    if (SkillTesterFem(&unit->unit, SKILL_FEM_Hero) && unit->unit.curHP * 2 < unit->unit.maxHP)\n"
+                 "        rate += 30;\n")) if sid in ids)
+    counters = "".join(line for sid, line in (
+        ("Counter", "    if (SkillTesterFem(&defender->unit, SKILL_FEM_Counter) && gBattleStats.range == 1 && !magic) {\n"
+                    "        ShowSkillFem(defender, SKILL_FEM_Counter);\n        return TRUE;\n    }\n"),
+        ("CounterMagic", "    if (SkillTesterFem(&defender->unit, SKILL_FEM_CounterMagic)"
+                         " && gBattleStats.range >= 2 && magic) {\n"
+                         "        ShowSkillFem(defender, SKILL_FEM_CounterMagic);\n        return TRUE;\n    }\n"))
+        if sid in ids)
     more = "".join(f"    {{\n        {s.code}\n    }}\n" for s in hits)
     after = "".join(f"    {{\n        {s.after}\n    }}\n" for s in procs if s.after)
     battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", f"""\
 /* FE Maker: skills that trigger on a hit (C-SkillSys: SkillActRate.c, SkillEffects/BattleDamage) */
 #define sHitDrainFem (*(vu8*) {DRAIN_FLAG})
 #define sAstraFem (*(vu8*) {ASTRA_FLAG})
+#define sHitFlagsFem (*(vu8*) {HIT_FLAGS})
+#define HIT_DEADEYE_FEM 1
 
 /* the skill's name is shown with this hit (2 bytes per hit: the actor's skill, the target's) */
 static void ShowSkillFem(struct BattleUnit* unit, int skill)
@@ -1359,7 +1404,7 @@ static int SkillProcRateFem(struct BattleUnit* unit, int skill, int rate)
         return FALSE;
     if (!SkillTesterFem(&unit->unit, skill))
         return FALSE;
-    if (!BattleRoll2RN(rate, FALSE))
+{bonus}    if (!BattleRoll2RN(rate, FALSE))
         return FALSE;
     ShowSkillFem(unit, skill);
     return TRUE;
@@ -1378,6 +1423,19 @@ static int HitCountSkillsFem(struct BattleUnit* unit)
 {more}    return more;
 }}
 
+/* Deadeye: the hit rate of this hit */
+static int HitRateSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender, int rate)
+{{
+{rolls}    (void) defender;
+    return rate;
+}}
+/* Counter, Counter Magic (C-SkillSys's CheckDevilAttack): the hit's damage goes back to its attacker */
+static int CounterFem(struct BattleUnit* attacker, struct BattleUnit* defender)
+{{
+    int magic = attacker->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE);
+{counters}    (void) magic; (void) defender;
+    return FALSE;
+}}
 static void ApplyHitSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender, short* attack, short* defense)
 {{
     int magic = attacker->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE);
@@ -1418,7 +1476,18 @@ static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUni
 /* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */
 """, rel)
     battle = _replace(battle, "    gBattleStats.damage = 0;\n\n    BattleCheckSureShot(attacker);\n",
-                      "    gBattleStats.damage = 0;\n    sHitDrainFem = FALSE;\n\n    BattleCheckSureShot(attacker);\n", rel)
+                      "    gBattleStats.damage = 0;\n    sHitDrainFem = FALSE;\n    sHitFlagsFem = 0;\n\n"
+                      "    BattleCheckSureShot(attacker);\n", rel)
+    if rolls:
+        battle = _replace(battle, "        if (!BattleRoll2RN(gBattleStats.hitRate, TRUE)) {\n",
+                          "        if (!BattleRoll2RN(HitRateSkillsFem(attacker, defender, gBattleStats.hitRate), TRUE)) {\n",
+                          rel)
+    if counters:
+        battle = _replace(battle, "        if ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)"
+                          " && (BattleRoll1RN(31 - attacker->unit.lck, FALSE))) {\n",
+                          "        if (CounterFem(attacker, defender)"
+                          " || ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)"
+                          " && (BattleRoll1RN(31 - attacker->unit.lck, FALSE)))) {\n", rel)
     battle = _replace(battle, "        defense = 0;\n\n    gBattleStats.damage = attack - defense;\n",
                       "        defense = 0;\n\n    ApplyHitSkillsFem(attacker, defender, &attack, &defense);\n\n"
                       "    gBattleStats.damage = attack - defense;\n", rel)
