@@ -250,6 +250,7 @@ class Project:
         sources += [e["source"] for e in self.load("mapsprites").get("sprites", {}).values()
                     if isinstance(e, dict) and e.get("source")]
         sources += [e["source"] for e in self.load("icons").get("icons", {}).values() if e.get("source")]
+        sources += [e["source"] for e in self.load("music").get("songs", {}).values() if e.get("source")]
         lines = sorted({ferepo.credit_line(s) for s in sources})
         if lines:
             mine += "\n" + RESOURCES_HEADER + "".join(f"{line}\n" for line in lines)

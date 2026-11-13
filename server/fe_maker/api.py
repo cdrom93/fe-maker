@@ -24,7 +24,20 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, buildcancel, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, update, validation
+from . import (
+    __version__,
+    buildcancel,
+    buildtimes,
+    decompfetch,
+    emulator,
+    ferepo,
+    ferepo_music,
+    native,
+    newchapter,
+    scope,
+    update,
+    validation,
+)
 from . import tickets as ticketing
 from .builder import BuildError
 from .checks import run_checks
@@ -57,6 +70,7 @@ from .decomp import (
     quotes,
     reach,
     skills,
+    songasm,
     story,
     supports,
     tiled,
@@ -663,18 +677,11 @@ def music_library():
             "voicegroups": instruments.voicegroup_numbers(project.decomp_dir), "maxTracks": tracks}
 
 
-@app.post("/api/music")
-async def import_music(file: UploadFile = File(...)):
-    """A MIDI file from the PC into the project's songs, with the game's player phase instruments at first."""
-    project = state.require_project()
-    data = await file.read()
-    try:
-        midi.read(data)
-    except (midi.MidiError, IndexError) as e:
-        raise HTTPException(400, "notAMidi") from e
+def _add_song(project, name: str, data: bytes, voicegroup: int | str = music.DEFAULT_VOICEGROUP,
+              volume: int = music.DEFAULT_VOLUME, source: dict | None = None) -> dict:
+    """A MIDI file into the project's songs (assets/music/<key>.mid) under a key of its own."""
     stored = project.load("music")
     songs = stored.setdefault("songs", {})
-    name = Path(file.filename or "").stem or "song"
     base = key = music.safe_key(name)
     n = 2
     while key in songs:
@@ -682,8 +689,81 @@ async def import_music(file: UploadFile = File(...)):
     folder = project.root / "assets" / "music"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{key}.mid").write_bytes(data)
-    songs[key] = {"name": name[:60], "voicegroup": music.DEFAULT_VOICEGROUP, "volume": music.DEFAULT_VOLUME}
-    return {"key": key, "problems": [p.to_dict() for p in project.save("music", stored)]}
+    songs[key] = {"name": name[:60], "voicegroup": voicegroup, "volume": volume}
+    if source:
+        songs[key]["source"] = source
+    problems = project.save("music", stored)
+    if source:
+        project.update_credits()
+    return {"key": key, "problems": [p.to_dict() for p in problems]}
+
+
+def _song_from_asm(text: str) -> tuple[bytes, int]:
+    """A song in the game's music assembly (.s) as a MIDI file, and its volume."""
+    try:
+        return songasm.to_midi(text), songasm.song_volume(text)
+    except (songasm.SongAsmError, IndexError, RecursionError) as e:
+        raise HTTPException(400, "notASong") from e
+
+
+@app.post("/api/music")
+async def import_music(file: UploadFile = File(...)):
+    """A MIDI file from the PC into the project's songs, with the game's player phase instruments at first; a song
+    in the game's music assembly (.s, as FE-Repo-Music's) with the General MIDI instruments."""
+    project = state.require_project()
+    data = await file.read()
+    name = Path(file.filename or "").stem or "song"
+    if (file.filename or "").lower().endswith(".s"):
+        midi_data, volume = _song_from_asm(data.decode("utf-8", "replace"))
+        return _add_song(project, name, midi_data, nimap.KEY, volume)
+    try:
+        midi.read(data)
+    except (midi.MidiError, IndexError) as e:
+        raise HTTPException(400, "notAMidi") from e
+    return _add_song(project, name, data)
+
+
+@app.get("/api/ferepo/music")
+def ferepo_music_list(q: str = "", folder: str = "", offset: int = 0, refresh: bool = False):
+    """FE-Repo-Music's songs (ferepo_music.py), searched, a page at a time."""
+    try:
+        entries, when = ferepo_music.load_index(refresh)
+    except ferepo_music.FeRepoMusicError as e:
+        raise HTTPException(502, str(e)) from e
+    found, total = ferepo_music.search(entries, q, folder, max(0, offset))
+    return {"entries": found, "total": total, "indexDate": when, "folders": ferepo_music.folders(entries)}
+
+
+@app.get("/api/ferepo/music/preview")
+def ferepo_music_preview(path: str):
+    try:
+        data, media = ferepo_music.fetch_preview(path)
+    except ferepo_music.FeRepoMusicError as e:
+        raise HTTPException(502, str(e)) from e
+    return Response(data, media_type=media, headers={"Cache-Control": "max-age=604800"})
+
+
+class FeRepoSongIn(BaseModel):
+    path: str
+
+
+@app.post("/api/music/ferepo")
+def import_ferepo_music(body: FeRepoSongIn):
+    """A song of FE-Repo-Music into the project, with the General MIDI instruments (NIMAP2) it was written for;
+    its authors go to the project's credits."""
+    project = state.require_project()
+    try:
+        text = ferepo_music.fetch_song(body.path)
+    except ferepo_music.FeRepoMusicError as e:
+        raise HTTPException(502, str(e)) from e
+    midi_data, volume = _song_from_asm(text)
+    try:
+        nimap.lines(project.decomp_dir)   # downloaded once, named with the ROM
+        group: int | str = nimap.KEY
+    except nimap.NimapError:
+        group = music.DEFAULT_VOICEGROUP
+    source = ferepo_music.source(body.path)
+    return _add_song(project, source["name"], midi_data, group, volume, source)
 
 
 class SongIn(BaseModel):

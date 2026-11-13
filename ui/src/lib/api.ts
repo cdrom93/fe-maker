@@ -17,9 +17,12 @@ type GameOptionsData = {
   defaults: Record<string, { game: number; values: number[] }>
 }
 /** Music (server: decomp/music.py): a game song by number, or an imported song by key */
+/** A song of FE-Repo-Music (server: ferepo_music.py); `preview`: its recording's path in the repository. */
+export interface FeRepoSong { path: string; name: string; authors: string[]; folder: string; preview: string | null }
+
 export type SongRef = number | string
 export type GameSong = { number: number; name: string; file: string; voicegroup: number; volume: number; constant: string }
-export type ImportedSong = { key: string; name: string; voicegroup: number | string; volume: number; tracks?: number }
+export type ImportedSong = { key: string; name: string; voicegroup: number | string; volume: number; tracks?: number; source?: { name: string; authors: string[]; url: string } }
 export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegroups: number[]; maxTracks: number }
 export type ChapterMusic = {
   game: Record<string, number>; chosen: Record<string, SongRef>; gameVictory: number; victory: number | null
@@ -124,6 +127,11 @@ export const api = {
   },
   editMusic: (key: string, body: { name?: string; voicegroup?: number | string; volume?: number }) =>
     request<{ problems: Problem[] }>('PATCH', `/api/music/${encodeURIComponent(key)}`, body),
+  feRepoMusic: (q: string, options: { refresh?: boolean; folder?: string; offset?: number } = {}) =>
+    request<{ entries: FeRepoSong[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
+      'GET', `/api/ferepo/music?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
+        + `&offset=${options.offset ?? 0}${options.refresh ? '&refresh=true' : ''}`),
+  importFeRepoMusic: (path: string) => request<{ key: string; problems: Problem[] }>('POST', '/api/music/ferepo', { path }),
   removeMusic: (key: string) => request<{ problems: Problem[] }>('DELETE', `/api/music/${encodeURIComponent(key)}`),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chaptersOverview: () =>

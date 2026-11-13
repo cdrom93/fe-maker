@@ -66,6 +66,11 @@ def _ssl_context() -> ssl.SSLContext:
 def _download(url: str, limit: int) -> bytes:
     if not url.startswith((URL_PREFIX, API_PREFIX, TREES_PREFIX)) and url != INDEX_URL:
         raise FeRepoError("notFeRepo")
+    return _download_any(url, limit)
+
+
+def _download_any(url: str, limit: int) -> bytes:
+    """A file of GitHub (FE-Repo, or its sister FE-Repo-Music: ferepo_music.py checks its own addresses)."""
     request = urllib.request.Request(url, headers={"User-Agent": "FE-Maker"})
     try:
         with urllib.request.urlopen(request, timeout=30, context=_ssl_context()) as response:
@@ -191,7 +196,8 @@ def fetch(url: str) -> bytes:
 
 def credit_line(source: dict) -> str:
     authors = ", ".join(source.get("authors") or []) or source.get("credits") or "unknown author"
-    return f"- {source.get('name', '?')} by {authors} ({source.get('license', 'F2U')}), FE-Repo: {source.get('url', '')}"
+    return (f"- {source.get('name', '?')} by {authors} ({source.get('license', 'F2U')}), "
+            f"{source.get('repo', 'FE-Repo')}: {source.get('url', '')}")
 
 
 def folder_files(url: str) -> list[dict]:

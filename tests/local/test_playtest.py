@@ -843,6 +843,55 @@ def test_imported_music_with_general_midi_instruments(tmp_path):
         assert header in {game.read(info, 0, width=32) for info in players}
 
 
+def test_song_written_in_the_games_music_assembly(tmp_path):
+    """A song in the game's music assembly (as FE-Repo-Music's .s files), turned into a MIDI file at import
+    (songasm.py), built with NIMAP2 and playing on the map."""
+    from fe_maker.decomp import nimap, songasm
+
+    if not nimap.rom_path().is_file():
+        pytest.skip("no rom/baserom.gba in FE Maker's folder")
+    source = """
+\t.equ\tloop_grp, voicegroup000
+\t.equ\tloop_mvl, 110
+\t.equ\tloop_tbs, 1
+\t.global\tloop
+loop_1:
+\t.byte\tTEMPO , 140*loop_tbs/2
+\t.byte\tVOICE , 48
+\t.byte\tVOL , 100*loop_mvl/mxv
+loop_1_B1:
+\t.byte\tN24 , Cn3 , v100
+\t.byte\tW24
+\t.byte\tEn3
+\t.byte\tW24
+\t.byte\tGOTO
+\t .word\tloop_1_B1
+\t.byte\tFINE
+loop:
+\t.byte\t1
+\t.byte\t0
+\t.byte\t0
+\t.byte\t0
+\t.word\tloop_grp
+\t.word\tloop_1
+"""
+    project = Project.create(tmp_path / "asm", "Asm")
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    (folder / "loop.mid").write_bytes(songasm.to_midi(source))
+    project.save("music", {"songs": {"loop": {"name": "Loop", "voicegroup": nimap.KEY,
+                                              "volume": songasm.song_volume(source)}},
+                           "chapters": {"0": {"bluePhase": "loop"}}, "victory": {"0": 0}})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(120)
+        header = game.read("gSongTable", 87 * 8, width=32)
+        assert game.read(header, 0) == 1   # one track
+        players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]
+        assert header in {game.read(info, 0, width=32) for info in players}
+
+
 def test_full_drum_kit(tmp_path):
     """Option fullDrums (drumfix): the drum voices it fills are in the built game, and the map plays."""
     from fe_maker.decomp import nimap

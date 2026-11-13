@@ -2,10 +2,11 @@
   // The Music tab: the project's songs (MIDI files from the PC, with the instruments of one of the game's songs)
   // and the game's, all heard here with the game's instruments (lib/songplayer.svelte.ts). Chapters choose theirs in
   // their settings (ChapterMusic). Server: decomp/music.py.
-  import { api, type BattleMusic, type MusicLibrary, type ScreenMusic, type SongRef } from '../lib/api'
+  import { api, type BattleMusic, type FeRepoSong, type MusicLibrary, type ScreenMusic, type SongRef } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import { loadMusicLibrary } from '../lib/musiclibrary.svelte'
   import { songPlayer } from '../lib/songplayer.svelte'
+  import FeRepoMusicBrowser from './FeRepoMusicBrowser.svelte'
   import Help from './Help.svelte'
   import NumberField from './NumberField.svelte'
   import SongPicker from './SongPicker.svelte'
@@ -21,6 +22,7 @@
   const NIMAP = 'nimap'   // server: nimap.KEY, General MIDI order
   let busy = $state(false)
   let input: HTMLInputElement | undefined = $state()
+  let browsing = $state(false)
 
   async function load() {
     try {
@@ -46,10 +48,23 @@
       await api.importMusic(file)
       await load()
     } catch (e) {
-      error = String(e).includes('notAMidi') ? t('music.notAMidi') : String(e)
+      error = String(e).includes('notAMidi') ? t('music.notAMidi') : String(e).includes('notASong') ? t('music.notASong') : String(e)
     } finally {
       busy = false
       if (input) input.value = ''
+    }
+  }
+
+  async function importFeRepo(song: FeRepoSong) {
+    error = ''
+    busy = true
+    try {
+      await api.importFeRepoMusic(song.path)
+      await load()
+    } catch (e) {
+      error = String(e).includes('notASong') ? t('music.notASong') : String(e)
+    } finally {
+      busy = false
     }
   }
 
@@ -99,10 +114,12 @@
   <section class="panel">
     <div class="head">
       <h3>{t('music.projectSongs')} <Help text={t('music.projectHint')} /></h3>
+      <button onclick={() => (browsing = !browsing)} aria-pressed={browsing}>{t('ferepoMusic.open')}</button>
       <button onclick={() => input?.click()} disabled={busy}>{t('music.import')}</button>
-      <input type="file" accept=".mid,.midi,audio/midi" hidden bind:this={input}
+      <input type="file" accept=".mid,.midi,.s,audio/midi" hidden bind:this={input}
              onchange={(e) => importFile((e.target as HTMLInputElement).files?.[0])} />
     </div>
+    {#if browsing}<FeRepoMusicBrowser {busy} onpick={importFeRepo} />{/if}
     {#if error}<p class="bad small">{error}</p>{/if}
     {#if songPlayer.error}<p class="bad small">{t('music.playError', { error: songPlayer.error })}</p>{/if}
     {#if library && library.imported.length}
@@ -118,7 +135,7 @@
           {#each library.imported as s (s.key)}
             <tr>
               <td><SongPlayButton song={s.key} /></td>
-              <td><input value={s.name} aria-label={t('music.name')} onchange={(e) => edit(s.key, { name: (e.target as HTMLInputElement).value })} />{#if (s.tracks ?? 0) > library.maxTracks}<span class="warn" title={t('music.tooManyTracks', { n: s.tracks ?? 0, max: library.maxTracks })}> ⚠</span>{/if}</td>
+              <td><input value={s.name} aria-label={t('music.name')} title={s.source ? t('ferepoMusic.from', { authors: s.source.authors.join(', ') || t('ferepo.unknownAuthor') }) : ''} onchange={(e) => edit(s.key, { name: (e.target as HTMLInputElement).value })} />{#if (s.tracks ?? 0) > library.maxTracks}<span class="warn" title={t('music.tooManyTracks', { n: s.tracks ?? 0, max: library.maxTracks })}> ⚠</span>{/if}</td>
               <td>
                 <select value={s.voicegroup} aria-label={t('music.instruments')}
                         onchange={(e) => { const v = (e.target as HTMLSelectElement).value; edit(s.key, { voicegroup: v === NIMAP ? v : Number(v) }) }}>
