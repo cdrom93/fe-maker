@@ -48,3 +48,7 @@ desktop.ini
 
 # Personal notes for Claude (machine paths, current status)
 CLAUDE.local.md
+
+# Interface tests (Playwright)
+ui/test-results/
+ui/playwright-report/
