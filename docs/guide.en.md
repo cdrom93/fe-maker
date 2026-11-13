@@ -50,7 +50,7 @@ The **Ticket** button in the header reports a problem or suggests an idea: the t
 - Added chapters take free slots of the game: 21 in an ordinary project, 41 in a blank one.
 - Added weapons and items are copies of a game item (49 slots); a copied potion or staff keeps the effect of a game item, with its own amounts.
 - A sword, lance or axe that strikes at range needs an animation with the "Ranged attack" movement: most of the game's axes have none. The library's "Strikes at range" filter finds some in FE-Repo.
-- Music: chapter music (phases, opening, victory theme), battle music, boss themes the sequences' Music command and screens (title, preparations, shops, game over...); not yet the world map, nor the track and instrument patches (MIDI of 10 tracks at most, game instruments only).
+- Music: chapter music (phases, opening, victory theme), battle music, boss themes, the sequences' Music command and screens (title, preparations, shops, game over...), 16 tracks and 12 notes as an option (8 tracks without); not yet the world map nor instruments other than the game's.
 - World map: it can only be turned off.
 - Skills: up to 3 per character or class sheet; their names and descriptions are in English in the game.
 - Portrait colours: the result is approximate, touch it up if needed; an imported animation does not protect its mount.

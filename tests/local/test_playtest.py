@@ -818,6 +818,20 @@ def test_imported_music_on_the_title_screen(tmp_path):
         assert game.wait_until(playing, seconds=120, step=30, tap="START")   # START skips the opening animation
 
 
+def test_sixteen_tracks_and_twelve_notes(tmp_path):
+    """Option musicTracks: the music players have 16 tracks in free RAM and the driver mixes 12 notes; the map plays."""
+    project = Project.create(tmp_path / "tracks", "Tracks")
+    project.set_game_options({"musicTracks": True})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        info = game.read("gMPlayTable", 0, width=32)   # BGM1's MusicPlayerInfo
+        assert game.read(info, 8) == 16                        # trackCount
+        assert game.read(info, 0x2C, width=32) == 0x02027000   # tracks
+        assert game.read("gSoundInfo", 6) == 12                # maxChans
+        assert game.read(info, 0, width=32) != 0               # a song plays on the map
+
+
 def test_added_chapter_title_picture(tmp_path):
     """A chapter the project adds has its own title strip (chap_title_data row 0x58), and leads where the chapter
     before led (ticket 55: the Campaign page sees that link)."""

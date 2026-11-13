@@ -615,16 +615,26 @@ def new_chapter(body: NewChapterIn):
 
 # Music (decomp/music.py, decomp/instruments.py, decomp/midi.py): the game's songs and the project's imported ones,
 # heard in the browser with the game's instruments (ui/src/lib/songplayer.ts), and each chapter's songs.
-def _imported_songs(stored: dict) -> list[dict]:
+def _imported_songs(stored: dict, folder: Path | None = None) -> list[dict]:
+    """The project's songs by name; with their folder, each one's track count (music.track_count)."""
     songs = stored.get("songs", {})
-    return [{"key": key, **songs[key]} for key in sorted(songs, key=lambda k: songs[k].get("name", k).lower())]
+    out = []
+    for key in sorted(songs, key=lambda k: songs[k].get("name", k).lower()):
+        song = {"key": key, **songs[key]}
+        path = folder / f"{key}.mid" if folder else None
+        if path and path.is_file():
+            song["tracks"] = music.track_count(path.read_bytes())
+        out.append(song)
+    return out
 
 
 @app.get("/api/music")
 def music_library():
     project = state.require_project()
-    return {"game": music.game_songs(project.decomp_dir), "imported": _imported_songs(project.load("music")),
-            "voicegroups": instruments.voicegroup_numbers(project.decomp_dir)}
+    tracks = gameoptions.MUSIC_TRACKS if project.game_options.get("musicTracks") else music.GAME_TRACKS
+    return {"game": music.game_songs(project.decomp_dir),
+            "imported": _imported_songs(project.load("music"), project.root / "assets" / "music"),
+            "voicegroups": instruments.voicegroup_numbers(project.decomp_dir), "maxTracks": tracks}
 
 
 @app.post("/api/music")

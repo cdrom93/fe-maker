@@ -25,6 +25,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+from . import midi
+
 SONG_TABLE_FILE = "sound/song_table.s"
 RULES_FILE = "songs.mk"
 LINKER_FILE = "linker_script_sound.txt"
@@ -277,6 +279,18 @@ def with_screen_songs(read, slots: dict[str, int]) -> dict[str, str]:
 def screen_choices(data: dict, numbers: dict[str, int]) -> dict[str, int]:
     return {s: n for s, ref in data.get("screens", {}).items()
             if s in SCREEN_SLOTS and (n := numbers.get(ref) if isinstance(ref, str) else ref) is not None}
+
+
+GAME_TRACKS = 8   # tracks of the game's music players (sound/music_player_table.s); 16 with the option musicTracks
+
+
+def track_count(data: bytes) -> int:
+    """Tracks the game makes of a MIDI file: mid2agb gives each MIDI channel playing notes a track."""
+    try:
+        song = midi.read(data)
+    except (midi.MidiError, IndexError):
+        return 0
+    return sum(1 for events in song["channels"].values() if any(e[1] == "n" for e in events))
 
 
 def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[str, str | bytes], dict[str, int]]:

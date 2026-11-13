@@ -256,3 +256,11 @@ def test_fixed_screen_songs_read_and_written(tmp_path):
     assert "StartBgm(0x9, 0);" in out["src/bmshop.c"] and "StartBgm(0x57, 0);" in out["src/bmshop.c"]
     assert "PlaySoundEffect(SONG_SHOPS_X);" in out["src/bmshop.c"]
     assert music.with_screen_songs(read, {}) == {}
+
+
+def test_track_count_is_the_channels_playing_notes():
+    notes = _track(b"\x00\xc1\x05\x00\x91\x3c\x50\x0c\x81\x3c\x00"   # channel 1: a note
+                   b"\x00\x92\x40\x50\x0c\x82\x40\x00"               # channel 2: a note
+                   b"\x00\xc3\x07\x00\xff\x2f\x00")                  # channel 3: a program change only
+    assert music.track_count(_midi(notes)) == 2
+    assert music.track_count(b"not a midi") == 0

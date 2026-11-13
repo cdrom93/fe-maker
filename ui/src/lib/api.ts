@@ -19,8 +19,8 @@ type GameOptionsData = {
 /** Music (server: decomp/music.py): a game song by number, or an imported song by key */
 export type SongRef = number | string
 export type GameSong = { number: number; name: string; file: string; voicegroup: number; volume: number; constant: string }
-export type ImportedSong = { key: string; name: string; voicegroup: number; volume: number }
-export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegroups: number[] }
+export type ImportedSong = { key: string; name: string; voicegroup: number; volume: number; tracks?: number }
+export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegroups: number[]; maxTracks: number }
 export type ChapterMusic = {
   game: Record<string, number>; chosen: Record<string, SongRef>; gameVictory: number; victory: number | null
 }

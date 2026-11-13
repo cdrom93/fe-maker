@@ -117,7 +117,7 @@
           {#each library.imported as s (s.key)}
             <tr>
               <td><SongPlayButton song={s.key} /></td>
-              <td><input value={s.name} aria-label={t('music.name')} onchange={(e) => edit(s.key, { name: (e.target as HTMLInputElement).value })} /></td>
+              <td><input value={s.name} aria-label={t('music.name')} onchange={(e) => edit(s.key, { name: (e.target as HTMLInputElement).value })} />{#if (s.tracks ?? 0) > library.maxTracks}<span class="warn" title={t('music.tooManyTracks', { n: s.tracks ?? 0, max: library.maxTracks })}> ⚠</span>{/if}</td>
               <td>
                 <select value={s.voicegroup} aria-label={t('music.instruments')}
                         onchange={(e) => edit(s.key, { voicegroup: Number((e.target as HTMLSelectElement).value) })}>
@@ -187,6 +187,7 @@
   .game-songs li { display: flex; align-items: center; gap: 0.4rem; padding: 0.12rem 0; break-inside: avoid; font-size: 0.9rem; }
   .battle { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
   .bad { color: var(--bad); margin: 0.4rem 0 0; }
+  .warn { color: var(--warn); cursor: help; }
   .small { font-size: 0.8rem; }
   .tiny { font-size: 0.7rem; }
 </style>

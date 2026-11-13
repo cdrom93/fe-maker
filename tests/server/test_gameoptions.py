@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 20
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 21
 
 
 def test_a_unit_acts_after_a_talk():
@@ -137,3 +137,16 @@ def test_dead_items_heal_preview_and_battle_speed():
     assert "heldKeys & L_BUTTON" in files[gameoptions.BATTLE_ANIM_FILE]
     casual = gameoptions.apply(root, {"deadItemsToConvoy": True, "casualMode": True}, {})
     assert "AddItemToConvoy" not in casual[gameoptions.UNIT_FILE]
+
+
+def test_music_tracks_option():
+    decomp = Path(__file__).parents[2] / "decomp"
+    if not (decomp / gameoptions.SOUND_FILE).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(decomp, {"musicTracks": True}, {})
+    players, sound = files[gameoptions.MUSIC_PLAYERS_FILE], files[gameoptions.SOUND_FILE]
+    assert "music_player gMPlayInfo_BGM1, 0x02027000, 16, 0" in players
+    assert "music_player gMPlayInfo_BGM2, 0x02027500, 16, 0" in players
+    assert ".space TRACK_SIZE * NUM_TRACKS_BGM1" in players   # the IWRAM space stays, nothing else moves
+    assert "Sound_SetMaxNumChannels(12); /* FE Maker: 12 notes */" in sound and "Sound_SetMaxNumChannels(7)" not in sound
+    assert gameoptions.MUSIC_PLAYERS_FILE not in gameoptions.apply(decomp, {}, {})

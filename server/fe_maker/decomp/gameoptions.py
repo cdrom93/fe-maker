@@ -56,7 +56,8 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
-                 "items": ("tempBonusRule", "deadItemsToConvoy")}
+                 "items": ("tempBonusRule", "deadItemsToConvoy"),
+                 "sound": ("musicTracks",)}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
 # the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).
 CHOICES: dict[str, tuple[str, ...]] = {"tempBonusRule": ("strongest", "add", "replace")}
@@ -605,6 +606,32 @@ _STATUS_KEYS_GROWTHS = """    else if ((gKeyStatusPtr->newKeys & SELECT_BUTTON) 
 """ + _STATUS_KEYS
 
 
+# FEBuilder "16_tracks_12_sounds": songs of 16 tracks (the game's music players have 8) and 12 notes at once (7, or 8
+# for a few songs). The two music players' tracks move to free RAM (the unused debug print buffer of fontgrp.c, below
+# the skills' data at 0x02028800): their IWRAM space stays where it is, so nothing else moves.
+MUSIC_PLAYERS_FILE = "sound/music_player_table.s"
+SOUND_FILE = "src/soundwrapper.c"
+MUSIC_TRACKS = 16
+MUSIC_NOTES = 12
+_TRACKS_RAM = (0x02027000, 0x02027500)   # BGM1, BGM2: 16 tracks of 0x50 bytes each
+_PLAYERS = tuple(f"\tmusic_player gMPlayInfo_BGM{n}, gMPlayTrack_BGM{n}, NUM_TRACKS_BGM{n}, 0\n" for n in (1, 2))
+_PLAYERS_NEW = tuple(f"\tmusic_player gMPlayInfo_BGM{n}, 0x{a:08X}, {MUSIC_TRACKS}, 0 @ FE Maker: 16 tracks in free RAM\n"
+                     for n, a in zip((1, 2), _TRACKS_RAM))
+_NOTES_DEFAULT = "    Sound_SetMaxNumChannels(7);\n"
+_NOTES_SONGS = "        if (gSoundSt.maxChannels != 8)\n            Sound_SetMaxNumChannels(8);\n"
+
+
+def with_music_tracks(players: str, sound: str) -> tuple[str, str]:
+    """The music players with 16 tracks and the sound driver with 12 notes at once (option musicTracks)."""
+    for old, new in zip(_PLAYERS, _PLAYERS_NEW):
+        players = _replace(players, old, new, MUSIC_PLAYERS_FILE)
+    sound = _replace(sound, _NOTES_DEFAULT, f"    Sound_SetMaxNumChannels({MUSIC_NOTES}); /* FE Maker: 12 notes */\n",
+                     SOUND_FILE)
+    sound = _replace(sound, _NOTES_SONGS, f"        if (gSoundSt.maxChannels != {MUSIC_NOTES})\n"
+                                          f"            Sound_SetMaxNumChannels({MUSIC_NOTES});\n", SOUND_FILE)
+    return players, sound
+
+
 def _replace(source: str, old: str, new: str, rel: str) -> str:
     if old not in source:
         raise TweakError(f"A game option does not match this version of the decomp ({rel})")
@@ -642,6 +669,9 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         if not found:
             raise TweakError(f"A game option does not match this version of the decomp ({WORLD_MAP_INTRO_FILE})")
         files[WORLD_MAP_INTRO_FILE] = source
+    if options.get("musicTracks"):
+        files[MUSIC_PLAYERS_FILE], files[SOUND_FILE] = with_music_tracks(current(MUSIC_PLAYERS_FILE),
+                                                                         current(SOUND_FILE))
     if options.get("quickChapterTitle"):
         files[CHAPTER_INTRO_FILE] = _replace(current(CHAPTER_INTRO_FILE), _TITLE_WAIT, _TITLE_QUICK, CHAPTER_INTRO_FILE)
     if options.get("holdAToSpeedUp"):

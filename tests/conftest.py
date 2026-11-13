@@ -52,6 +52,7 @@ PLAYTESTS = {
     "media": ["imported_battle_animation", "sound_command_of_an_imported_animation", "character_colours_in_battle",
               "class_generic_portrait_reaches_the_game", "portrait_colours_in_battle", "imported_map_sprite",
               "imported_music_in_the_prologue", "imported_music_in_a_scene", "imported_music_on_the_title_screen",
+              "sixteen_tracks_and_twelve_notes",
               "added_chapter_title_picture", "an_imported_icon_is_in_the_game",
               "a_priest_given_the_dance_dances_without_breaking_the_game"],
     "options": ["game_options", "stationary_enemy_shows_no_movement_range",
