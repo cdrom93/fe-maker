@@ -955,6 +955,10 @@
         </section>
       </div>
 
+      <section class="panel">
+        <ChapterMusic index={chapter.index} />
+      </section>
+
       <details class="panel settings">
         <summary>
           <h3>{t('chapter.settings')}</h3>
@@ -1017,7 +1021,6 @@
             {/if}
           </div>
         </div>
-        <ChapterMusic index={chapter.index} />
           <div class="bg-title">
             <span class="small">{t('chapter.battleBg')}</span>
             <Help text={t('chapter.battleBgHint')} />

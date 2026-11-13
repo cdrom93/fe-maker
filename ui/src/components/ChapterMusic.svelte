@@ -38,10 +38,7 @@
 </script>
 
 <div class="chapter-music">
-  <div class="music-title">
-    <span class="small">{t('music.chapterTitle')}</span>
-    <Help text={t('music.chapterHint')} />
-  </div>
+  <h3>{t('music.chapterTitle')} <Help text={t('music.chapterHint')} /></h3>
   {#if library && music}
     {#each MAIN as slot (slot)}
       <SongPicker label={t(`music.slot.${slot}`)} value={music.chosen[slot] ?? null} gameValue={music.game[slot]} {library}
@@ -69,6 +66,7 @@
 
 <style>
   .chapter-music { display: flex; flex-direction: column; gap: 0.35rem; }
+  h3 { margin: 0 0 0.4rem; }
   .music-title { display: flex; align-items: center; gap: 0.4rem; margin: 0.8rem 0 0.2rem; }
   .victory { display: flex; align-items: center; gap: 0.4rem; min-height: 2rem; }
   .edited { color: var(--accent); }
