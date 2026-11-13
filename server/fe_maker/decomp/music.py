@@ -25,7 +25,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-from . import midi
+from . import midi, nimap
 
 SONG_TABLE_FILE = "sound/song_table.s"
 RULES_FILE = "songs.mk"
@@ -313,6 +313,11 @@ def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[st
     files: dict[str, str | bytes] = {}
     numbers: dict[str, int] = {}
     links = ""
+    general_midi = None
+    if any(songs[key].get("voicegroup") == nimap.KEY for key in used):   # NIMAP2, a voicegroup of its own
+        nimap_files, linker = nimap.build_files(decomp_dir, linker)
+        files.update(nimap_files)
+        general_midi = nimap.number(decomp_dir)
     for key, n in zip(used, free):
         info, name = songs[key], song_name(n, key)
         numbers[key] = n
@@ -320,7 +325,9 @@ def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[st
         table = table[:row.start()] + f"\tsong {name}, 1, 1" + table[row.end():]
         rows = list(re.finditer(r"^\s*song\s+(\w+)\s*,[^\n]*$", table, re.MULTILINE))
         files[f"{MIDI_DIR}/{name}.mid"] = (assets_dir / "music" / f"{key}.mid").read_bytes()
-        voicegroup, volume = int(info.get("voicegroup", DEFAULT_VOICEGROUP)), int(info.get("volume", DEFAULT_VOLUME))
+        group = info.get("voicegroup", DEFAULT_VOICEGROUP)
+        voicegroup = general_midi if group == nimap.KEY else int(group)
+        volume = int(info.get("volume", DEFAULT_VOLUME))
         rules += f"\n$(MID_SUBDIR)/{name}.s: %.s: %.mid\n\t$(MID2AGB) $< $@ -E -G{voicegroup:03d} -R020 -P010 -V{volume:03d}\n"
         links += f"{MIDI_DIR}/{name}.o(.rodata);\n"
     last = list(re.finditer(rf"^{re.escape(MIDI_DIR)}/\w+\.o\(\.rodata\);\n", linker, re.MULTILINE))[-1]

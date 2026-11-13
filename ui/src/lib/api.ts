@@ -19,7 +19,7 @@ type GameOptionsData = {
 /** Music (server: decomp/music.py): a game song by number, or an imported song by key */
 export type SongRef = number | string
 export type GameSong = { number: number; name: string; file: string; voicegroup: number; volume: number; constant: string }
-export type ImportedSong = { key: string; name: string; voicegroup: number; volume: number; tracks?: number }
+export type ImportedSong = { key: string; name: string; voicegroup: number | string; volume: number; tracks?: number }
 export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegroups: number[]; maxTracks: number }
 export type ChapterMusic = {
   game: Record<string, number>; chosen: Record<string, SongRef>; gameVictory: number; victory: number | null
@@ -120,7 +120,7 @@ export const api = {
     form.append('file', file)
     return request<{ key: string; problems: Problem[] }>('POST', '/api/music', form)
   },
-  editMusic: (key: string, body: { name?: string; voicegroup?: number; volume?: number }) =>
+  editMusic: (key: string, body: { name?: string; voicegroup?: number | string; volume?: number }) =>
     request<{ problems: Problem[] }>('PATCH', `/api/music/${encodeURIComponent(key)}`, body),
   removeMusic: (key: string) => request<{ problems: Problem[] }>('DELETE', `/api/music/${encodeURIComponent(key)}`),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),

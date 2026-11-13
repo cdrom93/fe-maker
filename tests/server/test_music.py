@@ -264,3 +264,30 @@ def test_track_count_is_the_channels_playing_notes():
                    b"\x00\xc3\x07\x00\xff\x2f\x00")                  # channel 3: a program change only
     assert music.track_count(_midi(notes)) == 2
     assert music.track_count(b"not a midi") == 0
+
+
+def test_nimap_table_named_with_the_games_voices(tmp_path):
+    from fe_maker.decomp import nimap
+
+    folder = tmp_path / "sound/voicegroups"
+    folder.mkdir(parents=True)
+    (folder / "voicegroup000.s").write_text(
+        "voicegroup000:\t@ 0x08000100\n"
+        "\tvoice_directsound 60, 0, DirectSoundData_piano, 255, 0, 255, 0\t@08000100\n"
+        "\tvoice_keysplit_all voicegroup001\t@0800010C\n", encoding="utf-8")
+    (folder / "voicegroup001.s").write_text(
+        "voicegroup001:\t@ 0x08000200\n\tvoice_square_1 0, 2, 0, 0, 15, 0\t@08000200\n", encoding="utf-8")
+    rom = bytearray(0x300)
+    struct.pack_into("<I", rom, 0x104, 0x08000250)   # the piano sample's address
+    struct.pack_into("<I", rom, 0x110, 0x08000200)   # the drum kit's
+    voice = [bytes([0, 60, 0, 0x80 | 10]) + struct.pack("<I", 0x08000250) + bytes([255, 250, 0, 204]),
+             bytes([0x80, 0, 0, 0]) + struct.pack("<I", 0x0800020C) + bytes(4),   # a kit starting one voice on
+             bytes([1, 60, 0, 0, 2, 0, 0, 0, 0, 0, 15, 0])]
+    table = b"".join(voice + [voice[2]] * 125)
+    lines = nimap.voice_lines(table, tmp_path, bytes(rom))
+    assert lines[:3] == ["voice_directsound 60, 10, DirectSoundData_piano, 255, 250, 0, 204",
+                         "voice_keysplit_all voicegroup001 + 12", "voice_square_1 0, 2, 0, 0, 15, 0"]
+    source = nimap.voicegroup_source(lines, 2)
+    assert ".global voicegroup002\nvoicegroup002:\n\tvoice_directsound 60, 10," in source
+    with pytest.raises(nimap.NimapError):
+        nimap.voice_lines(table[:12], tmp_path, bytes(rom))

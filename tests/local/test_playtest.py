@@ -818,6 +818,31 @@ def test_imported_music_on_the_title_screen(tmp_path):
         assert game.wait_until(playing, seconds=120, step=30, tap="START")   # START skips the opening animation
 
 
+def test_imported_music_with_general_midi_instruments(tmp_path):
+    """An imported song played with NIMAP2 (General MIDI order): its own voicegroup after the game's, which the song
+    header points to, and the song plays on the map. Needs the ROM in FE Maker's folder (rom/baserom.gba)."""
+    import shutil
+
+    from fe_maker.decomp import nimap
+
+    if not nimap.rom_path().is_file():
+        pytest.skip("no rom/baserom.gba in FE Maker's folder")
+    project = Project.create(tmp_path / "nimap", "Nimap")
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
+    project.save("music", {"songs": {"theme": {"name": "Theme", "voicegroup": nimap.KEY}},
+                           "chapters": {"0": {"bluePhase": "theme"}}, "victory": {"0": 0}})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        game.run(120)
+        header = game.read("gSongTable", 87 * 8, width=32)
+        assert game.read(header, 4, width=32) == game.address(f"voicegroup{nimap.number(project.decomp_dir):03d}")
+        players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]
+        assert header in {game.read(info, 0, width=32) for info in players}
+
+
 def test_sixteen_tracks_and_twelve_notes(tmp_path):
     """Option musicTracks: the music players have 16 tracks in free RAM and the driver mixes 12 notes; the map plays."""
     project = Project.create(tmp_path / "tracks", "Tracks")

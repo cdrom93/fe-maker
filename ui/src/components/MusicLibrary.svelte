@@ -18,6 +18,7 @@
                         'arenaVictory', 'allyDeath', 'gameOver', 'epilogue', 'credits', 'supportViewer', 'dungeonRecord']
   const BATTLE_SLOTS = ['playerAttacks', 'enemyAttacks', 'healStaff', 'statusStaff', 'dance', 'promotion', 'arena']
   let error = $state('')
+  const NIMAP = 'nimap'   // server: nimap.KEY, General MIDI order
   let busy = $state(false)
   let input: HTMLInputElement | undefined = $state()
 
@@ -52,7 +53,7 @@
     }
   }
 
-  async function edit(key: string, body: { name?: string; voicegroup?: number; volume?: number }) {
+  async function edit(key: string, body: { name?: string; voicegroup?: number | string; volume?: number }) {
     error = ''
     try {
       await api.editMusic(key, body)
@@ -120,7 +121,8 @@
               <td><input value={s.name} aria-label={t('music.name')} onchange={(e) => edit(s.key, { name: (e.target as HTMLInputElement).value })} />{#if (s.tracks ?? 0) > library.maxTracks}<span class="warn" title={t('music.tooManyTracks', { n: s.tracks ?? 0, max: library.maxTracks })}> ⚠</span>{/if}</td>
               <td>
                 <select value={s.voicegroup} aria-label={t('music.instruments')}
-                        onchange={(e) => edit(s.key, { voicegroup: Number((e.target as HTMLSelectElement).value) })}>
+                        onchange={(e) => { const v = (e.target as HTMLSelectElement).value; edit(s.key, { voicegroup: v === NIMAP ? v : Number(v) }) }}>
+                  <option value={NIMAP}>{t('music.nimap')}</option>
                   {#each library.voicegroups as n (n)}
                     <option value={n}>{setNames.has(n) ? t('music.instrumentsOf', { name: setNames.get(n)! }) : t('music.instrumentSet', { n })}</option>
                   {/each}

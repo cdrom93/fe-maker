@@ -14,19 +14,19 @@ type Bank = { voices: Voice[]; samples: Record<string, { rate: number; loop: num
 type MidiEvent = [number, 'n', number, number, number] | [number, 'p', number] | [number, 'c', number, number] | [number, 'b', number]
 type Song = {
   midi: { division: number; tempos: [number, number][]; loop: [number, number] | null; end: number; channels: Record<string, MidiEvent[]> }
-  voicegroup: number; volume: number
+  voicegroup: number | string; volume: number
 }
 
 export const songPlayer = $state<{ playing: SongRef | null; loading: boolean; error: string }>({ playing: null, loading: false, error: '' })
 
 const FRAME = 1 / 60
 const CGB_GAIN = 0.3
-const banks = new Map<number, Promise<Bank>>()
+const banks = new Map<number | string, Promise<Bank>>()
 const buffers = new Map<string, Promise<AudioBuffer>>()
 let ctx: AudioContext | null = null
 let session: Session | null = null
 
-function bank(n: number): Promise<Bank> {
+function bank(n: number | string): Promise<Bank> {
   if (!banks.has(n)) banks.set(n, fetch(`/api/music/voicegroups/${n}`).then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json() }))
   return banks.get(n)!
 }

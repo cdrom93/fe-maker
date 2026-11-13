@@ -49,6 +49,7 @@ from .decomp import (
     mapsprites,
     midi,
     music,
+    nimap,
     pieces,
     portraitcolors,
     portraits,
@@ -662,7 +663,7 @@ async def import_music(file: UploadFile = File(...)):
 
 class SongIn(BaseModel):
     name: str | None = None
-    voicegroup: int | None = None
+    voicegroup: int | str | None = None   # a game voicegroup's number, or nimap.KEY
     volume: int | None = None
 
 
@@ -675,9 +676,14 @@ def edit_music(key: str, body: SongIn):
         raise HTTPException(404, "unknownSong")
     if body.name is not None and body.name.strip():
         song["name"] = body.name.strip()[:60]
+    if body.voicegroup == nimap.KEY:
+        try:
+            nimap.lines(project.decomp_dir)   # downloaded once, named with the ROM
+        except nimap.NimapError as e:
+            raise HTTPException(400, str(e).split()[0]) from e
+    elif body.voicegroup is not None and body.voicegroup not in instruments.voicegroup_numbers(project.decomp_dir):
+        raise HTTPException(400, "unknownVoicegroup")
     if body.voicegroup is not None:
-        if body.voicegroup not in instruments.voicegroup_numbers(project.decomp_dir):
-            raise HTTPException(400, "unknownVoicegroup")
         song["voicegroup"] = body.voicegroup
     if body.volume is not None:
         song["volume"] = max(0, min(int(body.volume), 127))
@@ -729,13 +735,14 @@ def music_to_play(ref: str):
 
 
 @app.get("/api/music/voicegroups/{number}")
-def music_voicegroup(number: int):
-    """A voicegroup's voices, with the rate and loop of the samples they use and the GB waves."""
+def music_voicegroup(number: str):
+    """A voicegroup's voices (a game voicegroup's number, or nimap.KEY), with the rate and loop of the samples they use
+    and the GB waves."""
     decomp_dir = state.require_project().decomp_dir
     try:
-        voices = instruments.voicegroup(decomp_dir, number)
-    except instruments.InstrumentError as e:
-        raise HTTPException(404, str(e)) from e
+        voices = nimap.voices(decomp_dir) if number == nimap.KEY else instruments.voicegroup(decomp_dir, int(number))
+    except (instruments.InstrumentError, nimap.NimapError, ValueError) as e:
+        raise HTTPException(404, str(e).split()[0] if str(e) else "unknownVoicegroup") from e
     samples: dict[str, dict] = {}
     waves, used_waves = instruments.waves(decomp_dir), {}
     for voice in voices:
