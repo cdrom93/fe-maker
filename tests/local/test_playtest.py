@@ -1,6 +1,6 @@
 """Local-only playtests: build a project, play the ROM without any window, check the game's memory.
 
-Run with:  FE_MAKER_ROM=path/to/fe8.gba python -m pytest tests/local/test_playtest.py -s
+Run with:  FE_MAKER_ROM=path/to/fe8.gba python -m pytest tests/local/test_playtest.py -m <domain> (tests/conftest.py)
 """
 
 import os
@@ -13,6 +13,8 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "server"))
 
+from romcache import build as cached_build  # noqa: E402
+
 from fe_maker import api  # noqa: E402
 from fe_maker.decomp.gamedata import DecompData  # noqa: E402
 from fe_maker.playtest import UNIT_SIZE, Game  # noqa: E402
@@ -20,6 +22,11 @@ from fe_maker.project import Project  # noqa: E402
 
 ROM = os.environ.get("FE_MAKER_ROM")
 pytestmark = pytest.mark.skipif(not ROM, reason="set FE_MAKER_ROM to run tests that need the ROM")
+
+
+def build(project):
+    """A test build of the project, reused from the cache (romcache.py) when nothing it reads changed."""
+    return cached_build(project, Path(ROM), on_output=lambda line: print(line, end=""))
 
 
 def _without_preparations(project, *chapters):
@@ -36,7 +43,7 @@ def test_edited_character_is_on_the_prologue_map(tmp_path):
     eirika["bases"]["hp"] = 20
     project.save("characters", chars)
     lord = next(c for c in project.load("classes") if c["id"] == eirika["class"])
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -83,7 +90,7 @@ def _objects_project(tmp_path):
     chars = project.load("characters")
     next(c for c in chars if c["id"] == "CHARACTER_SETH")["convoyAccess"] = True
     project.save("characters", chars)
-    return project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    return build(project)
 
 
 def test_changed_next_chapter_in_game(tmp_path):
@@ -101,7 +108,7 @@ def test_changed_next_chapter_in_game(tmp_path):
     project.save("chapters", {"unitGroups": {}, "objectives": {"0": {"type": "defense", "turns": 1, "seize": [],
                                                                        "statusText": "Survive"}}})
     assert [p for p in project.validate() if p.severity == "error"] == []
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
@@ -189,7 +196,7 @@ def test_enemy_destroys_a_painted_village(tmp_path):
     # Only the looter, and a chapter to survive: O'Neill dying on Seth's counter would end it first
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueEnemy": [looter]},
                               "objectives": {"0": {"type": "defense", "turns": 5, "seize": [], "statusText": "Survive"}}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
@@ -221,7 +228,7 @@ def test_other_character_seizes(tmp_path):
     project.save("characters", chars)
     project.save("chapters", {"unitGroups": {}, "objectives": {"0": {"type": "seize", "seize": [{"x": 6, "y": 5}],
                                                                      "seizeLabel": "throne", "statusText": "Seize"}}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         game.run(210)
@@ -240,7 +247,7 @@ def test_world_map_ending_in_test_builds(tmp_path):
     project = Project.create(tmp_path / "wm", "WM")
     survive = {"type": "defense", "turns": 1, "seize": [], "statusText": "Survive"}
     project.save("chapters", {"unitGroups": {}, "objectives": {"0": survive, "1": survive}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         for chapter in (0, 1):
             assert game.wait_until(lambda: game.chapter() == chapter and game.turn() == 1 and game.phase() == "player"
@@ -265,7 +272,7 @@ def test_chapter_one_straight_to_chapter_two(tmp_path):
     dialogues = project.load("dialogues")
     dialogues["scripts"] = {"EventScr_Ch1_EndingScene": commands}
     project.save("dialogues", dialogues)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         for chapter in (0, 1):
             assert game.wait_until(lambda: game.chapter() == chapter and game.turn() == 1 and game.phase() == "player"
@@ -281,7 +288,7 @@ def test_fog_of_war(tmp_path):
     chapters = project.load("chapters")
     chapters["fog"] = {"0": 4}
     project.save("chapters", chapters)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -300,7 +307,7 @@ def test_imported_battle_animation(tmp_path):
     project = Project.create(tmp_path / "banim", "Banim")
     decomp = project.decomp_dir
     _import_paladin_animation(project)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     new_index = len(banim.table(decomp))   # numbers start at 1, indexes at 0
 
     with Game(out.rom_path, out.map_path) as game:
@@ -321,7 +328,7 @@ def test_sound_command_of_an_imported_animation(tmp_path):
     """Ticket 132: FEditor's "S" command, which the game's scripts cannot hold, plays its song during the attack."""
     project = Project.create(tmp_path / "sound", "Sound")
     _import_paladin_animation(project, sound="SF5")
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         header = game.read(game.address("gSongTable") + 8 * 0xF5, width=32)
         player = game.read(game.address("gSongTable") + 8 * 0xF5 + 4, width=16)
@@ -337,7 +344,7 @@ def test_ally_level_comes_from_the_sheet(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["level"] = 3
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
@@ -356,7 +363,7 @@ def test_character_colours_in_battle(tmp_path, imported):
     line = ["#000000"] + ["#ff0000"] * 15
     seth["battleColors"] = {"CLASS_PALADIN": [line] * 5}
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     row = 108   # the first after the game's
 
     with Game(out.rom_path, out.map_path) as game:
@@ -376,7 +383,7 @@ def test_class_generic_portrait_reaches_the_game(tmp_path):
     classes = project.load("classes")
     next(c for c in classes if c["id"] == "CLASS_SOLDIER")["genericPortrait"] = 0x7F
     project.save("classes", classes)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         game.run(10)
@@ -394,7 +401,7 @@ def test_item_sheet_reaches_the_game(tmp_path):
     sheet["ITEM_ANIMA_FIRE"]["spellFrom"] = "ITEM_ANIMA_THUNDER"
     sheet["ITEM_ANIMA_EXCALIBUR"]["statBonuses"] = None
     project.save("items", items)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     size, row_size, vulnerary, iron_sword, excalibur = 0x24, 0x10, 0x6C, 0x01, 0x3E
     with Game(out.rom_path, out.map_path) as game:
@@ -428,7 +435,7 @@ def test_portrait_colours_in_battle(tmp_path):
     assert colours != api._class_palette("CLASS_PALADIN")[0]
     seth["battleColors"] = {"CLASS_PALADIN": [colours] * 5}
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _seth_attacks(game)
@@ -494,7 +501,7 @@ def test_test_this_chapter(tmp_path):
     """"Test this chapter": the test build starts on the chosen chapter's map (here chapter 2)."""
     project = Project.create(tmp_path / "ch2", "Ch2")
     project.set_test_options({"start": "map", "chapter": 2})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         ok = game.wait_until(lambda: game.chapter() == 2 and game.turn() == 1 and game.units(), seconds=300, step=30, tap="A")
         game.run(300)
@@ -508,7 +515,7 @@ def test_test_chapter_one_army(tmp_path):
     build loads the chapter's own player units, Eirika and Seth are on the map."""
     project = Project.create(tmp_path / "ch1", "Ch1")
     project.set_test_options({"start": "map", "chapter": 1})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         ok = game.wait_until(lambda: game.chapter() == 1 and game.turn() == 1 and game.units("Red"),
                              seconds=300, step=30, tap="A")
@@ -546,7 +553,7 @@ def test_added_characters_on_the_prologue_map(tmp_path):
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueAlly": allies,
                                              "UnitDef_Event_PrologueEnemy": enemies}, "objectives": {}})
     myrmidon = next(c for c in project.load("classes") if c["id"] == "CLASS_MYRMIDON_F")
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -576,7 +583,7 @@ def test_added_weapon_in_seth_inventory(tmp_path):
     allies = copy.deepcopy(units.read_unit_groups(project.decomp_dir)["UnitDef_Event_PrologueAlly"].units)
     allies[0]["items"] = [axe["id"], "ITEM_SWORD_STEEL"]
     project.save("chapters", {"unitGroups": {"UnitDef_Event_PrologueAlly": allies}, "objectives": {}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -599,7 +606,7 @@ def test_added_class_moves_on_the_map(tmp_path):
     chars = project.load("characters")
     next(c for c in chars if c["id"] == "CHARACTER_SETH")["class"] = knight["id"]
     project.save("characters", chars)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
@@ -633,7 +640,7 @@ def test_condition_in_the_prologue_opening(tmp_path):
     dialogues = project.load("dialogues")
     dialogues.setdefault("scripts", {})["EventScr_Prologue_BeginningScene"] = commands[:at] + block + commands[at:]
     project.save("dialogues", dialogues)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
 
@@ -655,7 +662,7 @@ def test_imported_map_sprite(tmp_path):
     (folder / "walk.png").write_bytes(walk)
     project.save("mapsprites", {"classes": {"CLASS_PALADIN": "PALADIN"},
                                 "sprites": {"PALADIN": {"name": "Archer", "size": size, "walk": True}}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
@@ -680,7 +687,7 @@ def test_game_options(tmp_path):
     project = Project.create(tmp_path / "options", "Options")
     project.set_game_options({"textSpeed": 2, "autoCursor": 1, "skipOpening": True, "quickChapterTitle": True,
                               "holdAToSpeedUp": True})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         bits = game.read("gPlaySt", 0x40)   # PlaySt_OptionBits: autoCursor bit 4, textSpeed bits 5-6
@@ -692,7 +699,7 @@ def test_stationary_enemy_shows_no_movement_range(tmp_path):
     his movement map holds only his own tile."""
     project = Project.create(tmp_path / "range", "Range")
     project.set_game_options({"stationaryRange": True})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         boss = next(u for u in game.units("Red") if u["character"] == 0x68)   # CHARACTER_ONEILL
@@ -717,7 +724,7 @@ def test_added_chapter(tmp_path):
     index = newchapter.add_chapter(project, 0, 15, 10, "Le Fort")
     _without_preparations(project, index)
     project.set_test_options({"start": "map", "chapter": index})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         ok = game.wait_until(lambda: game.chapter() == index and game.turn() == 1 and game.units(), seconds=300, step=30,
                              tap="A")
@@ -739,7 +746,7 @@ def test_imported_music_in_the_prologue(tmp_path):
     folder.mkdir(parents=True)
     shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
     project.save("music", {"songs": {"theme": {"name": "Theme"}}, "chapters": {"0": {"bluePhase": "theme"}}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         game.run(120)
@@ -762,7 +769,7 @@ def test_added_chapter_title_picture(tmp_path):
     scripts = project.load("dialogues")["scripts"]
     assert [link["to"] for link in DecompData(project.decomp_dir).chapter_links(scripts)[index]] == [1]
     project.set_test_options({"start": "map", "chapter": index})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.read("gChapterDataTable", index * 0x94 + 0x0E) == 0x58
         assert game.read("chap_title_data", 0x58 * 12, width=32) == game.address("chap_title_fem_88")
@@ -773,7 +780,7 @@ def test_a_range_the_game_does_not_list_is_drawn_and_shown(tmp_path):
     items = project.load("items")
     items[2]["range"] = {"min": 1, "max": 10}   # Seth's Steel Sword (ticket 59)
     project.save("items", items)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -795,7 +802,7 @@ def test_blank_project_starts_on_its_empty_chapter(tmp_path):
     newchapter.start_blank(project, True, "Chapitre 1", "Heros")
     assert not [p for p in project.validate() if p.severity == "error"]
     assert newchapter.add_chapter(project, 0, 15, 10, "Chapitre 2") == 1   # the game's chapter 1 is free now
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
@@ -842,7 +849,7 @@ def test_a_three_chapter_hack_from_a_blank_project_to_the_end(tmp_path):
     project.save("dialogues", dialogues)
     assert not [p for p in project.validate() if p.severity == "error"]
     assert story.links(dialogues["scripts"][ending])[0]["kind"] == "title"
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         for chapter in (0, second, third):
@@ -868,7 +875,7 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
     project = Project.create(tmp_path / "comfort", "Comfort")
     project.set_game_options({"quickExpBar": True, "quickLevelUp": True, "noSupportAnimations": True, "objective": 1,
                               "windowColor": 2})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
@@ -876,7 +883,7 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
 def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
     project = Project.create(tmp_path / "menu", "Menu")
     project.set_game_options({"noSupportAnimations": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
         game.run(60)
@@ -914,7 +921,7 @@ def test_a_priest_given_the_dance_dances_without_breaking_the_game(tmp_path):
     next(u for u in army if u["character"] == "CHARACTER_SETH").update({"class": "CLASS_PRIEST", "items": ["ITEM_STAFF_HEAL"]})
     chapters.setdefault("unitGroups", {})["UnitDef_Event_PrologueAlly"] = army
     project.save("chapters", chapters)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
         game.run(60)
@@ -943,7 +950,7 @@ def test_a_scene_moved_to_another_turn_builds_and_plays(tmp_path):
     dialogues = project.load("dialogues")
     dialogues["triggers"] = {scene["script"]: {"turn": "4", "faction": "FACTION_RED"}}
     project.save("dialogues", dialogues)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
@@ -957,7 +964,7 @@ def test_a_removed_scene_builds_and_plays(tmp_path):
     dialogues = project.load("dialogues")
     dialogues["removedScenes"] = [scene["script"]]
     project.save("dialogues", dialogues)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
@@ -965,7 +972,7 @@ def test_a_removed_scene_builds_and_plays(tmp_path):
 def test_hp_bars_under_wounded_units(tmp_path):
     project = Project.create(tmp_path / "bars", "Bars")
     project.set_game_options({"hpBars": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
         game.run(60)
@@ -1000,7 +1007,7 @@ def test_casual_mode_brings_a_fallen_unit_back(tmp_path):
     project.save("chapters", chapters)
     second = newchapter.add_chapter(project, 0, 15, 10, "Deux")
     _without_preparations(project, second)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units("Red"), seconds=60)
@@ -1031,7 +1038,7 @@ def test_a_project_keeps_only_what_is_chosen(tmp_path):
     assert project.load("dialogues")["scripts"]["EventScr_Ch1_EndingScene"][-2:] != []   # chapter 1 no longer leads on
     assert "CHARACTER_TANA" not in {c["id"] for c in project.load("characters")}
     assert "ITEM_SWORD_SILVER" in {i["id"] for i in project.load("items")} or len(project.load("items")) < 150
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
@@ -1048,7 +1055,7 @@ def test_an_event_changes_a_units_stats(tmp_path):
     eirika = next(c for c in project.load("characters") if c["id"] == "CHARACTER_EIRIKA")
     lord = next(c for c in project.load("classes") if c["id"] == eirika["class"])
     base = {s: eirika["bases"][s] + lord["bases"][s] for s in ("hp", "pow", "spd")}
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
         index, eirika = next((i, u) for i, u in enumerate(game.units()) if u["character"] == 1)
@@ -1073,7 +1080,7 @@ def test_an_event_gives_a_skill_with_its_popup(tmp_path):
     end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
     give = [{"op": "GiveSkill", "args": ["CHARACTER_EIRIKA", "Luna"]}]
     project.save("dialogues", {"scripts": {script: original[:end] + give + original[end:]}})
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         def popup():
             return bytes(game.read(int(skills.LEARNED_NAME, 16) + k) for k in range(5)) == b"Luna\0"
@@ -1093,7 +1100,7 @@ def test_an_event_gives_a_skill_with_its_popup(tmp_path):
 def test_select_shows_the_danger_zone(tmp_path):
     project = Project.create(tmp_path / "danger", "Danger")
     project.set_game_options({"dangerZone": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         def range_shown():
             return bool(game.read("gBmSt", offset=4) & 8)   # BM_FLAG_3
@@ -1131,7 +1138,7 @@ def test_a_condition_gives_an_item_to_a_living_character(tmp_path):
             {"op": "GiveItem", "args": ["CHARACTER_EIRIKA", "ITEM_ANTITOXIN"]}, {"op": "LABEL", "args": ["0x71"]}]
     end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
     project.save("dialogues", {"scripts": {script: original[:end] + gift + original[end:]}})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         elixir, antitoxin = 0x6D, 0x6F
         assert game.wait_until(lambda: game.chapter() == 0 and elixir in _items(game), seconds=240, step=20, tap="START")
@@ -1175,7 +1182,7 @@ def test_enemies_keep_their_dropped_item_and_average_stats(tmp_path):
     project.save("chapters", {"unitGroups": {name: group}})
     classes = {c["id"]: c for c in project.load("classes")}
     characters = {c["id"]: c for c in project.load("characters")}
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
         red = game.address("gUnitArrayRed")
@@ -1212,7 +1219,7 @@ def test_an_imported_icon_is_in_the_game(tmp_path):
     (project.root / "assets" / "icons").mkdir(parents=True)
     (project.root / "assets" / "icons" / f"{icon}.png").write_bytes(itemicons.convert(path.read_bytes(), palette))
     project.save("icons", {"icons": {str(icon): {"name": "test"}}})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         tiles = game.address("item_icon_tiles") + icon * 0x80
         assert game.read(tiles) == 0x50     # pixel 1 of the first row, high nibble
@@ -1224,7 +1231,7 @@ def test_weather_battle_background_and_camera_in_game(tmp_path):
     project.set_test_options({"start": "map", "simplePrologue": False})
     project.save("chapters", {"unitGroups": {}, "objectives": {}, "weather": {"0": "rain"}, "battleBg": {"0": 11},
                               "camera": {"0": [7, 5]}})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
         assert game.read("gPlaySt", 0x15) == 4     # chapterWeatherId: WEATHER_RAIN
@@ -1242,7 +1249,7 @@ def test_event_commands_change_weather_hp_side_and_ai(tmp_path):
              {"op": "SOUN", "args": ["0x5A"]}, {"op": "VCWF", "args": ["2"]}]
     end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
     project.save("dialogues", {"scripts": {script: original[:end] + added + original[end:]}})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player", seconds=240, step=20, tap="START")
         assert game.read("gPlaySt", offset=0x15) == 4   # WEATHER_RAIN
@@ -1264,7 +1271,7 @@ def test_screen_tint_counters_and_leaving_the_party(tmp_path):
              {"op": "REMU", "args": ["CHARACTER_SETH"]}, {"op": "LABEL", "args": ["0x7f"]}]
     end = next(i for i, c in enumerate(original) if c["op"] in ("NoFade", "ENDA"))
     project.save("dialogues", {"scripts": {script: original[:end] + added + original[end:]}})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         # gEventSlotCounter (sym_iwram.txt, not in the map file); the tint lasts while the scene runs
         assert game.wait_until(lambda: game.read(0x03000568, width=32) & 0xF == 4, seconds=240, step=20, tap="A")
@@ -1394,7 +1401,7 @@ def test_a_copied_vulnerary_heals_in_game(tmp_path):
     chapters = probe.load("chapters")
     chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["items"] = [new["id"]]
     probe.save("chapters", chapters)
-    out = probe.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(probe)
     with Game(out.rom_path, out.map_path) as game:
         (unit,) = _bench_units(game)
         game.write(unit, 5, 0x13)
@@ -1436,7 +1443,7 @@ def test_copies_heal_and_protect_their_own_amount(tmp_path, split):
     chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][2]["items"].append(force["id"])
     chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["items"].append(small["id"])
     project.save("chapters", chapters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
 
     def bonuses(unit):   # 4 signed bits per stat: Str, Skl, Spd, Def, Res, Lck
         if split:
@@ -1498,7 +1505,7 @@ def test_weapon_sheet_in_a_battle(tmp_path):
     next(c for c in characters if c["id"] == lord)["bases"].update(pow=12, skl=20)   # a known hit through the malus
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 40   # outlives the hits
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         def now():
@@ -1524,7 +1531,7 @@ def test_hp_bars_hide_under_a_portrait(tmp_path):
     On the prologue: the bench's blank chapter shows no unit icons."""
     project = Project.create(tmp_path / "faces", "Faces")
     project.set_game_options({"hpBars": True, "talkBubbles": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         game.run(60)
@@ -1552,7 +1559,7 @@ def test_talk_bubble_is_vision_quests(tmp_path):
     """Ticket 69 (10/11): Vision Quest's round bubble, at the upper left of the unit Eirika can support with."""
     project = Project.create(tmp_path / "bubble", "Bubble")
     project.set_game_options({"talkBubbles": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         game.run(60)
@@ -1596,7 +1603,7 @@ def test_magic_split_from_strength(tmp_path):
     items = project.load("items")
     next(i for i in items if i["id"] == "ITEM_ANIMA_FIRE")["statBonuses"] = {"mag": 3}   # a Magic bonus while equipped
     project.save("items", items)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, idle = _bench_units(game)
         magic = game.read(attacker, 0x3A, signed=True)
@@ -1659,7 +1666,7 @@ def test_skills_in_battle_and_on_the_status_screen(tmp_path):
     classes = project.load("classes")
     next(c for c in classes if c["id"] == lord_unit["class"])["skills"] = ["DefBonus"]
     project.save("classes", classes)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         pow_, spd, def_ = game.read(attacker, 0x14), game.read(attacker, 0x16), game.read(attacker, 0x17)
@@ -1710,7 +1717,7 @@ def test_batch_5_passives_in_battle(tmp_path):
     classes = project.load("classes")
     next(c for c in classes if c["id"] == lord_unit["class"])["skills"] = ["Avoid"]
     project.save("classes", classes)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         pow_, skl, spd, def_, lck = (game.read(attacker, k) for k in (0x14, 0x15, 0x16, 0x17, 0x19))
@@ -1746,7 +1753,7 @@ def test_batch_6_hit_crit_and_damage(tmp_path):
     soldier["bases"]["hp"] = 60
     soldier["skills"] = ["Fortune", "DragonSkin", "CounterRoar"]   # Counter Roar: no icon, a "?"
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         _bench_attack(game, attacker)
@@ -1786,7 +1793,7 @@ def test_batch_7_order_of_the_rounds(tmp_path):
     soldier["bases"].update(hp=60, spd=40)
     soldier["skills"] = ["GaleWings"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         max_hp = game.read(attacker, 0x12)
@@ -1819,7 +1826,7 @@ def test_batch_8_status_sturdy_and_armsthrift(tmp_path):
     soldier["bases"]["hp"] = 30
     soldier["skills"] = ["Sturdy"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 100, 0x19)           # Luck 100: Armsthrift always
@@ -1861,7 +1868,7 @@ def test_batch_9_auras_in_battle(tmp_path):
     soldier["bases"]["hp"] = 60
     soldier["skills"] = ["Intimidate", "Tantivy"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker = _bench_units(game)[0]
         pow_, spd, lck = (game.read(attacker, k) for k in (0x14, 0x16, 0x19))
@@ -1913,7 +1920,7 @@ def test_batch_10_mangs_list_first_part(tmp_path):
         if "TERRAIN_" in line and "=" in line:
             name, value = line.split("=")
             terrains[int(value.split(",")[0], 16)] = name.strip()[len("TERRAIN_"):]
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 10, 0x08)                                  # level 10
@@ -1965,7 +1972,7 @@ def test_batch_10_after_combat(tmp_path):
     classes = project.load("classes")
     next(c for c in classes if c["id"] == army[0]["class"])["skills"] = ["BreathOfLife"]
     project.save("classes", classes)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         lord = _bench_units(game)[0]
         base = game.address("gUnitArrayBlue")
@@ -2007,7 +2014,7 @@ def test_batch_10_seals(tmp_path):
                                                                                    "SealDefense"]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         lord = _bench_units(game)[0]
         red = game.address("gUnitArrayRed")
@@ -2038,7 +2045,7 @@ def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
     next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["Relief", "Camaraderie"]
     next(c for c in characters if c["id"] == army[1]["character"])["skills"] = ["Relief", "Amaterasu"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.turn() == 1 and game.phase() == "player" and game.units())
         game.run(120)
@@ -2075,7 +2082,7 @@ def test_batch_9_shade_plus_is_never_targeted(tmp_path, shaded):
     holder = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][shaded]["character"]
     next(c for c in characters if c["id"] == holder)["skills"] = ["ShadePlus"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _bench_units(game)
         game.move_cursor(0, 0)                     # End the turn from the map menu
@@ -2105,7 +2112,7 @@ def test_learned_skill_counts_in_battle(tmp_path):
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
     used = [s.id for s in skills.used(characters, project.load("classes"), False)]
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         pow_ = game.read(attacker, 0x14)
@@ -2132,7 +2139,7 @@ def test_skill_learned_at_a_level_up(tmp_path):
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
     used = [s.id for s in skills.used(characters, project.load("classes"), False)]
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         level = game.read(attacker, 0x8)
@@ -2163,7 +2170,7 @@ def test_game_ability_given_as_a_skill(tmp_path):
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Crit", "Canto"]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         skl = game.read(attacker, 0x15)
@@ -2184,7 +2191,7 @@ def test_canto_plus_moves_after_a_battle(tmp_path):
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["CantoPlus"]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 40, 0x17)            # Defense 40: it survives
@@ -2209,7 +2216,7 @@ def test_pivot_command(tmp_path):
     lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Pivot"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.phase() == "player" and game.units())
         game.run(120)
@@ -2241,7 +2248,7 @@ def test_reposition_shove_and_swap_commands(tmp_path):
     lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Reposition", "Shove", "Swap"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     expected = {0: ((2, 2), (1, 2)), 1: ((2, 2), (4, 2)), 2: ((3, 2), (2, 2))}   # command: lord's, ally's tiles
     for command, (lord_at, friend_at) in expected.items():
         with Game(out.rom_path, out.map_path) as game:
@@ -2284,7 +2291,7 @@ def test_renewal_and_galeforce_on_the_map(tmp_path):
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Renewal", "Galeforce"]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 40, 0x17)            # Defense 40: the soldier does no damage
@@ -2319,7 +2326,7 @@ def test_galeforce_flash_after_a_battle_animation(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Galeforce"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         base = game.address("gUnitArrayBlue")
@@ -2363,7 +2370,7 @@ def test_vantage_and_desperation_change_the_order_of_attacks(tmp_path):
     classes = project.load("classes")
     next(c for c in classes if c["id"] == "CLASS_SOLDIER")["skills"] = ["Vantage"]
     project.save("classes", classes)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 7, 0x13)       # 7 HP of 16: under half
@@ -2397,7 +2404,7 @@ def test_luna_and_sol_trigger_on_each_hit(tmp_path):
     next(c for c in characters if c["id"] == lord_id)["skills"] = ["Luna", "Sol"]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 100, 0x15)      # Skill 100: always triggers
@@ -2432,7 +2439,7 @@ def test_adept_and_astra_add_hits(tmp_path, skill):
     next(c for c in characters if c["id"] == lord_id)["skills"] = [skill]
     next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 30, 0x16)       # Speed 30: doubles the soldier
@@ -2462,7 +2469,7 @@ def test_triggered_skill_name_in_battle_animation(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         base = game.address("gUnitArrayBlue")
@@ -2488,7 +2495,7 @@ def test_effect_spore_status_flashes_the_attacker_in_battle_animation(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["EffectSpore"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     seen = []
     for seed in range(12):
         with Game(out.rom_path, out.map_path) as game:
@@ -2535,7 +2542,7 @@ def test_damage_and_heal_numbers_in_battle_animation(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         base = game.address("gUnitArrayBlue")
@@ -2562,7 +2569,7 @@ def test_sol_heal_shows_in_battle_animation(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         base = game.address("gUnitArrayBlue")
@@ -2597,7 +2604,7 @@ def test_triggered_skill_icon_in_map_battle(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == "CHARACTER_SETH")["skills"] = ["Sol"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         base = game.address("gUnitArrayBlue")
@@ -2633,7 +2640,7 @@ def test_heal_preview_battle_speed_and_fallen_items(tmp_path):
             if unit.get("side") == "enemy":
                 unit["items"] = ["ITEM_LANCE_IRON"]
     project.save("chapters", chapters)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
 
     def end_turn(keys=()):
         game.move_cursor(14, 2)
@@ -2705,7 +2712,7 @@ def test_renewal_for_an_enemy_steal_and_canto_given(tmp_path):
     soldier.update(skills=["Renewal"])
     soldier["bases"].update(hp=20, spd=0)
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         thief, walker = _bench_units(game)
         base = game.address("gUnitArrayRed")
@@ -2750,7 +2757,7 @@ def test_dance_and_supply_given_as_skills(tmp_path):
     characters = project.load("characters")
     next(c for c in characters if c["id"] == ally[1]["character"])["skills"] = ["Dance", "Supply"]
     project.save("characters", characters)
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         lord, dancer, other = _bench_units(game)
         game.move_cursor(*BENCH_SPOTS[0])
@@ -2789,7 +2796,7 @@ def test_level_up_screen_with_l_held(tmp_path):
     place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
     project = _bench(tmp_path, "lvupl", [["ITEM_SWORD_IRON"], []], enemy_at=place)
     project.set_game_options({**project.game_options, "holdLBattleSpeed": True})
-    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         attacker, _idle = _bench_units(game)
         game.write(attacker, 60, 0x14)            # Strength 60: one hit kills

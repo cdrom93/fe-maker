@@ -62,6 +62,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - Before every commit, run what CI runs: `server/.venv/Scripts/python -m ruff check server tests docker` (lines up to 130 characters), `pytest tests/server`, and `npm run check` in `ui/`. (CI once failed silently: ruff not run locally.)
 - Testing beside the user's running app: start a second server with `FE_MAKER_HOME=<scratch home>` (own settings, a copy of the `rom/` folder; projects still go to the real `FE Maker Projects` unless a path is given), `FE_MAKER_UI_DIST=<scratch build>` (`npx vite build --outDir <dir>`) and `--port 8766`. The user's server, project and `ui/dist` stay untouched.
 - Tests: `tests/server` (no ROM, fictional fixtures in `tests/server/fixtures/decomp`); `tests/local` (needs the ROM and Docker, never in public CI).
+- Run only the domain you touched (`pytest -m maps`, playtests too; domains in `tests/conftest.py`, commands in `docs/architecture.md`), the whole `tests/server` before a commit; a new test file or playtest gets its domain there.
 - In-game checks: headless playtests (`server/fe_maker/playtest.py`, `Game(rom, map_path)`) on the test bench `_bench` in `tests/local/test_playtest.py`; details in `docs/architecture.md`.
 
 ## Pitfalls already met

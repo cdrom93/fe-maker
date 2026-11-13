@@ -109,6 +109,8 @@ piège dans sa section.
 
 - Deux compilations en même temps partagent la copie de travail du volume Docker : « Build failed » sans erreur du compilateur, ou pire, une ROM qui marche en mélangeant les fichiers de deux projets (ticket 57 : carte et portrait d'origine dans le projet de l'utilisateur, pendant un de mes playtests). `builder.build_lock` les fait attendre, entre tous les programmes.
 
+- **Cache des ROM de playtest** (`tests/local/romcache.py`) : la clé couvre l'overlay, le commit de la décomp, `native/`, `builder.py` et `docker/`, pas la boîte à outils ni `project.build` hors overlay : en cas de doute, lancer avec `FE_MAKER_PLAYTEST_CACHE=off`. Deux fichiers `test_playtest.py` (serveur et local) : pytest les importe en mode `importlib` (`pytest.ini`), d'où `pythonpath` pour `romcache`.
+
 - **Banc de test, tuer le seul ennemi** termine le chapitre (le jeu revient à l'écran titre) : ajouter un second ennemi loin. **Une stat écrite au-delà du maximum de la classe** (Tec 100) est ramenée au plafond par le combat : la réécrire après. **Après l'action**, l'unité active a encore `US_HIDDEN` (son sprite de déplacement est affiché) : ne pas l'écarter sur ce drapeau ; et un ennemi vaincu est effacé (`pCharacterData` nul) : ne plus lire ses compétences.
 
 ## Outils et interface

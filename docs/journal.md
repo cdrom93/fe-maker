@@ -298,3 +298,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : compétences, lot 10, sceaux : les 7 Seal (-6 à l'adversaire touché, remonte de 1 par tour, sur les compteurs des bonus temporaires) ; playtest.
 - 13/11/2026 : compétences, lot 10, animation des sceaux sur la carte (celle du C-SkillSys : action, éclair, icône du sceau, sprites qui tombent sur l'adversaire) ; playtest.
 - 13/11/2026 : point sur l'alpha avec l'utilisateur : compétences mises de côté (reste du lot 10 après l'alpha) ; ordre repris au cahier, section 4, étape 9.
+- 13/11/2026 : tests automatiques, point 1 : tests rangés en 8 domaines (`pytest -m <domaine>`, serveur et playtests), sortie limitée aux échecs (`pytest.ini`), ROM des playtests en cache (`tests/local/romcache.py` ; playtests « maps » 113 s → 34 s).

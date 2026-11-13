@@ -127,7 +127,7 @@ Public : FE Universe ; dépôt public depuis le 07/11/2026 (prealpha, sans tag n
    - **musique** (phase 5) ;
    - **compilation sans Docker sous Windows** : faite le 07/11 (`docs/sans-docker.md`, `server/fe_maker/native/`), Docker en secours ; même ROM qu'avec Docker ; première compilation ~8 min en arrière-plan dès l'installation, ensuite ~10 s à 2 min (accélérée le 08/11) ; chaîne téléchargeable depuis que le dépôt est public ;
    - **tests automatiques, pour que les testeurs humains se concentrent sur le ressenti** (plan validé par l'utilisateur le 09/11, sobre en tokens), dans cet ordre :
-     1. mes vérifications moins coûteuses : tests rangés par domaine (je ne lance que ceux du domaine touché), sortie limitée aux échecs, ROM des playtests en cache ;
+     1. mes vérifications moins coûteuses : tests rangés par domaine (je ne lance que ceux du domaine touché), sortie limitée aux échecs, ROM des playtests en cache ; **fait (13/11)** : 8 domaines (`pytest -m maps`, `tests/conftest.py`), `pytest.ini` silencieux, cache `tests/local/romcache.py` (playtests « maps » : 113 s → 34 s) ;
      2. tests de l'interface sans moi : Playwright dans la CI GitHub sur la décomp fictive (créer un projet, personnage, carte, dialogue, placement, export, réouverture) et captures de référence des écrans clés ;
      3. tickets qui se suffisent : les dernières actions et erreurs jointes au ticket ;
      4. missions pour les testeurs à chaque version (tirées du CHANGELOG, trois questions de ressenti chacune) ;
