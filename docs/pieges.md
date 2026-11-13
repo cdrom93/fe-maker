@@ -37,6 +37,8 @@ piège dans sa section.
 
 ## Données du jeu (personnages, classes, objets, textes)
 
+- Musique de phase choisie parmi les morceaux du jeu : regarder le lecteur de sa ligne dans `gSongTable` (0 = celui des combats, qui l'écrasent) ; un playtest avec un morceau importé ne le montre pas, ils sont tous sur le 1.
+
 - Bâtons et objets agissent par leur numéro dans le moteur (`switch (GetItemIndex(item))`, `== ITEM_X`, tables de l'IA `{ ITEM_X, fonction }`) : une copie n'agit que si elle est ajoutée à ces tests (`_copy_item_behaviour`). Un numéro écrit en dur dans `asm/` ne serait pas suivi.
 - Images en gris de gbagfx (tuiles sans palette) : le blanc est la couleur 0 (couleur = 15 − gris / 17), et passer de L à P avec Pillow remappe les index : utiliser `Image.frombytes("P", ...)`.
 - A unit with any magic rank plays its battle animation's magic (ranged) moves, whatever weapon it strikes with (`UnitHasMagicRank` in `banim-battleparse.c`): a mage with a sword stood still. Projects mixing magic and physical ranks get `tweaks.animation_modes_by_weapon` (docs/audit-decomp.md item 59).

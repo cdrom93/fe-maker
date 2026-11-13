@@ -28,7 +28,8 @@
   const shown = $derived.by(() => {
     const q = fold(query.trim())
     const all = faces.filter((f) => !q || fold(label(f.id)).includes(q) || fold(f.id).includes(q))
-    return [...all.filter((f) => first.includes(f.id)), ...all.filter((f) => !first.includes(f.id))]
+    const ahead = (f: DialogueFace) => first.includes(f.id) || !!f.active
+    return [...all.filter(ahead), ...all.filter((f) => !ahead(f))]
   })
 </script>
 
@@ -41,7 +42,7 @@
   {#if hint}<p class="muted tiny">{hint}</p>{/if}
   <div class="grid">
     {#each shown as f (f.id)}
-      <button class="face" title={label(f.id)} draggable="true" onclick={() => onpick(f.id)}
+      <button class="face" title={f.active ? t('dlg.activeFaceHint') : label(f.id)} draggable="true" onclick={() => onpick(f.id)}
               ondragstart={(e) => e.dataTransfer?.setData('text/plain', JSON.stringify({ face: f.id }))}>
         <img src={portraitUrl(f.portrait, true)} alt="" loading="lazy" />
         <span class="tiny">{label(f.id)}</span>

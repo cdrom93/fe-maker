@@ -35,6 +35,7 @@ from . import (
     quotes,
     seize,
     skills,
+    soundroom,
     story,
     supports,
     tileedit,
@@ -1876,6 +1877,14 @@ class DecompData:
         files, numbers = music.build_files(self.decomp_dir, {**data, "scenes": sorted(scenes)}, assets_dir)
         self.scene_song_defines = music.scene_defines(scenes, numbers)
         self.asset_files.update(files)
+        imported = [(numbers[key], key) for key in sorted(data.get("songs", {}), key=lambda k: numbers.get(k, 0))
+                    if key in numbers]
+        if imported and (self.decomp_dir / soundroom.DATA_FILE).is_file():   # they join the sound room (ticket 76)
+            source = self._read(soundroom.DATA_FILE)
+            rows = [(n, soundroom.frames((assets_dir / "music" / f"{key}.mid").read_bytes()),
+                     self.texts.add(name_message(re.sub(r"[\[\]]", "", data["songs"][key].get("name") or key))))
+                    for n, key in imported]
+            self.asset_files[soundroom.DATA_FILE] = soundroom.with_songs(source, rows)
         if data.get("chapters") or data.get("victory"):
             self._load_chapter_events()
             music.apply_choices(self.chapter_settings["chapters"], data, numbers)

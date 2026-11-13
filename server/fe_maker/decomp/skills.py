@@ -265,6 +265,12 @@ CATALOGUE: tuple[Skill, ...] = (
     *(Skill(f"Seal{name}", "map", f"Seal{name}", f"Seal {label}:[NL]After hitting, foe's {short}[NL]-6, back 1 per turn.",
             group="after", magic=stat == 6)
       for name, label, short, stat in SEALS),
+    # batch 10, growths and experience (_growth_skills: C-SkillSys's GrowthGetter.c, BattleExp.c and BattleHit.c)
+    Skill("Blossom", "map", "Blossom", "Blossom:[NL]2x growth rates,[NL]but 1/2 EXP gain.", group="growth"),
+    Skill("Aptitude", "map", "Aptitude", "Aptitude:[NL]+20% to all[NL]growth rates.", group="growth"),
+    Skill("Paragon", "map", "Paragon", "Paragon:[NL]Experience gained[NL]is doubled.", group="growth"),
+    Skill("Discipline", "map", "Discipline", "Discipline:[NL]Weapon experience gains[NL]are doubled.",
+          group="growth"),
     # batch 5, simple passives (C-SkillSys's getters, PreBattleCalcAttackerSkills and BattleCalcReal; values from
     # SkillExtraInfo.c)
     _push("PushStrength", 0, "Push Strength:[NL]+5 STR if HP is full."),
@@ -1193,6 +1199,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     files.update(_map_skills(decomp_dir, files, numbers))
     files.update(_post_action_skills(decomp_dir, files, numbers, base))
     files.update(_ai_skills(decomp_dir, files, numbers))
+    files.update(_growth_skills(decomp_dir, files, numbers))
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
@@ -2236,6 +2243,89 @@ HEAL_SKILLS = {
     "Relief": "allies == 0 ? 20 : 0",
     "Camaraderie": "allies != 0 ? 10 : 0",
 }
+
+
+def _growth_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
+    """Batch 10, growths and experience, as C-SkillSys: Blossom doubles the growths (GrowthGetter.c) and halves the
+    experience, Aptitude adds 20 to each growth, Paragon doubles the experience (BattleExp.c: of battles, staves and
+    other actions, at most 100, at least 1 when there was some), Discipline doubles the weapon experience (BattleHit.c
+    adds 2 a hit instead of 1; here, the weapon's experience twice, staves too). The growths are the ones the level-ups
+    read (CheckBattleUnitLevelUp, UnitLevelUp), Magic's of strMagSplit included (strmag.apply runs before)."""
+    growth = [sid for sid in ("Blossom", "Aptitude") if sid in numbers]
+    exp = [sid for sid in ("Blossom", "Paragon") if sid in numbers]
+    if not growth and not exp and "Discipline" not in numbers:
+        return {}
+    rel = "src/bmbattle.c"
+    text = _read(files, decomp_dir, rel)
+    if growth:
+        def wrap(m):
+            return f"GrowthFem({'&bu->unit' if m.group(1) == 'bu->unit.' else 'unit'}, {m.group(0)})"
+        text = re.sub(r"(bu->unit\.|unit->)pCharacterData->growth\w+", wrap, text)
+        text = re.sub(r"gCharacterMagFem\[(bu->unit\.|unit->)pCharacterData->number\]\[1\]", wrap, text)
+        body = "".join({"Blossom": "    if (SkillTesterFem(unit, SKILL_FEM_Blossom))\n        result += growth;\n",
+                        "Aptitude": "    if (SkillTesterFem(unit, SKILL_FEM_Aptitude))\n        result += 20;\n"}[sid]
+                       for sid in growth)
+        start = "void CheckBattleUnitLevelUp(struct BattleUnit* bu) {\n"
+        text = _replace(text, start, f"""/* FE Maker: growth skills (C-SkillSys's GrowthGetter.c) */
+static int GrowthFem(struct Unit* unit, int growth) {{
+    int result = growth;
+
+{body}    return result;
+}}
+
+""" + start, rel)
+    if exp:
+        body = "".join({"Blossom": "    if (SkillTesterFem(&bu->unit, SKILL_FEM_Blossom))\n        exp = exp / 2;\n",
+                        "Paragon": "    if (SkillTesterFem(&bu->unit, SKILL_FEM_Paragon))\n        exp = exp * 2;\n"}[sid]
+                       for sid in exp)
+        start = "int GetBattleUnitExpGain(struct BattleUnit* actor, struct BattleUnit* target) {\n"
+        text = _replace(text, start, f"""/* FE Maker: experience skills (C-SkillSys's KernelModifyBattleUnitExp) */
+static int ExpFem(struct BattleUnit* bu, int exp) {{
+    int base = exp;
+
+{body}    if (exp > 100)
+        exp = 100;
+    if (base > 0 && exp <= 0)
+        exp = 1;
+    return exp;
+}}
+
+""" + start, rel)
+        text = _replace(text, """    if (result < 1)
+        result = 1;
+
+    ModifyUnitSpecialExp(&actor->unit, &target->unit, &result);
+""", """    if (result < 1)
+        result = 1;
+
+    result = ExpFem(actor, result);
+    ModifyUnitSpecialExp(&actor->unit, &target->unit, &result);
+""", rel)
+        text = _replace(text, """    if (UNIT_CATTRIBUTES(&bu->unit) & CA_PROMOTED)
+        result = result / 2;
+
+    if (result > 100)
+        result = 100;
+
+    return result;
+""", """    if (UNIT_CATTRIBUTES(&bu->unit) & CA_PROMOTED)
+        result = result / 2;
+
+    if (result > 100)
+        result = 100;
+
+    return ExpFem(bu, result);
+""", rel)
+        text = _replace(text, """    gBattleActor.expGain = 10;
+    gBattleActor.unit.exp += 10;
+""", """    gBattleActor.expGain = ExpFem(&gBattleActor, 10);
+    gBattleActor.unit.exp += gBattleActor.expGain;
+""", rel)
+    if "Discipline" in numbers:
+        text = _replace(text, "    result += GetItemAwardedExp(bu->weapon) * bu->wexpMultiplier;\n",
+                        "    result += GetItemAwardedExp(bu->weapon) * bu->wexpMultiplier\n"
+                        "        * (SkillTesterFem(&bu->unit, SKILL_FEM_Discipline) ? 2 : 1); /* FE Maker: Discipline */\n", rel)
+    return {rel: text}
 
 
 def _heal_function(heals) -> str:

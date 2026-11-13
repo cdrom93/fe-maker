@@ -464,8 +464,8 @@
         {/each}
       </div>
     </div>
-    <textarea bind:this={textarea} bind:value={body} rows="4" placeholder={t('ticket.placeholder')} oninput={() => (sent = null)} onpaste={paste} onkeydown={keydown}></textarea>
-    <div class="images">
+    <textarea bind:this={textarea} bind:value={body} rows="3" placeholder={t('ticket.placeholder')} oninput={() => (sent = null)} onpaste={paste} onkeydown={keydown}></textarea>
+    <div class="images" class:none={!images.length}>
       {#each images as src, i (i)}
         <span class="thumb">
           <img {src} alt={t('ticket.image', { n: i + 1 })} />
@@ -480,17 +480,22 @@
         }} />
         {t('ticket.addImage')}
       </label>
+      <Help text={t('ticket.pasteHint')} />
     </div>
-    <p class="muted small">{t('ticket.pasteHint')}</p>
-    {#if contextText}<p class="muted small">{t('ticket.context')} : {contextText}</p>{/if}
-    {#if hasProject}
-      <label class="check"><input type="checkbox" bind:checked={attachProject} /> {t('ticket.attachProject')} <Help text={t('ticket.attachProjectHint')} /></label>
-    {/if}
-    <label class="check tester">{t('ticket.testerName')}
-      <input type="text" maxlength="40" bind:value={testerName} onblur={saveTesterName} placeholder={t('ticket.testerNameNone')} />
-      <Help text={t('ticket.testerNameHint')} /></label>
-    {#if github?.available}
-      <span class="trail-row small">
+    {#if contextText}<p class="muted tiny">{t('ticket.context')} : {contextText}</p>{/if}
+    <div class="trail-row">
+      {#if hasProject}
+        <label class="check"><input type="checkbox" bind:checked={attachProject} /> {t('ticket.attachProject')} <Help text={t('ticket.attachProjectHint')} /></label>
+      {/if}
+      <label class="check"><input type="checkbox" bind:checked={attachTrail} /> {t('ticket.attachTrail')} <Help text={t('ticket.attachTrailHint')} /></label>
+      <button type="button" class="link small" onclick={toggleTrailPreview}>{trailPreview ? t('ticket.trailHide') : t('ticket.trailShow')}</button>
+    </div>
+    {#if trailPreview}<pre class="trail">{trailPreview.join('\n') || t('ticket.trailEmpty')}</pre>{/if}
+    <div class="trail-row small">
+      <label class="check tester">{t('ticket.testerName')}
+        <input type="text" maxlength="40" bind:value={testerName} onblur={saveTesterName} placeholder={t('ticket.testerNameNone')} />
+        <Help text={t('ticket.testerNameHint')} /></label>
+      {#if github?.available}
         {#if github.login}
           <span>{t('ticket.github.signedIn', { login: github.login })}</span>
           <button type="button" class="link small" onclick={githubSignOut}>{t('ticket.github.signOut')}</button>
@@ -498,17 +503,12 @@
           <span>{t('ticket.github.typeCode')} <strong class="code">{githubDevice.userCode}</strong></span>
           <a class="small" href={githubDevice.verificationUri} target="_blank" rel="noopener">{githubDevice.verificationUri}</a>
         {:else}
-          <button type="button" onclick={githubSignIn}>{t('ticket.github.signIn')}</button>
+          <button type="button" class="small" onclick={githubSignIn}>{t('ticket.github.signIn')}</button>
         {/if}
         <Help text={t('ticket.github.hint')} />
-      </span>
-      {#if githubError}<p class="bad small">{githubError}</p>{/if}
-    {/if}
-    <span class="trail-row">
-      <label class="check"><input type="checkbox" bind:checked={attachTrail} /> {t('ticket.attachTrail')} <Help text={t('ticket.attachTrailHint')} /></label>
-      <button type="button" class="link small" onclick={toggleTrailPreview}>{trailPreview ? t('ticket.trailHide') : t('ticket.trailShow')}</button>
-    </span>
-    {#if trailPreview}<pre class="trail">{trailPreview.join('\n') || t('ticket.trailEmpty')}</pre>{/if}
+      {/if}
+    </div>
+    {#if githubError}<p class="bad small">{githubError}</p>{/if}
     {#if error}<p class="bad small">{error}</p>{/if}
     {#if sent?.remote}<p class="good small">{t('ticket.sent', { n: sent.number })}</p>
     {:else if sent}<p class="bad small">{t('ticket.notSent', { n: sent.number, reason: reason(sent.sendError ?? '') })}</p>{/if}
@@ -621,8 +621,9 @@
 
 <style>
   .question { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
-  .trail-row { display: flex; align-items: center; gap: 0.5rem; }
-  .tester input { width: 12rem; }
+  .trail-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.7rem; }
+  .tester input { width: 9rem; }
+  .images.none .add-image { height: auto; padding: 0.25rem 0.8rem; }
   .code { font-family: monospace; letter-spacing: 0.1em; }
   .trail { max-height: 10rem; overflow: auto; font-size: 0.7rem; margin: 0; white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
   .side {

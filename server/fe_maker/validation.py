@@ -240,6 +240,8 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
         defs = decomp.decomp_dir / decomp_dialogues.TEXT_DEFS_FILE
         faces = decomp_dialogues.read_faces(defs.read_text(encoding="utf-8")) if defs.is_file() else {}
         faces.update({decomp_portraits.face_code(pid): pid for pid in added_portraits})
+        if faces:
+            faces[decomp_dialogues.ACTIVE_FACE] = 0   # the acting unit (ticket 73)
         _validate_dialogues(problems, dialogues, faces)
         if dialogues.get("scripts"):
             _validate_scripts(problems, dialogues["scripts"], decomp, characters,

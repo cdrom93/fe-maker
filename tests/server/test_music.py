@@ -310,3 +310,44 @@ def test_drumfix_voices_written_over_the_placeholders(tmp_path):
     out = nimap.with_drumfix(lambda rel: (tmp_path / rel).read_text(encoding="utf-8"), tmp_path, voices)
     assert out == {"sound/voicegroups/voicegroup000.s": kit.replace(
         "voice_square_1 0, 2, 0, 0, 15, 0\t@0800010C", voices[0x0800010C] + "\t@0800010C")}
+
+
+def test_a_game_song_on_the_battles_player_gets_a_copy_on_the_maps(tmp_path):
+    """Ticket 74: a phase song the table puts on player 0 (the battles') plays from a copy of its row on player 1."""
+    table = ("gSongTable:\n\tsong dummy_song, 0, 0\n\tsong song001_map, 1, 1\n\tsong song002_op, 0, 0\n"
+             "\tsong dummy_song, 0, 0\n")
+    (tmp_path / "sound").mkdir()
+    (tmp_path / music.SONG_TABLE_FILE).write_text(table, encoding="utf-8")
+    assert music.build_files(tmp_path, {"chapters": {"0": {"bluePhase": 1}}}, tmp_path) == ({}, {})
+    files, numbers = music.build_files(tmp_path, {"chapters": {"0": {"bluePhase": 2}}}, tmp_path)
+    assert numbers == {"#2": 3}
+    assert files[music.SONG_TABLE_FILE].endswith("\tsong song002_op, 0, 0\n\tsong song002_op, 1, 1\n")
+    settings = [{"bgm": {"bluePhase": 2}}]
+    music.apply_choices(settings, {"chapters": {"0": {"bluePhase": 2}}}, numbers)
+    assert settings[0]["bgm"]["bluePhase"] == 3
+
+
+def test_imported_songs_join_the_sound_room():
+    """Ticket 76: a row per imported song before the end mark; past 128 a song is never unlocked, so always shown."""
+    from fe_maker.decomp import soundroom
+
+    conductor = _track(b"\x00\xff\x51\x03\x0f\x42\x40"   # a beat lasts a second
+                       b"\x00\xff\x06\x01[" b"\x30\xff\x06\x01]" b"\x00\xff\x2f\x00")   # loop of 2 beats
+    assert soundroom.frames(_midi(conductor)) == 120
+    source = ("struct SoundRoomEnt CONST_DATA gSoundRoomTable[] =\n{\n    {\n        .bgmId = SONG_X,\n    },\n"
+              "    {\n        .bgmId = -1,\n    },\n};\n")
+    out = soundroom.with_songs(source, [(87, 120, 0x900), (200, 60, 0x901)])
+    assert soundroom.row_count(out) == 3
+    assert ".bgmId = 87,\n        .songLength = 120,\n        .displayCondFunc = NULL,\n        .nameTextId = 2304," in out
+    assert ".displayCondFunc = (void *)IsExtraSoundRoomEnabled," in out
+    assert out.index("IsExtraSoundRoomEnabled(void);") < out.index("gSoundRoomTable")
+    assert out.index(".bgmId = 200") < out.index(".bgmId = -1")
+    assert soundroom.with_songs(source, []) == source
+
+
+def test_a_characters_theme_plays_in_either_camp():
+    """Ticket 77: with themes chosen, the game's check of the left unit only (never a player's) gives way to both."""
+    source = "void EkrPlayMainBGM(void)\n{\n" + music.BOSS_CAMP + "}\n"
+    assert music.with_battle_songs(source, {}, None) == source
+    out = music.with_battle_songs(source, {}, {1: 0x57})
+    assert "FACTION_BLUE" not in out and "songid2 = GetBanimBossBGM(&bur->unit);" in out

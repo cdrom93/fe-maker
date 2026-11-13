@@ -139,3 +139,14 @@ def test_new_portraits_validation(tmp_path, decomp_dir):
     added = {str(first): {"file": "a.png", "mouth": [2, 6], "eyes": [3, 4], "name": "Amelia"}}
     problems = validate(chars, d.export_items(), d, dialogues=dialogues, portraits=added, assets_dir=tmp_path)
     assert not [p for p in problems if p.code in ("unknownPortrait", "unknownFace")]
+
+
+def test_the_acting_units_portrait_in_a_dialogue(decomp_dir):
+    """Ticket 73: FID_Active, the portrait of the unit visiting a village, is a portrait dialogues may show."""
+    from fe_maker.decomp.dialogues import ACTIVE_FACE
+    from fe_maker.validation import validate
+
+    d = DecompData(decomp_dir)
+    dialogues = {"messages": {"0x1": [{"kind": "face", "pos": "MidLeft", "face": ACTIVE_FACE}]}}
+    problems = validate(d.export_characters(), d.export_items(), d, dialogues=dialogues)
+    assert not [p for p in problems if p.code == "unknownFace"]

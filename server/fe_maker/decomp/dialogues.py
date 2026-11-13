@@ -341,6 +341,7 @@ def script_messages(source: str) -> list[tuple[str, list[int]]]:
 
 
 TEXT_DEFS_FILE = "texts/textdefs.txt"
+ACTIVE_FACE = "FID_Active"   # [LoadFace][0xFFFF]: the acting unit's portrait (scene.c), a visitor's in a village
 
 
 def read_faces(textdefs: str) -> dict[str, int]:
@@ -348,7 +349,7 @@ def read_faces(textdefs: str) -> dict[str, int]:
     out = {}
     for name, low, high in re.findall(r"^\[(FID_\w+)\]\s*=\s*(0x[0-9A-Fa-f]+|\d+)\s*,\s*(0x[0-9A-Fa-f]+|\d+)",
                                       textdefs, re.M):
-        if name != "FID_Active":
+        if name != ACTIVE_FACE:
             out[name] = int(low, 0) | ((int(high, 0) - 1) << 8)
     return out
 

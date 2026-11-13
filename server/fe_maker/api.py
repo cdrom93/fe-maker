@@ -1609,6 +1609,8 @@ def dialogue_faces():
         moves = {old: new for old, new in moves.items() if old not in now.values()}
     faces = [{"id": fid, "portrait": moves.get(pid, pid)}
              for fid, pid in dialogues.read_faces(defs.read_text(encoding="utf-8")).items()]
+    if faces:   # the acting unit's portrait (ticket 73), shown in FE Maker with the first one's
+        faces.append({"id": dialogues.ACTIVE_FACE, "portrait": faces[0]["portrait"], "active": True})
     return faces + [{"id": portraits.face_code(pid), "portrait": pid, "name": e.get("name") or portraits.new_name(pid)}
                     for pid, e in sorted(_added_portraits().items())]
 

@@ -407,10 +407,14 @@ def admin_available() -> bool:
     return _admin
 
 
+TRAIL = re.compile(r"\s*<details><summary>Last actions and errors</summary>.*?</details>", re.DOTALL)
+
+
 def _split(text: str) -> dict:
     """An issue or comment body written by the relay: the text, its context table, screenshots and project."""
     lines, context, images, project = [], {}, [], ""
-    for line in MARKS.sub("", text or "").splitlines():
+    text = TRAIL.sub("", text or "")   # the last actions and errors (activity.trail_text): for GitHub only (ticket 80)
+    for line in MARKS.sub("", text).splitlines():
         link = UPLOAD_LINK.match(line)
         if link:
             if link.group(1).endswith(".zip"):

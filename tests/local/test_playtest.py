@@ -769,6 +769,69 @@ def test_imported_music_in_the_prologue(tmp_path):
         assert header in playing
 
 
+def test_map_music_comes_back_after_a_battle(tmp_path):
+    """Ticket 74: the player phase's song chosen among the game's songs that the song table puts on the battles' music
+    player (0: the opening's). FE Maker plays it from a copy of its row on the map's player (1), so the battle only
+    pauses it and the game takes it up again right after the battle, in the same player phase."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "battlesong", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.save("music", {"chapters": {"0": {"bluePhase": 2}}, "victory": {"0": 0}})   # one enemy: no victory song
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        song = game.read(game.address("gSongTable") + 2 * 8, 0, width=32)   # struct Song: its header first
+
+        def heard() -> bool:   # gMPlayTable's players (12 bytes each), MusicPlayerInfo: songHeader, status
+            for n in range(2):
+                info = game.read("gMPlayTable", 12 * n, width=32)
+                status = game.read(info, 4, width=32)
+                if game.read(info, 0, width=32) == song and status & 0xFFFF and not status & 0x80000000:
+                    return True
+            return False
+
+        assert heard()
+        _bench_attack(game, lord)
+        stopped = False
+        for _ in range(60):                     # the battle's song, then the phase's again
+            game.run(20)
+            stopped = stopped or not heard()
+            if stopped and heard():
+                break
+        assert stopped and heard() and game.turn() == 1
+
+
+def test_a_players_theme_and_the_sound_room(tmp_path):
+    """Tickets 76 and 77: an imported song, the lord's theme, joins the sound room's list (gSoundRoomTable, before its
+    end mark) and plays when she fights, though she is on the player's side."""
+    import shutil
+
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "playertheme", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    shutil.copy(project.decomp_dir / "sound/songs/midi/song025_agbfe3_bgm_btl_pl_normal.mid", folder / "fight.mid")
+    project.save("music", {"songs": {"fight": {"name": "Fight"}}, "bosses": {"CHARACTER_EIRIKA": "fight"},
+                           "victory": {"0": 0}})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        rows = game.address("gSoundRoomTable")
+        n = 0
+        while game.read(rows + 16 * (n + 1), 0, width=32) != 0xFFFFFFFF:   # struct SoundRoomEnt: 16 bytes
+            n += 1
+        number = game.read(rows + 16 * n, 0, width=32)
+        assert 0 < number < 128 and game.read(rows + 16 * n, 4, width=32) > 60
+        song = game.read(game.address("gSongTable") + 8 * number, 0, width=32)
+        _bench_attack(game, lord)
+        battle = game.read("gMPlayTable", 0, width=32)   # gMPlayInfo_BGM1, the battles' player
+
+        def theme() -> bool:
+            status = game.read(battle, 4, width=32)
+            return game.read(battle, 0, width=32) == song and bool(status & 0xFFFF) and not status & 0x80000000
+
+        assert game.wait_until(theme, seconds=20, step=20)
+
+
 def test_imported_music_in_a_scene(tmp_path):
     """An imported song named by the Music command of a sequence (FEM_SONG_<key>, defined at build) plays in the
     prologue's opening scene."""
@@ -2324,6 +2387,29 @@ def test_skill_learned_at_a_level_up(tmp_path):
         game.run(30)
         game.screenshot().save(tmp_path / "learned.png")
         print("screenshot:", tmp_path / "learned.png")
+
+
+def test_experience_skills(tmp_path):
+    """Skills batch 10: Paragon doubles the battle's experience, Discipline the weapon's (an iron sword gives 1 a hit:
+    the rank goes up 2 a hit)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "experience", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Paragon", "Discipline"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60   # no kill
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        exp, rank = game.read(lord, 0x9), game.read(lord, 0x28)   # struct Unit: exp, ranks[0] (swords)
+        _bench_attack(game, lord)
+        assert game.wait_until(lambda: game.read(lord, 0x9) != exp, seconds=30, step=10)
+        gain, hits = game.read("gBattleActor", 0x6E), game.read("gBattleActor", 0x7B)   # expGain, wexpMultiplier
+        print("exp", exp, "+", gain, "rank", rank, "->", game.read(lord, 0x28), "hits", hits)
+        assert gain >= 2 and gain % 2 == 0 and game.read(lord, 0x9) == exp + gain
+        assert hits >= 1 and game.read(lord, 0x28) == rank + 2 * hits
 
 
 def test_game_ability_given_as_a_skill(tmp_path):

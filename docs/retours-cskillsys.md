@@ -58,4 +58,6 @@ description. Listed here in case they are not intended:
 - **Despoil** (`PostActionSkills/GetItem.c`): the text says "(Skill % activation)", the code gives the Red Gem every time.
 - **Poison Strike / Grisly Wound**: the texts say "20% of the enemy's current HP", the code takes a fifth of its max HP.
 
+- **Discipline** (`BattleHit.c`): FE Maker doubles the weapon experience where the game computes it (`GetBattleUnitUpdatedWeaponExp`), so a staff's too; C-SkillSys adds 2 per hit, battles only.
+
 <!-- Ajouter ici les écarts des lots suivants, au même format. -->

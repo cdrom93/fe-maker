@@ -484,6 +484,8 @@ export interface DialogueFont {
 export interface DialogueFace {
   id: string
   portrait: number
+  /** the unit acting (FID_Active: the one visiting a village, talking...), shown with a stand-in portrait */
+  active?: boolean
   /** name of a portrait the project adds */
   name?: string
 }

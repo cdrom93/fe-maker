@@ -446,3 +446,27 @@ def test_drain_hp_bars_without_nosferatus_wait():
     numbered = skills.apply(DECOMP, battlenumbers.apply(DECOMP, {}), characters, [], texts, False)["src/banim-efxhpbar.c"]
     copy = numbered[numbered.index("static const struct ProcCmd ProcScr_EfxHpBarDrainFem[]"):]
     assert "PROC_REPEAT(EfxHpBarResireNumberFem)," in copy
+
+
+def test_growth_and_experience_skills(monkeypatch):
+    """Batch 10: Blossom and Aptitude on every growth a level-up reads, Paragon and Blossom on the experience,
+    Discipline on the weapon experience; only what the project uses."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Blossom", "Aptitude", "Paragon", "Discipline"]}]
+    used = skills.used(characters, [], False)
+    battle = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    assert "GetStatIncrease(GrowthFem(&bu->unit, bu->unit.pCharacterData->growthHP) + growthBonus)" in battle
+    assert "GetStatIncrease(growthBonus + GrowthFem(unit, unit->pCharacterData->growthLck))" in battle
+    assert "pCharacterData->growth" not in battle.replace("GrowthFem(&bu->unit, bu->unit.pCharacterData->growth", "") \
+        .replace("GrowthFem(unit, unit->pCharacterData->growth", "")
+    assert battle.index("static int GrowthFem") < battle.index("void CheckBattleUnitLevelUp(")
+    assert "result = ExpFem(actor, result);\n    ModifyUnitSpecialExp" in battle and "return ExpFem(bu, result);" in battle
+    assert "gBattleActor.expGain = ExpFem(&gBattleActor, 10);" in battle
+    assert "SKILL_FEM_Discipline) ? 2 : 1)" in battle
+    paragon = [{"id": "CHARACTER_EIRIKA", "skills": ["Paragon"]}]
+    used = skills.used(paragon, [], False)
+    battle = skills.apply(DECOMP, {}, paragon, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmbattle.c"]
+    assert "GrowthFem" not in battle and "SKILL_FEM_Blossom" not in battle and "exp = exp * 2;" in battle

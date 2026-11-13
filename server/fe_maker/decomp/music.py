@@ -111,7 +111,7 @@ def apply_choices(settings: list[dict], data: dict, numbers: dict[str, int]) -> 
         if int(index) >= len(settings):
             continue
         for slot, song in slots.items():
-            number = numbers.get(song) if isinstance(song, str) else song
+            number = numbers.get(song) if isinstance(song, str) else numbers.get(MAP_ROW + str(song), song)
             if number is None or slot not in SLOTS:
                 continue
             for field in (slot, slot + "InHectorStory") if slot in PHASES else (slot,):
@@ -183,6 +183,27 @@ def game_boss_songs(decomp_dir: Path) -> dict[str, int]:
             for who, song in pairs if who != "-1"}
 
 
+# The game plays a character's theme only for the battle's left unit, and never for the player's units; with themes
+# chosen in FE Maker, a theme plays in either camp, the left unit's first (ticket 77; FEBuilderGBA's battle BGM of
+# player units does the like, CREDITS.md).
+BOSS_CAMP = """    songid2 = GetBanimBossBGM(&bul->unit);
+
+    if (UNIT_FACTION(GetUnitFromCharId(UNIT_CHAR_ID(&bul->unit))) == FACTION_BLUE)
+        songid2 = -1;
+
+    if (gBanimValid[POS_L] == false)
+        songid2 = -1;
+"""
+BOTH_CAMPS = """    songid2 = GetBanimBossBGM(&bul->unit);
+
+    if (gBanimValid[POS_L] == false)
+        songid2 = -1;
+
+    if (songid2 == -1 && gBanimValid[POS_R] != false)
+        songid2 = GetBanimBossBGM(&bur->unit);
+"""
+
+
 def with_battle_songs(source: str, slots: dict[str, int], bosses: dict[int, int] | None) -> str:
     """The battle source with the chosen songs: slots by number, and, when bosses is given, the whole boss table
     (character number -> song; NO_SONG: no theme) rewritten with numbers, as large as needed."""
@@ -190,6 +211,7 @@ def with_battle_songs(source: str, slots: dict[str, int], bosses: dict[int, int]
         name, spot = BATTLE_SLOTS[slot]
         source = re.sub(spot, lambda m, n=name, v=number: m.group(0).replace(n, f"0x{v:X}"), source)
     if bosses is not None:
+        source = source.replace(BOSS_CAMP, BOTH_CAMPS)
         m = _BOSS_TABLE.search(source)
         if m:
             rows = [f"    0x{who:X}, 0x{song:X}," for who, song in sorted(bosses.items()) if song != NO_SONG]
@@ -293,25 +315,47 @@ def track_count(data: bytes) -> int:
     return sum(1 for events in song["channels"].values() if any(e[1] == "n" for e in events))
 
 
+MAP_ROW = "#"   # numbers' key prefix: a game song's copy on the map's music player (build_files)
+
+
+def _map_rows(table: str, data: dict) -> list[int]:
+    """Game songs the chapters play on the map that the song table puts on music player 0, the battles' (the opening's
+    and the title's songs): a battle there overwrites them, and after it the game takes up player 1's song again, which
+    is none (ticket 74). They get a copy of their row on player 1."""
+    rows = re.findall(r"^\s*song\s+\w+\s*,\s*(\d+)", table, re.MULTILINE)
+    chosen = {song for slots in data.get("chapters", {}).values() for slot, song in slots.items() if slot in SLOTS}
+    return sorted(n for n in chosen if isinstance(n, int) and 0 < n < len(rows) and rows[n] == "0")
+
+
 def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[str, str | bytes], dict[str, int]]:
-    """Files of the songs the chapters and battles use (decomp-relative path -> content) and each song's number."""
+    """Files of the songs the chapters and battles use (decomp-relative path -> content) and each song's number;
+    a game song copied on the map's music player (_map_rows) under MAP_ROW + its number."""
     songs = data.get("songs", {})
     refs = [*(key for slots in data.get("chapters", {}).values() for key in slots.values()),
             *data.get("battle", {}).values(), *data.get("bosses", {}).values(), *data.get("scenes", []),
             *data.get("screens", {}).values()]
     used = sorted({key for key in refs
                    if isinstance(key, str) and key in songs and (assets_dir / "music" / f"{key}.mid").is_file()})
-    if not used:
+    path = decomp_dir / SONG_TABLE_FILE
+    table = path.read_text(encoding="utf-8") if used or path.is_file() else ""
+    copies = _map_rows(table, data)
+    if not used and not copies:
         return {}, {}
-    table = (decomp_dir / SONG_TABLE_FILE).read_text(encoding="utf-8")
-    rules = (decomp_dir / RULES_FILE).read_text(encoding="utf-8")
-    linker = (decomp_dir / LINKER_FILE).read_text(encoding="utf-8")
     free = free_numbers(table)
-    if len(used) > len(free):
+    if len(used) + len(copies) > len(free):
         raise MusicError("noFreeSong")
     rows = list(re.finditer(r"^\s*song\s+(\w+)\s*,[^\n]*$", table, re.MULTILINE))
     files: dict[str, str | bytes] = {}
     numbers: dict[str, int] = {}
+    for song, n in zip(copies, free[len(used):]):   # the same song, on the map's player
+        numbers[MAP_ROW + str(song)] = n
+        table = table[:rows[n].start()] + f"\tsong {rows[song].group(1)}, 1, 1" + table[rows[n].end():]
+        rows = list(re.finditer(r"^\s*song\s+(\w+)\s*,[^\n]*$", table, re.MULTILINE))
+    if not used:
+        files[SONG_TABLE_FILE] = table
+        return files, numbers
+    rules = (decomp_dir / RULES_FILE).read_text(encoding="utf-8")
+    linker = (decomp_dir / LINKER_FILE).read_text(encoding="utf-8")
     links = ""
     general_midi = None
     if any(songs[key].get("voicegroup") == nimap.KEY for key in used):   # NIMAP2, a voicegroup of its own

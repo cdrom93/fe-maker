@@ -243,3 +243,11 @@ def test_the_testers_name_is_kept_and_joined_to_the_tickets(tmp_path, monkeypatc
     assert api.update_settings(api.SettingsIn(testerName="  Some   one  "))["testerName"] == "Some one"
     ticket = api.create_ticket(api.TicketIn(body="Signed", send=False))
     assert ticket["context"]["tester"] == "Some one"
+
+
+def test_testers_view_leaves_out_the_last_actions():
+    """Ticket 80: the last actions and errors a sent ticket carries are for GitHub, not for the testers' view."""
+    from fe_maker import activity, tickets
+
+    body = "Too tall" + activity.trail_text(["23:11:53 POST /api/projects/open -> 200"], ["click"])
+    assert tickets._split(body + "\n\n| version | 1 |")["body"] == "Too tall"
