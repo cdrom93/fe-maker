@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from fe_maker.decomp.tweaks import TweakError, skip_intro, start_on_map
+from fe_maker.decomp.tweaks import TweakError, route_mode, skip_intro, start_on_map
+from fe_maker.decomp.units import symbolic_redas
 from fe_maker.project import Project, ProjectError
 
 
@@ -124,3 +125,25 @@ def test_animation_modes_by_weapon_only_for_mixed_units(tmp_path):
     out = tweaks.animation_modes_by_weapon(tmp_path, {})[tweaks.BATTLE_PARSE_FILE]
     assert out.count("FEMaker_MagicAttack(unit_r6)") == 4 and "UnitHasMagicRank(unit_r6)" not in out
     assert out.index('#include "bmunit.h"') < out.index("static s8 FEMaker_MagicAttack") < out.index("void f(void)")
+
+
+def test_starting_on_a_chapter_takes_its_route_and_an_army(decomp_dir, tmp_path):
+    """A shared chapter loads its map by the route (River of Regrets: 17 or 30); a scene-only chapter (Castle
+    Frelia) gets the army of the chapters before it."""
+    out = start_on_map(_source(decomp_dir), 0x38, 1, (1, 0))
+    assert "WriteNewGameSave(0, 0, 1, 1);\n    gPlaySt.chapterIndex = 56;" in out
+    assert out.index("chapterIndex = 1;") < out.index("chapterIndex = 0;") < out.rindex("chapterIndex = 56;")
+    assert "WriteNewGameSave(0, 0, 2, 1);" in start_on_map(_source(decomp_dir), 0x11, 2)
+    constants = tmp_path / "include" / "constants"
+    constants.mkdir(parents=True)
+    (constants / "chapters.h").write_text("    CHAPTER_L_7 = 0x08,\n    CHAPTER_E_17 = 0x11,\n    CHAPTER_I_17 = 0x1E,\n",
+                                         encoding="utf-8")
+    assert [route_mode(tmp_path, c) for c in (8, 0x11, 0x1E)] == [1, 2, 3]
+
+
+def test_entry_paths_by_address_are_named():
+    """Chapter 7's army points to its entry paths by the original ROM's address: named, they follow the data."""
+    source = ("CONST_DATA struct REDA REDA_088B6E28[] = { { .x = 1, .y = 17 } };\n"
+              "CONST_DATA struct UnitDefinition U[] = { { .redas = (void *)0x88b6e28, }, { .redas = (void *)0x88c0000, } };\n")
+    out = symbolic_redas(source)
+    assert ".redas = REDA_088B6E28," in out and ".redas = (void *)0x88c0000," in out

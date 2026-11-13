@@ -106,6 +106,33 @@ def render_ai(ai: list[int]) -> str:
     return "{" + ", ".join(hex(v) for v in ai) + "}"
 
 
+RAW_REDA = re.compile(r"\.redas = \(void \*\)0x(8[0-9a-fA-F]{6}),")
+
+
+def symbolic_redas(source: str) -> str:
+    """A few unit definitions of the decomp (chapter 7's army, one group of chapter 15) point to their entry paths by
+    the original ROM's address, `(void *)0x88b6e28`, where the decomp has the same path by name (REDA_088B6E28).
+    Once code before them changes size (a hack, a test build), the address points elsewhere and the units walk to
+    places off the map, which overwrites the game's memory at the next player phase. Named, they follow the data:
+    the same bytes in an unchanged build."""
+    names = set(re.findall(r"struct\s+REDA\s+(\w+)\s*\[", source))
+
+    def named(m: re.Match) -> str:
+        name = f"REDA_0{m.group(1).upper()}"
+        return f".redas = {name}," if name in names else m.group(0)
+    return RAW_REDA.sub(named, source)
+
+
+def with_symbolic_redas(decomp_dir: Path, files: dict) -> dict:
+    """The build's unit definitions with their entry paths named (symbolic_redas), in every build."""
+    source = files.get(NEW_GROUPS_FILE)
+    if source is None:
+        source = (decomp_dir / NEW_GROUPS_FILE).read_text(encoding="utf-8")
+    if RAW_REDA.search(source):
+        files[NEW_GROUPS_FILE] = symbolic_redas(source)
+    return files
+
+
 @lru_cache(maxsize=4)
 def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
     macros = ai_macros(decomp_dir)
@@ -121,7 +148,7 @@ def read_unit_groups(decomp_dir: Path) -> dict[str, UnitGroup]:
 
     groups: dict[str, UnitGroup] = {}
     for rel, source in sources.items():
-        for name, body in _arrays(source, "UnitDefinition"):
+        for name, body in _arrays(symbolic_redas(source), "UnitDefinition"):
             group = UnitGroup(name, rel)
             slot = -1
             for entry in _entries(body):

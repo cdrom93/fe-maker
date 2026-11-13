@@ -41,6 +41,7 @@ _SIMPLE_PROLOGUE_SCENE = """
 
 # Test start modes: "normal" (full intro), "menu" (straight to the save menu),
 # "map" (new game created automatically, straight onto the first chapter's map).
+CHAPTER_CONSTANTS_FILE = "include/constants/chapters.h"
 START_MODES = ("normal", "menu", "map")
 
 _GAME_CONTROL_RE = re.compile(
@@ -90,9 +91,12 @@ def skip_intro(source: str) -> str:
     return source[: m.end(1)] + insert + source[m.end(1):]
 
 
-def start_on_map(source: str, chapter: int = 0) -> str:
+def start_on_map(source: str, chapter: int = 0, mode: int = 1, army_from: tuple[int, ...] = ()) -> str:
     """Boot straight onto the first chapter's map (or `chapter`'s, by index: "Test this chapter") with a fresh
-    normal-mode game (the chapter's opening scene still plays: press Start to skip it)."""
+    normal-mode game (the chapter's opening scene still plays: press Start to skip it). `mode`: the route the game is
+    on (route_mode), as the shared chapters' scenes ask for it; `army_from`: chapters before it in the story whose
+    army is loaded when the chapter has none of its own (a scene-only chapter like Castle Frelia gives gold to the
+    lord)."""
     m = _anchor(source)
     insert = "    PROC_CALL(FEMaker_QuickStartOnMap), /* FE Maker: start on map */\n"
     out = source[: m.start(1)] + _QUICK_START_DECL + source[m.start(1): m.end(1)] + insert + source[m.end(1):]
@@ -101,10 +105,28 @@ def start_on_map(source: str, chapter: int = 0) -> str:
         # The chapter's own player units are loaded as the army: a chapter like chapter 1 does not load them, the
         # game moves the army of the chapters before onto their places (ticket 45). Event loads reuse a unit already
         # there, so chapters that load them themselves get no duplicates.
-        definition = definition.replace("    WriteNewGameSave(0, 0, 1, 1);\n", "    WriteNewGameSave(0, 0, 1, 1);\n"
+        fallback = "".join(f"    if (!GetUnit(1)->pCharacterData) {{ /* FE Maker: no army of its own: the one before */\n"
+                           f"        gPlaySt.chapterIndex = {int(c)};\n"
+                           f"        LoadUnits(GetChapterAllyUnitDataPointer());\n    }}\n" for c in army_from)
+        definition = definition.replace("    WriteNewGameSave(0, 0, 1, 1);\n", f"    WriteNewGameSave(0, 0, {int(mode)}, 1);\n"
                                         f"    gPlaySt.chapterIndex = {int(chapter)}; /* FE Maker: test this chapter */\n"
-                                        "    LoadUnits(GetChapterAllyUnitDataPointer()); /* FE Maker: its army */\n")
+                                        "    LoadUnits(GetChapterAllyUnitDataPointer()); /* FE Maker: its army */\n"
+                                        + fallback + (f"    gPlaySt.chapterIndex = {int(chapter)};\n" if fallback else ""))
     return out.rstrip("\n") + "\n" + definition
+
+
+ROUTE_MODES = {"E": 2, "I": 3}   # the game's chapterModeIndex: Eirika's route, Ephraim's
+
+
+def route_mode(decomp_dir: Path, chapter: int) -> int:
+    """The route a chapter belongs to in the game (its constant: CHAPTER_E_* Eirika's, CHAPTER_I_* Ephraim's), else 1
+    (before the split). The chapters both lords play (17, River of Regrets...) load their own map by the route."""
+    path = decomp_dir / CHAPTER_CONSTANTS_FILE
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    for m in re.finditer(r"CHAPTER_([EI])_\w+\s*=\s*(0x[0-9A-Fa-f]+|\d+)", text):
+        if int(m.group(2), 0) == chapter:
+            return ROUTE_MODES[m.group(1)]
+    return 1
 
 
 def simplify_prologue(script: str) -> str:
@@ -189,7 +211,8 @@ def apply_test_tweaks(decomp_dir: Path, options: dict, files: dict[str, str]) ->
         if source is None:
             source = (decomp_dir / GAME_CONTROL_FILE).read_text(encoding="utf-8")
         files[GAME_CONTROL_FILE] = skip_intro(source) if start == "menu" else \
-            start_on_map(source, int(options.get("chapter") or 0))
+            start_on_map(source, int(options.get("chapter") or 0), int(options.get("mode") or 1),
+                         tuple(options.get("armyFrom") or ()))
     if start == "map":
         files = without_world_map(decomp_dir, files)
     if options.get("simplePrologue"):

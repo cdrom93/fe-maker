@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import builder, ferepo, migrations, newchapter, ups
-from .decomp import gameoptions, skills, strmag, tweaks
+from .decomp import gameoptions, skills, strmag, tweaks, units
 from .decomp.gamedata import DecompData
 from .decomp.tweaks import START_MODES, TweakError, apply_test_tweaks, without_world_map
 from .migrations import FORMAT_VERSION, PROJECT_FILE, ProjectError
@@ -193,6 +193,20 @@ class Project:
             stored.setdefault("start", "menu" if stored.pop("skipIntro") else "normal")
         return {**DEFAULT_TEST_OPTIONS, **{k: v for k, v in stored.items() if k in DEFAULT_TEST_OPTIONS}}
 
+    def _test_start(self, data: DecompData) -> dict:
+        """The test options with what starting on a chapter needs: its route and the chapters before it in the story,
+        whose army it gets when it has none (tweaks.start_on_map)."""
+        options = dict(self.test_options)
+        chapter = options.get("chapter") or 0
+        if options.get("start") == "map" and chapter:
+            options["mode"] = tweaks.route_mode(data.decomp_dir, chapter)
+            try:
+                order = newchapter.story_order(data.chapter_links(self.load("dialogues").get("scripts", {})))
+            except (OSError, KeyError, ValueError):   # a decomp without chapter data (tests' fixtures)
+                order = []
+            options["armyFrom"] = order[:order.index(chapter)][::-1][:3] if chapter in order else []
+        return options
+
     def set_test_options(self, options: dict) -> None:
         start = options.get("start", self.test_options["start"])
         if start not in START_MODES:
@@ -285,7 +299,7 @@ class Project:
             used_skills = skills.used(self.load("characters"), self.load("classes"), magic_split, event_skills)
             skill_texts = skills.add_texts(data, used_skills)
             data.temp_bonuses_wanted = skills.uses_temp_bonuses(used_skills)
-        files = data.changed_files()
+        files = units.with_symbolic_redas(decomp_dir, data.changed_files())
         if not self.world_map:
             files = without_world_map(decomp_dir, files)
         files = gameoptions.apply(decomp_dir, self.game_options, files, menu_texts)
@@ -297,7 +311,7 @@ class Project:
         if tweaks.mixes_magic(self.load("characters"), self.load("classes")):
             files = tweaks.animation_modes_by_weapon(decomp_dir, files)
         if for_test:
-            files = apply_test_tweaks(decomp_dir, self.test_options, files)
+            files = apply_test_tweaks(decomp_dir, self._test_start(data), files)
         overlay = self.root / "build" / "overlay"
         if overlay.exists():
             shutil.rmtree(overlay)

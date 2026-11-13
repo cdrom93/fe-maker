@@ -67,7 +67,8 @@ def playtest_lines(rom: Path, extra: list[str]) -> list[str]:
 
 
 def hack_lines(rom: Path, hack: Path, chapters: list[int] | None) -> list[str]:
-    """The reference hack, chapter by chapter: its opening plays and the map is reached in player phase."""
+    """The reference hack, chapter by chapter: its opening plays and the map is reached in player phase. A chapter
+    without a battle (a scene, like Castle Frelia) passes when its scene leads to the next chapter's map."""
     from fe_maker.decomp.gamedata import DecompData
     from fe_maker.newchapter import story_order
     from fe_maker.playtest import Game
@@ -78,20 +79,20 @@ def hack_lines(rom: Path, hack: Path, chapters: list[int] | None) -> list[str]:
         copy = Path(tmp) / hack.name
         shutil.copytree(hack, copy, ignore=shutil.ignore_patterns("build", "backups"))
         project = Project(copy)
+        links = DecompData(project.decomp_dir).chapter_links(project.load("dialogues").get("scripts", {}))
         if chapters is None:
-            data = DecompData(project.decomp_dir)
-            data._load_chapter_events()
-            chapters = story_order(data.chapter_links(project.load("dialogues").get("scripts", {})))
+            chapters = story_order(links)
             chapters += sorted({int(k) for k in project.load("chapters").get("added", {})} - set(chapters))
         for index in chapters:
             start = time.time()
             try:
                 project.set_test_options({"start": "map", "chapter": index})
                 out = project.build(rom, for_test=True)
+                goes_on = {link.get("to") for link in (links[index] if index < len(links) else [])}
                 with Game(out.rom_path, out.map_path) as game:
                     def on_map() -> bool:
-                        return (game.chapter() == index and game.turn() == 1 and game.phase() == "player"
-                                and bool(game.units()))
+                        return ((game.chapter() == index or game.chapter() in goes_on) and game.turn() == 1
+                                and game.phase() == "player" and bool(game.units()))
 
                     reached = game.wait_until(on_map, seconds=300, step=20, tap="A")
                     for _ in range(6):   # preparations: START back to their menu, START again: "Fight!"
@@ -101,10 +102,12 @@ def hack_lines(rom: Path, hack: Path, chapters: list[int] | None) -> list[str]:
                         game.run(90)
                         reached = game.wait_until(on_map, seconds=20, step=20, tap="A")
                     if reached:
+                        played = game.chapter()
                         game.run(120)   # a few seconds on the map: no crash right after the opening
-                        reached = game.chapter() == index
+                        reached = game.chapter() == played and game.turn() == 1
                     if reached:
-                        lines.append(f"OK    hack chapter {index}: map reached with {len(game.units())} units "
+                        then = "" if played == index else f" (a scene, then chapter {played})"
+                        lines.append(f"OK    hack chapter {index}: map reached with {len(game.units())} units{then} "
                                      f"({time.time() - start:.0f} s)")
                     else:
                         shot = Path.cwd() / f"verify-chapter-{index}.png"
