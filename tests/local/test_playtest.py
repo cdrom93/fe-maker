@@ -1938,6 +1938,59 @@ def test_batch_10_mangs_list_first_part(tmp_path):
         assert stat(target, 0x62) == t_spd * 2 + game.read(target, 0x57, signed=True) + t_lck + 20
 
 
+def test_batch_10_after_combat(tmp_path):
+    """Skills batch 10, after the battle: the lord (full HP, Skill 100) defeats the soldier. Its Fury takes 6 HP (the
+    defeated soldier's Grisly Wound nothing), Lifetaker gives back a quarter, Despoil a Red Gem; its class's Breath
+    of Life heals its friend two tiles away (1 HP) a fifth of its max HP. Each with the map's animations."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch10b", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=60, crit=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    friend_spot = (BENCH_SPOTS[0][0], BENCH_SPOTS[0][1] + 2)
+    army[1].update(x=friend_spot[0], y=friend_spot[1], endX=friend_spot[0], endY=friend_spot[1])
+    foes = next(units for units in chapters["unitGroups"].values()
+                if any(u.get("character") == "CHARACTER_SOLDIER_83" for u in units))
+    foes.append({**foes[0], "x": 14, "y": 9, "endX": 14, "endY": 9})   # a second foe: the first one's defeat is no win
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["Fury", "Lifetaker", "Despoil"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 20
+    soldier["skills"] = ["GrislyWound"]
+    project.save("characters", characters)
+    classes = project.load("classes")
+    next(c for c in classes if c["id"] == army[0]["class"])["skills"] = ["BreathOfLife"]
+    project.save("classes", classes)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        base = game.address("gUnitArrayBlue")
+        friend = next(base + n * UNIT_SIZE for n in range(62)
+                      if (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == friend_spot)
+        game.write(friend, 1, 0x13)
+        top = game.read(lord, 0x12)
+        game.write(lord, top, 0x13)
+        _bench_attack(game, lord)
+        for _ in range(60):                     # the battle caps Skill to the class's maximum: 100 again for Despoil
+            game.run(15)
+            game.write(lord, 100, 0x15)
+        game.screenshot().save(tmp_path / "after.png")
+        game.press("A", wait=60)                                        # the Red Gem's popup
+        game.run(300)
+        assert game.read(lord, 0x13) == min(top, max(1, top - 6) + top // 4)   # Fury, then Lifetaker
+        assert game.read(friend, 0x13) == 1 + game.read(friend, 0x12) // 5   # Breath of Life
+        assert game.read(lord, 0x20, width=16) & 0xFF == 0x76           # Despoil: a Red Gem
+        game.move_cursor(0, 0)                  # the enemy phase (the AI's action has the same step) goes on
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+
+
 def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
     """Skills batch 9: the lord, its friend two tiles away, both at 1 HP. On turn 2 the lord gets Camaraderie (10 %,
     an ally within 2) and the friend's Amaterasu (20 %), not Relief (no ally within 2); the friend, with Relief and

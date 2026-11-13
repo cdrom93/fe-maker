@@ -54,4 +54,8 @@ description. Listed here in case they are not intended:
   instead of its own `SkillExtraInfo.c` values (1, 5).
 - **Life and Death**: its text says "for both unit and enemy", the status getters only change the holder's stats.
 
+- **Fury** (`PostActionSkills/Hurt.c`): its text says "HP -6 after combat", the code also takes them after a staff.
+- **Despoil** (`PostActionSkills/GetItem.c`): the text says "(Skill % activation)", the code gives the Red Gem every time.
+- **Poison Strike / Grisly Wound**: the texts say "20% of the enemy's current HP", the code takes a fifth of its max HP.
+
 <!-- Ajouter ici les écarts des lots suivants, au même format. -->

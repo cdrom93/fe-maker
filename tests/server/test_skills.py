@@ -227,6 +227,25 @@ def test_batch_10_breakers_outdoors_lords_and_light_weight(monkeypatch):
     assert skills.BY_ID["BMagBreaker"].icon == ""
 
 
+def test_batch_10_after_combat_in_both_phases(monkeypatch):
+    """After the action, in the player phase and the AI's, before the traps: a proc shows each HP change."""
+    if not (DECOMP / "src/playerphase.c").is_file() or not (DECOMP / "src/cp_perform.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Fury", "GrislyWound", "Despoil"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    phase, cp = files["src/playerphase.c"], files["src/cp_perform.c"]
+    assert "    PROC_CALL(PostActionSkillsFem), /* FE Maker */\n    PROC_YIELD,\n    PROC_CALL_2(HandlePostActionTraps)," in phase
+    assert "PROC_CALL(PostActionSkillsFem)" in cp and "void PostActionSkillsFem(ProcPtr parent);" in cp
+    assert "SkillTesterFem(actor, SKILL_FEM_Fury)" in phase and "SkillTesterFem(target, SKILL_FEM_GrislyWound)" in phase
+    assert "SKILL_FEM_Lifetaker" not in phase and "NewPopup_ItemGot(proc, actor, ITEM_REDGEM)" in phase
+    none = [{"id": "CHARACTER_EIRIKA", "skills": ["Wrath"]}]
+    plain = skills.apply(DECOMP, {}, none, [], {**PAGE, **{s.id: 2 for s in skills.used(none, [], False)}}, False)
+    assert "PostActionSkillsFem" not in plain.get("src/playerphase.c", "")
+
+
 def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):
     if not (DECOMP / "src/bmtarget.c").is_file():
         pytest.skip("no decomp")

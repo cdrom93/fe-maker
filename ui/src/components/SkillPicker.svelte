@@ -23,7 +23,7 @@
 
   // the categories in the order of the list (skill.kind.<kind>)
   const KINDS = ['stat', 'hp', 'initiative', 'attacked', 'weapon', 'foe', 'situation', 'aura', 'battle', 'hit', 'damage', 'guard', 'status', 'items',
-    'order', 'proc', 'hits', 'map', 'ai', 'menu', 'game']
+    'order', 'proc', 'hits', 'after', 'map', 'ai', 'menu', 'game']
 
   let open = $state(false)
   let query = $state('')

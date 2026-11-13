@@ -236,6 +236,20 @@ CATALOGUE: tuple[Skill, ...] = (
     Skill("Swap", "menu", "Swap", "Swap:[NL]Unit switches places with[NL]an adjacent ally.", menu="Swap"),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn."),
+    # batch 10, after the battle (_post_action_skills: C-SkillSys's PostActionSkills, with the map's damage and heal
+    # animations; values from SkillExtraInfo.c)
+    Skill("Fury", "stat", "Fury", "Fury:[NL]All stats +3,[NL]HP -6 after combat.", tuple((k, 3) for k in ALL_STATS),
+          group="after"),
+    Skill("GrislyWound", "map", "GrislyWound", "Grisly Wound:[NL]After combat, the foe[NL]loses 20% of its max HP.",
+          group="after"),
+    Skill("PoisonStrike", "map", "PoisonStrike", "Poison Strike:[NL]After attacking, the foe[NL]loses 20% of its max HP.",
+          group="after"),
+    Skill("Lifetaker", "map", "Lifetaker", "Lifetaker:[NL]Restores 25% of max HP[NL]after defeating an enemy.",
+          group="after"),
+    Skill("Despoil", "map", "Despoil", "Despoil:[NL]Gain a Red Gem after[NL]defeating an enemy (SKL %).",
+          group="after"),
+    Skill("BreathOfLife", "map", "BreathOfLife", "Breath of Life:[NL]After attacking, allies[NL]in 2 tiles heal 20% HP.",
+          group="after"),
     # batch 5, simple passives (C-SkillSys's getters, PreBattleCalcAttackerSkills and BattleCalcReal; values from
     # SkillExtraInfo.c)
     _push("PushStrength", 0, "Push Strength:[NL]+5 STR if HP is full."),
@@ -1157,6 +1171,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     files.update(_map_skills(decomp_dir, files, numbers))
+    files.update(_post_action_skills(decomp_dir, files, numbers))
     files.update(_ai_skills(decomp_dir, files, numbers))
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
@@ -2232,6 +2247,226 @@ def _heal_function(heals) -> str:
         + "".join(line(sid) for sid in heals if sid in HEAL_SKILLS)
         + ("    if (amaterasu)\n        ret += GetUnitMaxHp(unit) * 20 / 100;\n" if amaterasu else "")
         + "    (void) terrain; (void) allies; (void) amaterasu;\n    return ret;\n}\n\n")
+
+
+POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife")
+
+
+def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
+    """Batch 10, after the unit's action (C-SkillSys's PostActionHook, in the player phase and the AI's, before the
+    game's traps): HP lost or healed after a battle, each unit in turn with the game's damage or heal animation on the
+    map (C-SkillSys's MapAnims/Misc Hurt.c and Heal.c), and Despoil's Red Gem."""
+    used = [sid for sid in POST_ACTION_SKILLS if sid in numbers]
+    if not used:
+        return {}
+    def has(unit, sid):
+        return f"SkillTesterFem({unit}, SKILL_FEM_{sid})" if sid in used else "FALSE"
+    code = f"""
+/* FE Maker: skills after the action (C-SkillSys's PostActionHook and PostActionSkills), batch 10 */
+void BeginUnitHealAnim(struct Unit* unit, int hp);   /* bmusailment.c */
+
+struct PostActionFemProc {{
+    PROC_HEADER;
+    struct Unit* unit;
+    int amount;    /* < 0: damage */
+    u8 step;
+    u8 next;       /* Breath of Life: the next unit index to look at */
+    u8 lock;
+}};
+
+/* not US_HIDDEN: the active unit has it here, its map sprite still shown by its MU */
+static int AliveOnMapFem(struct Unit* unit)
+{{
+    return unit && unit->pCharacterData && GetUnitCurrentHp(unit) > 0
+        && !(unit->state & (US_DEAD | US_RESCUED | US_BIT16 | US_NOT_DEPLOYED));
+}}
+
+static int FifthFem(struct Unit* foe)
+{{
+    return GetUnitMaxHp(foe) / 5;
+}}
+
+/* the next unit and HP change to show; FALSE when none is left */
+static int PostActionNextFem(struct PostActionFemProc* proc)
+{{
+    struct Unit* actor = gActiveUnit;
+    struct Unit* target = gActionData.targetIndex ? GetUnit(gActionData.targetIndex) : NULL;
+    int combat = gActionData.unitActionType == UNIT_ACTION_COMBAT && target;
+    int defeated = combat && gBattleTarget.unit.curHP == 0;
+    int amount;
+
+    while (TRUE) {{
+        proc->unit = NULL;
+        amount = 0;
+        switch (proc->step++) {{
+        case 0:   /* the actor's HP lost: Fury, the foe's Grisly Wound */
+            if (combat && AliveOnMapFem(actor)) {{
+                if ({has("actor", "Fury")})
+                    amount += 6;
+                if (target->pCharacterData && {has("target", "GrislyWound")})   /* a defeated foe is cleared */
+                    amount += FifthFem(actor);
+                proc->unit = actor;
+            }}
+            amount = -amount;
+            break;
+        case 1:   /* the target's: Poison Strike and Grisly Wound of the actor, its own Fury */
+            if (combat && AliveOnMapFem(target)) {{
+                if ({has("actor", "PoisonStrike")})
+                    amount += FifthFem(target);
+                if ({has("actor", "GrislyWound")})
+                    amount += FifthFem(target);
+                if ({has("target", "Fury")})
+                    amount += 6;
+                proc->unit = target;
+            }}
+            amount = -amount;
+            break;
+        case 2:   /* Lifetaker */
+            if (defeated && AliveOnMapFem(actor) && {has("actor", "Lifetaker")}) {{
+                amount = GetUnitMaxHp(actor) / 4;
+                proc->unit = actor;
+            }}
+            break;
+        case 3:   /* Despoil: a Red Gem, at Skill % (its text; C-SkillSys's code gives it every time) */
+            if (defeated && AliveOnMapFem(actor) && {has("actor", "Despoil")} && Roll1RN(GetUnitSkill(actor))) {{
+                NewPopup_ItemGot(proc, actor, ITEM_REDGEM);
+                return TRUE;
+            }}
+            break;
+        default:  /* Breath of Life: each ally within 2 tiles of the actor heals 20 % of its max HP */
+            if (!combat || !AliveOnMapFem(actor) || !({has("actor", "BreathOfLife")}))
+                return FALSE;
+            while (proc->next < 0xC0) {{
+                struct Unit* unit = GetUnit(proc->next++);
+                int d;
+
+                if (!AliveOnMapFem(unit) || unit == actor || !AreUnitsAllied(actor->index, unit->index))
+                    continue;
+                d = (unit->xPos > actor->xPos ? unit->xPos - actor->xPos : actor->xPos - unit->xPos)
+                    + (unit->yPos > actor->yPos ? unit->yPos - actor->yPos : actor->yPos - unit->yPos);
+                if (d > 2 || GetUnitCurrentHp(unit) == GetUnitMaxHp(unit))
+                    continue;
+                proc->unit = unit;
+                amount = GetUnitMaxHp(unit) / 5;
+                break;
+            }}
+            if (!proc->unit)
+                return FALSE;
+            proc->step--;
+            break;
+        }}
+        if (!proc->unit)
+            continue;
+        if (amount < 0 && -amount >= GetUnitCurrentHp(proc->unit))   /* never kills */
+            amount = 1 - GetUnitCurrentHp(proc->unit);
+        if (amount > GetUnitMaxHp(proc->unit) - GetUnitCurrentHp(proc->unit))
+            amount = GetUnitMaxHp(proc->unit) - GetUnitCurrentHp(proc->unit);
+        if (amount != 0) {{
+            proc->amount = amount;
+            return TRUE;
+        }}
+    }}
+}}
+
+static void PostActionFem_Next(struct PostActionFemProc* proc)
+{{
+    if (!PostActionNextFem(proc))
+        Proc_Goto(proc, 9);
+    else if (!proc->unit)   /* a popup: back here once it is done */
+        Proc_Goto(proc, 0);
+}}
+
+/* C-SkillSys's MapAnim_CommonInit and MapAnim_CommonEnd (KernelLib/Source/mapanim.c) */
+static void PostActionFem_Init(struct PostActionFemProc* proc)
+{{
+    EndAllMus();
+    RenderBmMap();
+    RefreshEntityBmMaps();
+    RefreshUnitSprites();
+}}
+
+static void PostActionFem_Camera(struct PostActionFemProc* proc)
+{{
+    EnsureCameraOntoPosition(proc, proc->unit->xPos, proc->unit->yPos);
+}}
+
+static void PostActionFem_Anim(struct PostActionFemProc* proc)
+{{
+    proc->lock = GetGameLock();
+    HideUnitSprite(proc->unit);
+    if (proc->amount < 0)
+        BeginUnitCritDamageAnim(proc->unit, -proc->amount);
+    else
+        BeginUnitHealAnim(proc->unit, proc->amount);
+}}
+
+static void PostActionFem_Idle(struct PostActionFemProc* proc)
+{{
+    if (proc->lock == GetGameLock())
+        Proc_Break(proc);
+}}
+
+static void PostActionFem_Apply(struct PostActionFemProc* proc)
+{{
+    AddUnitHp(proc->unit, proc->amount);
+    ShowUnitSprite(proc->unit);
+}}
+
+static void PostActionFem_End(struct PostActionFemProc* proc)
+{{
+    InitBmBgLayers();
+    LoadUiFrameGraphics();
+    LoadObjUIGfx();
+}}
+
+struct ProcCmd CONST_DATA sProcScr_PostActionFem[] = {{
+    PROC_NAME("FemPostAction"),
+    PROC_YIELD,
+PROC_LABEL(0),
+    PROC_CALL(PostActionFem_Next),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_Init),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_Camera),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_Anim),
+    PROC_YIELD,
+    PROC_REPEAT(PostActionFem_Idle),
+    PROC_CALL(PostActionFem_Apply),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_End),
+    PROC_GOTO(0),
+PROC_LABEL(9),
+    PROC_END,
+}};
+
+void PostActionSkillsFem(ProcPtr parent)
+{{
+    struct PostActionFemProc* proc = Proc_StartBlocking(sProcScr_PostActionFem, parent);
+
+    proc->step = 0;
+    proc->next = 1;
+}}
+
+"""
+    out = {}
+    rel = "src/playerphase.c"
+    text = _read(files, decomp_dir, rel)
+    text = _replace(text, '#include "playerphase.h"\n', '#include "playerphase.h"\n#include "popup.h"\n#include "rng.h"\n'
+                    '#include "bmusailment.h"\n#include "uiutils.h"\n', rel)
+    text = _replace(text, "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =", code
+                    + "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =", rel)
+    out[rel] = _replace(text, "    PROC_CALL_2(ApplyUnitAction),\n    PROC_CALL_2(HandlePostActionTraps),\n",
+                        "    PROC_CALL_2(ApplyUnitAction),\n    PROC_CALL(PostActionSkillsFem), /* FE Maker */\n"
+                        "    PROC_YIELD,\n    PROC_CALL_2(HandlePostActionTraps),\n", rel)
+    rel = "src/cp_perform.c"
+    text = _replace(_read(files, decomp_dir, rel), "struct ProcCmd CONST_DATA gProcScr_AiTargetCursor[] = {",
+                    "void PostActionSkillsFem(ProcPtr parent);   /* FE Maker: playerphase.c */\n\n"
+                    "struct ProcCmd CONST_DATA gProcScr_AiTargetCursor[] = {", rel)
+    out[rel] = _replace(text, "    PROC_REPEAT(CpPerform_WaitAction),\n\n    PROC_CALL_2(HandlePostActionTraps),\n",
+                        "    PROC_REPEAT(CpPerform_WaitAction),\n    PROC_CALL(PostActionSkillsFem), /* FE Maker */\n"
+                        "    PROC_YIELD,\n\n    PROC_CALL_2(HandlePostActionTraps),\n", rel)
+    return out
 
 
 GALEFORCE_USED = "0x02028E30"   # free RAM after the popups: 8 bytes, a bit per player unit, then the turn they are for

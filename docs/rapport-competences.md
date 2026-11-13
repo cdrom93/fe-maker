@@ -19,7 +19,7 @@
 | Breakers | Swordbreaker, Lancebreaker, Axebreaker, Bowbreaker (Tomebreaker = BMagBreaker) | **faites (lot 10, 13/11)** |
 | Rally (commande) | Rally Strength, Magic, Skill, Speed, Luck, Defense, Resistance, Movement, Spectrum | une commande de menu et un bonus d'un tour (système de commandes, prévu) |
 | Sceaux après combat | Seal Attack (SealStrength), Magic, Skill, Speed, Luck, Defense, Resistance | malus qui remonte de 1 par tour : une table de malus à sauvegarder (comme Fury, Grisly Wound) |
-| Après le combat | Fury, Grisly Wound, Poison Strike, Savage Blow, Breath of Life, Lifetaker, Despoil, Lunge, Devil's Pact / Luck / Whim | effets après le combat (`BattleUnwind`), à faire en un lot |
+| Après le combat | **faites (lot 10, 13/11)** : Fury, Grisly Wound, Poison Strike, Breath of Life, Lifetaker, Despoil. Restent : Savage Blow, Lunge, Devil's Pact / Luck / Whim | effets après le combat (`BattleUnwind`), à faire en un lot |
 | Commandes de carte | Smite, Pass, Supply | Smite comme Shove ; Pass touche le déplacement ; Supply est déjà une capacité du jeu (`CA_SUPPLY`) : à ajouter aux capacités attribuables |
 | Croissances et expérience | Paragon, Blossom, Aptitude, Discipline | simples (calcul d'expérience et de montée de niveau) |
 | Déclenchements | Great Shield, Sure Shot, Deadeye, Killing Machine, Counter, Countermagic, Nihil, Nullify, Hero, Rightful King, Rightful God | simples à moyens (lots 6 et 8) |
