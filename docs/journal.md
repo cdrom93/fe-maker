@@ -304,3 +304,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : musique : la musique du chapitre a sa propre tuile dans la fiche du chapitre (hors des réglages repliables).
 - 13/11/2026 : musique, lot 2 : musique des combats selon la situation (onglet Musique) et thème de chef par personnage (fiche du personnage), écrits dans `src/banim-efxsound.c` à la compilation.
 - 13/11/2026 : musique, lot 3 : la commande Musique des déroulés choisit et fait écouter les musiques du projet (`FEM_SONG_<clé>`, définie à la compilation), essai en jeu sur la scène d'ouverture du prologue.
+- 13/11/2026 : musique, lot 4 : musique des écrans fixes (titre, préparatifs, magasins, arène, game over, épilogue, générique…) dans l'onglet Musique, écrite dans les fichiers de la décomp concernés à la compilation ; essai en jeu sur l'écran titre.

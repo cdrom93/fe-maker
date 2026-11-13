@@ -414,6 +414,7 @@ class DecompData:
         self.spell_choices: dict[str, str] = {}   # item -> the item whose spell it takes
         self.scene_song_defines = ""   # music.scene_defines: imported songs named by event scripts
         self.battle_music: tuple[dict, dict | None] = ({}, None)   # music.battle_choices: slots, boss table
+        self.screen_music: dict[str, int] = {}   # music.screen_choices: fixed screen -> song number
         self.texts = TextFile(self._read(TEXTS_FILE))
         self.unit_defs: dict[str, str] = {}
         for pattern in UNIT_DEF_FILES:
@@ -1866,7 +1867,7 @@ class DecompData:
     @staticmethod
     def export_music() -> dict:
         """Songs imported by the project and chapter music choices (music.py): none in the original game."""
-        return {"songs": {}, "chapters": {}, "victory": {}, "battle": {}, "bosses": {}}
+        return {"songs": {}, "chapters": {}, "victory": {}, "battle": {}, "bosses": {}, "screens": {}}
 
     def apply_music(self, data: dict, assets_dir: Path) -> None:
         """Imported songs in free rows of the song table, and their numbers in the chapters' music settings."""
@@ -1880,6 +1881,7 @@ class DecompData:
             music.apply_choices(self.chapter_settings["chapters"], data, numbers)
         if data.get("battle") or data.get("bosses"):
             self.battle_music = music.battle_choices(self.decomp_dir, data, numbers, self.character_number)
+        self.screen_music = music.screen_choices(data, numbers)
 
     @staticmethod
     def export_item_icons() -> dict:
@@ -2663,6 +2665,15 @@ class DecompData:
             source = out.get(music.BATTLE_FILE) or self._read(music.BATTLE_FILE)
             out[music.BATTLE_FILE] = music.with_battle_songs(source, slots, bosses)
 
+    def _with_screen_music(self, out: dict[str, str | bytes]) -> None:
+        """Fixed screens given another song (music.SCREEN_SLOTS), on top of the other changes to those files."""
+        if self.screen_music:
+            def read(rel: str) -> str | None:
+                if isinstance(out.get(rel), str):
+                    return out[rel]
+                return self._read(rel) if (self.decomp_dir / rel).is_file() else None
+            out.update(music.with_screen_songs(read, self.screen_music))
+
     def _with_animation_sounds(self, out: dict[str, str | bytes]) -> None:
         if any(rel.endswith(".s") and banim_import.has_sounds(text) for rel, text in self.asset_files.items()):
             out.update(banim_import.sound_files(self.decomp_dir))
@@ -2813,6 +2824,7 @@ class DecompData:
         self._with_spell_choices(out)
         self._with_animation_sounds(out)
         self._with_battle_music(out)
+        self._with_screen_music(out)
         return out
 
     # ---------- assets ----------

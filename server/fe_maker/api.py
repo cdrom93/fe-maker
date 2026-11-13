@@ -689,7 +689,7 @@ def remove_music(key: str):
             del slots[slot]
         if not slots:
             del stored["chapters"][index]
-    for group in (stored.get("battle", {}), stored.get("bosses", {})):
+    for group in (stored.get("battle", {}), stored.get("bosses", {}), stored.get("screens", {})):
         for slot in [s for s, song in group.items() if song == key]:
             del group[slot]
     (project.root / "assets" / "music" / f"{key}.mid").unlink(missing_ok=True)
@@ -786,6 +786,36 @@ def set_battle_music(body: BattleSongIn):
         group.pop(key, None)
     else:
         group[key] = body.song
+    return {"problems": [p.to_dict() for p in project.save("music", stored)]}
+
+
+@app.get("/api/music/screens")
+def screen_music():
+    """The songs of the fixed screens (title, preparations, shops...): the game's and the project's choices."""
+    project = state.require_project()
+    return {"game": music.game_screen_songs(project.decomp_dir), "chosen": project.load("music").get("screens", {})}
+
+
+class ScreenSongIn(BaseModel):
+    slot: str                       # music.SCREEN_SLOTS
+    song: int | str | None = None   # None: the game's
+
+
+@app.put("/api/music/screens")
+def set_screen_music(body: ScreenSongIn):
+    project = state.require_project()
+    stored = project.load("music")
+    if body.slot not in music.SCREEN_SLOTS:
+        raise HTTPException(400, "unknownSlot")
+    if body.song == music.NO_SONG:
+        raise HTTPException(400, "songNeeded")
+    if isinstance(body.song, str) and body.song not in stored.get("songs", {}):
+        raise HTTPException(404, "unknownSong")
+    group = stored.setdefault("screens", {})
+    if body.song is None:
+        group.pop(body.slot, None)
+    else:
+        group[body.slot] = body.song
     return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
 

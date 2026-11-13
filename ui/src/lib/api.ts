@@ -28,6 +28,8 @@ export type ChapterMusic = {
 export type BattleMusic = {
   game: Record<string, number>; chosen: Record<string, SongRef>; gameBosses: Record<string, number>; bosses: Record<string, SongRef>
 }
+/** Songs of the fixed screens (server: music.SCREEN_SLOTS) */
+export type ScreenMusic = { game: Record<string, number>; chosen: Record<string, SongRef> }
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
 
 export class ApiError extends Error {
@@ -110,6 +112,9 @@ export const api = {
   battleMusic: () => request<BattleMusic>('GET', '/api/music/battle'),
   setBattleMusic: (body: { slot?: string; character?: string; song: SongRef | null }) =>
     request<{ problems: Problem[] }>('PUT', '/api/music/battle', body),
+  screenMusic: () => request<ScreenMusic>('GET', '/api/music/screens'),
+  setScreenMusic: (body: { slot: string; song: SongRef | null }) =>
+    request<{ problems: Problem[] }>('PUT', '/api/music/screens', body),
   importMusic: (file: File) => {
     const form = new FormData()
     form.append('file', file)

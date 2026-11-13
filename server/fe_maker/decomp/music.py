@@ -213,11 +213,78 @@ def battle_choices(decomp_dir: Path, data: dict, numbers: dict[str, int], charac
     return slots, table
 
 
+# Fixed screens: the songs the game starts by name outside chapters and battles. Each screen: the constants it starts
+# (a call of the sound functions naming one) and the files where it does; a choice replaces them there by a number.
+# Left alone: the link arena (sio_*), the sound room's list, the world map (gWMSongTable, by location).
+_SONG_CALL = r"\b(?:StartBgm|StartBgmExt|StartBgmCore|StartBgmFadeIn|ChangeBgm|OverrideBgm)\(\s*"
+SCREEN_SLOTS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "intro": (("0x1",), ("src/opanim-main.c",)),
+    "title": (("SONG_MAIN_THEME", "SONG_MAIN_THEME_EXT"),
+              ("src/titlescreen.c", "src/soundroom.c", "src/uisupport.c", "src/gamecontrol.c")),
+    "storyIntro": (("SONG_PROLOGUE",), ("src/opsubtitle.c",)),
+    "preparations": (("SONG_COMBAT_PREPARATION",), ("src/prep_menuproc.c", "src/prep_sallycursor.c",
+                                                     "src/prep_itemuse.c", "src/classchg-main.c", "src/uiconfig.c",
+                                                     "src/uisupport.c")),
+    "prepSupports": (("SONG_BONDS",), ("src/prepscreen.c", "src/prep_atmenu.c")),
+    "supportViewer": (("SONG_DISTANT_ROADS",), ("src/savemenu.c", "src/uisupport.c")),
+    "shop": (("SONG_SHOPS",), ("src/bmshop.c",)),
+    "armory": (("SONG_ARMORIES",), ("src/bmshop.c",)),
+    "arenaMenu": (("SONG_COLOSSEUM_ENTRANCE",), ("src/uiarena.c", "src/prep_itemuse.c")),
+    "arenaVictory": (("SONG_COLOSSEUM_VICTORY",), ("src/uiarena.c",)),
+    "allyDeath": (("SONG_IN_SORROWS_SHROUD",), ("src/eventinfo.c",)),
+    "gameOver": (("SONG_GAME_OVER",), ("src/gameoverbgfx.c", "src/eventinfo.c")),
+    "epilogue": (("SONG_EPILOGUE",), ("src/ending_details.c",)),
+    "credits": (("SONG_BGM_ED_STAFF_2",), ("src/ending_details.c",)),
+    "dungeonRecord": (("SONG_RECORDS",), ("src/bmdifficulty.c",)),
+}
+
+
+def _screen_call(constant: str) -> str:
+    return _SONG_CALL + re.escape(constant) + r"\b"
+
+
+def game_screen_songs(decomp_dir: Path) -> dict[str, int]:
+    """The song each fixed screen plays in the game (its first constant), for the screens this decomp has."""
+    numbers = song_constants(decomp_dir)
+    out = {}
+    for slot, (constants, files) in SCREEN_SLOTS.items():
+        first = constants[0]
+        number = int(first, 0) if first[:1].isdigit() else numbers.get(first)
+        sources = [p.read_text(encoding="utf-8") for rel in files if (p := decomp_dir / rel).is_file()]
+        if number is not None and any(re.search(_screen_call(c), s) for c in constants for s in sources):
+            out[slot] = number
+    return out
+
+
+def with_screen_songs(read, slots: dict[str, int]) -> dict[str, str]:
+    """The files of the fixed screens given another song (read(rel) -> current text): changed files only."""
+    out: dict[str, str] = {}
+    for slot, number in slots.items():
+        constants, files = SCREEN_SLOTS[slot]
+        for rel in files:
+            before = out.get(rel) or read(rel)
+            if before is None:
+                continue
+            source = before
+            for constant in constants:
+                source = re.sub(_screen_call(constant), lambda m, c=constant, n=number: m.group(0).replace(c, f"0x{n:X}"),
+                                source)
+            if source != before:
+                out[rel] = source
+    return out
+
+
+def screen_choices(data: dict, numbers: dict[str, int]) -> dict[str, int]:
+    return {s: n for s, ref in data.get("screens", {}).items()
+            if s in SCREEN_SLOTS and (n := numbers.get(ref) if isinstance(ref, str) else ref) is not None}
+
+
 def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[str, str | bytes], dict[str, int]]:
     """Files of the songs the chapters and battles use (decomp-relative path -> content) and each song's number."""
     songs = data.get("songs", {})
     refs = [*(key for slots in data.get("chapters", {}).values() for key in slots.values()),
-            *data.get("battle", {}).values(), *data.get("bosses", {}).values(), *data.get("scenes", [])]
+            *data.get("battle", {}).values(), *data.get("bosses", {}).values(), *data.get("scenes", []),
+            *data.get("screens", {}).values()]
     used = sorted({key for key in refs
                    if isinstance(key, str) and key in songs and (assets_dir / "music" / f"{key}.mid").is_file()})
     if not used:

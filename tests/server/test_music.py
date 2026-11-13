@@ -233,3 +233,26 @@ def test_scene_songs_defined_for_the_event_scripts():
     assert keys == {"my_theme", "gone", "my_themes"}
     assert music.scene_defines({"my_theme", "gone"}, {"my_theme": 87}) == (
         "#define FEM_SONG_gone 0x0\n#define FEM_SONG_my_theme 0x57\n")   # a song since removed: no music
+
+
+def test_fixed_screen_songs_read_and_written(tmp_path):
+    (tmp_path / "include/constants").mkdir(parents=True)
+    (tmp_path / "src").mkdir()
+    (tmp_path / music.SONGS_HEADER).write_text("enum {\n    SONG_SHOPS = 0x35,\n    SONG_ARMORIES = 0x36,\n};\n",
+                                               encoding="utf-8")
+    shop = ("void Shop_Init(void)\n{\n    if (armory)\n        StartBgm(SONG_ARMORIES, 0);\n    else\n"
+            "        StartBgm(SONG_SHOPS, 0);\n    PlaySoundEffect(SONG_SHOPS_X);\n}\n")
+    (tmp_path / "src/bmshop.c").write_text(shop, encoding="utf-8")
+    assert music.game_screen_songs(tmp_path) == {"shop": 0x35, "armory": 0x36}   # the other screens' files are missing
+    slots = music.screen_choices({"screens": {"shop": "theme", "armory": 9, "nowhere": 3}}, {"theme": 87})
+    assert slots == {"shop": 87, "armory": 9}
+
+    def read(rel):
+        path = tmp_path / rel
+        return path.read_text(encoding="utf-8") if path.is_file() else None
+
+    out = music.with_screen_songs(read, slots)
+    assert list(out) == ["src/bmshop.c"]
+    assert "StartBgm(0x9, 0);" in out["src/bmshop.c"] and "StartBgm(0x57, 0);" in out["src/bmshop.c"]
+    assert "PlaySoundEffect(SONG_SHOPS_X);" in out["src/bmshop.c"]
+    assert music.with_screen_songs(read, {}) == {}

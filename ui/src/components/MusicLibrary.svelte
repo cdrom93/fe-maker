@@ -2,7 +2,7 @@
   // The Music tab: the project's songs (MIDI files from the PC, with the instruments of one of the game's songs)
   // and the game's, all heard here with the game's instruments (lib/songplayer.svelte.ts). Chapters choose theirs in
   // their settings (ChapterMusic). Server: decomp/music.py.
-  import { api, type BattleMusic, type MusicLibrary, type SongRef } from '../lib/api'
+  import { api, type BattleMusic, type MusicLibrary, type ScreenMusic, type SongRef } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import { loadMusicLibrary } from '../lib/musiclibrary.svelte'
   import { songPlayer } from '../lib/songplayer.svelte'
@@ -13,6 +13,9 @@
 
   let library = $state<MusicLibrary | null>(null)
   let battle = $state<BattleMusic | null>(null)
+  let screens = $state<ScreenMusic | null>(null)
+  const SCREEN_SLOTS = ['intro', 'title', 'storyIntro', 'preparations', 'prepSupports', 'shop', 'armory', 'arenaMenu',
+                        'arenaVictory', 'allyDeath', 'gameOver', 'epilogue', 'credits', 'supportViewer', 'dungeonRecord']
   const BATTLE_SLOTS = ['playerAttacks', 'enemyAttacks', 'healStaff', 'statusStaff', 'dance', 'promotion', 'arena']
   let error = $state('')
   let busy = $state(false)
@@ -20,7 +23,7 @@
 
   async function load() {
     try {
-      ;[library, battle] = await Promise.all([loadMusicLibrary(true), api.battleMusic()])
+      ;[library, battle, screens] = await Promise.all([loadMusicLibrary(true), api.battleMusic(), api.screenMusic()])
     } catch (e) {
       error = String(e)
     }
@@ -64,6 +67,16 @@
     try {
       await api.setBattleMusic({ slot, song })
       battle = await api.battleMusic()
+    } catch (e) {
+      error = String(e)
+    }
+  }
+
+  async function setScreen(slot: string, song: SongRef | null) {
+    error = ''
+    try {
+      await api.setScreenMusic({ slot, song })
+      screens = await api.screenMusic()
     } catch (e) {
       error = String(e)
     }
@@ -131,6 +144,18 @@
         {#each BATTLE_SLOTS.filter((slot) => slot in battle!.game) as slot (slot)}
           <SongPicker label={t(`music.battle.${slot}`)} value={battle.chosen[slot] ?? null} gameValue={battle.game[slot]} {library}
                       onchange={(song) => setBattle(slot, song)} />
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <section class="panel">
+    <h3>{t('music.screensTitle')} <Help text={t('music.screensHint')} /></h3>
+    {#if library && screens}
+      <div class="battle">
+        {#each SCREEN_SLOTS.filter((slot) => slot in screens!.game) as slot (slot)}
+          <SongPicker label={t(`music.screen.${slot}`)} value={screens.chosen[slot] ?? null} gameValue={screens.game[slot]} {library}
+                      onchange={(song) => setScreen(slot, song)} />
         {/each}
       </div>
     {/if}

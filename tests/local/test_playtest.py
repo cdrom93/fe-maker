@@ -797,6 +797,27 @@ def test_imported_music_in_a_scene(tmp_path):
         assert game.wait_until(playing, seconds=240, step=20, tap="A")
 
 
+def test_imported_music_on_the_title_screen(tmp_path):
+    """An imported song chosen for the title screen (Music tab, screens) plays there."""
+    import shutil
+
+    project = Project.create(tmp_path / "title_music", "TitleMusic")
+    project.set_test_options({"start": "normal"})
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
+    project.save("music", {"songs": {"theme": {"name": "Theme"}}, "screens": {"title": "theme"}})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        header = game.read("gSongTable", 87 * 8, width=32)   # the first free row of the song table
+
+        def playing():
+            players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]
+            return header in {game.read(info, 0, width=32) for info in players}
+
+        assert game.wait_until(playing, seconds=120, step=30, tap="START")   # START skips the opening animation
+
+
 def test_added_chapter_title_picture(tmp_path):
     """A chapter the project adds has its own title strip (chap_title_data row 0x58), and leads where the chapter
     before led (ticket 55: the Campaign page sees that link)."""
