@@ -96,6 +96,7 @@ def main() -> None:
         server.should_exit = True
 
     state.stop_server = stop
+    state.port = args.port   # an update starts FE Maker again on the same port (update.restart)
     server.run()
 
 

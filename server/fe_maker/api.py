@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from . import __version__, buildcancel, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, validation
+from . import __version__, buildcancel, buildtimes, decompfetch, emulator, ferepo, native, newchapter, scope, update, validation
 from . import tickets as ticketing
 from .builder import BuildError
 from .checks import run_checks
@@ -113,6 +113,7 @@ class _State:
         self.emulator = emulator.Emulator()
         # Set by __main__: stops the server (a new launch from the shortcut restarts FE Maker)
         self.stop_server = None
+        self.port = 8765   # set by __main__
 
     def get_decomp(self) -> DecompData:
         if self.decomp is None:
@@ -194,6 +195,30 @@ def shutdown():
         raise HTTPException(501, "notStoppable")
     state.stop_server()
     return {"stopping": True}
+
+
+@app.get("/api/update")
+def update_check():
+    """A newer FE Maker published on GitHub (update.py); only a packaged FE Maker looks for one."""
+    if not update.installable():
+        return {"installable": False, "release": None}
+    return {"installable": True, "release": update.check()}
+
+
+@app.post("/api/update/install")
+def update_install():
+    """Install the newer FE Maker and start it again; refused while a build runs."""
+    if state.build_lock.locked():
+        raise HTTPException(409, "buildRunning")
+    release = update.check()
+    if release is None:
+        raise HTTPException(404, "noUpdate")
+    try:
+        update.install(release)
+    except update.UpdateError as e:
+        raise HTTPException(502, str(e)) from e
+    update.restart(state.port)
+    return {"version": release["version"]}
 
 
 @app.put("/api/settings")

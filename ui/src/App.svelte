@@ -9,6 +9,7 @@
   import Workspace from './components/Workspace.svelte'
   import TicketPanel from './components/TicketPanel.svelte'
   import FileMenu from './components/FileMenu.svelte'
+  import UpdateNotice from './components/UpdateNotice.svelte'
 
   let status = $state<Status | null>(null)
   let loadError = $state('')
@@ -62,6 +63,7 @@
   <FileMenu {status} onChanged={refresh} onQuit={() => (stopped = true)} />
   <div class="brand">
     {#if status?.version}<span class="version" title={t('app.version')}>{status.version}</span>{/if}
+    <UpdateNotice />
     <span class="muted">{t('app.tagline')}</span>
   </div>
   </div>
