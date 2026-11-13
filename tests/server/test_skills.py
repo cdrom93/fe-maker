@@ -487,7 +487,7 @@ def test_batch_10_triggered_skills(monkeypatch):
     battle = files["src/bmbattle.c"]
     assert "BattleRoll2RN(HitRateSkillsFem(attacker, defender, gBattleStats.hitRate), TRUE)" in battle
     assert "rate *= 2;" in battle and "status = UNIT_STATUS_SLEEP;" in battle
-    assert "if (CounterFem(attacker, defender) || ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)" in battle
+    assert "        if (DevilFem(attacker, defender)) {" in battle
     assert "SKILL_FEM_RightfulKing))\n        rate += 10;" in battle and "SKILL_FEM_RightfulGod" not in battle
     assert "attacker->battleCritRate *= 2;" in battle
     assert "    if (SkillTesterFem(target, SKILL_FEM_Nullify)) /* FE Maker: Nullify */" in files["src/bmitem.c"]
@@ -499,3 +499,26 @@ def test_skill_ids_are_unique():
     Shot are the game's ones (GAME_SKILLS)."""
     ids = [s.id for s in skills.CATALOGUE] + [s.id for s in skills.GAME_SKILLS]
     assert len(ids) == len(set(ids))
+
+
+def test_batch_10_devils_axefaith_and_bargain(monkeypatch):
+    """Batch 10: Devil's Luck, Pact and Whim on the game's Devil roll, Axefaith on the hit roll, Bargain and Deal on
+    the shops' prices (after the Silver Card), Savage Blow and Lunge after the action."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": [
+        "DevilsLuck", "DevilsPact", "DevilsWhim", "AxeFaith", "Bargain", "SavageBlow", "Lunge"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    battle = files["src/bmbattle.c"]
+    assert "        if (DevilFem(attacker, defender)) {" in battle
+    assert "ShowSkillFem(defender, SKILL_FEM_DevilsLuck);" in battle and "ShowSkillFem(attacker, SKILL_FEM_DevilsWhim);" in battle
+    assert battle.index("    if (devil)\n        return TRUE;") < battle.index("SKILL_FEM_DevilsPact)) {")
+    assert "rate += attacker->battleAttack;" in battle
+    shop = files["src/bmshop.c"]
+    assert "    else if (SkillTesterFem(unit, SKILL_FEM_Bargain)) /* FE Maker: Bargain */\n        return cost / 2;" in shop
+    assert "SKILL_FEM_Deal" not in shop
+    post = next(text for text in files.values() if isinstance(text, str) and "sProcScr_PostActionFem[]" in text)
+    assert "    PROC_CALL(PostActionFem_Lunge)," in post and "amount = -(proc->damage / 5);" in post

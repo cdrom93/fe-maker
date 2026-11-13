@@ -2228,6 +2228,49 @@ def test_batch_10_after_combat(tmp_path):
         assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
 
 
+def test_batch_10_savage_blow(tmp_path):
+    """Skills batch 10: after the lord's attack, Savage Blow takes a fifth of its last hit's damage from each foe within
+    2 tiles of its target, the target included (with the map's damage animation, never deadly); then Lunge: the lord
+    and its target switch places."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "savage", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=20, crit=0)
+    project.save("items", items)
+    chapters = project.load("chapters")
+    foes = next(units for units in chapters["unitGroups"].values()
+                if any(u.get("character") == "CHARACTER_SOLDIER_83" for u in units))
+    near = (place[0] + 1, place[1])
+    foes.append({**foes[0], "x": near[0], "y": near[1], "endX": near[0], "endY": near[1]})
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["SavageBlow", "Lunge"]
+    soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
+    soldier["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        target, other = (game.address("gUnitArrayRed") + n * UNIT_SIZE for n in range(2))
+        assert (game.read(other, 0x10), game.read(other, 0x11)) == near
+        hp = game.read(target, 0x13), game.read(other, 0x13)
+        start = game.read(lord, 0x10), game.read(lord, 0x11)
+        _bench_attack(game, lord)
+        assert game.wait_until(lambda: game.read("gBattleHitArray", 0, width=32) != 0, seconds=30, step=10)
+        hits = [game.read("gBattleHitArray", 4 * i, width=32) for i in range(8)]
+        hits = hits[:next(i for i, hit in enumerate(hits) if hit >> 19 & 0x10)]           # BATTLE_HIT_INFO_END
+        mine = [hit >> 24 for hit in hits if not hit >> 19 & 8 and not hit & 2]          # RETALIATION, MISS
+        assert game.wait_until(lambda: game.read(other, 0x13) < hp[1], seconds=40, step=10)
+        game.run(30)
+        game.screenshot().save(tmp_path / "savage.png")
+        assert game.read(other, 0x13) == hp[1] - mine[-1] // 5
+        assert game.read(target, 0x13) == hp[0] - sum(mine) - mine[-1] // 5
+        assert (game.read(lord, 0x10), game.read(lord, 0x11)) == place                  # Lunge
+        assert (game.read(target, 0x10), game.read(target, 0x11)) == start
+
+
 def test_batch_10_seals(tmp_path):
     """Skills batch 10, the seals: the lord hits the soldier (it survives) with Seal Strength, Seal Speed and Seal
     Defense; the soldier's counters (the temporary bonuses', 4 bits per stat in its spare bytes) read -6, then -5 once
@@ -2422,7 +2465,7 @@ def test_batch_10_counter(tmp_path):
     lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
     next(c for c in characters if c["id"] == lord_id)["skills"] = [
         "Hawkeye", "Deadeye", "KillingMachine", "Nullify", "RightfulKing", "RightfulGod",
-        "Hero", "CounterMagic"]
+        "Hero", "CounterMagic", "DevilsLuck", "DevilsPact", "DevilsWhim", "AxeFaith", "Bargain", "Deal"]
     soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
     soldier["skills"] = ["Counter"]
     project.save("characters", characters)

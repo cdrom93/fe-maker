@@ -213,6 +213,15 @@ CATALOGUE: tuple[Skill, ...] = (
     # Shot are the game's (GAME_SKILLS, Level %)
     Skill("Counter", "proc", "Counter", "Counter:[NL]Reflect physical damage[NL]dealt at melee range."),
     Skill("CounterMagic", "proc", "CounterMagic", "Counter Magic:[NL]Reflect magical damage[NL]dealt at range."),
+    Skill("DevilsPact", "proc", "DevilsPact", "Devil's Pact:[NL]Inflict the Devil effect[NL]upon the enemy unit."),
+    Skill("DevilsWhim", "proc", "DevilsWhim", "Devil's Whim:[NL]Inflict the Devil effect[NL]upon both units."),
+    Skill("DevilsLuck", "proc", "DevilsLuck", "Devil's Luck:[NL]Give the unit's devil effect[NL]to the enemy in battle."),
+    Skill("AxeFaith", "proc", "AxeFaith", "Axefaith:[NL]When attacking with an Axe,[NL]hit + attack. (Attack % activation).",
+          roll="if (attacker->weaponType == ITYPE_AXE\n"
+               "            && SkillProcRateFem(attacker, SKILL_FEM_AxeFaith, attacker->battleAttack))\n"
+               "            rate += attacker->battleAttack;"),
+    Skill("Bargain", "map", "Bargain", "Bargain:[NL]Reduce cost of items bought[NL]by this unit by 50%.", group="items"),
+    Skill("Deal", "map", "", "Deal:[NL]Reduce cost of items bought[NL]by this unit by 20%.", group="items"),
     Skill("RightfulKing", "proc", "RightfulKing",
           "Rightful King:[NL]Add +10% to the activation[NL]rate of this unit's skills."),
     Skill("RightfulGod", "proc", "RightfulGod",
@@ -268,6 +277,9 @@ CATALOGUE: tuple[Skill, ...] = (
           group="after"),
     Skill("Despoil", "map", "Despoil", "Despoil:[NL]Gain a Red Gem after[NL]defeating an enemy (SKL %).",
           group="after"),
+    Skill("SavageBlow", "map", "SavageBlow", "Savage Blow:[NL]After attacking, enemies[NL]within 2 tiles take 20% damage.",
+          group="after"),
+    Skill("Lunge", "map", "Lunge", "Lunge:[NL]Swap positions with the enemy[NL]after attacking them.", group="after"),
     Skill("BreathOfLife", "map", "BreathOfLife", "Breath of Life:[NL]After attacking, allies[NL]in 2 tiles heal 20% HP.",
           group="after"),
     # the seals (C-SkillSys's PostActionSkills/SealSkills.c): -6 on the foe's stat, back by 1 each turn, on the items'
@@ -1227,6 +1239,14 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
             text = _replace(text, head, head + f"    if (SkillTesterFem({who}, SKILL_FEM_Nullify)) /* FE Maker: Nullify */\n"
                             "        return FALSE;\n\n", rel)
         files[rel] = text
+    bargains = [(sid, cost) for sid, cost in (("Bargain", "cost / 2"), ("Deal", "cost * 80 / 100")) if sid in numbers]
+    if bargains:   # batch 10: C-SkillSys's Price.c, after the Silver Card, without stacking
+        rel = "src/bmshop.c"
+        files[rel] = _replace(_read(files, decomp_dir, rel), "        return (cost / 2);\n    else\n        return cost;\n",
+                              "        return (cost / 2);\n" + "".join(
+                                  f"    else if (SkillTesterFem(unit, SKILL_FEM_{sid})) /* FE Maker: {sid} */\n"
+                                  f"        return {cost};\n" for sid, cost in bargains)
+                              + "    else\n        return cost;\n", rel)
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,
@@ -1382,6 +1402,21 @@ def _hit_skills(battle: str, procs: list[Skill], rel: str) -> str:
                          " && gBattleStats.range >= 2 && magic) {\n"
                          "        ShowSkillFem(defender, SKILL_FEM_CounterMagic);\n        return TRUE;\n    }\n"))
         if sid in ids)
+    # C-SkillSys's CheckDevilAttack after the counters, on the game's Devil roll (31 - the attacker's Luck): Devil's Luck
+    # (the defender's Devil weapon hurts the attacker, the holder's own spares it), Devil's Pact, Devil's Whim
+    devils = [sid for sid in ("DevilsLuck", "DevilsPact", "DevilsWhim") if sid in ids]
+    luck = ("SkillTesterFem(&defender->unit, SKILL_FEM_DevilsLuck)"
+            " && GetItemWeaponEffect(defender->weapon) == WPN_EFFECT_DEVIL")
+    tests = {"DevilsLuck": [("defender", luck)],
+             "DevilsPact": [("defender", "SkillTesterFem(&defender->unit, SKILL_FEM_DevilsPact)")],
+             "DevilsWhim": [("defender", "SkillTesterFem(&defender->unit, SKILL_FEM_DevilsWhim)"),
+                            ("attacker", "SkillTesterFem(&attacker->unit, SKILL_FEM_DevilsWhim)")]}
+    devil_any = "".join(f"    if ({test})\n        other = TRUE;\n" for sid in devils for _who, test in tests[sid])
+    devil_luck = ("    if (" + luck + ") {\n        ShowSkillFem(defender, SKILL_FEM_DevilsLuck);\n        return TRUE;\n    }\n"
+                  "    if (devil && SkillTesterFem(&attacker->unit, SKILL_FEM_DevilsLuck))\n        return FALSE;\n"
+                  if "DevilsLuck" in devils else "")
+    devil_rest = "".join(f"    if ({test}) {{\n        ShowSkillFem({who}, SKILL_FEM_{sid});\n        return TRUE;\n    }}\n"
+                         for sid in devils if sid != "DevilsLuck" for who, test in tests[sid])
     more = "".join(f"    {{\n        {s.code}\n    }}\n" for s in hits)
     after = "".join(f"    {{\n        {s.after}\n    }}\n" for s in procs if s.after)
     battle = _replace(battle, "/* FE Maker: skills in battle (C-SkillSys, PreBattleCalc.c) */\n", f"""\
@@ -1429,11 +1464,21 @@ static int HitRateSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defe
 {rolls}    (void) defender;
     return rate;
 }}
-/* Counter, Counter Magic (C-SkillSys's CheckDevilAttack): the hit's damage goes back to its attacker */
-static int CounterFem(struct BattleUnit* attacker, struct BattleUnit* defender)
+/* Counter, Counter Magic, then the game's Devil roll for a Devil weapon and Devil's Luck, Pact and Whim (C-SkillSys's
+   CheckDevilAttack): the hit's damage goes back to its attacker */
+static int DevilFem(struct BattleUnit* attacker, struct BattleUnit* defender)
 {{
     int magic = attacker->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE);
-{counters}    (void) magic; (void) defender;
+    int devil = GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL;
+    int other = FALSE;
+
+{counters}{devil_any}    if (!devil && !other)
+        return FALSE;
+    if (!BattleRoll1RN(31 - attacker->unit.lck, FALSE))
+        return FALSE;
+{devil_luck}    if (devil)
+        return TRUE;
+{devil_rest}    (void) magic;
     return FALSE;
 }}
 static void ApplyHitSkillsFem(struct BattleUnit* attacker, struct BattleUnit* defender, short* attack, short* defense)
@@ -1482,12 +1527,10 @@ static void ApplyHitSkillsAfterFem(struct BattleUnit* attacker, struct BattleUni
         battle = _replace(battle, "        if (!BattleRoll2RN(gBattleStats.hitRate, TRUE)) {\n",
                           "        if (!BattleRoll2RN(HitRateSkillsFem(attacker, defender, gBattleStats.hitRate), TRUE)) {\n",
                           rel)
-    if counters:
+    if counters or devils:
         battle = _replace(battle, "        if ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)"
                           " && (BattleRoll1RN(31 - attacker->unit.lck, FALSE))) {\n",
-                          "        if (CounterFem(attacker, defender)"
-                          " || ((GetItemWeaponEffect(attacker->weapon) == WPN_EFFECT_DEVIL)"
-                          " && (BattleRoll1RN(31 - attacker->unit.lck, FALSE)))) {\n", rel)
+                          "        if (DevilFem(attacker, defender)) {\n", rel)
     battle = _replace(battle, "        defense = 0;\n\n    gBattleStats.damage = attack - defense;\n",
                       "        defense = 0;\n\n    ApplyHitSkillsFem(attacker, defender, &attack, &defense);\n\n"
                       "    gBattleStats.damage = attack - defense;\n", rel)
@@ -2428,7 +2471,7 @@ def _heal_function(heals) -> str:
         + "    (void) terrain; (void) allies; (void) amaterasu;\n    return ret;\n}\n\n")
 
 
-POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife",
+POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife", "SavageBlow", "Lunge",
                       *(f"Seal{name}" for name, *_ in SEALS))
 
 
@@ -2454,6 +2497,7 @@ def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], 
                          for name, *_ in SEALS if f"Seal{name}" in used)
     def has(unit, sid):
         return f"SkillTesterFem({unit}, SKILL_FEM_{sid})" if sid in used else "FALSE"
+    lunge_call = "    PROC_CALL(PostActionFem_Lunge),\n    PROC_YIELD,\n" if "Lunge" in used else ""
     code = f"""
 /* FE Maker: skills after the action (C-SkillSys's PostActionHook and PostActionSkills), batch 10 */
 void BeginUnitHealAnim(struct Unit* unit, int hp);   /* bmusailment.c */
@@ -2468,6 +2512,8 @@ struct PostActionFemProc {{
     u8 defeated;   /* read once: the animations reset the battle's data */
     u8 seal;       /* the first seal of the actor, shown by the animation; 0: none */
     u8 timer;
+    u8 tx, ty;     /* Savage Blow: where the foe stood */
+    u8 damage;     /* Savage Blow: the actor's last damage */
 }};
 
 /* not US_HIDDEN: the active unit has it here, its map sprite still shown by its MU */
@@ -2486,6 +2532,18 @@ static int ActorHitFem(void)
         if (!(hit->info & BATTLE_HIT_INFO_RETALIATION) && !(hit->attributes & BATTLE_HIT_ATTR_MISS))
             return TRUE;
     return FALSE;
+}}
+
+/* Savage Blow: the damage of the actor's last hit (C-SkillSys takes the battle's last damage, maybe the foe's) */
+static int ActorDamageFem(void)
+{{
+    struct BattleHit* hit;
+    int damage = 0;
+
+    for (hit = gBattleHitArray; !(hit->info & BATTLE_HIT_INFO_END); hit++)
+        if (!(hit->info & BATTLE_HIT_INFO_RETALIATION) && !(hit->attributes & BATTLE_HIT_ATTR_MISS) && hit->hpChange > 0)
+            damage = hit->hpChange;
+    return damage;
 }}
 
 /* the first seal the actor has, when it hit a foe still on the map */
@@ -2548,6 +2606,28 @@ static int PostActionNextFem(struct PostActionFemProc* proc)
                 NewPopup_ItemGot(proc, actor, ITEM_REDGEM);
                 return TRUE;
             }}
+            break;
+        case 4:   /* Savage Blow: each foe within 2 tiles of the target loses 20 % of the actor's damage */
+            if (combat && proc->damage >= 5 && AliveOnMapFem(actor) && {has("actor", "SavageBlow")}) {{
+                while (proc->next < 0xC0 && !proc->unit) {{
+                    struct Unit* unit = GetUnit(proc->next++);
+                    int d;
+
+                    if (!AliveOnMapFem(unit) || AreUnitsAllied(actor->index, unit->index))
+                        continue;
+                    d = (unit->xPos > proc->tx ? unit->xPos - proc->tx : proc->tx - unit->xPos)
+                        + (unit->yPos > proc->ty ? unit->yPos - proc->ty : proc->ty - unit->yPos);
+                    if (d <= 2) {{
+                        proc->unit = unit;
+                        amount = -(proc->damage / 5);
+                    }}
+                }}
+                if (proc->unit) {{
+                    proc->step--;
+                    break;
+                }}
+            }}
+            proc->next = 1;
             break;
         default:  /* Breath of Life: each ally within 2 tiles of the actor heals 20 % of its max HP */
             if (!combat || !AliveOnMapFem(actor) || !({has("actor", "BreathOfLife")}))
@@ -2633,6 +2713,36 @@ static void PostActionFem_End(struct PostActionFemProc* proc)
     InitBmBgLayers();
     LoadUiFrameGraphics();
     LoadObjUIGfx();
+}}
+
+/* Lunge (C-SkillSys's PostActionSwap, Swap.c): after a battle, the unit and its foe switch places, both alive and
+   unpetrified, each able to stand on the other's tile; at once, without C-SkillSys's prompt to the player */
+s8 CanUnitCrossTerrain(struct Unit* unit, int terrain);
+
+static void PostActionFem_Lunge(struct PostActionFemProc* proc)
+{{
+    struct Unit* actor = gActiveUnit;
+    struct Unit* target = gActionData.targetIndex ? GetUnit(gActionData.targetIndex) : NULL;
+    int x, y;
+
+    if (gActionData.unitActionType != UNIT_ACTION_COMBAT || !AliveOnMapFem(actor) || !AliveOnMapFem(target)
+        || !{has("actor", "Lunge")} || actor->statusIndex == UNIT_STATUS_PETRIFY
+        || actor->statusIndex == UNIT_STATUS_13 || target->statusIndex == UNIT_STATUS_PETRIFY
+        || target->statusIndex == UNIT_STATUS_13
+        || !CanUnitCrossTerrain(actor, gBmMapTerrain[target->yPos][target->xPos])
+        || !CanUnitCrossTerrain(target, gBmMapTerrain[actor->yPos][actor->xPos]))
+        return;
+    EndAllMus();
+    x = actor->xPos;
+    y = actor->yPos;
+    actor->xPos = target->xPos;
+    actor->yPos = target->yPos;
+    target->xPos = x;
+    target->yPos = y;
+    gActionData.xMove = actor->xPos;
+    gActionData.yMove = actor->yPos;
+    RefreshEntityBmMaps();
+    RefreshUnitSprites();
 }}
 
 /* the seals' animation (C-SkillSys's MapAnimSkillMini.c and HeavyGravity.c, MIT): the unit's action animation, the
@@ -2756,7 +2866,7 @@ PROC_LABEL(0),
     PROC_CALL(PostActionFem_End),
     PROC_GOTO(0),
 PROC_LABEL(9),
-    PROC_END,
+{lunge_call}    PROC_END,
 }};
 
 void PostActionSkillsFem(ProcPtr parent)
@@ -2767,6 +2877,9 @@ void PostActionSkillsFem(ProcPtr parent)
     proc->next = 1;
     proc->defeated = gActionData.unitActionType == UNIT_ACTION_COMBAT && gBattleTarget.unit.curHP == 0;
     proc->seal = {"SealFem()" if first_seal else "0"};
+    proc->tx = gBattleTarget.unit.xPos;
+    proc->ty = gBattleTarget.unit.yPos;
+    proc->damage = gActionData.unitActionType == UNIT_ACTION_COMBAT ? ActorDamageFem() : 0;
 }}
 
 """
