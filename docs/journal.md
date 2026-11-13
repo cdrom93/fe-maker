@@ -316,3 +316,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : idée notée au cahier (§4, après l'alpha) : savoir qui écrit un ticket (pseudo facultatif, puis connexion GitHub vérifiée par le relais).
 - 13/11/2026 : pseudo facultatif dans le panneau Ticket, gardé dans les réglages et joint à chaque ticket (étage 1 de l'idée « savoir qui écrit un ticket »).
 - 13/11/2026 : tests automatiques, point 5 : `tools/verify_in_game.py` (tous les playtests, puis un hack témoin joué chapitre par chapitre, rapport d'une ligne par test) ; essayé sur une copie du projet test.
+- 13/11/2026 : connexion GitHub facultative des tickets (code à taper sur GitHub, login vérifié et écrit par le relais) ; en attente de l'OAuth App de l'utilisateur pour être proposée.

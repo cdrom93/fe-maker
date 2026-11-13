@@ -308,6 +308,10 @@ class TicketStore:
                 "images": [self._image_url(name) for name in ticket["images"][:RELAY_MAX_IMAGES]]}
         if project is not None:
             data["project"] = {"data": base64.b64encode(project).decode()}
+        from . import githubauth
+
+        if (signed := githubauth.account()) is not None:
+            data["githubToken"] = signed["token"]   # checked by the relay, which writes the login on the issue
         try:
             answer = relay_call("/v1/tickets", data)
         except TicketError as e:
@@ -525,7 +529,7 @@ def main() -> None:
         return
     for t in tickets:
         ctx = t.get("context", {})
-        where = " / ".join(str(ctx[k]) for k in ("tester", "project", "tab", "record", "detail") if ctx.get(k))
+        where = " / ".join(str(ctx[k]) for k in ("github", "tester", "project", "tab", "record", "detail") if ctx.get(k))
         print(f"#{t['number']} [{t['id']}] {t['kind']} · {t['priority']} · {t['status']} · {t['createdAt']}"
               f" · {ctx.get('version', '?')}" + (f" · {where}" if where else ""))
         for line in t["body"].splitlines():

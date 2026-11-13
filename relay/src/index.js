@@ -6,7 +6,9 @@
  * optional project in its uploads/ folder. Each ticket gets a secret code: only its sender reads it back (status,
  * replies) and answers it. The admin reads everything on GitHub (or in FE Maker, with their own token).
  *
- *   POST /v1/tickets                     {kind, priority, body, context, version, images: [dataURL], project?}
+ *   POST /v1/tickets                     {kind, priority, body, context, version, images: [dataURL], project?,
+ *                                        githubToken?} (the sender's GitHub sign-in, from FE Maker's device flow:
+ *                                        checked here, written as the context line `github`, never kept)
  *                                        -> {number, secret}
  *   GET  /v1/tickets/:number             header X-Ticket-Secret -> {number, state, comments}
  *   POST /v1/tickets/:number/comments    header X-Ticket-Secret, {body, images} -> {ok}
@@ -174,9 +176,12 @@ export async function createTicket(input, env) {
   }
   const secret = randomHex(16)
   const first = body.split('\n')[0].slice(0, 70)
+  // eslint-disable-next-line no-unused-vars
+  const { github: claimed, ...context } = input.context && typeof input.context === 'object' ? input.context : {}
+  const login = await githubLogin(input.githubToken)
   const text = [
     body,
-    ...contextLines({ ...(input.context ?? {}), version }),
+    ...contextLines({ ...context, ...(login ? { github: login } : {}), version }),
     ...images.map((link, i) => `\n![Capture ${i + 1}](${link})`),
     ...(project ? [`\n[Projet joint](${project})`] : []),
     '',
@@ -188,6 +193,22 @@ export async function createTicket(input, env) {
     labels: [kind, `priority:${priority}`, ...(version.split('+')[0] ? [`v${version.split('+')[0]}`] : [])], // not the commit
   })
   return { number: issue.number, secret }
+}
+
+/** The GitHub account a sign-in token belongs to (asked to GitHub, so it cannot be made up), or '' when there is none
+ * or GitHub refuses it: the ticket then goes without it. */
+export async function githubLogin(token) {
+  if (typeof token !== 'string' || !/^[\w-]{20,255}$/.test(token)) return ''
+  try {
+    const response = await fetch(`${API}/user`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'fe-maker-tickets' },
+    })
+    if (!response.ok) return ''
+    const login = (await response.json()).login
+    return typeof login === 'string' && /^[A-Za-z0-9-]{1,39}$/.test(login) ? login : ''
+  } catch {
+    return ''
+  }
 }
 
 async function checkedIssue(number, secret, env) {

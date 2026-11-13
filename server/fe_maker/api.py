@@ -34,6 +34,7 @@ from . import (
     emulator,
     ferepo,
     ferepo_music,
+    githubauth,
     missions,
     native,
     newchapter,
@@ -2873,6 +2874,35 @@ def _ticket_context(context: dict) -> dict:
     if state.settings.tester_name:
         context["tester"] = state.settings.tester_name
     return context
+
+
+@app.get("/api/github")
+def github_account():
+    """The optional GitHub sign-in of the tickets (githubauth.py): offered or not, and the account signed in."""
+    signed = githubauth.account()
+    return {"available": bool(githubauth.client_id()), "login": signed["login"] if signed else ""}
+
+
+@app.post("/api/github/device")
+def github_device():
+    try:
+        return githubauth.start()
+    except githubauth.GithubAuthError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/github/poll")
+def github_poll():
+    try:
+        return githubauth.poll()
+    except githubauth.GithubAuthError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/github")
+def github_sign_out():
+    githubauth.sign_out()
+    return github_account()
 
 
 @app.get("/api/missions")

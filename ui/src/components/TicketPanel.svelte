@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { recentActivity } from '../lib/activity'
-  import { adminFileUrl, api, ApiError, ticketImageUrl, type Mission } from '../lib/api'
+  import { adminFileUrl, api, ApiError, ticketImageUrl, type GithubAccount, type GithubDevice, type Mission } from '../lib/api'
   import { appContext } from '../lib/appContext.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
   import type { AdminTicket, Ticket, TicketKind, TicketPriority } from '../lib/types'
@@ -24,6 +24,45 @@
   let testerName = $state('')
   let savedTesterName = ''
   api.status().then((s) => { hasProject = !!s.project; testerName = savedTesterName = s.testerName ?? '' }).catch(() => {})
+
+  /** the optional GitHub sign-in (server: githubauth.py): a code typed on github.com, then the login on each ticket */
+  let github = $state<GithubAccount | null>(null)
+  let githubDevice = $state<GithubDevice | null>(null)
+  let githubError = $state('')
+  let githubTimer: ReturnType<typeof setTimeout> | undefined
+  api.github().then((g) => (github = g)).catch(() => {})
+  $effect(() => () => clearTimeout(githubTimer))
+
+  async function githubSignIn() {
+    githubError = ''
+    try {
+      githubDevice = await api.githubDevice()
+      window.open(githubDevice.verificationUri, '_blank', 'noopener')
+      githubTimer = setTimeout(githubWait, githubDevice.interval * 1000)
+    } catch (e) {
+      githubError = e instanceof ApiError ? t(`ticket.error.${e.detail}`) : String(e)
+    }
+  }
+
+  async function githubWait() {
+    try {
+      const answer = await api.githubPoll()
+      if (answer.state === 'pending') {
+        githubTimer = setTimeout(githubWait, (answer.interval ?? 5) * 1000)
+        return
+      }
+      githubDevice = null
+      if (answer.state === 'done') github = { available: true, login: answer.login ?? '' }
+      else githubError = t(`ticket.github.${answer.state}`)
+    } catch (e) {
+      githubDevice = null
+      githubError = e instanceof ApiError ? t(`ticket.error.${e.detail}`) : String(e)
+    }
+  }
+
+  async function githubSignOut() {
+    github = await api.githubSignOut()
+  }
 
   async function saveTesterName() {
     const name = testerName.trim()
@@ -364,8 +403,8 @@
             <span class="muted tiny">{date(tk.createdAt)}</span>
           </div>
           <p class="comment-body">{tk.body}</p>
-          {#if tk.context.tester || tk.context.tab || tk.context.record || tk.context.detail}
-            <p class="muted tiny">{[tk.context.tester, tk.context.tab, tk.context.record, tk.context.detail].filter(Boolean).join(' · ')}</p>
+          {#if tk.context.github || tk.context.tester || tk.context.tab || tk.context.record || tk.context.detail}
+            <p class="muted tiny">{[tk.context.github && `GitHub : ${tk.context.github}`, tk.context.tester, tk.context.tab, tk.context.record, tk.context.detail].filter(Boolean).join(' · ')}</p>
           {/if}
           {#if tk.images.length || tk.project}
             <div class="images">
@@ -450,6 +489,21 @@
     <label class="check tester">{t('ticket.testerName')}
       <input type="text" maxlength="40" bind:value={testerName} onblur={saveTesterName} placeholder={t('ticket.testerNameNone')} />
       <Help text={t('ticket.testerNameHint')} /></label>
+    {#if github?.available}
+      <span class="trail-row small">
+        {#if github.login}
+          <span>{t('ticket.github.signedIn', { login: github.login })}</span>
+          <button type="button" class="link small" onclick={githubSignOut}>{t('ticket.github.signOut')}</button>
+        {:else if githubDevice}
+          <span>{t('ticket.github.typeCode')} <strong class="code">{githubDevice.userCode}</strong></span>
+          <a class="small" href={githubDevice.verificationUri} target="_blank" rel="noopener">{githubDevice.verificationUri}</a>
+        {:else}
+          <button type="button" onclick={githubSignIn}>{t('ticket.github.signIn')}</button>
+        {/if}
+        <Help text={t('ticket.github.hint')} />
+      </span>
+      {#if githubError}<p class="bad small">{githubError}</p>{/if}
+    {/if}
     <span class="trail-row">
       <label class="check"><input type="checkbox" bind:checked={attachTrail} /> {t('ticket.attachTrail')} <Help text={t('ticket.attachTrailHint')} /></label>
       <button type="button" class="link small" onclick={toggleTrailPreview}>{trailPreview ? t('ticket.trailHide') : t('ticket.trailShow')}</button>
@@ -569,6 +623,7 @@
   .question { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
   .trail-row { display: flex; align-items: center; gap: 0.5rem; }
   .tester input { width: 12rem; }
+  .code { font-family: monospace; letter-spacing: 0.1em; }
   .trail { max-height: 10rem; overflow: auto; font-size: 0.7rem; margin: 0; white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;

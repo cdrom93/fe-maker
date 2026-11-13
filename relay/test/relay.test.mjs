@@ -20,6 +20,10 @@ beforeEach(() => {
       files.set(m[1], body.content)
       return Response.json({}, { status: 201 })
     }
+    if (path === '/user') {
+      return init.headers.Authorization === 'Bearer gho_' + 'x'.repeat(36)
+        ? Response.json({ login: 'known-member' }) : new Response('', { status: 401 })
+    }
     if (init.method === 'POST' && path === '/repos/owner/feedback/issues') {
       const number = issues.size + 1
       issues.set(number, { number, state: 'open', ...body })
@@ -108,4 +112,13 @@ test('posts per address are limited', async () => {
 
 test('clean keeps text but neutralizes comments and mentions', () => {
   assert.equal(clean('a <!-- b --> @c'), 'a &lt;!-- b --> @​c')
+})
+
+test('a GitHub sign-in is checked by the relay and written on the ticket; a claimed one is dropped', async () => {
+  await post('/v1/tickets', { body: 'Signed', githubToken: 'gho_' + 'x'.repeat(36), context: { github: 'someone-else' } })
+  assert.ok(issues.get(1).body.includes('| github | known-member |'))
+  assert.ok(!issues.get(1).body.includes('someone-else'))
+  await post('/v1/tickets', { body: 'Bad token', githubToken: 'gho_' + 'y'.repeat(36), context: { github: 'someone-else' } })
+  assert.ok(!issues.get(2).body.includes('github'))
+  assert.ok(calls.filter((c) => c.path === '/user').every((c) => c.auth !== 'Bearer token'))
 })

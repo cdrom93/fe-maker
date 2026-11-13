@@ -22,6 +22,10 @@ type GameOptionsData = {
 export interface FeRepoSong { path: string; name: string; authors: string[]; folder: string; preview: string | null }
 
 /** A task for the testers of this version (server: missions.py), with three questions about how it felt. */
+/** The optional GitHub sign-in of the tickets (server: githubauth.py): the relay writes the login on each ticket. */
+export interface GithubAccount { available: boolean; login: string }
+export interface GithubDevice { userCode: string; verificationUri: string; interval: number; expiresIn: number }
+
 export interface Mission { id: string; theme: string; title: string; task: string; questions: string[]; done: boolean }
 
 export type SongRef = number | string
@@ -268,6 +272,10 @@ export const api = {
   createTicket: (ticket: TicketIn) => request<Ticket>('POST', '/api/tickets', ticket),
   activity: () => request<string[]>('GET', '/api/activity'),
   missions: () => request<Mission[]>('GET', '/api/missions'),
+  github: () => request<GithubAccount>('GET', '/api/github'),
+  githubDevice: () => request<GithubDevice>('POST', '/api/github/device'),
+  githubPoll: () => request<{ state: 'pending' | 'done' | 'expired' | 'denied'; login?: string; interval?: number }>('POST', '/api/github/poll'),
+  githubSignOut: () => request<GithubAccount>('DELETE', '/api/github'),
   answerMission: (id: string, answers: string[]) => request<Ticket>('POST', `/api/missions/${encodeURIComponent(id)}`, { answers }),
   updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
     request<Ticket>('PATCH', `/api/tickets/${id}`, changes),
