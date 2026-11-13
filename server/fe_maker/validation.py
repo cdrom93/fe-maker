@@ -10,7 +10,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 
-from .decomp import banim_import, chaptitle, fonts, mapobjects, tileedit, units
+from .decomp import banim_import, chaptitle, fonts, mapobjects, music, tileedit, units
 from .decomp import dialogues as decomp_dialogues
 from .decomp import events as decomp_events
 from .decomp import maps as decomp_maps
@@ -118,7 +118,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
              classes: list[dict] | None = None, combat: dict | None = None,
              chapters: dict | None = None, maps: dict | None = None, dialogues: dict | None = None,
              portraits: dict | None = None, assets_dir=None, animations: dict | None = None,
-             unplayed: frozenset | set = frozenset()) -> list[Problem]:
+             unplayed: frozenset | set = frozenset(), songs: frozenset | set = frozenset()) -> list[Problem]:
     global _font, _animated
     _animated = animated_weapons(decomp, animations)
     _font = fonts.widths(decomp.decomp_dir)
@@ -245,7 +245,7 @@ def validate(characters: list[dict], items: list[dict], decomp: DecompData,
             _validate_scripts(problems, dialogues["scripts"], decomp, characters,
                               set((chapters or {}).get("newGroups", {})),
                               {q.get("key") for q in dialogues.get("quotes", []) if q.get("kind") == "scene"},
-                              {i["id"] for i in items})
+                              {i["id"] for i in items}, songs)
         if dialogues.get("supports") is not None:
             original = {tuple(sorted((p["a"], p["b"]))) for p in decomp.original_supports()}
             _validate_supports(problems, dialogues, {c["id"] for c in characters}, original)
@@ -360,13 +360,14 @@ def _script_constants(decomp: DecompData) -> dict[str, set[str]]:
 
 def _validate_scripts(problems, scripts: dict, decomp: DecompData, characters: list[dict] | None = None,
                       new_groups: set[str] | None = None, scene_messages: set[str] | None = None,
-                      items: set[str] | None = None):
+                      items: set[str] | None = None, songs: frozenset | set = frozenset()):
     """Event scripts edited in the visual editor ("script:<name>#<n>"): known script, well-formed
     commands, existing messages, and unit groups, characters, songs and backgrounds the game has
     (else the build stops with a compiler error)."""
     known = _script_constants(decomp)
     known["group"] |= new_groups or set()
     known["item"] = items or set()
+    known["song"] |= {music.SCENE_PREFIX + key for key in songs}   # the project's imported songs
     if characters:
         known["character"] = {c["id"] for c in characters if c["id"].startswith("CHARACTER_")}
     endings = decomp.ending_scripts()

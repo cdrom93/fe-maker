@@ -412,6 +412,7 @@ class DecompData:
         bonuses = self.decomp_dir / ITEM_BONUS_FILE
         self.item_bonuses = _read_item_bonuses(bonuses.read_text(encoding="utf-8")) if bonuses.is_file() else {}
         self.spell_choices: dict[str, str] = {}   # item -> the item whose spell it takes
+        self.scene_song_defines = ""   # music.scene_defines: imported songs named by event scripts
         self.battle_music: tuple[dict, dict | None] = ({}, None)   # music.battle_choices: slots, boss table
         self.texts = TextFile(self._read(TEXTS_FILE))
         self.unit_defs: dict[str, str] = {}
@@ -1869,7 +1870,10 @@ class DecompData:
 
     def apply_music(self, data: dict, assets_dir: Path) -> None:
         """Imported songs in free rows of the song table, and their numbers in the chapters' music settings."""
-        files, numbers = music.build_files(self.decomp_dir, data, assets_dir)
+        # Only scripts the project edited can name its songs: those are loaded (apply_dialogues) when there are some
+        scenes = music.scene_songs(self.event_sources.values())
+        files, numbers = music.build_files(self.decomp_dir, {**data, "scenes": sorted(scenes)}, assets_dir)
+        self.scene_song_defines = music.scene_defines(scenes, numbers)
         self.asset_files.update(files)
         if data.get("chapters") or data.get("victory"):
             self._load_chapter_events()
@@ -2790,6 +2794,9 @@ class DecompData:
         if any("WEA1(" in s for s in out.values() if isinstance(s, str)):
             macros = out.get(events.MACROS_FILE) or (self.decomp_dir / events.MACROS_FILE).read_text(encoding="utf-8")
             out[events.MACROS_FILE] = macros.rstrip("\n") + "\n" + events.WEATHER_MACRO
+        if self.scene_song_defines:   # imported songs named by event scripts (music.scene_defines)
+            macros = out.get(events.MACROS_FILE) or (self.decomp_dir / events.MACROS_FILE).read_text(encoding="utf-8")
+            out[events.MACROS_FILE] = macros.rstrip("\n") + "\n" + self.scene_song_defines
         if self.chapter_settings is not None:
             settings = json.dumps(self.chapter_settings, indent=2)  # same layout as the decomp's file
             if settings != self._settings_raw:

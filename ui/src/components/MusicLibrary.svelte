@@ -4,6 +4,7 @@
   // their settings (ChapterMusic). Server: decomp/music.py.
   import { api, type BattleMusic, type MusicLibrary, type SongRef } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
+  import { loadMusicLibrary } from '../lib/musiclibrary.svelte'
   import { songPlayer } from '../lib/songplayer.svelte'
   import Help from './Help.svelte'
   import NumberField from './NumberField.svelte'
@@ -19,7 +20,7 @@
 
   async function load() {
     try {
-      ;[library, battle] = await Promise.all([api.musicLibrary(), api.battleMusic()])
+      ;[library, battle] = await Promise.all([loadMusicLibrary(true), api.battleMusic()])
     } catch (e) {
       error = String(e)
     }
@@ -70,7 +71,12 @@
 
   async function remove(key: string, name: string) {
     if (!confirm(t('music.removeConfirm', { name }))) return
-    await api.removeMusic(key)
+    error = ''
+    try {
+      await api.removeMusic(key)
+    } catch (e) {
+      error = String(e).includes('songInScene') ? t('music.songInScene', { name }) : String(e)
+    }
     await load()
   }
 </script>

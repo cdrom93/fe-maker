@@ -769,6 +769,34 @@ def test_imported_music_in_the_prologue(tmp_path):
         assert header in playing
 
 
+def test_imported_music_in_a_scene(tmp_path):
+    """An imported song named by the Music command of a sequence (FEM_SONG_<key>, defined at build) plays in the
+    prologue's opening scene."""
+    import shutil
+
+    project = Project.create(tmp_path / "scene_music", "SceneMusic")
+    project.set_test_options({"start": "map", "simplePrologue": False})   # the simple prologue has no opening scene
+    folder = project.root / "assets" / "music"
+    folder.mkdir(parents=True)
+    shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
+    project.save("music", {"songs": {"theme": {"name": "Theme"}}})
+    commands = DecompData(project.decomp_dir).script_commands("EventScr_Prologue_BeginningScene")
+    at = next(i for i, c in enumerate(commands) if c["op"] == "LABEL") + 1   # after the throne room scene
+    commands.insert(at, {"op": "MUSC", "args": ["FEM_SONG_theme"]})
+    dialogues = project.load("dialogues")
+    dialogues.setdefault("scripts", {})["EventScr_Prologue_BeginningScene"] = commands
+    project.save("dialogues", dialogues)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        header = game.read("gSongTable", 87 * 8, width=32)   # the first free row of the song table
+
+        def playing():
+            players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]
+            return header in {game.read(info, 0, width=32) for info in players}
+
+        assert game.wait_until(playing, seconds=240, step=20, tap="A")
+
+
 def test_added_chapter_title_picture(tmp_path):
     """A chapter the project adds has its own title strip (chap_title_data row 0x58), and leads where the chapter
     before led (ticket 55: the Campaign page sees that link)."""

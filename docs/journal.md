@@ -303,3 +303,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : musique, lot 1 : onglet Musique (musiques du jeu et MIDI importés), écoute dans FE Maker avec les instruments du jeu (Web Audio, `songplayer.svelte.ts` ; serveur `midi.py`, `instruments.py`), choix de la musique de chaque phase, de l'ouverture, des variantes et du seuil du thème de victoire dans les réglages du chapitre.
 - 13/11/2026 : musique : la musique du chapitre a sa propre tuile dans la fiche du chapitre (hors des réglages repliables).
 - 13/11/2026 : musique, lot 2 : musique des combats selon la situation (onglet Musique) et thème de chef par personnage (fiche du personnage), écrits dans `src/banim-efxsound.c` à la compilation.
+- 13/11/2026 : musique, lot 3 : la commande Musique des déroulés choisit et fait écouter les musiques du projet (`FEM_SONG_<clé>`, définie à la compilation), essai en jeu sur la scène d'ouverture du prologue.

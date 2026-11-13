@@ -11,6 +11,8 @@
   import type { ChaptersData, Character, DialoguesData, EventCommand, EventsReference, Memory, NewQuote, Problem } from '../lib/types'
   import Mention from './Mention.svelte'
   import SkillPicker from './SkillPicker.svelte'
+  import SongPlayButton from './SongPlayButton.svelte'
+  import { loadMusicLibrary, musicLibrary, SCENE_PREFIX, sceneSongName, sceneSongRef } from '../lib/musiclibrary.svelte'
   import { AI_PRESETS } from '../lib/ai'
 
   let {
@@ -152,6 +154,8 @@
   const pretty = (constant: string, prefix: string) =>
     constant.replace(prefix, '').toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
   const memories = $derived(list.records[0]?.memories ?? [])
+  loadMusicLibrary().catch(() => {})
+  const songName = (v: string) => sceneSongName(v) ?? pretty(v, 'SONG_')
   const memoryName = (flag: string) => memories.find((m) => String(m.flag) === flag.trim())?.name
   const isMemoryCommand = (c: EventCommand) => ['ENUT', 'ENUF', 'CHECK_EVENTID'].includes(c.op) && memoryName(c.args?.[0] ?? '') !== undefined
   const scriptProblems = $derived(problems.filter((p) => p.kind === 'dialogues' && (p.id === `script:${name}` || p.id.startsWith(`script:${name}#`))))
@@ -434,7 +438,7 @@
       if (a.kind === 'chapter') return [chapterTitle(v)]
       if (a.kind === 'amount') return [Number(v) > 0 ? `+${Number(v)}` : v]
       if (a.kind === 'group') return [v.replace('UnitDef_Event_', '')]
-      if (a.kind === 'song') return [pretty(v, 'SONG_')]
+      if (a.kind === 'song') return [songName(v)]
       if (a.kind === 'background') return [pretty(v, 'BG_')]
       if (a.kind === 'x' || a.kind === 'y') return [v]
       if (a.kind === 'weather') return [t(`weather.${v.replace('WEATHER_', '').toLowerCase()}`)]
@@ -666,10 +670,21 @@
                       <button class="link" onclick={() => (renaming = Number(v))} title={t('ev.memory.rename')}>✎</button>
                     </span>
                   {:else if a.kind === 'song' && reference}
-                    <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
-                      {#if !reference.songs.includes(v)}<option value={v}>{v}</option>{/if}
-                      {#each reference.songs as s (s)}<option value={s}>{pretty(s, 'SONG_')}</option>{/each}
-                    </select>
+                    {@const imported = musicLibrary.value?.imported ?? []}
+                    <span class="inline">
+                      <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
+                        {#if !reference.songs.includes(v) && !imported.some((s) => SCENE_PREFIX + s.key === v)}<option value={v}>{songName(v)}</option>{/if}
+                        {#if imported.length}
+                          <optgroup label={t('music.projectSongs')}>
+                            {#each imported as s (s.key)}<option value={SCENE_PREFIX + s.key}>{s.name}</option>{/each}
+                          </optgroup>
+                        {/if}
+                        <optgroup label={t('music.gameSongs')}>
+                          {#each reference.songs as s (s)}<option value={s}>{songName(s)}</option>{/each}
+                        </optgroup>
+                      </select>
+                      {#if c.op !== 'SOUN'}<SongPlayButton song={sceneSongRef(v)} />{/if}
+                    </span>
                   {:else if a.kind === 'background' && reference}
                     <select value={v} onchange={(e) => setArg(i, k, (e.target as HTMLSelectElement).value)}>
                       {#if !reference.backgrounds.includes(v)}<option value={v}>{v}</option>{/if}

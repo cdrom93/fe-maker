@@ -81,6 +81,7 @@ def game_songs(decomp_dir: Path) -> list[dict]:
     table =(decomp_dir / SONG_TABLE_FILE).read_text(encoding="utf-8")
     rules = song_rules((decomp_dir / RULES_FILE).read_text(encoding="utf-8"))
     names: dict[int, str] = {}
+    constants = {n: c for c, n in reversed(list(song_constants(decomp_dir).items()))}
     header = decomp_dir / SONGS_HEADER
     if header.is_file():
         text = header.read_text(encoding="utf-8")
@@ -93,7 +94,8 @@ def game_songs(decomp_dir: Path) -> list[dict]:
             continue
         voicegroup, volume = rules[name]
         label = names.get(number) or re.sub(r"^song\d+_(agbfe3_)?(bgm_)?", "", name).replace("_", " ")
-        out.append({"number": number, "name": label, "file": name, "voicegroup": voicegroup, "volume": volume})
+        out.append({"number": number, "name": label, "file": name, "voicegroup": voicegroup, "volume": volume,
+                    "constant": constants.get(number, "")})
     return out
 
 
@@ -133,6 +135,20 @@ BATTLE_SLOTS = {
     "arena": ("SONG_IN_THE_COLOSSEUM", r"EfxOverrideBgm\(SONG_IN_THE_COLOSSEUM,"),
 }
 _BOSS_TABLE = re.compile(r"(CONST_DATA int gBanimBossBGMs\[)[^\]]*(\] = \{\n)(.*?)(\n\};)", re.DOTALL)
+
+
+# Scenes: an event command's song argument is a SONG_ constant, or SCENE_PREFIX + an imported song's key, defined at
+# build time in the event macros (include/EAstdlib.h) with the song's number (0, no music, for a song since removed).
+SCENE_PREFIX = "FEM_SONG_"
+
+
+def scene_songs(sources) -> set[str]:
+    """Keys of the imported songs event scripts name."""
+    return {m for text in sources for m in re.findall(rf"\b{SCENE_PREFIX}(\w+)", text)}
+
+
+def scene_defines(keys: set[str], numbers: dict[str, int]) -> str:
+    return "".join(f"#define {SCENE_PREFIX}{key} 0x{numbers.get(key, 0):X}\n" for key in sorted(keys))
 
 
 def song_constants(decomp_dir: Path) -> dict[str, int]:
@@ -201,7 +217,7 @@ def build_files(decomp_dir: Path, data: dict, assets_dir: Path) -> tuple[dict[st
     """Files of the songs the chapters and battles use (decomp-relative path -> content) and each song's number."""
     songs = data.get("songs", {})
     refs = [*(key for slots in data.get("chapters", {}).values() for key in slots.values()),
-            *data.get("battle", {}).values(), *data.get("bosses", {}).values()]
+            *data.get("battle", {}).values(), *data.get("bosses", {}).values(), *data.get("scenes", [])]
     used = sorted({key for key in refs
                    if isinstance(key, str) and key in songs and (assets_dir / "music" / f"{key}.mid").is_file()})
     if not used:

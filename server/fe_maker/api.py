@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import dataclasses
 import io
+import json
 import os
 import re
 import shutil
@@ -678,8 +679,11 @@ def remove_music(key: str):
     """The song leaves the project; chapters that played it play the game's music again."""
     project = state.require_project()
     stored = project.load("music")
-    if stored.get("songs", {}).pop(key, None) is None:
+    if key not in stored.get("songs", {}):
         raise HTTPException(404, "unknownSong")
+    if re.search(rf"\b{music.SCENE_PREFIX}{re.escape(key)}\b", json.dumps(project.load("dialogues"))):
+        raise HTTPException(409, "songInScene")   # a sequence still plays it
+    del stored["songs"][key]
     for index, slots in list(stored.get("chapters", {}).items()):
         for slot in [s for s, song in slots.items() if song == key]:
             del slots[slot]

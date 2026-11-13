@@ -66,6 +66,17 @@ def test_script_problems(decomp_dir):
     assert ("script:EventScr_TestOpening#1", "badArguments") in codes
 
 
+def test_imported_song_in_a_script(decomp_dir):
+    """A sequence may name an imported song (FEM_SONG_<key>), not one the project lacks."""
+    d = DecompData(decomp_dir)
+    scripts = {"EventScr_TestOpening": [{"op": "MUSC", "args": ["FEM_SONG_theme"]},
+                                        {"op": "MUSC", "args": ["FEM_SONG_gone"]}, {"op": "ENDA"}]}
+    codes = {(p.id, p.code) for p in validate(d.export_characters(), d.export_items(), d, songs={"theme"},
+                                               dialogues={"messages": {}, "quotes": [], "scripts": scripts})}
+    assert not any(i == "script:EventScr_TestOpening#0" for i, _c in codes)
+    assert any(i == "script:EventScr_TestOpening#1" for i, _c in codes)
+
+
 def test_new_scene_message_and_unknown_names(decomp_dir):
     d = DecompData(decomp_dir)
     say = [{"kind": "say", "pos": None, "text": "A new line."}]

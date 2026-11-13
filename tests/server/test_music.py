@@ -151,8 +151,9 @@ def test_game_songs_named_from_songs_h(tmp_path):
     (tmp_path / "include" / "constants" / "songs.h").write_text(
         "enum {\n    SONG_NONE = 0x00,\n    SONG_THE_THEME = 0x01,\n    SONG_02 = 0x02,\n};\n", encoding="utf-8")
     assert music.game_songs(tmp_path) == [
-        {"number": 1, "name": "The theme", "file": "song001_agbfe3_bgm_theme", "voicegroup": 7, "volume": 90},
-        {"number": 2, "name": "y wind 3", "file": "song002_y_wind_3", "voicegroup": 8, "volume": 100},
+        {"number": 1, "name": "The theme", "file": "song001_agbfe3_bgm_theme", "voicegroup": 7, "volume": 90,
+         "constant": "SONG_THE_THEME"},
+        {"number": 2, "name": "y wind 3", "file": "song002_y_wind_3", "voicegroup": 8, "volume": 100, "constant": "SONG_02"},
     ]
 
 
@@ -224,3 +225,11 @@ def test_battle_songs_and_boss_themes_written_back(tmp_path):
     assert out.count("EfxOverrideBgm(0x9, 0x100);") == 2   # the arena and the link arena
     assert "CONST_DATA int gBanimBossBGMs[3 * 2] = {\n    0x1, 0x57,\n    0x6, 0x19,\n    -1, -1\n};" in out
     assert music.battle_choices(decomp, {"battle": {"arena": 9}}, {}, numbers.get)[1] is None   # table kept as is
+
+
+def test_scene_songs_defined_for_the_event_scripts():
+    sources = ["MUSC(SONG_TENSION)\nMUSC(FEM_SONG_my_theme)\n", "MUSCSLOW(FEM_SONG_gone)\nFEM_SONG_my_themes"]
+    keys = music.scene_songs(sources)
+    assert keys == {"my_theme", "gone", "my_themes"}
+    assert music.scene_defines({"my_theme", "gone"}, {"my_theme": 87}) == (
+        "#define FEM_SONG_gone 0x0\n#define FEM_SONG_my_theme 0x57\n")   # a song since removed: no music
