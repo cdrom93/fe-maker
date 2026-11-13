@@ -509,3 +509,19 @@ def test_an_edited_sequence_lists_the_messages_it_shows():
     commands = [{"op": "Text", "args": ["0x0"]}, {"op": "LOAD1", "args": ["1", "X"]}, {"op": "TEXTSHOW", "args": ["new:k"]},
                 {"op": "Text_BG", "args": ["0x1C", "0x91A"]}, {"op": "Text", "args": ["0"]}]
     assert api.script_message_ids(commands) == [0, 0x91A]
+
+
+def test_a_unit_on_a_raw_entry_path_keeps_it_when_edited():
+    """Chapter 7's army points to its entry path by its ROM address: read with the path named (its end is the unit's
+    place), a new level alone is written without taking the path's end for a move."""
+    rel = "src/events_udefs.c"
+    source = ("CONST_DATA struct REDA REDA_088B6E28[] = {\n    {\n        .x = 3,\n        .y = 15,\n    },\n};\n\n"
+              "CONST_DATA struct UnitDefinition UnitDef_Raw[] = {\n    {\n        .charIndex = CHARACTER_SETH,\n"
+              "        .classIndex = CLASS_PALADIN,\n        .allegiance = FACTION_ID_BLUE,\n        .level = 1,\n"
+              "        .xPosition = 0,\n        .yPosition = 17,\n        .redaCount = 1,\n"
+              "        .redas = (void *)0x88b6e28,\n        .items = {\n            ITEM_LANCE_SLIM,\n        },\n"
+              "    },\n    { },\n};\n")
+    unit = {"slot": 0, "character": "CHARACTER_SETH", "class": "CLASS_PALADIN", "level": 3, "side": "player",
+            "endX": 3, "endY": 15, "items": ["ITEM_LANCE_SLIM"]}
+    out = units.apply_unit_groups({rel: source}, {"UnitDef_Raw": [unit]})[rel]
+    assert ".level = 3," in out and ".redas = REDA_088B6E28," in out and ".xPosition = 0," in out

@@ -244,7 +244,7 @@ def apply_unit_groups(sources: dict[str, str], edits: dict[str, list[dict]],
         rel = next((r for r, s in sources.items() if _array_body_span(_blank_comments(s), "UnitDefinition", name)), None)
         if rel is None:
             raise UnitEditError(f"Unit group {name} not found")
-        source = sources[rel]
+        source = symbolic_redas(sources[rel])   # as read_unit_groups reads them (entry paths named, every build)
         clean = _blank_comments(source)
         start, end = _array_body_span(clean, "UnitDefinition", name)
         spans = _entry_spans(clean, start, end)
