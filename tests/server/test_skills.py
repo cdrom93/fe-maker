@@ -256,10 +256,15 @@ def test_batch_10_seals_on_the_temporary_bonuses(monkeypatch):
     used = skills.used(characters, [], False)
     assert skills.uses_temp_bonuses(used) and not skills.uses_temp_bonuses(skills.used([], [], False))
     assert "SealMagic" not in {s["id"] for s in skills.catalogue() if not s.get("magic")}
-    phase = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/playerphase.c"]
+    monkeypatch.setattr(skills, "seal_anim_png", lambda name: b"PNG")
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    phase = files["src/playerphase.c"]
     assert "bonuses = (bonuses & ~(15u << 12)) | (10u << 12);" in phase      # Defense, the 4th counter
     assert "bonuses = (bonuses & ~(15u << 0)) | (10u << 0);" in phase
     assert "ActorHitFem()" in phase and "SKILL_FEM_SealSpeed" not in phase
+    # the animation: the first seal's icon, then the falling sprites, their images beside the item icons
+    assert "proc->seal = SealFem();" in phase and "PROC_REPEAT(PostActionFem_Gravity)" in phase
+    assert "graphics/item_icon/heavy_gravity_fem.png" in files and "gSkillAnimFem:" in files["data/data_item_icon.s"]
 
 
 def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):

@@ -296,3 +296,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : compétences, lot 10 (liste de Mangs), première partie : 5 Breakers, Life and Death, Light Weight, Elbow Room, Outdoor Fighter, Battle Veteran, Critical Force, Loyalty, Blue Flame ; playtest en combat.
 - 13/11/2026 : compétences, lot 10, après le combat : Fury, Grisly Wound, Poison Strike, Lifetaker, Despoil, Breath of Life, avec les animations de dégâts et de soin du jeu sur la carte (étape après l'action, joueur et IA) ; playtest.
 - 13/11/2026 : compétences, lot 10, sceaux : les 7 Seal (-6 à l'adversaire touché, remonte de 1 par tour, sur les compteurs des bonus temporaires) ; playtest.
+- 13/11/2026 : compétences, lot 10, animation des sceaux sur la carte (celle du C-SkillSys : action, éclair, icône du sceau, sprites qui tombent sur l'adversaire) ; playtest.

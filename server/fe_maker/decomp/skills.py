@@ -35,6 +35,12 @@ SS_REPO = "FireEmblemUniverse/SkillSystem_FE8"
 SS_COMMIT = "aefb81278ae814ecc53175f79813bc099dae0346"
 BOX_URL = (f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}"
            "/EngineHacks/SkillSystem/Internals/Graphics/ProcDisplayTiles.png")
+# The seals' animation on the map (C-SkillSys, MIT): the flash on the unit, and Heavy Gravity's falling sprite on the foe
+SEAL_ANIM_URLS = {
+    "skill_anim_fem": f"https://raw.githubusercontent.com/{REPO}/{COMMIT}/Data/SkillSys/SkillMapAnim/skill-mapanimap.png",
+    "heavy_gravity_fem": (f"https://raw.githubusercontent.com/{REPO}/{COMMIT}"
+                          "/Kernel/Wizardry/Common/MapAnims/HeavyGravity/Source/Img_HeavyGravity.png"),
+}
 MAX_PER_SHEET = 3
 MAX_SHOWN = 6   # page 1: 2 rows of 3 icons (ticket 171)
 # learned skills (batch 3, docs/competences.md): 4 per character, in the free debug buffer before ICON_TABLE;
@@ -863,6 +869,11 @@ def box_png() -> bytes:
     return _download(BOX_URL, config_dir() / "skillsystem" / SS_COMMIT[:12] / "ProcDisplayTiles.png").read_bytes()
 
 
+def seal_anim_png(name: str) -> bytes:
+    """An image of the seals' animation (SEAL_ANIM_URLS), downloaded once from C-SkillSys."""
+    return _download(SEAL_ANIM_URLS[name], _cache().parent / "MapAnim" / f"{name}.png").read_bytes()
+
+
 def _download(url: str, path: Path) -> Path:
     if path.is_file():
         return path
@@ -1180,7 +1191,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
 
     files.update(_status_screen(decomp_dir, files, skills, texts, base, magic_split))
     files.update(_map_skills(decomp_dir, files, numbers))
-    files.update(_post_action_skills(decomp_dir, files, numbers))
+    files.update(_post_action_skills(decomp_dir, files, numbers, base))
     files.update(_ai_skills(decomp_dir, files, numbers))
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
@@ -2267,26 +2278,21 @@ def uses_temp_bonuses(skills: list[Skill]) -> bool:
     return any(s.id.startswith("Seal") for s in skills)
 
 
-def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
+def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], base: int) -> dict:
     """Batch 10, after the unit's action (C-SkillSys's PostActionHook, in the player phase and the AI's, before the
     game's traps): HP lost or healed after a battle, each unit in turn with the game's damage or heal animation on the
-    map (C-SkillSys's MapAnims/Misc Hurt.c and Heal.c), and Despoil's Red Gem; the seals, at once (no animation),
-    on the foe hit by the unit, with the temporary bonuses' counters."""
+    map (C-SkillSys's MapAnims/Misc Hurt.c and Heal.c), and Despoil's Red Gem; first the seals, on the foe hit by the
+    unit, with the temporary bonuses' counters, after C-SkillSys's animation (a flash on the unit, the first seal's
+    icon beside the unit, MapAnimSkillMini.c, then Heavy Gravity's sprites falling on the foe, HeavyGravity.c)."""
     used = [sid for sid in POST_ACTION_SKILLS if sid in numbers]
     if not used:
         return {}
     seal_lines = "".join(
-        f"        if (SkillTesterFem(gActiveUnit, SKILL_FEM_Seal{name}))\n"
-        f"            bonuses = (bonuses & ~(15u << {4 * stat})) | (10u << {4 * stat});   /* -6 */\n"
+        f"    if (SkillTesterFem(gActiveUnit, SKILL_FEM_Seal{name}))\n"
+        f"        bonuses = (bonuses & ~(15u << {4 * stat})) | (10u << {4 * stat});   /* -6 */\n"
         for name, _label, _short, stat in SEALS if f"Seal{name}" in used)
-    seals = ("" if not seal_lines else
-             "    if (gActionData.unitActionType == UNIT_ACTION_COMBAT && ActorHitFem()) {  /* the seals */\n"
-             "        struct Unit* target = GetUnit(gActionData.targetIndex);\n"
-             "        u32 bonuses = TEMP_BONUSES_FEM(target);\n\n"
-             f"{seal_lines}"
-             "        if (AliveOnMapFem(target))\n"
-             "            SET_TEMP_BONUSES_FEM(target, bonuses);\n"
-             "    }\n")
+    first_seal = "".join(f"    if (SkillTesterFem(gActiveUnit, SKILL_FEM_Seal{name}))\n        return SKILL_FEM_Seal{name};\n"
+                         for name, *_ in SEALS if f"Seal{name}" in used)
     def has(unit, sid):
         return f"SkillTesterFem({unit}, SKILL_FEM_{sid})" if sid in used else "FALSE"
     code = f"""
@@ -2301,6 +2307,8 @@ struct PostActionFemProc {{
     u8 next;       /* Breath of Life: the next unit index to look at */
     u8 lock;
     u8 defeated;   /* read once: the animations reset the battle's data */
+    u8 seal;       /* the first seal of the actor, shown by the animation; 0: none */
+    u8 timer;
 }};
 
 /* not US_HIDDEN: the active unit has it here, its map sprite still shown by its MU */
@@ -2319,6 +2327,15 @@ static int ActorHitFem(void)
         if (!(hit->info & BATTLE_HIT_INFO_RETALIATION) && !(hit->attributes & BATTLE_HIT_ATTR_MISS))
             return TRUE;
     return FALSE;
+}}
+
+/* the first seal the actor has, when it hit a foe still on the map */
+static int SealFem(void)
+{{
+    if (gActionData.unitActionType != UNIT_ACTION_COMBAT || !ActorHitFem() || !AliveOnMapFem(gActiveUnit)
+        || !AliveOnMapFem(GetUnit(gActionData.targetIndex)))
+        return 0;
+{first_seal}    return 0;
 }}
 
 static int FifthFem(struct Unit* foe)
@@ -2459,9 +2476,106 @@ static void PostActionFem_End(struct PostActionFemProc* proc)
     LoadObjUIGfx();
 }}
 
+/* the seals' animation (C-SkillSys's MapAnimSkillMini.c and HeavyGravity.c, MIT): the unit's action animation, the
+   flash on the unit (its image over the game's MISS one) and the seal's icon beside it, then sprites falling on the foe */
+extern const u8 gSkillAnimFem[];
+extern const u8 gHeavyGravityFem[];
+
+#define SEAL_ICON_CHR_FEM 0x19C
+#define SEAL_ICON_PAL_FEM 4
+#define SEAL_GRAVITY_CHR_FEM (0x53C0 / 0x20)
+
+static void PostActionFem_SealStart(struct PostActionFemProc* proc)
+{{
+    if (!proc->seal) {{
+        Proc_Goto(proc, 0);
+        return;
+    }}
+    proc->unit = gActiveUnit;
+}}
+
+static void PostActionFem_SealWord(struct PostActionFemProc* proc)
+{{
+    struct Unit* unit = gActiveUnit;
+    struct MuProc* mu = GetUnitMu(unit);
+
+    if (!mu) {{
+        HideUnitSprite(unit);
+        mu = StartMu(unit);
+    }}
+    SetMuDefaultFacing(mu);
+    SetDefaultColorEffects();
+    StartMuActionAnim(mu);
+    CpuFastCopy(gSkillAnimFem, OBJ_VRAM0 + 0x20 * BM_OBJCHR_BANIM_EFFECT, 12 * 0x20);
+    APProc_Create(Obj_MapAnimMISS, 16 * SCREEN_TILE_X(unit->xPos) + 8, 16 * SCREEN_TILE_Y(unit->yPos) + 16,
+                  TILEREF(BM_OBJCHR_BANIM_EFFECT, 0), 0, 2);
+    PlaySeSpacial(0x3D1, SCREEN_TILE_IX(unit->xPos));
+    LoadIconObjectGraphics({base} - 1 + proc->seal, SEAL_ICON_CHR_FEM);
+    LoadIconPalette(0, 0x10 + SEAL_ICON_PAL_FEM);
+    proc->timer = 0;
+}}
+
+static void PostActionFem_SealIcon(struct PostActionFemProc* proc)
+{{
+    struct Unit* unit = gActiveUnit;
+    int x = unit->xPos == 0 ? 1 : unit->xPos - 1;
+
+    PutSprite(4, OAM1_X(SCREEN_TILE_IX(x)), OAM0_Y(SCREEN_TILE_IY(unit->yPos)) + ATTR0_TYPE_BLENDED, gObject_16x16,
+              OAM2_PAL(SEAL_ICON_PAL_FEM) + OAM2_LAYER(1) + OAM2_CHR(SEAL_ICON_CHR_FEM));
+    if (++proc->timer == 40) {{
+        proc->unit = GetUnit(gActionData.targetIndex);
+        Proc_Break(proc);
+    }}
+}}
+
+static void PostActionFem_GravityStart(struct PostActionFemProc* proc)
+{{
+    CpuFastCopy(gHeavyGravityFem, OBJ_VRAM0 + 0x53C0, 2 * 0x20);
+    PlaySoundEffect(0x86);
+    proc->timer = 0;
+}}
+
+/* three sprites, from the 10th, 20th and 30th frames, each falling for 16 frames */
+static void PostActionFem_Gravity(struct PostActionFemProc* proc)
+{{
+    int ix = proc->unit->xPos * 16 - gBmSt.camera.x, iy = proc->unit->yPos * 16 - gBmSt.camera.y, k, t;
+
+    proc->timer++;
+    for (k = 10; k <= 30; k += 10) {{
+        t = proc->timer - k;
+        if (t >= 0 && t < 16)
+            PutSprite(1, (ix + 0x200) & 0x1FF, (iy + t + 0xFD) & 0xFF, gObject_16x8,
+                      OAM2_PAL(0) + OAM2_CHR(SEAL_GRAVITY_CHR_FEM) + OAM2_LAYER(1));
+    }}
+    if (proc->timer >= 30 + 16)
+        Proc_Break(proc);
+}}
+
+static void PostActionFem_Seals(struct PostActionFemProc* proc)
+{{
+    struct Unit* target = GetUnit(gActionData.targetIndex);
+    u32 bonuses = TEMP_BONUSES_FEM(target);
+
+{seal_lines}    SET_TEMP_BONUSES_FEM(target, bonuses);
+}}
+
 struct ProcCmd CONST_DATA sProcScr_PostActionFem[] = {{
     PROC_NAME("FemPostAction"),
     PROC_YIELD,
+    PROC_CALL(PostActionFem_SealStart),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_Camera),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_SealWord),
+    PROC_REPEAT(PostActionFem_SealIcon),
+    PROC_CALL(PostActionFem_Camera),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_GravityStart),
+    PROC_REPEAT(PostActionFem_Gravity),
+    PROC_CALL(PostActionFem_Seals),
+    PROC_CALL(PostActionFem_Init),
+    PROC_YIELD,
+    PROC_CALL(PostActionFem_End),
 PROC_LABEL(0),
     PROC_CALL(PostActionFem_Next),
     PROC_YIELD,
@@ -2487,14 +2601,16 @@ void PostActionSkillsFem(ProcPtr parent)
     proc->step = 0;
     proc->next = 1;
     proc->defeated = gActionData.unitActionType == UNIT_ACTION_COMBAT && gBattleTarget.unit.curHP == 0;
-{seals}}}
+    proc->seal = {"SealFem()" if first_seal else "0"};
+}}
 
 """
     out = {}
     rel = "src/playerphase.c"
     text = _read(files, decomp_dir, rel)
     text = _replace(text, '#include "playerphase.h"\n', '#include "playerphase.h"\n#include "popup.h"\n#include "rng.h"\n'
-                    '#include "bmusailment.h"\n#include "uiutils.h"\n', rel)
+                    '#include "bmusailment.h"\n#include "uiutils.h"\n#include "ap.h"\n#include "ctc.h"\n'
+                    '#include "icon.h"\n#include "bmlib.h"\n#include "mapanim.h"\n', rel)
     text = _replace(text, "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =", code
                     + "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =", rel)
     out[rel] = _replace(text, "    PROC_CALL_2(ApplyUnitAction),\n    PROC_CALL_2(HandlePostActionTraps),\n",
@@ -2507,6 +2623,14 @@ void PostActionSkillsFem(ProcPtr parent)
     out[rel] = _replace(text, "    PROC_REPEAT(CpPerform_WaitAction),\n\n    PROC_CALL_2(HandlePostActionTraps),\n",
                         "    PROC_REPEAT(CpPerform_WaitAction),\n    PROC_CALL(PostActionSkillsFem), /* FE Maker */\n"
                         "    PROC_YIELD,\n\n    PROC_CALL_2(HandlePostActionTraps),\n", rel)
+    if first_seal:
+        rel = "data/data_item_icon.s"
+        anim = "".join(f"\t.align 2\n\t.global {sym}\n{sym}:\n\t.incbin \"graphics/item_icon/{name}.4bpp\"\n"
+                       for name, sym in (("skill_anim_fem", "gSkillAnimFem"), ("heavy_gravity_fem", "gHeavyGravityFem")))
+        out[rel] = _replace(_read(files, decomp_dir, rel), "\t.global item_icon_palette\n",
+                            anim + "\t.global item_icon_palette\n", rel)
+        for name in SEAL_ANIM_URLS:
+            out[f"graphics/item_icon/{name}.png"] = seal_anim_png(name)
     return out
 
 
