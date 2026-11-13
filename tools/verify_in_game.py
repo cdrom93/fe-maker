@@ -2,11 +2,11 @@
 machine (it needs the ROM and the build tools): every playtest of tests/local, then a reference hack played chapter
 by chapter, and a report of one line per test.
 
-    server/.venv/Scripts/python tools/verify_in_game.py [--hack <project folder>] [--chapters 0,1,2] [--skip-playtests]
+    server/.venv/Scripts/python tools/verify_in_game.py [--hack <project folder>] [--chapters 0,1,2] [--skip-playtests] [-- <pytest arguments>]
 
 The ROM is FE_MAKER_ROM, else the one in FE Maker's settings, else rom/*.gba. The reference hack is copied first:
 its own folder is never changed. For each chapter its story reaches (or those given), a test build starting on that
-chapter must play its opening and reach the player phase of turn 1 with units on the map. The report goes to
+chapter must play its opening (texts passed with A, a preparations screen with START) and reach the player phase of turn 1 with units on the map. The report goes to
 verify-report.txt beside this script's working folder (or --report) and is printed.
 """
 
@@ -88,9 +88,13 @@ def hack_lines(rom: Path, hack: Path, chapters: list[int] | None) -> list[str]:
                 project.set_test_options({"start": "map", "chapter": index})
                 out = project.build(rom, for_test=True)
                 with Game(out.rom_path, out.map_path) as game:
-                    reached = game.wait_until(lambda: game.chapter() == index and game.turn() == 1
-                                              and game.phase() == "player" and bool(game.units()),
-                                              seconds=300, step=20, tap="A")
+                    def on_map() -> bool:
+                        return (game.chapter() == index and game.turn() == 1 and game.phase() == "player"
+                                and bool(game.units()))
+
+                    reached = game.wait_until(on_map, seconds=300, step=20, tap="A")
+                    if not reached and game.turn() == 0:   # preparations screen: START is "Fight!"
+                        reached = game.wait_until(on_map, seconds=60, step=20, tap="START")
                     if reached:
                         game.run(120)   # a few seconds on the map: no crash right after the opening
                         reached = game.chapter() == index

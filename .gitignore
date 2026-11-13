@@ -52,3 +52,6 @@ CLAUDE.local.md
 # Interface tests (Playwright)
 ui/test-results/
 ui/playwright-report/
+# tools/verify_in_game.py output
+verify-report.txt
+verify-chapter-*.png
