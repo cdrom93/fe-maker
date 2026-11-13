@@ -2271,6 +2271,26 @@ def test_batch_10_savage_blow(tmp_path):
         assert (game.read(target, 0x10), game.read(target, 0x11)) == start
 
 
+def test_batch_10_pass(tmp_path):
+    """Skills batch 10: with Pass the lord's movement goes through the enemy next to it (2 to the tile behind it,
+    instead of 4 around it)."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "pass", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Pass"]
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        game.move_cursor(game.read(lord, 0x10), game.read(lord, 0x11))
+        game.press("A")
+        game.run(30)
+        rows = game.read("gBmMapMovement", width=32)
+        assert game.read(game.read(rows + 4 * place[1], width=32) + place[0] + 1) == 2
+
+
 def test_batch_10_seals(tmp_path):
     """Skills batch 10, the seals: the lord hits the soldier (it survives) with Seal Strength, Seal Speed and Seal
     Defense; the soldier's counters (the temporary bonuses', 4 bits per stat in its spare bytes) read -6, then -5 once

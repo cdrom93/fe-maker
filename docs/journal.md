@@ -325,3 +325,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : déclenchements (Deadeye, Counter, Counter Magic, Killing Machine, Nullify, Rightful King, Rightful God, Hero) ; playtest du contre.
 - 14/11/2026 : compétences, lot 10 : Savage Blow, Lunge, Devil's Pact / Luck / Whim, Axefaith, Bargain, Deal ; playtest de Savage Blow et Lunge.
 - 14/11/2026 : vérification complète : changer le niveau d'un personnage de l'armée du chapitre 7 empêchait la compilation (trajets d'entrée nommés à la lecture, pas à l'écriture) ; corrigé, test unitaire.
+- 14/11/2026 : compétences, lot 10 : Pass (traverser les ennemis) ; playtest.

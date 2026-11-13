@@ -220,6 +220,7 @@ CATALOGUE: tuple[Skill, ...] = (
           roll="if (attacker->weaponType == ITYPE_AXE\n"
                "            && SkillProcRateFem(attacker, SKILL_FEM_AxeFaith, attacker->battleAttack))\n"
                "            rate += attacker->battleAttack;"),
+    Skill("Pass", "map", "Pass", "Pass:[NL]Unit can pass through[NL]enemies if HP >= 25%.", group="map"),
     Skill("Bargain", "map", "Bargain", "Bargain:[NL]Reduce cost of items bought[NL]by this unit by 50%.", group="items"),
     Skill("Deal", "map", "", "Deal:[NL]Reduce cost of items bought[NL]by this unit by 20%.", group="items"),
     Skill("RightfulKing", "proc", "RightfulKing",
@@ -1247,6 +1248,14 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                                   f"    else if (SkillTesterFem(unit, SKILL_FEM_{sid})) /* FE Maker: {sid} */\n"
                                   f"        return {cost};\n" for sid, cost in bargains)
                               + "    else\n        return cost;\n", rel)
+    if "Pass" in numbers:   # batch 10: through the foes' tiles (C-SkillSys's Movement.c, FMOVSTRE_PASS)
+        rel = "src/bmidoten.c"
+        files[rel] = _replace(_read(files, decomp_dir, rel),
+                              "        gMovMapFillState.hasUnit = TRUE;\n        gMovMapFillState.unitId = unitId;\n",
+                              "        gMovMapFillState.hasUnit = TRUE;\n        gMovMapFillState.unitId = unitId;\n"
+                              "        if (SkillTesterFem(GetUnit(unitId), SKILL_FEM_Pass) /* FE Maker: Pass */\n"
+                              "            && GetUnitCurrentHp(GetUnit(unitId)) * 4 >= GetUnitMaxHp(GetUnit(unitId)))\n"
+                              "            gMovMapFillState.hasUnit = FALSE;\n", rel)
     files.update(_menu_skills(decomp_dir, files, numbers, texts))
     files.update(_learned(decomp_dir, files, _learn_table(decomp_dir, characters, numbers, "characters.h", "CHARACTER_NEW_"),
                           _learn_table(decomp_dir, classes, numbers, "classes.h", "CLASS_NEW_"), skills, numbers,

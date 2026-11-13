@@ -509,7 +509,7 @@ def test_batch_10_devils_axefaith_and_bargain(monkeypatch):
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": [
-        "DevilsLuck", "DevilsPact", "DevilsWhim", "AxeFaith", "Bargain", "SavageBlow", "Lunge"]}]
+        "DevilsLuck", "DevilsPact", "DevilsWhim", "AxeFaith", "Bargain", "SavageBlow", "Lunge", "Pass"]}]
     used = skills.used(characters, [], False)
     files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
     battle = files["src/bmbattle.c"]
@@ -520,5 +520,6 @@ def test_batch_10_devils_axefaith_and_bargain(monkeypatch):
     shop = files["src/bmshop.c"]
     assert "    else if (SkillTesterFem(unit, SKILL_FEM_Bargain)) /* FE Maker: Bargain */\n        return cost / 2;" in shop
     assert "SKILL_FEM_Deal" not in shop
+    assert "SkillTesterFem(GetUnit(unitId), SKILL_FEM_Pass) /* FE Maker: Pass */" in files["src/bmidoten.c"]
     post = next(text for text in files.values() if isinstance(text, str) and "sProcScr_PostActionFem[]" in text)
     assert "    PROC_CALL(PostActionFem_Lunge)," in post and "amount = -(proc->damage / 5);" in post
