@@ -2477,7 +2477,10 @@ static void PostActionFem_End(struct PostActionFemProc* proc)
 }}
 
 /* the seals' animation (C-SkillSys's MapAnimSkillMini.c and HeavyGravity.c, MIT): the unit's action animation, the
-   flash on the unit (its image over the game's MISS one) and the seal's icon beside it, then sprites falling on the foe */
+   flash on the unit (its image over the game's MISS one) and the seal's icon beside it, then sprites falling on the foe;
+   only with a seal: its graphics and the temporary bonuses' counters are added for the seals alone */
+#define SEALS_FEM {1 if first_seal else 0}
+#if SEALS_FEM
 extern const u8 gSkillAnimFem[];
 extern const u8 gHeavyGravityFem[];
 
@@ -2558,10 +2561,12 @@ static void PostActionFem_Seals(struct PostActionFemProc* proc)
 
 {seal_lines}    SET_TEMP_BONUSES_FEM(target, bonuses);
 }}
+#endif
 
 struct ProcCmd CONST_DATA sProcScr_PostActionFem[] = {{
     PROC_NAME("FemPostAction"),
     PROC_YIELD,
+#if SEALS_FEM
     PROC_CALL(PostActionFem_SealStart),
     PROC_YIELD,
     PROC_CALL(PostActionFem_Camera),
@@ -2576,6 +2581,7 @@ struct ProcCmd CONST_DATA sProcScr_PostActionFem[] = {{
     PROC_CALL(PostActionFem_Init),
     PROC_YIELD,
     PROC_CALL(PostActionFem_End),
+#endif
 PROC_LABEL(0),
     PROC_CALL(PostActionFem_Next),
     PROC_YIELD,

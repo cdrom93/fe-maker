@@ -6,6 +6,8 @@ piège dans sa section.
 
 ## Build et décomp
 
+- Une partie de code facultative (ici les sceaux du lot 10) doit être entièrement retirée quand elle n'est pas utilisée : ses symboles (images, compteurs des bonus temporaires) ne sont ajoutés qu'avec elle, sinon la compilation échoue (`implicit declaration`, `undefined reference`). Garder un `#if` autour de tout le bloc ; trouvé par `tools/verify_in_game.py` le 13/11.
+
 - The decomp checkout must use LF line endings (`core.autocrlf=false`, `core.eol=lf`), or the Linux build breaks.
 - Text compression packs 2 bytes per symbol: a text that ends on a byte alone is read past its end (`pad_text`, used by names, dialogues, objectives, descriptions). 0x23 `#`, 0x7F, 0xE9 `é` at the start of a pair and bytes below 0x20 are packed alone: counting characters is not enough.
 - C code FE Maker writes into the decomp: no `static const` tables in a function of a file whose `.rodata` the link script discards (`bmcontainer.o`, others): the link fails with "defined in discarded section `.rodata`". Write comparisons; compile with `tests/local` before telling the user it works.

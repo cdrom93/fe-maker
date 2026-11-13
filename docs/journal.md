@@ -317,3 +317,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : pseudo facultatif dans le panneau Ticket, gardé dans les réglages et joint à chaque ticket (étage 1 de l'idée « savoir qui écrit un ticket »).
 - 13/11/2026 : tests automatiques, point 5 : `tools/verify_in_game.py` (tous les playtests, puis un hack témoin joué chapitre par chapitre, rapport d'une ligne par test) ; essayé sur une copie du projet test.
 - 13/11/2026 : connexion GitHub facultative des tickets (code à taper sur GitHub, login vérifié et écrit par le relais) ; en attente de l'OAuth App de l'utilisateur pour être proposée.
+- 13/11/2026 : vérification en jeu complète sur l'histoire d'origine (87 min) : bug du lot 10 des compétences sans sceau corrigé (bloc des sceaux sous `#if`) ; 3 chapitres lancés seuls en échec, propres à l'histoire d'origine, notés au cahier.

@@ -94,8 +94,12 @@ def hack_lines(rom: Path, hack: Path, chapters: list[int] | None) -> list[str]:
                                 and bool(game.units()))
 
                     reached = game.wait_until(on_map, seconds=300, step=20, tap="A")
-                    if not reached and game.turn() == 0:   # preparations screen: START is "Fight!"
-                        reached = game.wait_until(on_map, seconds=60, step=20, tap="START")
+                    for _ in range(6):   # preparations: START back to their menu, START again: "Fight!"
+                        if reached or game.turn() != 0 or not game.units():
+                            break
+                        game.run(2, ["START"])
+                        game.run(90)
+                        reached = game.wait_until(on_map, seconds=20, step=20, tap="A")
                     if reached:
                         game.run(120)   # a few seconds on the map: no crash right after the opening
                         reached = game.chapter() == index
