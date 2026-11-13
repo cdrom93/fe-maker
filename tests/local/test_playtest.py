@@ -2595,6 +2595,43 @@ def test_renewal_for_an_enemy_steal_and_canto_given(tmp_path):
         assert state & 0x40 and not state & 0x2      # cantoing, not done
 
 
+def test_dance_and_supply_given_as_skills(tmp_path):
+    """Ticket 46: Dance given to a unit of a class without dance animation refreshes the lord (on the map, without
+    freezing the game); Supply given to it opens the convoy to a unit next to it, away from the lord (menu
+    screenshots)."""
+    project = _bench(tmp_path, "dance", [[], [], []])
+    project.set_game_options({**project.game_options, "skills": True})
+    ally = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == ally[1]["character"])["skills"] = ["Dance", "Supply"]
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: None, for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        lord, dancer, other = _bench_units(game)
+        game.move_cursor(*BENCH_SPOTS[0])
+        game.press("A")
+        game.press("A", wait=60)       # stays
+        game.press("UP", wait=15)      # Wait, the last command
+        game.press("A", wait=60)
+        assert game.read(lord, 0x0C, width=32) & 0x2
+        game.move_cursor(*BENCH_SPOTS[1])
+        game.press("A")
+        game.move_cursor(BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+        game.press("A", wait=60)       # next to the lord
+        game.screenshot().save(tmp_path / "dance_menu.png")
+        game.press("A", wait=30)       # Dance, the first command
+        game.press("A", wait=30)       # the lord
+        assert game.wait_until(lambda: not game.read(lord, 0x0C, width=32) & 0x2, seconds=20), "the lord not refreshed"
+        game.run(240)                  # on the map: a class without dance frames froze the game there
+        game.screenshot().save(tmp_path / "danced.png")
+        game.move_cursor(*BENCH_SPOTS[2])
+        game.press("A")
+        game.move_cursor(BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1] + 1)
+        game.press("A", wait=60)       # under the dancer, not next to the lord
+        game.screenshot().save(tmp_path / "supply_menu.png")
+        print("menus:", tmp_path)
+
+
 def test_level_up_screen_with_l_held(tmp_path):
     """Ticket 21: L held through a battle animation ending in a level up: the battle goes twice as fast, the level up
     screen at its own speed (screenshots along the way)."""

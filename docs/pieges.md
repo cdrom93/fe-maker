@@ -30,6 +30,7 @@ piège dans sa section.
 - Recompilation complète (~266 fichiers C) à chaque petit changement (ticket 34) : un en-tête inclus partout (`bmunit.h`, `global.h`...) qui change avec les données du projet. Ce qui varie (numéros des compétences) va dans un en-tête à part (`skills_fem.h`), inclus seulement par les fichiers qui s'en servent.
 
 - Animation de combat : le jeu n'affiche un statut infligé par un coup que pour le poison (teinte violette, `BATTLE_HIT_ATTR_POISON`) et la pétrification, toujours sur le défenseur du coup. Un statut donné par une compétence (sommeil, silence, folie, ou sur l'attaquant comme Effect Spore) passe par `SetUnitEfxDebuff` de la bonne unité (ticket 33).
+- `sub_8055BC4` (`BeginBattleAnimations`) prépare déjà l'animation de combat : une condition qui veut la carte à la place se teste avant lui, sinon l'animation sur la carte reste figée. Seules les classes danseuses ont l'image de danse (animation 5 du sprite de carte) et une animation de combat qui danse : chez une autre classe, le jeu se fige (Danse donnée comme compétence, #46).
 
 ## Données du jeu (personnages, classes, objets, textes)
 

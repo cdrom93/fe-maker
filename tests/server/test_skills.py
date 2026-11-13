@@ -312,6 +312,19 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
     picker = [{"id": "CHARACTER_EIRIKA", "skills": ["LockTouch"]}]
     files = skills.apply(DECOMP, {}, picker, [], {**PAGE, **{s.id: 2 for s in skills.used(picker, [], False)}}, False)
     assert "!= CLASS_ROGUE && !SkillTesterFem(gActiveUnit, SKILL_FEM_LockTouch))" in files["src/bmmenu.c"]
+    # ticket 46: Dance by its attribute; Supply opens the convoy as the route's lord (not FE7's CA_SUPPLY)
+    both = [{"id": "CHARACTER_SETH", "skills": ["Dance", "Supply"]}]
+    files = skills.apply(DECOMP, {}, both, [], {**PAGE, **{s.id: 2 for s in skills.used(both, [], False)}}, False)
+    attributes = files["src/bmunit.c"].split("int SkillAttributesFem")[1]
+    assert "attributes |= CA_DANCE;" in attributes and "CA_SUPPLY" not in attributes
+    menu = files["src/bmmenu.c"]
+    assert "static int SupplySkillFem(int x, int y)" in menu
+    usability = menu.split("u8 SupplyUsability(")[1]
+    assert usability.index("CLASS_PHANTOM") < usability.index("SupplySkillFem(gActiveUnit->xPos")
+    assert {"id": "Supply", "kind": "menu", "magic": False} in skills.catalogue()
+    # a class without dance frames dances on the map (its battle animation, or its map sprite's frame 5, froze)
+    assert "(CA_DANCE | CA_PLAY))) && sub_8055BC4()) {" in files["src/bmbattle.c"]
+    assert "& (CA_DANCE | CA_PLAY)) /* FE Maker: Dance as a skill */" in files["src/mapanim_spellassoc.c"]
 
 
 def test_odd_icons_get_the_common_frame(tmp_path, monkeypatch):

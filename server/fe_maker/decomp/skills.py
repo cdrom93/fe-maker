@@ -685,10 +685,14 @@ GAME_CHARACTERS = {"Supply": ["CHARACTER_EIRIKA", "CHARACTER_EPHRAIM"]}   # the 
 
 # Batch 4: the game abilities a sheet can give to anyone, by their class attribute: the game tests them everywhere
 # (AI included) with UNIT_CATTRIBUTES, which then adds SkillAttributesFem (docs/competences.md)
+# Supply has no attribute: the game's CA_SUPPLY is FE7's convoy carrier (convoy.py); the skill opens the convoy as the
+# route's lord does, to the unit and the units next to it (SupplyUsability, ticket 46). Summon is not here: only the
+# characters of gSummonConfig can summon; nor Magic Seal: the game looks for it on enemies only.
 ASSIGNABLE = {"Canto": "CA_CANTO", "Steal": "CA_STEAL", "LockTouch": "CA_THIEF", "Crit": "CA_CRITBONUS",
-              "Lethality": "CA_ASSASSIN"}
+              "Lethality": "CA_ASSASSIN", "Dance": "CA_DANCE", "Supply": ""}
 # their category in the skill picker: that of what they do (ticket 26), not a "game abilities" one
-ASSIGNABLE_GROUP = {"Canto": "map", "Steal": "menu", "LockTouch": "menu", "Crit": "hit", "Lethality": "hit"}
+ASSIGNABLE_GROUP = {"Canto": "map", "Steal": "menu", "LockTouch": "menu", "Crit": "hit", "Lethality": "hit",
+                    "Dance": "menu", "Supply": "menu"}
 
 
 def given(characters: list[dict], classes: list[dict], extra=()) -> set[str]:
@@ -888,7 +892,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     # bmunit.h: numbers and functions; the game abilities given by sheets or events added to UNIT_CATTRIBUTES
     rel = "include/bmunit.h"
     header = _read(files, decomp_dir, rel)
-    abilities = [sid for sid in ASSIGNABLE if sid in given(characters, classes, extra)]
+    abilities = [sid for sid in ASSIGNABLE if ASSIGNABLE[sid] and sid in given(characters, classes, extra)]
+    supply = "Supply" in given(characters, classes, extra)
     if abilities:
         attributes = "#define UNIT_CATTRIBUTES(aUnit) ((aUnit)->pCharacterData->attributes | (aUnit)->pClassData->attributes)\n"
         header = _replace(header, attributes, (
@@ -952,6 +957,38 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                  + "".join(f"    if (SkillTesterFem(unit, SKILL_FEM_{sid}))\n        attributes |= {ASSIGNABLE[sid]};\n"
                            for sid in abilities)
                  + "    return attributes;\n}\n")
+    if supply:   # ticket 46: the unit with Supply opens the convoy, to itself and to the units next to it
+        rel_menu = "src/bmmenu.c"
+        menu = _read(files, decomp_dir, rel_menu)
+        phantom = "    if (gActiveUnit->pClassData->number == CLASS_PHANTOM)\n    {\n        return MENU_NOTSHOWN;\n    }\n"
+        at = menu.index(phantom, menu.index("u8 SupplyUsability(")) + len(phantom)
+        menu = (menu[:at] + "\n    if (SupplySkillFem(gActiveUnit->xPos, gActiveUnit->yPos)) /* FE Maker: the Supply skill */\n"
+                "    {\n        return MENU_ENABLED;\n    }\n" + menu[at:])
+        files[rel_menu] = _replace(menu, "u8 SupplyUsability(", (
+            "/* FE Maker: a player unit with the Supply skill on this square (ticket 46); no table: the link script drops"
+            " this file's .rodata */\n"
+            "static int SupplySkillAtFem(int x, int y)\n{\n    struct Unit* unit;\n\n"
+            "    if (x < 0 || y < 0 || x >= gBmMapSize.x || y >= gBmMapSize.y || !gBmMapUnit[y][x])\n"
+            "        return FALSE;\n"
+            "    unit = GetUnit(gBmMapUnit[y][x]);\n"
+            "    return UNIT_FACTION(unit) == FACTION_BLUE && SkillTesterFem(unit, SKILL_FEM_Supply);\n}\n\n"
+            "static int SupplySkillFem(int x, int y)\n{\n"
+            "    return SupplySkillAtFem(x, y) || SupplySkillAtFem(x + 1, y) || SupplySkillAtFem(x - 1, y)\n"
+            "        || SupplySkillAtFem(x, y + 1) || SupplySkillAtFem(x, y - 1);\n}\n\nu8 SupplyUsability("), rel_menu)
+    if "Dance" in abilities:   # ticket 46: only the dancer classes' battle animations can dance; others hang there
+        rel_battle = "src/bmbattle.c"
+        files[rel_battle] = _replace(_read(files, decomp_dir, rel_battle), "    if (sub_8055BC4()) {\n", (
+            "    if (!((gBattleStats.config & BATTLE_CONFIG_REFRESH)\n"
+            "        && !(gBattleActor.unit.pClassData->attributes & (CA_DANCE | CA_PLAY))) && sub_8055BC4()) {"
+            " /* FE Maker: Dance as a skill, on the map; tested first, sub_8055BC4 already prepares the battle"
+            " animation */\n"), rel_battle)
+        # and on the map, the dancer classes' map sprites only have the dance frames (their animation 5): the others'
+        # sprite would read past their animations and freeze the game
+        rel_spell = "src/mapanim_spellassoc.c"
+        switch = "    AP_SwitchAnimation(gManimSt.actor[gManimSt.subjectActorId].mu->sprite_anim, 0x5);\n"
+        files[rel_spell] = _replace(_read(files, decomp_dir, rel_spell), switch, (
+            "    if (gManimSt.actor[gManimSt.subjectActorId].unit->pClassData->attributes & (CA_DANCE | CA_PLAY))"
+            " /* FE Maker: Dance as a skill */\n    " + switch), rel_spell)
     if "LockTouch" in abilities:   # ticket 28: the Rogue's Pick command too (C-SkillSys's Pick.c), no key needed
         rel_menu = "src/bmmenu.c"
         files[rel_menu] = _replace(_read(files, decomp_dir, rel_menu),
