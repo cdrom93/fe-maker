@@ -57,7 +57,7 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
-                 "sound": ("musicTracks",)}
+                 "sound": ("musicTracks", "fullDrums")}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
 # the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).
 CHOICES: dict[str, tuple[str, ...]] = {"tempBonusRule": ("strongest", "add", "replace")}
@@ -669,6 +669,9 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         if not found:
             raise TweakError(f"A game option does not match this version of the decomp ({WORLD_MAP_INTRO_FILE})")
         files[WORLD_MAP_INTRO_FILE] = source
+    if options.get("fullDrums"):   # drumfix: downloaded once, named with the ROM (nimap.py)
+        from . import nimap
+        files.update(nimap.with_drumfix(current, decomp_dir, nimap.drumfix(decomp_dir)))
     if options.get("musicTracks"):
         files[MUSIC_PLAYERS_FILE], files[SOUND_FILE] = with_music_tracks(current(MUSIC_PLAYERS_FILE),
                                                                          current(SOUND_FILE))

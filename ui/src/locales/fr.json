@@ -1569,6 +1569,8 @@
   "options.group.rules": "Règles",
   "options.group.items": "Objets",
   "options.group.sound": "Son",
+  "options.fullDrums": "Batterie complète",
+  "options.fullDrumsHint": "Les batteries du jeu reçoivent les notes General MIDI 35 à 81 qui leur manquaient (sauf les sifflets) : plus de « bip » à la place d'un tambour dans les MIDI faits ailleurs. Téléchargé une fois.",
   "options.musicTracks": "16 pistes et 12 notes",
   "options.musicTracksHint": "Musiques plus riches : 16 pistes par musique au lieu de 8, et 12 notes à la fois au lieu de 7. Demande un peu plus de calcul à la console.",
   "options.tempBonusRule": "Eaux bénites qui se cumulent",

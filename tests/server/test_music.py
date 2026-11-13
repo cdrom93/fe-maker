@@ -291,3 +291,22 @@ def test_nimap_table_named_with_the_games_voices(tmp_path):
     assert ".global voicegroup002\nvoicegroup002:\n\tvoice_directsound 60, 10," in source
     with pytest.raises(nimap.NimapError):
         nimap.voice_lines(table[:12], tmp_path, bytes(rom))
+
+
+def test_drumfix_voices_written_over_the_placeholders(tmp_path):
+    from fe_maker.decomp import nimap
+
+    folder = tmp_path / "sound/voicegroups"
+    folder.mkdir(parents=True)
+    kit = ("voicegroup000:\t@ 0x08000100\n"
+           "\tvoice_directsound_no_resample 60, 0, DirectSoundData_kick, 255, 0, 255, 0\t@08000100\n"
+           "\tvoice_square_1 0, 2, 0, 0, 15, 0\t@0800010C\n")
+    (folder / "voicegroup000.s").write_text(kit, encoding="utf-8")
+    rom = bytearray(0x200)
+    struct.pack_into("<I", rom, 0x104, 0x08000180)   # the kick's sample
+    part = bytes([8, 60, 0, 0x80 | 34]) + struct.pack("<I", 0x08000180) + bytes([255, 0, 255, 226])
+    voices = nimap.drumfix_voices({0x10C: part}, tmp_path, bytes(rom))
+    assert voices == {0x0800010C: "voice_directsound_no_resample 60, 34, DirectSoundData_kick, 255, 0, 255, 226"}
+    out = nimap.with_drumfix(lambda rel: (tmp_path / rel).read_text(encoding="utf-8"), tmp_path, voices)
+    assert out == {"sound/voicegroups/voicegroup000.s": kit.replace(
+        "voice_square_1 0, 2, 0, 0, 15, 0\t@0800010C", voices[0x0800010C] + "\t@0800010C")}

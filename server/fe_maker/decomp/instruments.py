@@ -79,9 +79,12 @@ def _bank(decomp_dir: Path) -> tuple[dict[int, dict], dict[str, int]]:
     return voices, labels
 
 
-def voicegroup(decomp_dir: Path, number: int) -> list[dict]:
-    """The 128 voices of voicegroupNNN, a drum kit's own 128 voices inlined ("voices")."""
+def voicegroup(decomp_dir: Path, number: int, changed: dict[int, dict] | None = None) -> list[dict]:
+    """The 128 voices of voicegroupNNN, a drum kit's own 128 voices inlined ("voices"); `changed`: voices by address
+    the project replaces (nimap.drumfix_bank)."""
     voices, labels = _bank(decomp_dir)
+    if changed:
+        voices = {**voices, **changed}
     start = labels.get(f"voicegroup{number:03d}")
     if start is None:
         raise InstrumentError("unknownVoicegroup")

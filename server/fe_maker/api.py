@@ -738,9 +738,14 @@ def music_to_play(ref: str):
 def music_voicegroup(number: str):
     """A voicegroup's voices (a game voicegroup's number, or nimap.KEY), with the rate and loop of the samples they use
     and the GB waves."""
-    decomp_dir = state.require_project().decomp_dir
+    project = state.require_project()
+    decomp_dir = project.decomp_dir
     try:
-        voices = nimap.voices(decomp_dir) if number == nimap.KEY else instruments.voicegroup(decomp_dir, int(number))
+        changed = nimap.drumfix_bank(decomp_dir) if project.game_options.get("fullDrums") else None
+        if number == nimap.KEY:
+            voices = nimap.voices(decomp_dir, changed)
+        else:
+            voices = instruments.voicegroup(decomp_dir, int(number), changed)
     except (instruments.InstrumentError, nimap.NimapError, ValueError) as e:
         raise HTTPException(404, str(e).split()[0] if str(e) else "unknownVoicegroup") from e
     samples: dict[str, dict] = {}

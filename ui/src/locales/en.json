@@ -1569,6 +1569,8 @@
   "options.group.rules": "Rules",
   "options.group.items": "Items",
   "options.group.sound": "Sound",
+  "options.fullDrums": "Full drum kit",
+  "options.fullDrumsHint": "The game's drum kits get the General MIDI notes 35 to 81 they lacked (except the whistles): no more \"boop\" instead of a drum in MIDI files made elsewhere. Downloaded once.",
   "options.musicTracks": "16 tracks and 12 notes",
   "options.musicTracksHint": "Richer music: 16 tracks per song instead of 8, and 12 notes at once instead of 7. Asks the console for a little more computing.",
   "options.tempBonusRule": "Stacking Pure Waters",

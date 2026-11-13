@@ -843,6 +843,24 @@ def test_imported_music_with_general_midi_instruments(tmp_path):
         assert header in {game.read(info, 0, width=32) for info in players}
 
 
+def test_full_drum_kit(tmp_path):
+    """Option fullDrums (drumfix): the drum voices it fills are in the built game, and the map plays."""
+    from fe_maker.decomp import nimap
+
+    if not nimap.rom_path().is_file():
+        pytest.skip("no rom/baserom.gba in FE Maker's folder")
+    project = Project.create(tmp_path / "drums", "Drums")
+    project.set_game_options({"fullDrums": True})
+    out = build(project)
+    first = nimap.download_drumfix()[0x2228B4]
+    with Game(out.rom_path, out.map_path) as game:
+        _on_map(game)
+        start = game.address("voicegroup079") + 0x2228B4 - 0x2226B0   # voicegroup079 at 0x082226B0 in the game
+        built = bytes(game.read(start + i) for i in range(len(first)))
+        assert built[:4] == first[:4] and built[8:12] == first[8:12]   # kind, key, pan, envelope (samples may move)
+        assert game.read("gMPlayTable", 0, width=32) and game.read(game.read("gMPlayTable", 0, width=32), 0, width=32)
+
+
 def test_sixteen_tracks_and_twelve_notes(tmp_path):
     """Option musicTracks: the music players have 16 tracks in free RAM and the driver mixes 12 notes; the map plays."""
     project = Project.create(tmp_path / "tracks", "Tracks")

@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 21
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 22
 
 
 def test_a_unit_acts_after_a_talk():
