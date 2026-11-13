@@ -16,6 +16,14 @@ type GameOptionsData = {
   choices: Record<string, string[]>
   defaults: Record<string, { game: number; values: number[] }>
 }
+/** Music (server: decomp/music.py): a game song by number, or an imported song by key */
+export type SongRef = number | string
+export type GameSong = { number: number; name: string; file: string; voicegroup: number; volume: number }
+export type ImportedSong = { key: string; name: string; voicegroup: number; volume: number }
+export type MusicLibrary = { game: GameSong[]; imported: ImportedSong[]; voicegroups: number[] }
+export type ChapterMusic = {
+  game: Record<string, number>; chosen: Record<string, SongRef>; gameVictory: number; victory: number | null
+}
 export type DataKind = 'characters' | 'items' | 'classes' | 'combat' | 'chapters' | 'maps' | 'dialogues' | 'portraits' | 'mapsprites'
 
 export class ApiError extends Error {
@@ -91,14 +99,18 @@ export const api = {
   newChapter: (after: number, width: number, height: number, title: string) =>
     request<{ index: number; problems: Problem[] }>('POST', '/api/chapters/new', { after, width, height, title }),
   freeChapters: () => request<{ free: number }>('GET', '/api/chapters/free'),
-  chapterMusic: (index: number) => request<Record<string, { key: string; name?: string }>>('GET', `/api/chapters/${index}/music`),
-  importChapterMusic: (index: number, file: File) => {
+  chapterMusic: (index: number) => request<ChapterMusic>('GET', `/api/chapters/${index}/music`),
+  setChapterMusic: (index: number, body: { slot?: string; song?: SongRef | null; victory?: number; resetVictory?: boolean }) =>
+    request<{ problems: Problem[] }>('PUT', `/api/chapters/${index}/music`, body),
+  musicLibrary: () => request<MusicLibrary>('GET', '/api/music'),
+  importMusic: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return request<{ problems: Problem[] }>('POST', `/api/chapters/${index}/music`, form)
+    return request<{ key: string; problems: Problem[] }>('POST', '/api/music', form)
   },
-  removeChapterMusic: (index: number, phase: string) =>
-    request<{ problems: Problem[] }>('DELETE', `/api/chapters/${index}/music/${phase}`),
+  editMusic: (key: string, body: { name?: string; voicegroup?: number; volume?: number }) =>
+    request<{ problems: Problem[] }>('PATCH', `/api/music/${encodeURIComponent(key)}`, body),
+  removeMusic: (key: string) => request<{ problems: Problem[] }>('DELETE', `/api/music/${encodeURIComponent(key)}`),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
   chaptersOverview: () =>
     request<Record<string, { objective: Objective | null; groups: Pick<UnitGroup, 'name' | 'origin' | 'units'>[] }>>('GET', '/api/chapters/overview'),

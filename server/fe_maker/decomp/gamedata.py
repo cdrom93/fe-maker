@@ -1863,23 +1863,16 @@ class DecompData:
 
     @staticmethod
     def export_music() -> dict:
-        """Music imported by the project (music.py): none in the original game."""
-        return {"songs": {}, "chapters": {}}
+        """Songs imported by the project and chapter music choices (music.py): none in the original game."""
+        return {"songs": {}, "chapters": {}, "victory": {}}
 
     def apply_music(self, data: dict, assets_dir: Path) -> None:
         """Imported songs in free rows of the song table, and their numbers in the chapters' music settings."""
         files, numbers = music.build_files(self.decomp_dir, data, assets_dir)
-        if not numbers:
-            return
         self.asset_files.update(files)
-        self._load_chapter_events()
-        settings = self.chapter_settings["chapters"]
-        for index, phases in data.get("chapters", {}).items():
-            for phase, key in phases.items():
-                if key in numbers and phase in music.PHASES:
-                    for field in (phase, phase + "InHectorStory"):
-                        if field in settings[int(index)]["bgm"]:
-                            settings[int(index)]["bgm"][field] = numbers[key]
+        if data.get("chapters") or data.get("victory"):
+            self._load_chapter_events()
+            music.apply_choices(self.chapter_settings["chapters"], data, numbers)
 
     @staticmethod
     def export_item_icons() -> dict:

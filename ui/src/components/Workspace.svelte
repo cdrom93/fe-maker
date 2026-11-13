@@ -18,6 +18,7 @@
   import CombatEditor from './CombatEditor.svelte'
   import ItemEditor from './ItemEditor.svelte'
   import GameOptions from './GameOptions.svelte'
+  import MusicLibraryPage from './MusicLibrary.svelte'
   import { fileMenu } from '../lib/filemenu.svelte'
   import ProjectIdentityDialog from './ProjectIdentityDialog.svelte'
   import MapEditor from './MapEditor.svelte'
@@ -38,7 +39,7 @@
 
   type Tab = NavKind
   // The work follows the story: the campaign, then a chapter (its units, map and dialogues), then the game's lists.
-  const TABS: Tab[] = ['flow', 'chapters', 'characters', 'classes', 'items', 'combat', 'options']
+  const TABS: Tab[] = ['flow', 'chapters', 'characters', 'classes', 'items', 'combat', 'music', 'options']
   const CHAPTER_VIEWS: Tab[] = ['chapters', 'maps', 'dialogues']
   const startsBlank = firstTab() === 'options'
   let tab = $state<Tab>(startsBlank ? 'options' : 'flow')
@@ -193,7 +194,7 @@
   const warnings = $derived(problems.filter((p) => p.severity === 'warning'))
   const saving = $derived(allLists.some((l) => l.saving))
   // the story flow edits the dialogues' scripts: its undo is theirs
-  const active = $derived(tab === 'options' ? undefined : lists[tab === 'flow' ? 'dialogues' : tab])
+  const active = $derived(tab === 'options' || tab === 'music' ? undefined : lists[tab === 'flow' ? 'dialogues' : tab])
 
   /** A class's battle animations changed: the weapons each class animates and the problems follow (ticket 50). */
   async function refreshAnimated() {
@@ -416,6 +417,8 @@
     <ChapterFlow list={lists.dialogues} chapterList={lists.chapters} ontest={testFrom} onreload={loadAll} todo={problemList} todoCount={{ errors: errors.length, warnings: warnings.length }} />
   {:else if tab === 'maps'}
     {#key added}<MapEditor list={lists.maps} chapterList={lists.chapters} items={lists.items.records} characters={lists.characters.records} {problems} />{/key}
+  {:else if tab === 'music'}
+    <MusicLibraryPage />
   {:else if tab === 'options'}
     <GameOptions onscope={loadAll} scopeFirst={startsBlank} />
   {:else}

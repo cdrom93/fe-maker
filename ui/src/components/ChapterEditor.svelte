@@ -17,6 +17,7 @@
   import ItemPicker from './ItemPicker.svelte'
   import ClassPicker from './ClassPicker.svelte'
   import NumberField from './NumberField.svelte'
+  import ChapterMusic from './ChapterMusic.svelte'
   import ChapterTitle from './ChapterTitle.svelte'
   import ObjectivePanel from './ObjectivePanel.svelte'
   import RecordList from './RecordList.svelte'
@@ -1016,6 +1017,7 @@
             {/if}
           </div>
         </div>
+        <ChapterMusic index={chapter.index} />
           <div class="bg-title">
             <span class="small">{t('chapter.battleBg')}</span>
             <Help text={t('chapter.battleBgHint')} />

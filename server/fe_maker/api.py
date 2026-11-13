@@ -41,10 +41,12 @@ from .decomp import (
     events,
     fonts,
     gameoptions,
+    instruments,
     itemicons,
     mapobjects,
     maps,
     mapsprites,
+    midi,
     music,
     pieces,
     portraitcolors,
@@ -610,43 +612,189 @@ def new_chapter(body: NewChapterIn):
     return {"index": index, "problems": [p.to_dict() for p in project.validate()]}
 
 
-@app.get("/api/chapters/{index}/music")
-def chapter_music(index: int):
-    """The songs the project imported for this chapter, by phase."""
-    stored = state.require_project().load("music")
-    phases = stored.get("chapters", {}).get(str(index), {})
-    return {phase: {"key": key, **stored.get("songs", {}).get(key, {})} for phase, key in phases.items()}
+# Music (decomp/music.py, decomp/instruments.py, decomp/midi.py): the game's songs and the project's imported ones,
+# heard in the browser with the game's instruments (ui/src/lib/songplayer.ts), and each chapter's songs.
+def _imported_songs(stored: dict) -> list[dict]:
+    songs = stored.get("songs", {})
+    return [{"key": key, **songs[key]} for key in sorted(songs, key=lambda k: songs[k].get("name", k).lower())]
 
 
-@app.post("/api/chapters/{index}/music")
-async def import_chapter_music(index: int, file: UploadFile = File(...), phase: str = Form("bluePhase")):
-    """A MIDI file from the PC as this chapter's music for a phase, with the game's player phase instruments."""
+@app.get("/api/music")
+def music_library():
+    project = state.require_project()
+    return {"game": music.game_songs(project.decomp_dir), "imported": _imported_songs(project.load("music")),
+            "voicegroups": instruments.voicegroup_numbers(project.decomp_dir)}
+
+
+@app.post("/api/music")
+async def import_music(file: UploadFile = File(...)):
+    """A MIDI file from the PC into the project's songs, with the game's player phase instruments at first."""
     project = state.require_project()
     data = await file.read()
     try:
-        music.check_midi(data)
-    except music.MusicError as e:
-        raise HTTPException(400, str(e)) from e
-    if phase not in music.PHASES:
-        raise HTTPException(400, "unknownPhase")
+        midi.read(data)
+    except (midi.MidiError, IndexError) as e:
+        raise HTTPException(400, "notAMidi") from e
     stored = project.load("music")
+    songs = stored.setdefault("songs", {})
     name = Path(file.filename or "").stem or "song"
-    key = music.safe_key(name)
+    base = key = music.safe_key(name)
+    n = 2
+    while key in songs:
+        key, n = f"{base}_{n}", n + 1
     folder = project.root / "assets" / "music"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{key}.mid").write_bytes(data)
-    stored.setdefault("songs", {})[key] = {"name": name[:60], "voicegroup": music.DEFAULT_VOICEGROUP,
-                                           "volume": music.DEFAULT_VOLUME}
-    stored.setdefault("chapters", {}).setdefault(str(index), {})[phase] = key
+    songs[key] = {"name": name[:60], "voicegroup": music.DEFAULT_VOICEGROUP, "volume": music.DEFAULT_VOLUME}
+    return {"key": key, "problems": [p.to_dict() for p in project.save("music", stored)]}
+
+
+class SongIn(BaseModel):
+    name: str | None = None
+    voicegroup: int | None = None
+    volume: int | None = None
+
+
+@app.patch("/api/music/{key}")
+def edit_music(key: str, body: SongIn):
+    project = state.require_project()
+    stored = project.load("music")
+    song = stored.get("songs", {}).get(key)
+    if song is None:
+        raise HTTPException(404, "unknownSong")
+    if body.name is not None and body.name.strip():
+        song["name"] = body.name.strip()[:60]
+    if body.voicegroup is not None:
+        if body.voicegroup not in instruments.voicegroup_numbers(project.decomp_dir):
+            raise HTTPException(400, "unknownVoicegroup")
+        song["voicegroup"] = body.voicegroup
+    if body.volume is not None:
+        song["volume"] = max(0, min(int(body.volume), 127))
     return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
 
-@app.delete("/api/chapters/{index}/music/{phase}")
-def remove_chapter_music(index: int, phase: str):
-    """The chapter plays the game's music again for that phase."""
+@app.delete("/api/music/{key}")
+def remove_music(key: str):
+    """The song leaves the project; chapters that played it play the game's music again."""
     project = state.require_project()
     stored = project.load("music")
-    stored.get("chapters", {}).get(str(index), {}).pop(phase, None)
+    if stored.get("songs", {}).pop(key, None) is None:
+        raise HTTPException(404, "unknownSong")
+    for index, slots in list(stored.get("chapters", {}).items()):
+        for slot in [s for s, song in slots.items() if song == key]:
+            del slots[slot]
+        if not slots:
+            del stored["chapters"][index]
+    (project.root / "assets" / "music" / f"{key}.mid").unlink(missing_ok=True)
+    return {"problems": [p.to_dict() for p in project.save("music", stored)]}
+
+
+@app.get("/api/music/play/{ref}")
+def music_to_play(ref: str):
+    """What the preview plays: a game song by number, or an imported song by key."""
+    project = state.require_project()
+    path = None
+    if ref.isdigit():
+        song = next((s for s in music.game_songs(project.decomp_dir) if s["number"] == int(ref)), None)
+        if song:
+            path = music.midi_path(project.decomp_dir, song["file"])
+    else:
+        song = project.load("music").get("songs", {}).get(ref)
+        path = project.root / "assets" / "music" / f"{music.safe_key(ref)}.mid"
+    if song is None or path is None or not path.is_file():
+        raise HTTPException(404, "unknownSong")
+    try:
+        parsed = midi.read(path.read_bytes())
+    except (midi.MidiError, IndexError) as e:
+        raise HTTPException(400, "notAMidi") from e
+    return {"midi": parsed, "voicegroup": song.get("voicegroup", music.DEFAULT_VOICEGROUP),
+            "volume": song.get("volume", music.DEFAULT_VOLUME)}
+
+
+@app.get("/api/music/voicegroups/{number}")
+def music_voicegroup(number: int):
+    """A voicegroup's voices, with the rate and loop of the samples they use and the GB waves."""
+    decomp_dir = state.require_project().decomp_dir
+    try:
+        voices = instruments.voicegroup(decomp_dir, number)
+    except instruments.InstrumentError as e:
+        raise HTTPException(404, str(e)) from e
+    samples: dict[str, dict] = {}
+    waves, used_waves = instruments.waves(decomp_dir), {}
+    for voice in voices:
+        for v in voice.get("voices", [voice]):
+            if v["kind"] in ("sample", "fixed") and v["sample"] not in samples:
+                try:
+                    info = instruments.sample_info(decomp_dir, v["sample"])
+                except instruments.InstrumentError:
+                    v["kind"] = "none"
+                    continue
+                samples[v["sample"]] = {"rate": info["rate"], "loop": info["loop"], "frames": len(info["pcm"])}
+            elif v["kind"] == "wave" and v["wave"] in waves:
+                used_waves[v["wave"]] = waves[v["wave"]]
+    return {"voices": voices, "samples": samples, "waves": used_waves}
+
+
+@app.get("/api/music/samples/{name}")
+def music_sample(name: str):
+    try:
+        info = instruments.sample_info(state.require_project().decomp_dir, name)
+    except instruments.InstrumentError as e:
+        raise HTTPException(404, str(e)) from e
+    return Response(instruments.to_wav(info), media_type="audio/wav", headers={"Cache-Control": "max-age=86400"})
+
+
+def _chapter_settings(decomp_dir: Path, index: int) -> dict:
+    chapters = maps.chapter_settings(decomp_dir)
+    if not 0 <= index < len(chapters):
+        raise HTTPException(404, "unknownChapter")
+    return chapters[index]
+
+
+@app.get("/api/chapters/{index}/music")
+def chapter_music(index: int):
+    """The chapter's songs by slot: the game's, and the project's choices (a game song number or an imported key)."""
+    project = state.require_project()
+    chapter = _chapter_settings(project.decomp_dir, index)
+    stored = project.load("music")
+    return {"game": {slot: chapter.get("bgm", {}).get(slot, music.NO_SONG) for slot in music.SLOTS},
+            "chosen": stored.get("chapters", {}).get(str(index), {}),
+            "gameVictory": chapter.get("victorySongEnemyThreshold", 0),
+            "victory": stored.get("victory", {}).get(str(index))}
+
+
+class ChapterSongIn(BaseModel):
+    slot: str | None = None
+    song: int | str | None = None   # None: the game's
+    victory: int | None = None
+    resetVictory: bool = False
+
+
+@app.put("/api/chapters/{index}/music")
+def set_chapter_music(index: int, body: ChapterSongIn):
+    project = state.require_project()
+    _chapter_settings(project.decomp_dir, index)
+    stored = project.load("music")
+    if body.slot is not None:
+        if body.slot not in music.SLOTS:
+            raise HTTPException(400, "unknownSlot")
+        chapters = stored.setdefault("chapters", {})
+        slots = chapters.setdefault(str(index), {})
+        song = body.song
+        if song is None:
+            slots.pop(body.slot, None)
+        elif isinstance(song, str) and song not in stored.get("songs", {}):
+            raise HTTPException(404, "unknownSong")
+        elif song == music.NO_SONG and body.slot not in music.OPTIONAL_SLOTS:
+            raise HTTPException(400, "songNeeded")
+        else:
+            slots[body.slot] = song
+        if not slots:
+            del chapters[str(index)]
+    if body.resetVictory:
+        stored.setdefault("victory", {}).pop(str(index), None)
+    elif body.victory is not None:
+        stored.setdefault("victory", {})[str(index)] = max(0, min(int(body.victory), 127))
     return {"problems": [p.to_dict() for p in project.save("music", stored)]}
 
 

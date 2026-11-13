@@ -66,34 +66,6 @@
 
   // A new chapter after the selected one (server: newchapter.py, a free slot of the game's chapters).
 
-  // Music imported for the selected chapter's player phase (server: decomp/music.py).
-  let music = $state<Record<string, { key: string; name?: string }>>({})
-  let musicError = $state('')
-
-  $effect(() => {
-    const i = selected
-    music = {}
-    musicError = ''
-    if (i !== null && i >= 0) api.chapterMusic(i).then((m) => { if (selected === i) music = m }).catch(() => {})
-  })
-
-  async function importMusic(file: File | undefined) {
-    if (!file || selected === null) return
-    musicError = ''
-    try {
-      await api.importChapterMusic(selected, file)
-      music = await api.chapterMusic(selected)
-    } catch (e) {
-      musicError = String(e).includes('notAMidi') ? t('flow.music.notAMidi') : String(e)
-    }
-  }
-
-  async function removeMusic() {
-    if (selected === null) return
-    await api.removeChapterMusic(selected, 'bluePhase')
-    music = await api.chapterMusic(selected)
-  }
-
   /** A chapter that leads nowhere: its ending scene goes to `to`, or ends the game (mirrors story.with_next). */
   async function linkTo(to: number | 'title') {
     const name = selected === null ? null : endings[selected]
@@ -423,19 +395,6 @@
           </div>
         {/if}
       {/if}
-      <div class="music">
-        <h4>{t('flow.music.title')} <Help text={t('flow.music.hint')} /></h4>
-        {#if music.bluePhase}
-          <span class="small">{music.bluePhase.name}</span>
-          <button class="to-original link" onclick={removeMusic}>{t('flow.music.reset')}</button>
-        {:else}
-          <span class="muted small">{t('flow.music.game')}</span>
-        {/if}
-        <label class="small">{t('flow.music.import')}
-          <input type="file" accept=".mid,.midi,audio/midi" onchange={(e) => importMusic((e.target as HTMLInputElement).files?.[0])} />
-        </label>
-        {#if musicError}<p class="bad small">{musicError}</p>{/if}
-      </div>
       <AddChapter after={selected} label={t('flow.add.button')} flush={async () => { await list.flush(); await chapterList.flush() }}
                   onadded={async (index) => { await onreload(); await loadFlow(); selected = index }} />
       <h4>{t('flow.next')} <Help text={t('flow.editHint')} /></h4>
@@ -560,6 +519,4 @@
   .incoming { list-style: none; padding: 0; margin: 0; }
   code { font-size: 0.72rem; }
   @media (max-width: 1000px) { .flow { grid-template-columns: 1fr; } }
-  .music { margin: 0.6rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-  .music h4, .music p { flex-basis: 100%; margin: 0; }
 </style>

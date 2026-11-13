@@ -738,18 +738,24 @@ def test_added_chapter(tmp_path):
 
 def test_imported_music_in_the_prologue(tmp_path):
     """A MIDI (here one of the game's) imported as the prologue's player phase music: it takes a free row of the song
-    table and the music player plays it on the map."""
+    table and the music player plays it on the map. A game song chosen for the enemy phase and the victory theme
+    threshold reach the chapter's data."""
     import shutil
 
     project = Project.create(tmp_path / "music", "Music")
     folder = project.root / "assets" / "music"
     folder.mkdir(parents=True)
     shutil.copy(project.decomp_dir / "sound/songs/midi/song010_agbfe3_bgm_map_pl3.mid", folder / "theme.mid")
-    project.save("music", {"songs": {"theme": {"name": "Theme"}}, "chapters": {"0": {"bluePhase": "theme"}}})
+    project.save("music", {"songs": {"theme": {"name": "Theme"}},
+                           "chapters": {"0": {"bluePhase": "theme", "redPhase": 20}}, "victory": {"0": 0}})   # never (game: 1)
     out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         _on_map(game)
         game.run(120)
+        # A game song chosen for the enemy phase and the victory theme threshold, in the chapter's data
+        assert game.read("gChapterDataTable", 0x16 + 2, width=16) == 20   # mapBgmIds[MAP_BGM_RED]
+        assert game.read("gChapterDataTable", 0x86) == 0   # victorySongEnemyThreshold (a threshold above the
+        # enemies left would play the victory theme instead of the imported song)
         header = game.read("gSongTable", 87 * 8, width=32)
         players = [game.read("gMPlayTable", 12 * i, width=32) for i in range(2)]   # struct MusicPlayer: info first
         playing = {game.read(info, 0, width=32) for info in players}   # MusicPlayerInfo: songHeader first
