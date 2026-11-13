@@ -107,6 +107,10 @@ _HALF = "(attacker->unit.maxHP > attacker->unit.curHP * 2)"
 _FIRST = "(attacker == &gBattleActor)"
 _TARGET = "(attacker == &gBattleTarget)"
 _MAGIC = "((%s)->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE))"
+# batch 10, the seals: their name, help label, stat (gamedata.TEMP_STATS's counter)
+SEALS = (("Strength", "Attack", "STR", 0), ("Magic", "Magic", "MAG", 6), ("Skill", "Skill", "SKL", 1),
+         ("Speed", "Speed", "SPD", 2), ("Luck", "Luck", "LUCK", 5), ("Defense", "Defense", "DEF", 3),
+         ("Resistance", "Resistance", "RES", 4))
 _TOME = "({0}->weaponType == ITYPE_ANIMA || {0}->weaponType == ITYPE_LIGHT || {0}->weaponType == ITYPE_DARK)"
 
 CATALOGUE: tuple[Skill, ...] = (
@@ -250,6 +254,11 @@ CATALOGUE: tuple[Skill, ...] = (
           group="after"),
     Skill("BreathOfLife", "map", "BreathOfLife", "Breath of Life:[NL]After attacking, allies[NL]in 2 tiles heal 20% HP.",
           group="after"),
+    # the seals (C-SkillSys's PostActionSkills/SealSkills.c): -6 on the foe's stat, back by 1 each turn, on the items'
+    # temporary bonuses (gamedata.TEMP_BONUS_MACROS)
+    *(Skill(f"Seal{name}", "map", f"Seal{name}", f"Seal {label}:[NL]After hitting, foe's {short}[NL]-6, back 1 per turn.",
+            group="after", magic=stat == 6)
+      for name, label, short, stat in SEALS),
     # batch 5, simple passives (C-SkillSys's getters, PreBattleCalcAttackerSkills and BattleCalcReal; values from
     # SkillExtraInfo.c)
     _push("PushStrength", 0, "Push Strength:[NL]+5 STR if HP is full."),
@@ -2249,16 +2258,35 @@ def _heal_function(heals) -> str:
         + "    (void) terrain; (void) allies; (void) amaterasu;\n    return ret;\n}\n\n")
 
 
-POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife")
+POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife",
+                      *(f"Seal{name}" for name, *_ in SEALS))
+
+
+def uses_temp_bonuses(skills: list[Skill]) -> bool:
+    """The seals need the temporary bonuses' counters (gamedata, before the skills are applied)."""
+    return any(s.id.startswith("Seal") for s in skills)
 
 
 def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int]) -> dict:
     """Batch 10, after the unit's action (C-SkillSys's PostActionHook, in the player phase and the AI's, before the
     game's traps): HP lost or healed after a battle, each unit in turn with the game's damage or heal animation on the
-    map (C-SkillSys's MapAnims/Misc Hurt.c and Heal.c), and Despoil's Red Gem."""
+    map (C-SkillSys's MapAnims/Misc Hurt.c and Heal.c), and Despoil's Red Gem; the seals, at once (no animation),
+    on the foe hit by the unit, with the temporary bonuses' counters."""
     used = [sid for sid in POST_ACTION_SKILLS if sid in numbers]
     if not used:
         return {}
+    seal_lines = "".join(
+        f"        if (SkillTesterFem(gActiveUnit, SKILL_FEM_Seal{name}))\n"
+        f"            bonuses = (bonuses & ~(15u << {4 * stat})) | (10u << {4 * stat});   /* -6 */\n"
+        for name, _label, _short, stat in SEALS if f"Seal{name}" in used)
+    seals = ("" if not seal_lines else
+             "    if (gActionData.unitActionType == UNIT_ACTION_COMBAT && ActorHitFem()) {  /* the seals */\n"
+             "        struct Unit* target = GetUnit(gActionData.targetIndex);\n"
+             "        u32 bonuses = TEMP_BONUSES_FEM(target);\n\n"
+             f"{seal_lines}"
+             "        if (AliveOnMapFem(target))\n"
+             "            SET_TEMP_BONUSES_FEM(target, bonuses);\n"
+             "    }\n")
     def has(unit, sid):
         return f"SkillTesterFem({unit}, SKILL_FEM_{sid})" if sid in used else "FALSE"
     code = f"""
@@ -2272,6 +2300,7 @@ struct PostActionFemProc {{
     u8 step;
     u8 next;       /* Breath of Life: the next unit index to look at */
     u8 lock;
+    u8 defeated;   /* read once: the animations reset the battle's data */
 }};
 
 /* not US_HIDDEN: the active unit has it here, its map sprite still shown by its MU */
@@ -2279,6 +2308,17 @@ static int AliveOnMapFem(struct Unit* unit)
 {{
     return unit && unit->pCharacterData && GetUnitCurrentHp(unit) > 0
         && !(unit->state & (US_DEAD | US_RESCUED | US_BIT16 | US_NOT_DEPLOYED));
+}}
+
+/* the actor hit its foe at least once (C-SkillSys's \"hitted\" flag), from the battle's hits */
+static int ActorHitFem(void)
+{{
+    struct BattleHit* hit;
+
+    for (hit = gBattleHitArray; !(hit->info & BATTLE_HIT_INFO_END); hit++)
+        if (!(hit->info & BATTLE_HIT_INFO_RETALIATION) && !(hit->attributes & BATTLE_HIT_ATTR_MISS))
+            return TRUE;
+    return FALSE;
 }}
 
 static int FifthFem(struct Unit* foe)
@@ -2292,7 +2332,7 @@ static int PostActionNextFem(struct PostActionFemProc* proc)
     struct Unit* actor = gActiveUnit;
     struct Unit* target = gActionData.targetIndex ? GetUnit(gActionData.targetIndex) : NULL;
     int combat = gActionData.unitActionType == UNIT_ACTION_COMBAT && target;
-    int defeated = combat && gBattleTarget.unit.curHP == 0;
+    int defeated = combat && proc->defeated;
     int amount;
 
     while (TRUE) {{
@@ -2446,7 +2486,8 @@ void PostActionSkillsFem(ProcPtr parent)
 
     proc->step = 0;
     proc->next = 1;
-}}
+    proc->defeated = gActionData.unitActionType == UNIT_ACTION_COMBAT && gBattleTarget.unit.curHP == 0;
+{seals}}}
 
 """
     out = {}

@@ -280,8 +280,9 @@ class Project:
         skill_texts = {}
         event_skills = skills.event_skills(data.event_sources.values())
         if self.game_options.get("skills"):
-            skill_texts = skills.add_texts(data, skills.used(self.load("characters"), self.load("classes"), magic_split,
-                                                             event_skills))
+            used_skills = skills.used(self.load("characters"), self.load("classes"), magic_split, event_skills)
+            skill_texts = skills.add_texts(data, used_skills)
+            data.temp_bonuses_wanted = skills.uses_temp_bonuses(used_skills)
         files = data.changed_files()
         if not self.world_map:
             files = without_world_map(decomp_dir, files)

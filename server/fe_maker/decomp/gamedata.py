@@ -447,6 +447,7 @@ class DecompData:
         self.magic_split = False   # game option strMagSplit: items may give Magic (strmag.py)
         self.item_use_bonuses: list[str] = []   # usable items, not boosters, given stat bonuses: kept on use
         self.item_temp_bonuses: dict[str, dict[str, int]] = {}   # Pure Water copies: stat -> bonus fading each turn
+        self.temp_bonuses_wanted = False   # the temporary bonuses' counters without a Pure Water copy (the skills' seals)
         self.new_items: dict[str, tuple[int, str]] = {}   # weapons the project adds -> their number, model
         self.new_classes: dict[str, tuple[int, str]] = {}   # classes the project adds -> their number, model
         # Map sprites imported for classes (mapsprites.py): class id -> {"key", "move"}; key -> (number, table row)
@@ -2794,6 +2795,9 @@ class DecompData:
                 out[objectives.DEFEAT_TALK_FILE] = self.defeat_talks
         if self.new_items:
             self._with_new_item_copies(out)
+        if self.temp_bonuses_wanted and "TEMP_BONUSES_FEM" not in (out.get("include/bmunit.h")
+                                                             or self._read("include/bmunit.h")):
+            self._with_temporary_bonus(out)
         self._with_item_bonuses(out)
         self._with_use_bonuses(out)
         self._with_spell_choices(out)

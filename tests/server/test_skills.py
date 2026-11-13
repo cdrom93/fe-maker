@@ -10,7 +10,7 @@ PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   #
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     magic = {s["id"] for s in skills.catalogue() if s["magic"]}
-    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade", "Imbue"}
+    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade", "Imbue", "SealMagic"}
     assert all(s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
     assert skills.icon_path("NoGuard").name == "_placeholder.png"   # no icon at the pinned commit: a "?"
     game = {g["id"]: g for g in skills.game_catalogue()}
@@ -244,6 +244,22 @@ def test_batch_10_after_combat_in_both_phases(monkeypatch):
     none = [{"id": "CHARACTER_EIRIKA", "skills": ["Wrath"]}]
     plain = skills.apply(DECOMP, {}, none, [], {**PAGE, **{s.id: 2 for s in skills.used(none, [], False)}}, False)
     assert "PostActionSkillsFem" not in plain.get("src/playerphase.c", "")
+
+
+def test_batch_10_seals_on_the_temporary_bonuses(monkeypatch):
+    """A seal sets the hit foe's counter to -6 (4 bits per stat), with the temporary bonuses' counters asked for."""
+    if not (DECOMP / "src/playerphase.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["SealDefense", "SealStrength"]}]
+    used = skills.used(characters, [], False)
+    assert skills.uses_temp_bonuses(used) and not skills.uses_temp_bonuses(skills.used([], [], False))
+    assert "SealMagic" not in {s["id"] for s in skills.catalogue() if not s.get("magic")}
+    phase = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/playerphase.c"]
+    assert "bonuses = (bonuses & ~(15u << 12)) | (10u << 12);" in phase      # Defense, the 4th counter
+    assert "bonuses = (bonuses & ~(15u << 0)) | (10u << 0);" in phase
+    assert "ActorHitFem()" in phase and "SKILL_FEM_SealSpeed" not in phase
 
 
 def test_batch_9_heals_add_up_with_the_terrain(monkeypatch):

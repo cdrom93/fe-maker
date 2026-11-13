@@ -1991,6 +1991,39 @@ def test_batch_10_after_combat(tmp_path):
         assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
 
 
+def test_batch_10_seals(tmp_path):
+    """Skills batch 10, the seals: the lord hits the soldier (it survives) with Seal Strength, Seal Speed and Seal
+    Defense; the soldier's counters (the temporary bonuses', 4 bits per stat in its spare bytes) read -6, then -5 once
+    its phase has started."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "batch10c", [["ITEM_SWORD_IRON"], []], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    items = project.load("items")
+    next(i for i in items if i["id"] == "ITEM_SWORD_IRON").update(weight=0, hit=255, might=1, crit=0)
+    project.save("items", items)
+    characters = project.load("characters")
+    lord_unit = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]
+    next(c for c in characters if c["id"] == lord_unit["character"])["skills"] = ["SealStrength", "SealSpeed",
+                                                                                   "SealDefense"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["bases"]["hp"] = 60
+    project.save("characters", characters)
+    out = project.build(Path(ROM), on_output=lambda line: print(line, end=""), for_test=True)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        red = game.address("gUnitArrayRed")
+        hp = game.read(red, 0x13)
+        _bench_attack(game, lord)
+        game.run(600)
+        assert game.read(red, 0x13) < hp                                  # hit
+        assert (game.read(red, 0x3A) & 0xF, game.read(red, 0x3B)) == (0xA, 0xAA)   # Str, Spd, Def at -6
+        game.move_cursor(0, 0)
+        game.press("A")
+        game.press("UP")
+        game.press("A")
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        assert (game.read(red, 0x3A) & 0xF, game.read(red, 0x3B)) == (0xB, 0xBB)   # -5 after its phase began
+
+
 def test_batch_9_heals_at_the_start_of_the_turn(tmp_path):
     """Skills batch 9: the lord, its friend two tiles away, both at 1 HP. On turn 2 the lord gets Camaraderie (10 %,
     an ally within 2) and the friend's Amaterasu (20 %), not Relief (no ally within 2); the friend, with Relief and
