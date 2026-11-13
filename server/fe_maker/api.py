@@ -34,6 +34,7 @@ from . import (
     emulator,
     ferepo,
     ferepo_music,
+    missions,
     native,
     newchapter,
     scope,
@@ -2859,6 +2860,38 @@ class TicketIn(BaseModel):
     attachProject: bool = False
     attachTrail: bool = True  # the last actions and errors (activity.py), the interface's own in `trail`
     trail: list[str] = []
+
+
+@app.get("/api/missions")
+def tester_missions():
+    """This version's missions for the testers (missions.py), in the interface's language, each marked done once
+    its answers were written."""
+    done = {tk.get("context", {}).get("mission") for tk in tickets.list()}
+    return [{**m, "done": m["id"] in done}
+            for m in missions.localized(missions.for_version(), state.settings.language or "en")]
+
+
+class MissionAnswersIn(BaseModel):
+    answers: list[str]
+
+
+@app.post("/api/missions/{mission_id}")
+def answer_mission(mission_id: str, body: MissionAnswersIn):
+    """A mission's answers, written and sent as a ticket (kind "idea") that names the mission."""
+    mission = next((m for m in missions.localized(missions.for_version(), state.settings.language or "en")
+                    if m["id"] == mission_id), None)
+    if mission is None:
+        raise HTTPException(404, "unknownMission")
+    if not any(a.strip() for a in body.answers):
+        raise HTTPException(400, "bodyEmpty")
+    context = {"mission": mission_id}
+    if state.project:
+        context["project"] = state.project.meta.get("name", "")
+    try:
+        ticket = tickets.create(missions.ticket_body(mission, [a[:4000] for a in body.answers]), "idea", "low", context)
+    except TicketError as e:
+        raise HTTPException(400, str(e))
+    return _send_ticket(ticket["id"], False)
 
 
 @app.get("/api/activity")

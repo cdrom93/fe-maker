@@ -20,7 +20,8 @@ FILES = {
     "build": ["test_project", "test_builderrors", "test_migrations",
               "test_build_lock", "test_buildcancel", "test_buildtimes", "test_native",
               "test_ups", "test_release", "test_playtest", "test_rom_build"],
-    "app": ["test_validation", "test_update", "test_emulator", "test_folderpick", "test_tickets", "test_locales", "test_main",
+    "app": ["test_validation", "test_update", "test_emulator", "test_folderpick", "test_tickets", "test_missions",
+            "test_locales", "test_main",
             "test_ferepo"],
 }
 

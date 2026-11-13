@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { recentActivity } from '../lib/activity'
-  import { adminFileUrl, api, ApiError, ticketImageUrl } from '../lib/api'
+  import { adminFileUrl, api, ApiError, ticketImageUrl, type Mission } from '../lib/api'
   import { appContext } from '../lib/appContext.svelte'
   import { i18n, t } from '../lib/i18n.svelte'
   import type { AdminTicket, Ticket, TicketKind, TicketPriority } from '../lib/types'
@@ -24,6 +24,33 @@
   let attachProject = $state(false)
   /** the last actions and errors joined to the ticket (server: activity.py, lib/activity.ts), shown on request */
   let attachTrail = $state(true)
+  /** this version's missions for the testers (server: missions.py) and the answers being written */
+  let missionList = $state<Mission[] | null>(null)
+  let missionAnswers = $state<Record<string, string[]>>({})
+  let missionOpen = $state('')
+  let missionError = $state('')
+
+  async function loadMissions() {
+    try {
+      missionList = await api.missions()
+    } catch (e) {
+      missionError = String(e)
+    }
+  }
+
+  async function sendMission(m: Mission) {
+    missionError = ''
+    sending = true
+    try {
+      await api.answerMission(m.id, missionAnswers[m.id] ?? [])
+      missionOpen = ''
+      await Promise.all([loadMissions(), load()])
+    } catch (e) {
+      missionError = e instanceof ApiError ? t(`ticket.error.${e.detail}`) : String(e)
+    } finally {
+      sending = false
+    }
+  }
   let trailPreview = $state<string[] | null>(null)
 
   async function toggleTrailPreview() {
@@ -46,7 +73,8 @@
   let textarea = $state<HTMLTextAreaElement>()
   /** admin mode (whoever may write to the feedback repository): the testers' tickets beside one's own */
   let admin = $state(false)
-  let view = $state<'mine' | 'testers'>('mine')
+  let view = $state<'mine' | 'testers' | 'missions'>('mine')
+  const views = $derived<('mine' | 'missions' | 'testers')[]>(admin ? ['mine', 'missions', 'testers'] : ['mine', 'missions'])
   let testers = $state<AdminTicket[] | null>(null)
   let adminError = $state('')
   api.adminState().then((s) => (admin = s.available)).catch(() => {})
@@ -60,10 +88,11 @@
     }
   }
 
-  function showView(v: 'mine' | 'testers') {
+  function showView(v: 'mine' | 'testers' | 'missions') {
     view = v
     reply = null
     if (v === 'testers') loadTesters()
+    if (v === 'missions') loadMissions()
   }
 
   async function setTesterStatus(n: number, status: AdminTicket['status']) {
@@ -261,20 +290,46 @@
 <aside class="side" bind:this={panel} aria-labelledby="ticket-title">
   <div class="head">
     <h2 id="ticket-title">{t('ticket.title')}</h2>
-    {#if admin}
-      <div class="views">
-        <div class="seg" role="radiogroup" aria-label={t('ticket.title')}>
-          {#each ['mine', 'testers'] as const as v (v)}
-            <button role="radio" aria-checked={view === v} class:active={view === v} onclick={() => showView(v)}>{t(`ticket.view.${v}`)}</button>
-          {/each}
-        </div>
-        <Help text={t('ticket.testersHint')} />
+    <div class="views">
+      <div class="seg" role="radiogroup" aria-label={t('ticket.title')}>
+        {#each views as v (v)}
+          <button role="radio" aria-checked={view === v} class:active={view === v} onclick={() => showView(v)}>{t(`ticket.view.${v}`)}</button>
+        {/each}
       </div>
-    {/if}
+      <Help text={t(admin ? 'ticket.testersHint' : 'ticket.missionsHint')} />
+    </div>
     <button class="ghost" aria-label={t('build.close')} title={t('build.close')} onclick={onClose}>✕</button>
   </div>
 
-  {#if view === 'testers'}
+  {#if view === 'missions'}
+  <section class="list" aria-label={t('ticket.view.missions')}>
+    <p class="muted small">{t('ticket.missionsIntro')}</p>
+    {#if missionError}<p class="bad small">{missionError}</p>{/if}
+    {#if !missionList}<p class="muted small">{t('ticket.loading')}</p>{/if}
+    <ul>
+      {#each missionList ?? [] as m (m.id)}
+        <li class:closed={m.done}>
+          <div class="meta">
+            <strong>{m.title}</strong>
+            {#if m.done}<span class="tag">✓ {t('ticket.missionDone')}</span>{/if}
+          </div>
+          <p class="small">{m.task}</p>
+          {#if missionOpen === m.id}
+            {#each m.questions as q, i (i)}
+              <label class="small question">{q}
+                <textarea rows="2" value={missionAnswers[m.id]?.[i] ?? ''}
+                          oninput={(e) => { const a = [...(missionAnswers[m.id] ?? ['', '', ''])]; a[i] = (e.target as HTMLTextAreaElement).value; missionAnswers[m.id] = a }}></textarea>
+              </label>
+            {/each}
+            <button class="primary" disabled={sending || !(missionAnswers[m.id] ?? []).some((a) => a.trim())} onclick={() => sendMission(m)}>{t('ticket.missionSend')}</button>
+          {:else}
+            <button onclick={() => (missionOpen = m.id)}>{m.done ? t('ticket.missionAgain') : t('ticket.missionAnswer')}</button>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  </section>
+  {:else if view === 'testers'}
   <section class="list" aria-label={t('ticket.view.testers')}>
     <div class="list-head">
       <h3>{t('ticket.view.testers')}</h3>
@@ -494,6 +549,7 @@
 </aside>
 
 <style>
+  .question { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
   .trail-row { display: flex; align-items: center; gap: 0.5rem; }
   .trail { max-height: 10rem; overflow: auto; font-size: 0.7rem; margin: 0; white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
   .side {

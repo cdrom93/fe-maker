@@ -1,0 +1,88 @@
+{
+  "0.1.0-prealpha": [
+    {
+      "id": "map",
+      "theme": "Maps",
+      "title": {"fr": "Une carte à soi", "en": "A map of your own"},
+      "task": {
+        "fr": "Dans l'onglet Chapitres, ouvrez la carte du premier chapitre et changez-la : une forêt, une rivière, un fort. Testez le chapitre dans mGBA.",
+        "en": "In the Chapters tab, open the first chapter's map and change it: a forest, a river, a fort. Test the chapter in mGBA."
+      },
+      "questions": [
+        {"fr": "Qu'est-ce qui a été le plus agréable, et le plus pénible ?", "en": "What was the most pleasant, and the most annoying?"},
+        {"fr": "Avez-vous cherché un outil ou un réglage sans le trouver ? Lequel ?", "en": "Did you look for a tool or a setting without finding it? Which one?"},
+        {"fr": "La carte en jeu ressemblait-elle à ce que vous aviez peint ?", "en": "Did the map in the game look like what you painted?"}
+      ]
+    },
+    {
+      "id": "character",
+      "theme": "Characters",
+      "title": {"fr": "Un nouveau héros", "en": "A new hero"},
+      "task": {
+        "fr": "Ajoutez un personnage : nom, classe, portrait (de FE-Repo ou du PC), statistiques. Placez-le dans le premier chapitre et jouez un tour avec lui.",
+        "en": "Add a character: name, class, portrait (from FE-Repo or your PC), stats. Place them in the first chapter and play a turn with them."
+      },
+      "questions": [
+        {"fr": "Combien de temps cela vous a-t-il pris, et à quelle étape avez-vous hésité ?", "en": "How long did it take, and at which step did you hesitate?"},
+        {"fr": "Les mots de l'interface étaient-ils clairs ? Lesquels ne l'étaient pas ?", "en": "Were the interface's words clear? Which were not?"},
+        {"fr": "Qu'auriez-vous aimé régler et que FE Maker ne propose pas ?", "en": "What would you have liked to set that FE Maker does not offer?"}
+      ]
+    },
+    {
+      "id": "event",
+      "theme": "Events",
+      "title": {"fr": "Une scène qui parle", "en": "A scene that talks"},
+      "task": {
+        "fr": "Écrivez un dialogue d'ouverture pour un chapitre, puis un évènement au tour 2 (renforts ou objet donné). Vérifiez-les en jeu.",
+        "en": "Write an opening dialogue for a chapter, then an event on turn 2 (reinforcements or an item given). Check them in the game."
+      },
+      "questions": [
+        {"fr": "Le déroulé d'un évènement était-il facile à comprendre ?", "en": "Was an event's sequence easy to understand?"},
+        {"fr": "Le dialogue en jeu était-il comme dans l'aperçu ?", "en": "Was the dialogue in the game as in the preview?"},
+        {"fr": "Quelle scène aimeriez-vous faire et ne savez-vous pas comment faire ?", "en": "Which scene would you like to make and do not know how?"}
+      ]
+    },
+    {
+      "id": "music",
+      "theme": "Music",
+      "title": {"fr": "Changer l'ambiance", "en": "Change the mood"},
+      "task": {
+        "fr": "Dans l'onglet Musique, écoutez des musiques de FE-Repo-Music, importez-en une et mettez-la sur la phase joueur d'un chapitre. Écoutez-la en jeu.",
+        "en": "In the Music tab, listen to songs from FE-Repo-Music, import one and set it on a chapter's player phase. Listen to it in the game."
+      },
+      "questions": [
+        {"fr": "La musique en jeu sonnait-elle comme l'écoute dans FE Maker ?", "en": "Did the song in the game sound like what you heard in FE Maker?"},
+        {"fr": "Avez-vous trouvé facilement où mettre la musique ?", "en": "Did you easily find where to put the song?"},
+        {"fr": "Quels autres endroits du jeu voudriez-vous changer en musique ?", "en": "Which other places of the game would you like to change the music of?"}
+      ]
+    },
+    {
+      "id": "skills",
+      "theme": "Skills and game options",
+      "title": {"fr": "Des règles à votre goût", "en": "Rules to your taste"},
+      "task": {
+        "fr": "Donnez deux compétences à un personnage ou à une classe, activez une ou deux options du jeu, puis jouez un combat où elles comptent.",
+        "en": "Give two skills to a character or a class, turn on one or two game options, then play a battle where they matter."
+      },
+      "questions": [
+        {"fr": "Avez-vous trouvé les compétences que vous cherchiez ?", "en": "Did you find the skills you were looking for?"},
+        {"fr": "Leur effet en jeu était-il celui que vous attendiez ?", "en": "Was their effect in the game the one you expected?"},
+        {"fr": "Les options étaient-elles bien rangées et bien expliquées ?", "en": "Were the options well sorted and well explained?"}
+      ]
+    },
+    {
+      "id": "share",
+      "theme": "Testing and sharing",
+      "title": {"fr": "Partager son hack", "en": "Share your hack"},
+      "task": {
+        "fr": "Exportez le patch de votre projet (menu du projet), appliquez-le à une copie de la ROM avec un outil de patch et jouez quelques minutes.",
+        "en": "Export your project's patch (project menu), apply it to a copy of the ROM with a patching tool and play a few minutes."
+      },
+      "questions": [
+        {"fr": "L'export a-t-il marché du premier coup ? Combien de temps a pris la compilation ?", "en": "Did the export work at once? How long did the build take?"},
+        {"fr": "Si une erreur est apparue, l'explication vous a-t-elle aidé ?", "en": "If an error appeared, did its explanation help you?"},
+        {"fr": "Sur 5, quelle envie avez-vous de continuer votre hack avec FE Maker, et pourquoi ?", "en": "Out of 5, how much do you want to go on with your hack in FE Maker, and why?"}
+      ]
+    }
+  ]
+}

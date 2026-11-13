@@ -50,6 +50,7 @@ Regularly: after a big batch of work, before a release, or when the user asks. T
 - Where to look: FEU's "Getting Started" index of tutorials and FEBuilder docs (https://feuniverse.us/t/getting-started/10320); laqieer's FEBuilderGBA fork (https://github.com/laqieer/FEBuilderGBA, GPL-3.0, archived: CLI, decomp support, headless playtests).
 - An unmodified project must rebuild the original ROM byte for byte: only write what changed (`changed_files()`, cparse re-renders only edited entries).
 - Version: `__version__` in `server/fe_maker/__init__.py`, `0.1.0-prealpha.N`; each push to main asked by the user bumps N in its last commit (tag `v0.1.0-prealpha.N` only on the user's word). Tickets carry it, plus `+<commit>`.
+- A new version series (key of `server/fe_maker/missions.json`) gets its testers' missions, written from its CHANGELOG themes, three feeling questions each, French and English.
 - Patches are `.ups`. BUGFIX build option exists but is off by default (3 decomp BUGFIX blocks don't compile).
 
 ## Architecture

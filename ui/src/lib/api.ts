@@ -21,6 +21,9 @@ type GameOptionsData = {
 /** A song of FE-Repo-Music (server: ferepo_music.py); `preview`: its recording's path in the repository. */
 export interface FeRepoSong { path: string; name: string; authors: string[]; folder: string; preview: string | null }
 
+/** A task for the testers of this version (server: missions.py), with three questions about how it felt. */
+export interface Mission { id: string; theme: string; title: string; task: string; questions: string[]; done: boolean }
+
 export type SongRef = number | string
 export type GameSong = { number: number; name: string; file: string; voicegroup: number; volume: number; constant: string }
 export type ImportedSong = { key: string; name: string; voicegroup: number | string; volume: number; tracks?: number; source?: { name: string; authors: string[]; url: string } }
@@ -264,6 +267,8 @@ export const api = {
   tickets: () => request<Ticket[]>('GET', '/api/tickets'),
   createTicket: (ticket: TicketIn) => request<Ticket>('POST', '/api/tickets', ticket),
   activity: () => request<string[]>('GET', '/api/activity'),
+  missions: () => request<Mission[]>('GET', '/api/missions'),
+  answerMission: (id: string, answers: string[]) => request<Ticket>('POST', `/api/missions/${encodeURIComponent(id)}`, { answers }),
   updateTicket: (id: string, changes: Partial<Pick<Ticket, 'body' | 'status' | 'priority' | 'kind'>>) =>
     request<Ticket>('PATCH', `/api/tickets/${id}`, changes),
   deleteTicket: (id: string) => request<{ ok: boolean }>('DELETE', `/api/tickets/${id}`),
