@@ -314,3 +314,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 13/11/2026 : tests automatiques, point 3 : les tickets joignent les dernières actions et erreurs (serveur et interface), case cochée par défaut avec aperçu, repliées à la fin du ticket sur GitHub.
 - 13/11/2026 : tests automatiques, point 4 : missions pour les testeurs (six pour la série prealpha, tirées du CHANGELOG, trois questions de ressenti chacune) dans le panneau Ticket ; réponses envoyées comme un ticket.
 - 13/11/2026 : idée notée au cahier (§4, après l'alpha) : savoir qui écrit un ticket (pseudo facultatif, puis connexion GitHub vérifiée par le relais).
+- 13/11/2026 : pseudo facultatif dans le panneau Ticket, gardé dans les réglages et joint à chaque ticket (étage 1 de l'idée « savoir qui écrit un ticket »).

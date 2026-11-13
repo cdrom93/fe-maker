@@ -167,6 +167,7 @@ class SettingsIn(BaseModel):
     volume: int | None = None
     mute: bool | None = None
     mgbaOptions: dict | None = None   # changes only; a None value gives a setting back to mGBA
+    testerName: str | None = None
 
 
 @app.get("/api/status")
@@ -181,6 +182,7 @@ def status():
         "volume": s.volume,
         "mute": s.mute,
         "mgbaOptions": s.mgba_options,
+        "testerName": s.tester_name,
         "mgbaChoices": {k: list(v) for k, v in emulator.MGBA_OPTIONS.items()},
         "gbaButtons": emulator.GBA_BUTTONS,
         "recentProjects": s.recent_projects,
@@ -260,6 +262,8 @@ def update_settings(body: SettingsIn):
         state.settings.volume = max(0, min(100, body.volume))
     if body.mute is not None:
         state.settings.mute = body.mute
+    if body.testerName is not None:
+        state.settings.tester_name = " ".join(body.testerName.split())[:40]
     if body.mgbaOptions is not None:
         try:
             state.settings.mgba_options = emulator.validate_options({**state.settings.mgba_options, **body.mgbaOptions})
@@ -2862,6 +2866,15 @@ class TicketIn(BaseModel):
     trail: list[str] = []
 
 
+def _ticket_context(context: dict) -> dict:
+    """A ticket's context with the open project and the tester's name when one was given (settings)."""
+    if state.project:
+        context.setdefault("project", state.project.meta.get("name", ""))
+    if state.settings.tester_name:
+        context["tester"] = state.settings.tester_name
+    return context
+
+
 @app.get("/api/missions")
 def tester_missions():
     """This version's missions for the testers (missions.py), in the interface's language, each marked done once
@@ -2884,9 +2897,7 @@ def answer_mission(mission_id: str, body: MissionAnswersIn):
         raise HTTPException(404, "unknownMission")
     if not any(a.strip() for a in body.answers):
         raise HTTPException(400, "bodyEmpty")
-    context = {"mission": mission_id}
-    if state.project:
-        context["project"] = state.project.meta.get("name", "")
+    context = _ticket_context({"mission": mission_id})
     try:
         ticket = tickets.create(missions.ticket_body(mission, [a[:4000] for a in body.answers]), "idea", "low", context)
     except TicketError as e:
@@ -2937,9 +2948,7 @@ def send_ticket(ticket_id: str, body: TicketSendIn):
 
 @app.post("/api/tickets")
 def create_ticket(body: TicketIn):
-    context = dict(body.context)
-    if state.project:
-        context.setdefault("project", state.project.meta.get("name", ""))
+    context = _ticket_context(dict(body.context))
     try:
         trail = {"server": activity.recent(), "ui": [str(x)[:300] for x in body.trail[-40:]]} if body.attachTrail else None
         ticket = tickets.create(body.body, body.kind, body.priority, context, body.images, trail)

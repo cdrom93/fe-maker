@@ -20,7 +20,20 @@
   let images = $state<string[]>([])
   let error = $state('')
   let hasProject = $state(false)
-  api.status().then((s) => (hasProject = !!s.project)).catch(() => {})
+  /** the tester's optional name, kept in the settings and joined to every ticket (context "tester") */
+  let testerName = $state('')
+  let savedTesterName = ''
+  api.status().then((s) => { hasProject = !!s.project; testerName = savedTesterName = s.testerName ?? '' }).catch(() => {})
+
+  async function saveTesterName() {
+    const name = testerName.trim()
+    if (name === savedTesterName) return
+    try {
+      testerName = savedTesterName = (await api.updateSettings({ testerName: name })).testerName
+    } catch (e) {
+      error = String(e)
+    }
+  }
   let attachProject = $state(false)
   /** the last actions and errors joined to the ticket (server: activity.py, lib/activity.ts), shown on request */
   let attachTrail = $state(true)
@@ -200,6 +213,7 @@
     error = ''
     sending = true
     try {
+      await saveTesterName()
       sent = await api.createTicket({ body, kind, priority, context: $state.snapshot(context), images, attachProject,
                                      attachTrail, trail: attachTrail ? recentActivity() : [] })
       body = ''
@@ -350,8 +364,8 @@
             <span class="muted tiny">{date(tk.createdAt)}</span>
           </div>
           <p class="comment-body">{tk.body}</p>
-          {#if tk.context.tab || tk.context.record || tk.context.detail}
-            <p class="muted tiny">{[tk.context.tab, tk.context.record, tk.context.detail].filter(Boolean).join(' · ')}</p>
+          {#if tk.context.tester || tk.context.tab || tk.context.record || tk.context.detail}
+            <p class="muted tiny">{[tk.context.tester, tk.context.tab, tk.context.record, tk.context.detail].filter(Boolean).join(' · ')}</p>
           {/if}
           {#if tk.images.length || tk.project}
             <div class="images">
@@ -433,6 +447,9 @@
     {#if hasProject}
       <label class="check"><input type="checkbox" bind:checked={attachProject} /> {t('ticket.attachProject')} <Help text={t('ticket.attachProjectHint')} /></label>
     {/if}
+    <label class="check tester">{t('ticket.testerName')}
+      <input type="text" maxlength="40" bind:value={testerName} onblur={saveTesterName} placeholder={t('ticket.testerNameNone')} />
+      <Help text={t('ticket.testerNameHint')} /></label>
     <span class="trail-row">
       <label class="check"><input type="checkbox" bind:checked={attachTrail} /> {t('ticket.attachTrail')} <Help text={t('ticket.attachTrailHint')} /></label>
       <button type="button" class="link small" onclick={toggleTrailPreview}>{trailPreview ? t('ticket.trailHide') : t('ticket.trailShow')}</button>
@@ -551,6 +568,7 @@
 <style>
   .question { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
   .trail-row { display: flex; align-items: center; gap: 0.5rem; }
+  .tester input { width: 12rem; }
   .trail { max-height: 10rem; overflow: auto; font-size: 0.7rem; margin: 0; white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
   .side {
     position: fixed; top: var(--header-height, 49px); right: 0; bottom: 0; width: var(--side-width, 380px); z-index: 15;

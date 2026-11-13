@@ -227,3 +227,19 @@ def test_the_last_actions_and_errors_go_with_a_sent_ticket(tmp_path, monkeypatch
     body = calls[0]["body"]
     assert body.startswith("Crash\n\n<details>") and "[server]" in body and "[ui] 10:00:00 tab maps" in body
     assert "trail" not in store.create("Plain")
+
+
+def test_the_testers_name_is_kept_and_joined_to_the_tickets(tmp_path, monkeypatch):
+    """The optional name of the Ticket panel: kept in the settings, joined to each ticket as context "tester"."""
+    from fe_maker import api
+    from fe_maker.config import Settings
+
+    monkeypatch.setattr(api, "tickets", TicketStore(tmp_path))
+    monkeypatch.setattr(api.state, "settings", Settings())
+    monkeypatch.setattr(api.state, "project", None)
+    monkeypatch.setattr(Settings, "save", lambda self: None)
+    ticket = api.create_ticket(api.TicketIn(body="Anonymous", send=False))
+    assert "tester" not in ticket["context"]
+    assert api.update_settings(api.SettingsIn(testerName="  Some   one  "))["testerName"] == "Some one"
+    ticket = api.create_ticket(api.TicketIn(body="Signed", send=False))
+    assert ticket["context"]["tester"] == "Some one"

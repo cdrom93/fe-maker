@@ -76,7 +76,7 @@ export const api = {
   status: () => request<Status>('GET', '/api/status'),
   updateCheck: () => request<{ installable: boolean; release: { version: string; url: string; page: string } | null }>('GET', '/api/update'),
   updateInstall: () => request<{ version: string }>('POST', '/api/update/install'),
-  updateSettings: (s: { language?: string; mgbaPath?: string; keys?: Record<string, string>; volume?: number; mute?: boolean; mgbaOptions?: Record<string, number | boolean | null> }) => request<Status>('PUT', '/api/settings', s),
+  updateSettings: (s: { language?: string; mgbaPath?: string; keys?: Record<string, string>; volume?: number; mute?: boolean; mgbaOptions?: Record<string, number | boolean | null>; testerName?: string }) => request<Status>('PUT', '/api/settings', s),
   uploadRom: (file: File) => {
     const form = new FormData()
     form.append('file', file)

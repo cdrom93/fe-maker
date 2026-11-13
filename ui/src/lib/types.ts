@@ -601,6 +601,8 @@ export interface Status {
   mute: boolean
   /** mGBA settings the user set for tests; the others are left to mGBA */
   mgbaOptions: Record<string, number | boolean>
+  /** optional name joined to the tickets (Ticket panel) */
+  testerName: string
   /** each setting FE Maker can set, with its allowed values, by order of use */
   mgbaChoices: Record<string, (number | boolean)[]>
   gbaButtons: string[]

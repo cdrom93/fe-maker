@@ -525,7 +525,7 @@ def main() -> None:
         return
     for t in tickets:
         ctx = t.get("context", {})
-        where = " / ".join(str(ctx[k]) for k in ("project", "tab", "record", "detail") if ctx.get(k))
+        where = " / ".join(str(ctx[k]) for k in ("tester", "project", "tab", "record", "detail") if ctx.get(k))
         print(f"#{t['number']} [{t['id']}] {t['kind']} · {t['priority']} · {t['status']} · {t['createdAt']}"
               f" · {ctx.get('version', '?')}" + (f" · {where}" if where else ""))
         for line in t["body"].splitlines():
