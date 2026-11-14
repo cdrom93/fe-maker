@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from . import downloads, mgbafetch, native
-from .config import Settings, find_mgba
+from .config import Settings
 from .paths import DECOMP_DIR
 
 DOCKER_TIMEOUT = 20
@@ -90,7 +90,7 @@ def run_checks(settings: Settings, decomp_dir: Path = DECOMP_DIR) -> list[dict]:
         {"id": "rom", "ok": settings.has_rom, "detail": ""},
         {"id": "decomp", "ok": decomp_ok, "detail": ""},
         *_builder_check(settings, decomp_ok),
-        {"id": "mgba", "ok": bool(settings.mgba_path or find_mgba()), "detail": ""},
+        {"id": "mgba", "ok": bool(settings.mgba()), "detail": ""},
     ]
     for check in found:
         if check["id"] in ("decomp", "toolchain") or (check["id"] == "mgba" and mgbafetch.available()):

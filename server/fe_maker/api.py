@@ -2886,7 +2886,7 @@ def _run_build(project: Project, launch: bool) -> None:
         st["timing"] = buildtimes.record(project.name, output.seconds, output.native, launch, output.compiled,
                                          len(st["log"]))
         if launch:
-            state.emulator.launch(state.settings.mgba_path, output.rom_path, state.settings.keys,
+            state.emulator.launch(state.settings.mgba(), output.rom_path, state.settings.keys,
                                   state.settings.volume, state.settings.mute, state.settings.mgba_options)
         st["state"] = "done"
         try:

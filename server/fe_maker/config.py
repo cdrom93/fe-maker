@@ -60,10 +60,12 @@ def find_mgba() -> str | None:
         found = shutil.which(name)
         if found:
             return found
-    for candidate in MGBA_CANDIDATES:
+    local = os.environ.get("LOCALAPPDATA")
+    for candidate in [*MGBA_CANDIDATES, *([str(Path(local) / "Programs" / "mGBA" / "mGBA.exe")] if local else [])]:
         if Path(candidate).exists():
             return candidate
-    return None
+    # the one FE Maker installs from the home page (mgbafetch.py)
+    return next((str(p) for p in sorted((config_dir() / "mgba").glob("*/mGBA.exe"))), None)
 
 
 @dataclass
@@ -80,6 +82,13 @@ class Settings:
     @property
     def rom_path(self) -> Path:
         return config_dir() / "rom" / "baserom.gba"
+
+    def mgba(self) -> str | None:
+        """mGBA's program: the one set in the settings while it is there, else the one found on this computer (the
+        home page and the tests look at the same places, ticket 85)."""
+        if self.mgba_path and Path(self.mgba_path).is_file():
+            return self.mgba_path
+        return find_mgba()
 
     @property
     def has_rom(self) -> bool:

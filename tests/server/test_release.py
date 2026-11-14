@@ -63,7 +63,8 @@ def test_a_checkout_has_everything_but_the_rom(monkeypatch, tmp_path):
     monkeypatch.setattr(checks, "_docker_state", lambda: (False, "stopped"))
     monkeypatch.setattr(checks, "_windows", lambda: False)
     monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
-    found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
+    (tmp_path / "mGBA.exe").write_bytes(b"")
+    found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path=str(tmp_path / "mGBA.exe")), tmp_path)}
     assert not found["rom"]["ok"] and not found["decomp"]["ok"] and found["mgba"]["ok"]
     assert found["docker"] == {"id": "docker", "ok": False, "detail": "stopped"}
 
@@ -202,3 +203,24 @@ def test_mgba_is_unpacked_with_windows_tar(tmp_path):
     archive = _zip({"mGBA-1-win64/mGBA.exe": "exe", "mGBA-1-win64/portable.ini": ""})   # tar reads zip too
     exe = mgbafetch.install(archive, tmp_path / "mgba")
     assert exe == tmp_path / "mgba" / "mGBA-1-win64" / "mGBA.exe" and exe.read_text() == "exe"
+
+
+def test_the_tests_find_mgba_where_the_home_page_does(tmp_path, monkeypatch):
+    """Ticket 85: mGBA installed, the home page satisfied, yet "mGBA not found" when a test started: the test looked
+    only at the settings. Both now use Settings.mgba(): the settings' path while the file is there, else a search
+    (the usual folders, then the copy FE Maker installs)."""
+    from fe_maker import config
+    from fe_maker.config import Settings
+
+    monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
+    monkeypatch.setattr(config, "MGBA_CANDIDATES", [])
+    monkeypatch.setattr(config.shutil, "which", lambda name: None)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    assert Settings(mgba_path=str(tmp_path / "gone.exe")).mgba() is None
+    exe = tmp_path / "mgba" / "mGBA-0.10.5-win64" / "mGBA.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"")
+    assert Settings(mgba_path=str(tmp_path / "gone.exe")).mgba() == str(exe) == Settings().mgba()
+    other = tmp_path / "mine.exe"
+    other.write_bytes(b"")
+    assert Settings(mgba_path=str(other)).mgba() == str(other)
