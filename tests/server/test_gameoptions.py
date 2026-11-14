@@ -179,13 +179,13 @@ def test_monster_weapons_show_their_stats():
     assert "monsterWeaponStats" in gameoptions.SWITCH_GROUPS["screens"]
 
 
-def test_drop_markers_halve_the_games_gold_bag():
-    """Ticket 67: the bag on the enemies that drop an item, the game's gold icon halved when the project is built."""
+def test_drop_markers_are_the_patchs_green_bag():
+    """Ticket 67: the green bag of "Display Droppable Item" (Huichelaar and Mkol) on the enemies that drop an item."""
     root = Path(__file__).parents[2] / "decomp"
-    if not (root / gameoptions.DROP_ICON).is_file():
+    if not (root / gameoptions.MAP_SPRITES_FILE).is_file():
         pytest.skip("no decomp")
     files = gameoptions.apply(root, {"hpBars": True, "dropMarkers": True}, {})
     sprites = files[gameoptions.MAP_SPRITES_FILE]
     assert "FemPutHpBar(unit);" in sprites and "FemPutDropBag(unit);" in sprites and "US_DROP_ITEM" in sprites
-    assert "static const u32 sFemDropBag[8] = { 0x" in files[gameoptions.MAP_UI_FILE]
+    assert "static const u32 sFemDropBag[8] = { 0x0FAAAEF0, 0x00FBAF00," in files[gameoptions.MAP_UI_FILE]
     assert "dropMarkers" in gameoptions.SWITCH_GROUPS["map"]
