@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 29
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 30
 
 
 def test_a_unit_acts_after_a_talk():
@@ -221,3 +221,13 @@ def test_turn_start_save_and_its_menu_line():
     assert "gPlaySt.config.unk43_4 = 1;" in files[gameoptions.CONFIG_FILE]
     assert "GAME_OPTION_FEM_TURN_SAVE = 18," in files[gameoptions.OPTION_MENU_HEADER]
     assert gameoptions.validate({"turnSave": 1, "turnStartSave": True}) is None
+
+
+def test_forced_units_movable_in_the_preparations():
+    """FEBuilder's "Allow Forced Units to change their Starting Position" (AuraWolf) in C."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / "src/prepscreen.c").is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"forcedUnitsMovable": True}, {})
+    assert "IsCharacterForceDeployed(unitId)" not in files["src/prep_sallycursor.c"]
+    assert "ret++;" not in files["src/prepscreen.c"].split("int CalcForceDeployedUnitCounts()")[1].split("\n}\n")[0]

@@ -1111,9 +1111,11 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
 
 
 def test_original_bug_fixes_build_and_the_game_starts(tmp_path):
-    """FEBuilder's essential fixes redone in C (on in every new project): they compile and the prologue starts."""
+    """FEBuilder's essential fixes redone in C (on in every new project), and the forced units movable in the
+    preparations: they compile and the prologue starts."""
     project = Project.create(tmp_path / "fixes", "Fixes")
-    project.set_game_options({"originalBugFixes": True, "healerAiFix": True, "promotedEnemiesFix": True})
+    project.set_game_options({"originalBugFixes": True, "healerAiFix": True, "promotedEnemiesFix": True,
+                              "forcedUnitsMovable": True})
     out = build(project)
     with Game(out.rom_path, out.map_path) as game:
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)

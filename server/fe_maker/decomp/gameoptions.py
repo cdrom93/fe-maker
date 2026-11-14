@@ -57,7 +57,7 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "map": ("hpBars", "talkBubbles", "enemyWarnings", "dropMarkers", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths", "monsterWeaponStats"),
-                 "rules": ("actAfterTalk", "turnStartSave", "casualMode", "strMagSplit", "skills"),
+                 "rules": ("actAfterTalk", "turnStartSave", "forcedUnitsMovable", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
                  "sound": ("musicTracks", "fullDrums"),
                  "fixes": ("originalBugFixes", "healerAiFix", "promotedEnemiesFix")}
@@ -567,6 +567,14 @@ BUG_FIXES: dict[str, tuple[tuple[str, str, str], ...]] = {
                             "        if (levelCount <= 0) " + _FIX + "\n            levelCount = 1;\n        {\n"),),
 }
 
+# Forced units movable in the preparations (FEBuilder's "Allow Forced Units to change their Starting Position", AuraWolf,
+# its two byte patches in C): a lord the chapter forces can swap places with the other units, and its starting square is
+# one the others can take (the count of forced units that skips their squares is 0).
+_PREP_MOVE = (("src/prep_sallycursor.c", "    if (IsCharacterForceDeployed(unitId))\n    {\n        return false;\n    }\n",
+               "    /* FE Maker: forced units can be moved */\n"),
+              ("src/prepscreen.c", "        if (IsCharacterForceDeployed(UNIT_CHAR_ID(unit)))\n            ret++;\n",
+               "        /* FE Maker: forced units can be moved: their squares are deployable */\n"))
+
 # Resume at the start of the turn (option turnStartSave, the player's choice in the Configuration menu, unk43_4): the
 # game writes its suspend save at the start of the player's phase only; not after each action, an arena fight, a trap,
 # an enemy's action or another phase. The Suspend command still saves where the player is (WriteSuspendPlayerIdle).
@@ -1009,6 +1017,9 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: dict[str, tu
         files[STATUS_FILE] = source
     if options.get("noSupportAnimations"):
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
+    if options.get("forcedUnitsMovable"):
+        for rel, old, new in _PREP_MOVE:
+            files[rel] = _replace(current(rel), old, new, rel)
     if options.get("turnStartSave"):
         for rel, old, new in _TURN_SAVE:
             source = current(rel)
