@@ -33,6 +33,7 @@ ICON_URL = f"https://raw.githubusercontent.com/{REPO}/{COMMIT}/Contents/Gfx/Sour
 # The triggered skill's name in battle: Huichelaar's display from the Skill System (CC0), at a fixed commit
 SS_REPO = "FireEmblemUniverse/SkillSystem_FE8"
 SS_COMMIT = "aefb81278ae814ecc53175f79813bc099dae0346"
+SS_ICON_URL = f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}/EngineHacks/SkillSystem/SkillIcons/{{}}.png"
 BOX_URL = (f"https://raw.githubusercontent.com/{SS_REPO}/{SS_COMMIT}"
            "/EngineHacks/SkillSystem/Internals/Graphics/ProcDisplayTiles.png")
 # The seals' animation on the map (C-SkillSys, MIT): the flash on the unit, and Heavy Gravity's falling sprite on the foe
@@ -456,7 +457,7 @@ CATALOGUE: tuple[Skill, ...] = (
     # with the weapon that beats the foe's (C-SkillSys's choice; the official games' breakers work with any weapon)
     *(_b(sid, "foe", f"{name}:[NL]Hit and Avoid +20 using[NL]{mine} against {theirs}.",
          f"if ({own} && {foe}) {{\n            attacker->battleHitRate += 20;\n"
-         "            attacker->battleAvoidRate += 20;\n        }", icon="" if sid == "BMagBreaker" else None)
+         "            attacker->battleAvoidRate += 20;\n        }", icon="ss:Tomebreaker" if sid == "BMagBreaker" else None)
       for sid, name, mine, theirs, own, foe in (
           ("SwordBreaker", "Swordbreaker", "a Lance", "a Sword", "attacker->weaponType == ITYPE_LANCE",
            "defender->weaponType == ITYPE_SWORD"),
@@ -627,28 +628,30 @@ CATALOGUE: tuple[Skill, ...] = (
           effect="if (hit && attacker == &gBattleActor && defender->unit.curHP == 0\n"
                  "            && SkillProcRateFem(attacker, SKILL_FEM_Pickup, attacker->unit.lck))\n"
                  "            defender->unit.state |= US_DROP_ITEM;"),
-    # without an icon at the pinned commit (a "?" until FE Maker imports its own icons)
-    _b("WatchfulEye", "battle", "Watchful Eye:[NL]Hit rate +20%.", "attacker->battleHitRate += 20;", icon=""),
+    # without an icon at C-SkillSys's pinned commit: the Skill System's ("ss:"), else a "?"
+    _b("WatchfulEye", "battle", "Watchful Eye:[NL]Hit rate +20%.", "attacker->battleHitRate += 20;",
+       icon="ss:Watchful"),
     _b("HeavyStrikes", "weapon", "Heavy Strikes:[NL]Adds weapon weight[NL]to critical chance.",
-       "attacker->battleCritRate += GetItemWeight(attacker->weapon);", icon=""),
+       "attacker->battleCritRate += GetItemWeight(attacker->weapon);", icon="ss:HeavyStrikes"),
     _b("KnightAspirant", "hp", "Knight Aspirant:[NL]Above 75% HP: +2 damage,[NL]+15% avoid.",
        "if (attacker->hpInitial * 4 > attacker->unit.maxHP * 3) {\n            attacker->battleAttack += 2;\n"
-       "            attacker->battleAvoidRate += 15;\n        }", icon=""),
+       "            attacker->battleAvoidRate += 15;\n        }", icon="ss:KnightAspirant"),
     _b("SilentPride", "hp", "Silent Pride:[NL]+2 damage and DEF per[NL]25% below max HP.",
        "{\n            int lost = (attacker->unit.maxHP - attacker->hpInitial) * 4 / attacker->unit.maxHP;\n\n"
        "            attacker->battleAttack += 2 * lost;\n            attacker->battleDefense += 2 * lost;\n        }",
-       icon=""),
+       icon="ss:SilentPride"),
     _b("Frenzy", "hp", "Frenzy:[NL]For every 4 damage taken,[NL]+1 to damage dealt.",
-       "attacker->battleAttack += (attacker->unit.maxHP - attacker->hpInitial) / 4;", icon=""),
+       "attacker->battleAttack += (attacker->unit.maxHP - attacker->hpInitial) / 4;", icon="ss:Frenzy"),
     _b("Puissance", "foe", "Puissance:[NL]+3 Attack if attack is[NL]greater than the foe's.",
-       "if (attacker->battleAttack > defender->battleAttack) attacker->battleAttack += 3;", kind="late", icon=""),
+       "if (attacker->battleAttack > defender->battleAttack) attacker->battleAttack += 3;", kind="late",
+       icon="ss:Puissance"),
     _b("NoGuard", "hit", "No Guard:[NL]Both sides have a 100%[NL]chance of hitting.",
        "attacker->battleEffectiveHitRate = 100;", kind="eff", icon="", holder="either"),
     _b("WonderGuard", "guard", "Wonder Guard:[NL]No damage from weapons of[NL]the unit's weapon type.",
        "if (defender->weaponType == attacker->weaponType) attacker->battleAttack = 0;", kind="eff", icon="",
        holder="defender"),
     _b("CriticalPierce", "hit", "Critical Pierce:[NL]Ignores the foe's[NL]critical avoid.", "defender->battleDodgeRate = 0;",
-       kind="late", icon=""),
+       kind="late", icon="ss:CriticalPierce"),
     Skill("ShieldPulse", "proc", "", "Shield Pulse:[NL]Reduces damage from[NL]critical hits by 50%.", group="guard",
           after="if ((gBattleHitIterator->attributes & BATTLE_HIT_ATTR_CRIT)"
                 " && SkillTesterFem(&defender->unit, SKILL_FEM_ShieldPulse))\n            decrease += DmgDecreaseFem(50);"),
@@ -871,6 +874,9 @@ def icon_path(skill_id: str) -> Path:
         raise SkillError("unknownSkill")
     if not skill.icon:
         return _placeholder()
+    if skill.icon.startswith("ss:"):   # the Skill System's (CC0), for some C-SkillSys has none of at its commit
+        name = skill.icon[3:]
+        return _download(SS_ICON_URL.format(name), _cache() / f"ss_{name}.png")
     path = _download(ICON_URL.format(skill.icon), _cache() / f"{skill.icon}.png")
     return _retouched(skill.icon, path) if skill.icon in RETOUCHED else path
 

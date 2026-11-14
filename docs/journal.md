@@ -334,3 +334,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : Rally dure jusqu'à la phase joueur suivante (comme le C-SkillSys) au lieu de baisser de 1 par tour : un octet par unité en RAM libre (0x02028700), effacé au début de la phase joueur, gardé dans la sauvegarde de mi-chapitre.
 - 14/11/2026 : compétences, lot 10 : Nihil (les compétences de l'adversaire annulées en combat, dans SkillTesterFem) ; playtest.
 - 14/11/2026 : compétences, lot 10 : Rally Movement (+4 au Déplacement jusqu'à la phase joueur suivante) et Celerity (+2), dans la macro UNIT_MOV ; la liste de Mangs est finie.
+- 14/11/2026 : compétences : 8 icônes manquantes reprises du Skill System classique (CC0, téléchargées par FE Maker) ; 12 gardent le « ? » (absentes ou vides partout ; le wiki fandom est protégé contre les robots).

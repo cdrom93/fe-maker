@@ -18,6 +18,18 @@ def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     assert game["Dance"]["abilities"] == ["dance", "play"] and game["Pierce"]["classes"][0] == "CLASS_WYVERN_KNIGHT"
 
 
+def test_icons_missing_from_cskillsys_come_from_the_skill_system(monkeypatch, tmp_path):
+    """Icons C-SkillSys has none of at its pinned commit: the Skill System's (CC0), by their own name there."""
+    asked = []
+    monkeypatch.setattr(skills, "_download", lambda url, path: asked.append((url, path.name)) or path)
+    monkeypatch.setattr(skills, "_cache", lambda: tmp_path)
+    skills.icon_path("BMagBreaker")
+    skills.icon_path("WatchfulEye")
+    assert asked == [(skills.SS_ICON_URL.format("Tomebreaker"), "ss_Tomebreaker.png"),
+                     (skills.SS_ICON_URL.format("Watchful"), "ss_Watchful.png")]
+    assert "SkillSystem_FE8" in skills.SS_ICON_URL and "/SkillIcons/" in skills.SS_ICON_URL
+
+
 def test_used_skills_in_catalogue_order_then_the_game_ones():
     used = skills.used([{"skills": ["Wrath", "StrBonus"]}], [{"skills": ["MagBonus", "Wrath"]}, {}], False)
     ids = [s.id for s in used]
@@ -225,7 +237,7 @@ def test_batch_10_breakers_outdoors_lords_and_light_weight(monkeypatch):
     assert "lords2 += d <= 2 && (UNIT_CATTRIBUTES(unit) & CA_LORD) != 0;" in battle
     assert "flames1 += d == 1 && SkillTesterFem(unit, SKILL_FEM_BlueFlame);" in battle
     assert "if (!unit->items[3] && SkillTesterFem(unit, SKILL_FEM_LightWeight))" in files["src/bmunit.c"]
-    assert skills.BY_ID["BMagBreaker"].icon == ""
+    assert skills.BY_ID["BMagBreaker"].icon == "ss:Tomebreaker"   # none in C-SkillSys: the Skill System's
 
 
 def test_batch_10_after_combat_in_both_phases(monkeypatch):
