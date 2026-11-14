@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 23
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 24
 
 
 def test_a_unit_acts_after_a_talk():
@@ -165,3 +165,15 @@ def test_music_tracks_option():
     assert ".space TRACK_SIZE * NUM_TRACKS_BGM1" in players   # the IWRAM space stays, nothing else moves
     assert "Sound_SetMaxNumChannels(12); /* FE Maker: 12 notes */" in sound and "Sound_SetMaxNumChannels(7)" not in sound
     assert gameoptions.MUSIC_PLAYERS_FILE not in gameoptions.apply(decomp, {}, {})
+
+
+def test_monster_weapons_show_their_stats():
+    """FEBuilder's "Monster Weapon display fix" (Brendor) in C: the type's name, the item panel, the R help box."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.ITEM_PANEL_FILE).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"monsterWeaponStats": True}, {})
+    assert "if (wpnType == ITYPE_MONSTER)\n        return GetStringFromIndex(0x26B);" in files[gameoptions.ITEM_FILE]
+    assert "case ITYPE_MONSTER:" not in files[gameoptions.ITEM_PANEL_FILE]
+    assert "&& GetItemType(item) != ITYPE_MONSTER)" in files[gameoptions.STATUS_FILE]
+    assert "monsterWeaponStats" in gameoptions.SWITCH_GROUPS["screens"]

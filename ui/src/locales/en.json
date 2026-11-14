@@ -1627,6 +1627,8 @@
   "options.healPreviewHint": "When choosing a staff's target, its window shows its HP before and after healing (green when it reaches the maximum).",
   "options.statusGrowths": "Growths on the status screen (Select)",
   "options.statusGrowthsHint": "On the first page of a unit's status screen, Select shows its growth rates in place of its stats; the name of each stat of player units takes the colour of its growth, from red (low) to green (high).",
+  "options.monsterWeaponStats": "Monster weapon stats",
+  "options.monsterWeaponStatsHint": "Claws, fangs and other monster weapons show their stats like weapons: in the item panel, in the help (R), and their type's name (\"Evil\" by default).",
   "options.battleNumbers": "Damage and healing numbers",
   "options.battleNumbersHint": "In battle animations, lost HP show in red above the unit hit, restored HP in green (staff healing, drain).",
   "flow.add.button": "Add a chapter after this one",

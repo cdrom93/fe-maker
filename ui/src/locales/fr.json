@@ -1627,6 +1627,8 @@
   "options.healPreviewHint": "En choisissant la cible d'un bâton, sa fenêtre montre ses PV avant et après le soin (en vert s'il atteint le maximum).",
   "options.statusGrowths": "Croissances sur la fiche (Select)",
   "options.statusGrowthsHint": "Sur la première page de la fiche d'une unité, Select montre ses taux de croissance à la place de ses caractéristiques ; le nom de chaque caractéristique des unités du joueur prend la couleur de sa croissance, du rouge (faible) au vert (forte).",
+  "options.monsterWeaponStats": "Stats des armes de monstre",
+  "options.monsterWeaponStatsHint": "Les griffes, crocs et autres armes de monstre montrent leurs stats comme des armes : dans le panneau des objets, dans l'aide (R) et le nom de leur type (« Evil » par défaut).",
   "options.battleNumbers": "Dégâts et soins affichés",
   "options.battleNumbersHint": "Dans les animations de combat, les PV perdus s'affichent en rouge au-dessus de l'unité touchée, les PV rendus en vert (soin d'un bâton, drain).",
   "flow.add.button": "Ajouter un chapitre après celui-ci",

@@ -336,3 +336,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : Rally Movement (+4 au Déplacement jusqu'à la phase joueur suivante) et Celerity (+2), dans la macro UNIT_MOV ; la liste de Mangs est finie.
 - 14/11/2026 : compétences : 8 icônes manquantes reprises du Skill System classique (CC0, téléchargées par FE Maker) ; 12 gardent le « ? » (absentes ou vides partout ; le wiki fandom est protégé contre les robots).
 - 14/11/2026 : options du jeu : alertes sur les ennemis (« ! » blanc : arme efficace ou Slayer, « ! » orange : arme à plus de 24 de critique, comme HPBars_with_warnings de FEBuilder) ; playtest.
+- 14/11/2026 : options du jeu : statistiques des armes de monstre (nom du type, panneau des objets, fiche d'aide ; comme le correctif de Brendor dans FEBuilder, refait en C) ; playtest.

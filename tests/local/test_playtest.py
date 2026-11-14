@@ -1811,6 +1811,24 @@ def test_enemy_warnings(tmp_path):
         print("screenshot:", tmp_path / "warnings.png")
 
 
+def test_monster_weapon_stats(tmp_path):
+    """FEBuilder's "Monster Weapon display fix": the lord holds a Rotten Claw; its Item command's panel computes the
+    claw's battle stats (gBattleActor.weapon, struct BattleUnit at 0x48) as for a weapon, not its use text."""
+    project = _bench(tmp_path, "monsterweapon", [["ITEM_MONSTER_ROTTENCLW"]])
+    project.set_game_options({**project.game_options, "monsterWeaponStats": True})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        game.move_cursor(game.read(lord, 0x10), game.read(lord, 0x11))
+        game.press("A")
+        game.press("A", wait=60)       # stays
+        game.screenshot().save(tmp_path / "menu.png")
+        game.press("A", wait=60)       # Item (no foe in reach)
+        game.screenshot().save(tmp_path / "items.png")
+        assert game.read("gBattleActor", 0x48, width=16) & 0xFF == 0xAD   # ITEM_MONSTER_ROTTENCLW
+        print("screenshots:", tmp_path)
+
+
 def test_talk_bubble_is_vision_quests(tmp_path):
     """Ticket 69 (10/11): Vision Quest's round bubble, at the upper left of the unit Eirika can support with."""
     project = Project.create(tmp_path / "bubble", "Bubble")

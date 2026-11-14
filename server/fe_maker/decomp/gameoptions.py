@@ -54,7 +54,7 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "enemyWarnings", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
-                 "screens": ("statusGrowths",),
+                 "screens": ("statusGrowths", "monsterWeaponStats"),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
                  "sound": ("musicTracks", "fullDrums")}
@@ -441,6 +441,21 @@ static void FemPutWarning(struct Unit * unit)
 """ + _ICONS
 _ICONS_LOOP_WARNINGS = "        FemPutWarning(unit);\n\n" + _ICONS_LOOP
 
+# Monster weapons (claws, fangs, type 11) shown as weapons (FEBuilder's "Monster Weapon display fix" by Brendor, its three
+# byte patches redone in C): their type's name (the game's table has none: text 0x26B, "Evil", as the patch), their
+# attack, hit, crit and avoid in the item panel of the menus (the game took them for items: their use text), and their
+# stats in the R help box (the game left out every item with the monster lock, IA_LOCK_3).
+ITEM_FILE = "src/bmitem.c"
+ITEM_PANEL_FILE = "src/menuitempanel.c"
+_WTYPE_NAME = "    return GetStringFromIndex(wtypeTextIdLookup[wpnType]);\n"
+_WTYPE_NAME_MONSTER = ("    if (wpnType == ITYPE_MONSTER)\n"
+                       "        return GetStringFromIndex(0x26B); /* FE Maker: monster weapons */\n" + _WTYPE_NAME)
+_PANEL_MONSTER = "\tcase ITYPE_ITEM:\n\tcase ITYPE_MONSTER:\n"
+_PANEL_MONSTER_WEAPON = "\tcase ITYPE_ITEM:\n"
+_HELP_LOCK = "    if (GetItemAttributes(item) & IA_LOCK_3)\n        return HB_EXTINFO_NONE;\n"
+_HELP_LOCK_MONSTER = ("    if ((GetItemAttributes(item) & IA_LOCK_3) && GetItemType(item) != ITYPE_MONSTER)"
+                      " /* FE Maker: monster weapons */\n        return HB_EXTINFO_NONE;\n")
+
 # A unit acts on after Talk or Support, as after a trade (FEBuilder's "Contemporary FE style talk and support", redone
 # in C): one more step of the player phase, right after the action, goes back to the unit's menu; the game's taken_action
 # then turns B into Wait. Its 16 is a free bit of that byte.
@@ -815,6 +830,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BUBBLE, MAP_SPRITES_FILE)
+    if options.get("monsterWeaponStats"):
+        files[ITEM_FILE] = _replace(current(ITEM_FILE), _WTYPE_NAME, _WTYPE_NAME_MONSTER, ITEM_FILE)
+        files[ITEM_PANEL_FILE] = _replace(current(ITEM_PANEL_FILE), _PANEL_MONSTER, _PANEL_MONSTER_WEAPON, ITEM_PANEL_FILE)
+        files[STATUS_FILE] = _replace(current(STATUS_FILE), _HELP_LOCK, _HELP_LOCK_MONSTER, STATUS_FILE)
     if options.get("enemyWarnings"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_WARNINGS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_WARNINGS, MAP_SPRITES_FILE)
