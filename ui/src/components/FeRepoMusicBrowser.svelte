@@ -5,11 +5,13 @@
   import { api, ApiError, type FeRepoSong } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import { stopSong } from '../lib/songplayer.svelte'
+  import FavoriteStar from './FavoriteStar.svelte'
 
   let { busy = false, onpick }: { busy?: boolean; onpick: (e: FeRepoSong) => void } = $props()
 
   let query = $state('')
   let folder = $state('')
+  let favOnly = $state(false)
   let entries = $state<FeRepoSong[]>([])
   let folders = $state<{ name: string; count: number }[]>([])
   let total = $state(0)
@@ -29,7 +31,7 @@
     loading = true
     error = ''
     try {
-      const r = await api.feRepoMusic(query, { refresh, folder, offset: more ? entries.length : 0 })
+      const r = await api.feRepoMusic(query, { refresh, folder, fav: favOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -71,6 +73,7 @@
       {#each folders as f (f.name)}<option value={f.name}>{f.name} ({f.count})</option>{/each}
     </select>
     <input bind:value={query} oninput={typed} placeholder={t('ferepoMusic.search')} />
+    <label class="small fav" title={t('favorites.filterHint')}><input type="checkbox" bind:checked={favOnly} onchange={() => run()} /> {t('favorites.only')}</label>
     <button onclick={() => run(true)} disabled={loading} title={t('ferepoMusic.refreshHint')}>⟳</button>
   </div>
   <p class="muted tiny">
@@ -88,6 +91,7 @@
                 onclick={() => listen(e)}>{playing === e.path ? '■' : '▶'}</button>
         <span class="name small"><strong>{e.name}</strong> <span class="muted tiny">{e.authors.join(', ') || t('ferepo.unknownAuthor')}</span></span>
         <button class="link tiny folder" title={e.folder} onclick={() => { folder = e.folder; run() }}>{e.folder}</button>
+        <FavoriteStar kind="music" key={e.path} />
         <button onclick={() => onpick(e)} disabled={busy}>{t('ferepo.use')}</button>
       </li>
     {/each}
@@ -105,6 +109,7 @@
   .list { list-style: none; margin: 0; padding: 0; max-height: 26rem; overflow-y: auto; }
   .list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; border-bottom: 1px solid var(--border); }
   .name { flex: 1; min-width: 0; }
+  .fav { display: flex; gap: 0.2rem; align-items: center; white-space: nowrap; }
   .folder { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
   .listen { width: 1.9rem; height: 1.7rem; padding: 0; display: inline-grid; place-items: center; font-size: 0.8rem; flex: none; }
   .listen.playing { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }

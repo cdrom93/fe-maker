@@ -1,7 +1,8 @@
 <script lang="ts">
   import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
-  import { api, portraitUrl } from '../lib/api'
+  import { api, characterPackageUrl, portraitUrl } from '../lib/api'
+  import PackageImport from './PackageImport.svelte'
   import type { EditableList } from '../lib/history.svelte'
   import { t, problemText } from '../lib/i18n.svelte'
   import type { Character, ClassStatKey, ClassView, Item, Problem, Reference, StatKey } from '../lib/types'
@@ -29,10 +30,13 @@
     reference,
     problems,
     onproblems,
+    onimportpackage,
   }: {
     list: EditableList<Character>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[]
     /** problems after a change saved outside the list (an imported portrait) */
     onproblems: (p: Problem[]) => void
+    /** a character's file from another project (Workspace) */
+    onimportpackage: (file: File) => Promise<string[]>
   } = $props()
 
   const ALL_STATS: StatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck', 'con']
@@ -185,6 +189,7 @@
     {#snippet actions()}
       <button onclick={() => addCharacter(true)} title={t('character.addAllyHint')}>+ {t('character.addAlly')}</button>
       <button onclick={() => addCharacter(false)} title={t('character.addEnemyHint')}>+ {t('character.addEnemy')}</button>
+      <PackageImport kind="character" onimport={onimportpackage} />
       {#if addError}<p class="bad small">{addError}</p>{/if}
     {/snippet}
     {#snippet icon(c: Character)}
@@ -359,9 +364,10 @@
           learned={ch.learnedSkills ?? []} onlearnedchange={(l) => edit((c) => (c.learnedSkills = l))} />
       {/if}
 
-      {#if isNew(ch.id)}
-        <p class="small"><button class="link" onclick={removeCharacter}>{t('character.remove')}</button></p>
-      {/if}
+      <p class="small sheet-links">
+        <a href={characterPackageUrl(ch.id)} download title={t('package.export.characterHint')}>{t('package.export.character')}</a>
+        {#if isNew(ch.id)}<button class="link" onclick={removeCharacter}>{t('character.remove')}</button>{/if}
+      </p>
 
       {#if mine.length}
         <section class="panel issues">
@@ -394,6 +400,7 @@
   tbody th { text-align: left; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
   tr.total td { font-weight: 700; border-top: 1px solid var(--border); }
   .small { font-size: 0.8rem; margin: 0 0 0.5rem; }
+  .sheet-links { display: flex; gap: 1rem; align-items: center; }
   .links { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
   .issues p { margin: 0.2rem 0; }
   .noanim { color: var(--warn); }

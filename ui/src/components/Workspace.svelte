@@ -237,6 +237,16 @@
 
   const flushAll = () => Promise.all(allLists.map((l) => l.flush()))
 
+  /** A character or class file from another project (packages.py): saved first, then everything reloaded and the new
+   *  sheet shown. */
+  async function importPackage(file: File): Promise<string[]> {
+    await flushAll()
+    const result = await api.importPackage(file)
+    await loadAll()
+    navigator.open(result.kind === 'character' ? 'characters' : 'classes', result.id)
+    return result.warnings
+  }
+
   /** Display name of a record mentioned by a problem. */
   function recordName(kind: Problem['kind'], id: string): string {
     if (kind === 'combat') return t('ws.combat')
@@ -406,9 +416,9 @@
 
 {#if reference}
   {#if tab === 'characters'}
-    <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} onproblems={(p) => (problems = p)} />
+    <CharacterEditor list={lists.characters} {classes} items={lists.items.records} {reference} {problems} onproblems={(p) => (problems = p)} onimportpackage={importPackage} />
   {:else if tab === 'classes'}
-    <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} onanimations={refreshAnimated} />
+    <ClassEditor list={lists.classes} {classes} items={lists.items.records} {reference} {problems} onanimations={refreshAnimated} onimportpackage={importPackage} />
   {:else if tab === 'items'}
     <ItemEditor list={lists.items} {classes} characters={lists.characters.records} {reference} {problems} />
   {:else if tab === 'combat'}

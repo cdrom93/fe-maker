@@ -35,9 +35,11 @@ from . import (
     ferepo,
     ferepo_music,
     githubauth,
+    library,
     missions,
     native,
     newchapter,
+    packages,
     scope,
     update,
     validation,
@@ -470,6 +472,50 @@ class NewClassIn(BaseModel):
     model: str
 
 
+def _package_response(data: bytes, kind: str, name: str) -> Response:
+    file = packages.file_name(kind, name)
+    quoted = urllib.parse.quote(file)
+    return Response(data, media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename=\"{kind}{packages.SUFFIX[kind]}\"; "
+                                                    f"filename*=UTF-8''{quoted}"})
+
+
+@app.get("/api/characters/{character_id}/package")
+def export_character_package(character_id: str):
+    """The character as one file (packages.py): sheet, portrait, its class if the project added it; credits too."""
+    project = state.require_project()
+    try:
+        data = packages.export_character(project, DECOMP_DIR, character_id)
+    except packages.PackageError as e:
+        raise HTTPException(404, str(e)) from e
+    name = next((c.get("name", "") for c in project.load("characters") if c["id"] == character_id), "")
+    return _package_response(data, "character", name)
+
+
+@app.get("/api/classes/{class_id}/package")
+def export_class_package(class_id: str):
+    """The class as one file (packages.py): sheet, battle animations, map sprite, generic portrait; credits too."""
+    project = state.require_project()
+    try:
+        data = packages.export_class(project, DECOMP_DIR, class_id)
+    except packages.PackageError as e:
+        raise HTTPException(404, str(e)) from e
+    name = next((c.get("name", "") for c in project.load("classes") if c["id"] == class_id), "")
+    return _package_response(data, "class", name)
+
+
+@app.post("/api/packages/import")
+async def import_package(file: UploadFile = File(...)):
+    """A character or class file: new sheets in the project (new ids), with what they need."""
+    project = state.require_project()
+    try:
+        result = packages.import_package(project, DECOMP_DIR, await file.read())
+    except packages.PackageError as e:
+        raise HTTPException(400, str(e)) from e
+    banim.clear_caches()
+    return {**result, "problems": [p.to_dict() for p in project.validate()]}
+
+
 @app.post("/api/classes/new")
 def new_class(body: NewClassIn):
     """Sheet of a class to add after the game's classes, copying a model class."""
@@ -746,12 +792,15 @@ async def import_music(file: UploadFile = File(...)):
 
 
 @app.get("/api/ferepo/music")
-def ferepo_music_list(q: str = "", folder: str = "", offset: int = 0, refresh: bool = False):
+def ferepo_music_list(q: str = "", folder: str = "", offset: int = 0, refresh: bool = False, fav: bool = False):
     """FE-Repo-Music's songs (ferepo_music.py), searched, a page at a time."""
     try:
         entries, when = ferepo_music.load_index(refresh)
     except ferepo_music.FeRepoMusicError as e:
         raise HTTPException(502, str(e)) from e
+    if fav:
+        starred = library.favorite_set("music")
+        entries = [e for e in entries if e["path"] in starred]
     found, total = ferepo_music.search(entries, q, folder, max(0, offset))
     return {"entries": found, "total": total, "indexDate": when, "folders": ferepo_music.folders(entries)}
 
@@ -1806,13 +1855,15 @@ def remove_map_sprite(class_id: str):
 
 
 @app.get("/api/ferepo/mapsprites")
-def ferepo_map_sprites(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+def ferepo_map_sprites(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
+                       fav: bool = False):
     """Standing map sprites of FE-Repo matching a search, each with its moving sheet if there is one."""
     try:
         index, when = ferepo.load_index(refresh)
     except ferepo.FeRepoError as e:
         raise HTTPException(503, str(e)) from e
-    entries, total = ferepo.map_sprites(index, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    entries, total = ferepo.map_sprites(index, q, folder=folder, offset=max(0, offset), f2e_only=f2e,
+                                        keep=_favorites_only("mapsprites") if fav else None)
     return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.MAP_SPRITES)}
 
 
@@ -2342,13 +2393,15 @@ def remove_icon(icon_id: int):
 
 
 @app.get("/api/ferepo/icons")
-def ferepo_icons(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+def ferepo_icons(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
+                 fav: bool = False):
     """Item icons of FE-Repo matching a search."""
     try:
         index, when = ferepo.load_index(refresh)
     except ferepo.FeRepoError as e:
         raise HTTPException(503, str(e)) from e
-    entries, total = ferepo.search(index, ferepo.ITEM_ICONS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    entries, total = ferepo.search(index, ferepo.ITEM_ICONS, q, folder=folder, offset=max(0, offset), f2e_only=f2e,
+                                   keep=_favorites_only("icons") if fav else None)
     return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.ITEM_ICONS)}
 
 
@@ -2571,14 +2624,37 @@ def import_ferepo_portrait(portrait_id: int, body: FeRepoIn):
     return _import_portrait(portrait_id, data, ferepo.describe(body.url))
 
 
+def _favorites_only(kind: str):
+    starred = library.favorite_set(kind)
+    return lambda url: url in starred
+
+
+@app.get("/api/library/favorites")
+def library_favorites():
+    """The FE-Repo files the user starred, by kind; shared by all projects (library.py)."""
+    return library.favorites()
+
+
+@app.put("/api/library/favorites")
+def library_set_favorite(body: dict):
+    """Star or unstar a FE-Repo file: {"kind", "key" (its address, a song's path), "on"}."""
+    try:
+        keys = library.set_favorite(str(body.get("kind", "")), str(body.get("key", "")), bool(body.get("on")))
+    except library.LibraryError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"kind": body.get("kind"), "keys": keys}
+
+
 @app.get("/api/ferepo/portraits")
-def ferepo_portraits(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False):
+def ferepo_portraits(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
+                     fav: bool = False):
     """Portraits of FE-Repo matching a search (name, folder, authors), one page; and the folders to browse."""
     try:
         index, when = ferepo.load_index(refresh)
     except ferepo.FeRepoError as e:
         raise HTTPException(503, str(e)) from e
-    entries, total = ferepo.search(index, ferepo.PORTRAITS, q, folder=folder, offset=max(0, offset), f2e_only=f2e)
+    entries, total = ferepo.search(index, ferepo.PORTRAITS, q, folder=folder, offset=max(0, offset), f2e_only=f2e,
+                                   keep=_favorites_only("portraits") if fav else None)
     return {"entries": entries, "total": total, "indexDate": when, "folders": ferepo.folders(index, ferepo.PORTRAITS)}
 
 
@@ -2595,7 +2671,7 @@ def ferepo_image(url: str):
 
 @app.get("/api/ferepo/animations")
 def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offset: int = 0, f2e: bool = False,
-                      wtype: str = "", ranged: bool = False):
+                      wtype: str = "", ranged: bool = False, fav: bool = False):
     """Battle animations of the FE-Repo (one folder each), searched like the portraits (ticket 44); `wtype`: weapon
     types, comma-separated, the animation must have them all (tickets 47, 48; the weapons of each top folder are asked
     to GitHub once a week, the folders in parallel); `ranged`: its sword, lance or axe casts a spell from afar (a list
@@ -2632,11 +2708,14 @@ def ferepo_animations(q: str = "", refresh: bool = False, folder: str = "", offs
         found = ferepo.ranged_animations().get(ferepo.animation_path(url), [])
         return bool(found) and melee <= set(found)
 
+    starred = library.favorite_set("animations") if fav else None
+
     def keep(url: str) -> bool:
-        return wanted <= set(types(url)) and (not ranged or casts(url))
+        return ((starred is None or url in starred) and (not wanted or wanted <= set(types(url)))
+                and (not ranged or casts(url)))
 
     entries, total = ferepo.search(index, ferepo.ANIMATIONS, q, limit=60, folder=folder, offset=max(0, offset), f2e_only=f2e,
-                                   keep=keep if wanted or ranged else None)
+                                   keep=keep if wanted or ranged or fav else None)
     if wanted:
         entries = [{**e, "weapons": types(e["url"])} for e in entries]
         if len(missing) == len(tops):

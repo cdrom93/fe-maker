@@ -1,7 +1,8 @@
 <script lang="ts">
   import { hideBroken } from '../lib/hideBroken'
   import Help from './Help.svelte'
-  import { api, mapSpriteUrl, portraitUrl } from '../lib/api'
+  import { api, classPackageUrl, mapSpriteUrl, portraitUrl } from '../lib/api'
+  import PackageImport from './PackageImport.svelte'
   import { mapSpriteVersion } from '../lib/portraits.svelte'
   import FeRepoBrowser from './FeRepoBrowser.svelte'
   import type { EditableList } from '../lib/history.svelte'
@@ -28,7 +29,12 @@
     reference,
     problems,
     onanimations,
-  }: { list: EditableList<ClassData>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[]; onanimations?: () => void } = $props()
+    onimportpackage,
+  }: {
+    list: EditableList<ClassData>; classes: ClassView[]; items: Item[]; reference: Reference; problems: Problem[]; onanimations?: () => void
+    /** a class's file from another project (Workspace) */
+    onimportpackage: (file: File) => Promise<string[]>
+  } = $props()
 
   const STATS: ClassStatKey[] = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'con']
   const GROWTHS = ['hp', 'pow', 'skl', 'spd', 'def', 'res', 'lck'] as const
@@ -148,6 +154,7 @@
       <span class="sprite"><img src={mapSpriteUrl(spriteClass(k), 'player', true)} alt="" loading="lazy" use:hideBroken /></span>
     {/snippet}
     {#snippet suffix(k: ClassView)}<GenderSign gender={k.gender} />{/snippet}
+    {#snippet actions()}<PackageImport kind="class" onimport={onimportpackage} />{/snippet}
   </RecordList>
 
   {#if cl}
@@ -203,10 +210,12 @@
           <p class="muted small">
             {t('class.copyOf')} <Mention kind="classes" id={cl.model}>{classes.find((k) => k.id === cl.model)?.name ?? cl.model}</Mention>
             <button class="link" onclick={removeClass}>{t('class.remove')}</button>
+            <a href={classPackageUrl(cl.id)} download title={t('package.export.classHint')}>{t('package.export.class')}</a>
           </p>
         {:else}
           <p class="small">
             <button onclick={addClass} title={t('class.newFromHint')}>+ {t('class.newFrom')}</button>
+            <a href={classPackageUrl(cl.id)} download title={t('package.export.classHint')}>{t('package.export.class')}</a>
             {#if addError}<span class="bad">{addError}</span>{/if}
           </p>
         {/if}

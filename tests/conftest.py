@@ -22,7 +22,7 @@ FILES = {
               "test_ups", "test_release", "test_playtest", "test_rom_build"],
     "app": ["test_validation", "test_update", "test_emulator", "test_folderpick", "test_tickets", "test_missions",
             "test_githubauth", "test_locales", "test_main",
-            "test_ferepo"],
+            "test_ferepo", "test_packages"],
 }
 
 PLAYTESTS = {

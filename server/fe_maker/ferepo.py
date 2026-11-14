@@ -146,7 +146,7 @@ def search(index: dict[str, list[str]], category: str, query: str = "", limit: i
 
 
 def map_sprites(index: dict[str, list[str]], query: str = "", folder: str = "", offset: int = 0,
-                f2e_only: bool = False) -> tuple[list[dict], int]:
+                f2e_only: bool = False, keep=None) -> tuple[list[dict], int]:
     """Standing map sprites of FE-Repo, searched like the portraits, each with its moving sheet ("walk": URL or
     None) when the repository has one."""
     def kind(url: str) -> str:
@@ -156,7 +156,7 @@ def map_sprites(index: dict[str, list[str]], query: str = "", folder: str = "", 
     walks = {(e["folder"], e["name"], tuple(e["authors"])): url
              for url in index.get(MAP_SPRITES, []) if kind(url) == "walk" for e in [describe(url)]}
     entries, total = search(index, MAP_SPRITES, query, folder=folder, offset=offset, f2e_only=f2e_only,
-                            keep=lambda url: kind(url) == "stand")
+                            keep=lambda url: kind(url) == "stand" and (keep is None or keep(url)))
     for e in entries:
         e["walk"] = walks.get((e["folder"], e["name"], tuple(e["authors"])))
     return entries, total

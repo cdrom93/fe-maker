@@ -76,6 +76,13 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return res.json() as Promise<T>
 }
 
+/** What can be starred in the FE-Repo browsers (library.py). */
+export type FavoriteKind = 'portraits' | 'mapsprites' | 'icons' | 'animations' | 'music'
+
+/** Download addresses of a character's or a class's file (packages.py). */
+export const characterPackageUrl = (id: string) => `/api/characters/${encodeURIComponent(id)}/package`
+export const classPackageUrl = (id: string) => `/api/classes/${encodeURIComponent(id)}/package`
+
 export const api = {
   status: () => request<Status>('GET', '/api/status'),
   updateCheck: () => request<{ installable: boolean; release: { version: string; url: string; page: string } | null }>('GET', '/api/update'),
@@ -141,10 +148,10 @@ export const api = {
   },
   editMusic: (key: string, body: { name?: string; voicegroup?: number | string; volume?: number }) =>
     request<{ problems: Problem[] }>('PATCH', `/api/music/${encodeURIComponent(key)}`, body),
-  feRepoMusic: (q: string, options: { refresh?: boolean; folder?: string; offset?: number } = {}) =>
+  feRepoMusic: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; fav?: boolean } = {}) =>
     request<{ entries: FeRepoSong[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/music?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
-        + `&offset=${options.offset ?? 0}${options.refresh ? '&refresh=true' : ''}`),
+        + `&offset=${options.offset ?? 0}${options.refresh ? '&refresh=true' : ''}${options.fav ? '&fav=true' : ''}`),
   importFeRepoMusic: (path: string) => request<{ key: string; problems: Problem[] }>('POST', '/api/music/ferepo', { path }),
   removeMusic: (key: string) => request<{ problems: Problem[] }>('DELETE', `/api/music/${encodeURIComponent(key)}`),
   chapterUnits: (index: number) => request<ChapterUnits>('GET', `/api/chapters/${index}/units`),
@@ -175,18 +182,27 @@ export const api = {
     request<{ entry: PortraitImport; problems: Problem[] }>('PATCH', `/api/portraits/${id}`, { name }),
   importFeRepoPortrait: (id: number, url: string) =>
     request<{ entry: PortraitImport; problems: Problem[] }>('POST', `/api/portraits/${id}/ferepo`, { url }),
-  feRepoPortraits: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+  importPackage: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ kind: 'character' | 'class'; id: string; classes: Record<string, string>; warnings: string[]; problems: Problem[] }>(
+      'POST', '/api/packages/import', form)
+  },
+  favorites: () => request<Record<FavoriteKind, string[]>>('GET', '/api/library/favorites'),
+  setFavorite: (kind: FavoriteKind, key: string, on: boolean) =>
+    request<{ kind: FavoriteKind; keys: string[] }>('PUT', '/api/library/favorites', { kind, key, on }),
+  feRepoPortraits: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; fav?: boolean } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/portraits?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
-        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
-  feRepoMapSprites: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.fav ? '&fav=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoMapSprites: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; fav?: boolean } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/mapsprites?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
-        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
-  feRepoIcons: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean } = {}) =>
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.fav ? '&fav=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+  feRepoIcons: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; fav?: boolean } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[] }>(
       'GET', `/api/ferepo/icons?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
-        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.fav ? '&fav=true' : ''}${options.refresh ? '&refresh=true' : ''}`),
   itemIcons: () => request<ItemIcons>('GET', '/api/items/icons'),
   importFeRepoIcon: (url: string) => request<ItemIcons & { icon: number }>('POST', '/api/items/icons/ferepo', { url }),
   importLocalIcon: (file: File) => {
@@ -204,10 +220,10 @@ export const api = {
     return request<{ problems: Problem[] }>('POST', `/api/classes/${classId}/mapsprite`, form)
   },
   removeMapSprite: (classId: string) => request<{ problems: Problem[] }>('DELETE', `/api/classes/${classId}/mapsprite`),
-  feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; wtype?: string; ranged?: boolean } = {}) =>
+  feRepoAnimations: (q: string, options: { refresh?: boolean; folder?: string; offset?: number; f2e?: boolean; fav?: boolean; wtype?: string; ranged?: boolean } = {}) =>
     request<{ entries: FeRepoEntry[]; total: number; indexDate: number; folders: { name: string; count: number }[]; missingFolders?: number }>(
       'GET', `/api/ferepo/animations?q=${encodeURIComponent(q)}&folder=${encodeURIComponent(options.folder ?? '')}`
-        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.refresh ? '&refresh=true' : ''}`
+        + `&offset=${options.offset ?? 0}${options.f2e ? '&f2e=true' : ''}${options.fav ? '&fav=true' : ''}${options.refresh ? '&refresh=true' : ''}`
         + `&wtype=${encodeURIComponent(options.wtype ?? '')}${options.ranged ? '&ranged=true' : ''}`),
   importAnimation: (body: { url: string; animation: string; classId: string; wtype: string }) =>
     request<{ key: string; problems: Problem[] }>('POST', '/api/animations/import', body),

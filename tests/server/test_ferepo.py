@@ -198,3 +198,23 @@ def test_credits_say_ai_was_used_once(tmp_path, decomp_dir):
     project.update_credits()
     text = credits.read_text(encoding="utf-8")
     assert text.startswith("Credits\n\nMy own thanks.\n") and text.count(AI_NOTE) == 1
+
+
+def test_favorites_are_kept_for_every_project(tmp_path, monkeypatch):
+    """Starred FE-Repo files (library.py) live in FE Maker's config dir, by kind; the portrait search keeps them only."""
+    from fe_maker import api, library
+
+    monkeypatch.setenv("FE_MAKER_HOME", str(tmp_path))
+    assert library.favorites()["portraits"] == []
+    assert library.set_favorite("portraits", URLS[0], True) == [URLS[0]]
+    library.set_favorite("music", "Songs/a.s", True)
+    assert library.favorites()["music"] == ["Songs/a.s"]
+    assert (tmp_path / "library" / "favorites.json").is_file()
+    with pytest.raises(library.LibraryError):
+        library.set_favorite("chapters", "x", True)
+    monkeypatch.setattr(ferepo, "load_index", lambda refresh=False: ({ferepo.PORTRAITS: URLS}, 0))
+    assert api.ferepo_portraits()["total"] == 2
+    found = api.ferepo_portraits(fav=True)
+    assert found["total"] == 1 and found["entries"][0]["url"] == URLS[0]
+    assert library.set_favorite("portraits", URLS[0], False) == []
+    assert api.ferepo_portraits(fav=True)["total"] == 0

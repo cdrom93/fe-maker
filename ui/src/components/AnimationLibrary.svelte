@@ -8,6 +8,7 @@
   import { t } from '../lib/i18n.svelte'
   import type { FeRepoAnimation, FeRepoEntry } from '../lib/types'
   import { animationTargets, guessTarget, targetLabel } from '../lib/animationTargets'
+  import FavoriteStar from './FavoriteStar.svelte'
 
   let { initial = '', classId, wtypes, open = null, onimported }: {
     /** a suggested search (the class's name) */
@@ -66,6 +67,7 @@
   let query = $state('')
   let folder = $state('')
   let f2eOnly = $state(false)
+  let favOnly = $state(false)
   // weapon filter (ticket 47): the first time, the server asks GitHub for the weapons of each folder
   // several can be ticked: animations having all of them (ticket 48)
   let weaponFilter = $state<string[]>([])
@@ -92,7 +94,7 @@
     if (!more && weaponFilter.length) entries = []
     error = ''
     try {
-      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, wtype: weaponFilter.join(','), ranged: rangedOnly, offset: more ? entries.length : 0 })
+      const r = await api.feRepoAnimations(query, { refresh, folder, f2e: f2eOnly, fav: favOnly, wtype: weaponFilter.join(','), ranged: rangedOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -148,6 +150,7 @@
     </select>
     <input bind:value={query} oninput={typed} placeholder={t('ferepo.search')} />
     <label class="small f2e"><input type="checkbox" bind:checked={f2eOnly} onchange={() => run()} /> {t('ferepo.f2eOnly')}</label>
+    <label class="small f2e" title={t('favorites.filterHint')}><input type="checkbox" bind:checked={favOnly} onchange={() => run()} /> {t('favorites.only')}</label>
     {#if initial && query !== initial}
       <button class="link small" onclick={() => { query = initial; run() }}>{t('ferepo.suggest', { name: initial })}</button>
     {/if}
@@ -174,11 +177,12 @@
   <div class="columns">
     <ul class="list">
       {#each entries as e (e.url)}
-        <li>
+        <li class="row">
           <button class:active={picked?.url === e.url} onclick={() => pick(e)}>
             <span>{e.name}</span>
             <span class="muted tiny">{e.folder}{#if e.license === 'F2E'} · F2E{/if}{#if e.weapons?.length} · {e.weapons.map((w) => t(`wtype.${w}`)).join(', ')}{/if}</span>
           </button>
+          <FavoriteStar kind="animations" key={e.url} />
         </li>
       {/each}
       {#if entries.length < total}
@@ -188,7 +192,7 @@
     </ul>
     <div class="preview">
       {#if picked}
-        <h4>{picked.name}</h4>
+        <h4>{picked.name} <FavoriteStar kind="animations" key={picked.url} /></h4>
         {#if shownPreview}
           <img src={imageUrl(shownPreview)} alt={shownWeapon || picked.name} />
         {:else if detailError}
@@ -237,6 +241,8 @@
   .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; }
   .list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
   .list li button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; border: none; border-radius: 0; text-align: left; font-weight: 600; }
+  .list li.row { display: flex; align-items: center; }
+  .list li.row > button { flex: 1; min-width: 0; }
   .list li button.active { background: var(--accent-soft); }
   .preview { display: flex; flex-direction: column; gap: 0.3rem; }
   .preview h4 { margin: 0; }

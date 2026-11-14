@@ -5,6 +5,7 @@
   import { api, ApiError } from '../lib/api'
   import { t } from '../lib/i18n.svelte'
   import type { FeRepoEntry } from '../lib/types'
+  import FavoriteStar from './FavoriteStar.svelte'
 
   let { initial = '', busy = false, kind = 'portraits', onpick }: {
     /** a suggested search (the character's name) */
@@ -17,6 +18,7 @@
   let query = $state('')
   let folder = $state('')
   let f2eOnly = $state(false)
+  let favOnly = $state(false)
   let entries = $state<FeRepoEntry[]>([])
   let folders = $state<{ name: string; count: number }[]>([])
   let total = $state(0)
@@ -37,7 +39,7 @@
     error = ''
     try {
       const search = kind === 'mapsprites' ? api.feRepoMapSprites : kind === 'icons' ? api.feRepoIcons : api.feRepoPortraits
-      const r = await search(query, { refresh, folder, f2e: f2eOnly, offset: more ? entries.length : 0 })
+      const r = await search(query, { refresh, folder, f2e: f2eOnly, fav: favOnly, offset: more ? entries.length : 0 })
       if (n !== request) return
       entries = more ? [...entries, ...r.entries] : r.entries
       total = r.total
@@ -73,6 +75,7 @@
     </select>
     <input bind:value={query} oninput={typed} placeholder={t('ferepo.search')} />
     <label class="small f2e"><input type="checkbox" bind:checked={f2eOnly} onchange={() => run()} /> {t('ferepo.f2eOnly')}</label>
+    <label class="small f2e" title={t('favorites.filterHint')}><input type="checkbox" bind:checked={favOnly} onchange={() => run()} /> {t('favorites.only')}</label>
     <button onclick={() => run(true)} disabled={loading} title={t('ferepo.refreshHint')}>⟳</button>
   </div>
   {#if initial && query !== initial}
@@ -95,7 +98,7 @@
              }} />
         {#if kind === 'mapsprites' && !e.walk}<span class="tiny muted">{t('mapsprite.noWalk')}</span>{/if}
         <div class="info">
-          <strong class="small">{e.name}</strong>
+          <span class="title"><strong class="small">{e.name}</strong><FavoriteStar {kind} key={e.url} /></span>
           <span class="tiny muted">{e.authors.join(', ') || t('ferepo.unknownAuthor')}</span>
           <button class="link tiny folder" title={e.folder} onclick={() => { folder = e.folder.split('/')[0]; run() }}>{e.folder}</button>
           <span class="badge" class:f2e={e.license === 'F2E'} title={t(`ferepo.license.${e.license}`)}>{e.license}</span>
@@ -120,6 +123,7 @@
   .card img { width: 128px; height: 112px; object-fit: contain; image-rendering: pixelated; align-self: center; }
   .card img.sprite { width: 48px; height: 96px; }
   .card img.item-icon { width: 48px; height: 48px; }
+  .title { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.2rem; width: 100%; }
   .info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; align-items: flex-start; }
   .folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: left; }
   .badge { align-self: flex-start; font-size: 0.7rem; padding: 0 0.3rem; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }
