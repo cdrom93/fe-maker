@@ -1908,6 +1908,48 @@ def test_turn_start_save(tmp_path, turn_save):
         assert game.read("gPlaySt", 0, width=32) != start   # the turn's start
 
 
+def test_steal_with_a_full_inventory(tmp_path):
+    """Vesly's "Steal with full inventory" in C: a thief holding 5 Antitoxins steals the soldier's Elixir; after the
+    animation, the game's full-inventory menu opens on it (gBmSt.um_tmp_item, struct BmSt 0x2C); discarding the
+    first Antitoxin puts the Elixir in the inventory."""
+    project = _bench(tmp_path, "steal", [["ITEM_SWORD_IRON"], ["ITEM_ANTITOXIN"] * 4], enemy_at=(9, 2))
+    project.set_game_options({**project.game_options, "stealFullInventory": True})
+    characters = project.load("characters")
+    chapters = project.load("chapters")
+    thief = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][1]
+    thief["class"] = "CLASS_THIEF"
+    next(c for c in characters if c["id"] == thief["character"]).update({"class": "CLASS_THIEF", "portraitId": 0x16})
+    enemies = next(units for units in chapters["unitGroups"].values()
+                   if units and units[0].get("character") == "CHARACTER_SOLDIER_83")
+    enemies[0]["items"] = ["ITEM_ELIXIR"]
+    project.save("characters", characters)
+    project.save("chapters", chapters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        thief = _bench_units(game)[1]
+        game.write(thief, 0x016F, 0x1E + 8, width=16)   # a fifth Antitoxin (a unit definition holds 4 items)
+        enemy = game.address("gUnitArrayRed")
+        game.move_cursor(game.read(thief, 0x10), game.read(thief, 0x11))
+        game.press("A")
+        game.press("A", wait=60)        # stays
+        game.screenshot().save(tmp_path / "menu.png")
+        game.press("A", wait=30)        # Steal, the first command
+        game.press("A", wait=30)        # the soldier
+        game.press("A", wait=30)        # the Elixir
+        assert game.wait_until(lambda: game.read("gBmSt", 0x2C, width=16) & 0xFF == 0x6D, seconds=20, step=5)
+        game.run(60)
+        game.screenshot().save(tmp_path / "full.png")
+        assert game.read(enemy, 0x1E, width=16) == 0
+        assert [game.read(thief, 0x1E + 2 * i, width=16) & 0xFF for i in range(5)] == [0x6F] * 5
+        game.press("A", wait=40)        # the first Antitoxin
+        game.screenshot().save(tmp_path / "choice.png")
+        game.press("A", wait=60)        # discarded (or sent to the convoy)
+        assert game.wait_until(lambda: 0x6D in [game.read(thief, 0x1E + 2 * i, width=16) & 0xFF for i in range(5)],
+                               seconds=10, step=5)
+        game.screenshot().save(tmp_path / "after.png")
+        print("screenshots:", tmp_path)
+
+
 def test_map_battle_stats(tmp_path):
     """FEBuilder's "Battle Stats with Anims Off ver2" in C: with animations off, the lord (iron sword) attacks the
     soldier (iron lance); both boxes show the stat names whole (BG0 tiles 0x40+, palette 3: Dmg and AS take 3) and the

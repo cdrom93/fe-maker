@@ -57,7 +57,8 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "map": ("hpBars", "talkBubbles", "enemyWarnings", "dropMarkers", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers", "mapBattleStats"),
                  "screens": ("statusGrowths", "monsterWeaponStats"),
-                 "rules": ("actAfterTalk", "turnStartSave", "forcedUnitsMovable", "casualMode", "strMagSplit", "skills"),
+                 "rules": ("actAfterTalk", "stealFullInventory", "turnStartSave", "forcedUnitsMovable", "casualMode",
+                           "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
                  "sound": ("musicTracks", "fullDrums"),
                  "fixes": ("originalBugFixes", "healerAiFix", "promotedEnemiesFix")}
@@ -575,6 +576,35 @@ _PREP_MOVE = (("src/prep_sallycursor.c", "    if (IsCharacterForceDeployed(unitI
               ("src/prepscreen.c", "        if (IsCharacterForceDeployed(UNIT_CHAR_ID(unit)))\n            ret++;\n",
                "        /* FE Maker: forced units can be moved: their squares are deployable */\n"))
 
+# Steal with a full inventory (option stealFullInventory, as Vesly's "Steal with full inventory"): the Steal command
+# stays available; when the thief's inventory is full, the stolen item comes after the animation with the game's own
+# full-inventory menu (send an item to the convoy or discard one), the one of chests and dropped items.
+_STEAL_FULL = (
+    ("src/bmmenu.c", "    if (GetUnitItemCount(gActiveUnit) == UNIT_ITEM_COUNT) {\n        return MENU_DISABLED;\n    }\n\n"
+     "    return MENU_ENABLED;\n}\n\nu8 StealCommandEffect(",
+     "    /* FE Maker: steal with a full inventory */\n    return MENU_ENABLED;\n}\n\nu8 StealCommandEffect("),
+    ("src/bmmind.c",
+     "    UnitRemoveItem(GetUnit(gActionData.targetIndex), gActionData.itemSlotIndex);\n\n    switch (ITEM_INDEX(item)) {\n",
+     "    UnitRemoveItem(GetUnit(gActionData.targetIndex), gActionData.itemSlotIndex);\n\n"
+     "    gActionData.item = 0; /* FE Maker: steal with a full inventory */\n\n    switch (ITEM_INDEX(item)) {\n"),
+    ("src/bmmind.c", "        default:\n            UnitAddItem(GetUnit(gActionData.subjectIndex), item);\n            break;\n",
+     "        default:\n            if (!UnitAddItem(GetUnit(gActionData.subjectIndex), item)\n"
+     "                && UNIT_FACTION(GetUnit(gActionData.subjectIndex)) == FACTION_BLUE)\n"
+     "                gActionData.item = item; /* FE Maker: the inventory is full, the item comes after the animation */\n"
+     "            break;\n"),
+    ("src/bmmind.c", "//! FE8U = 0x08032554\ns8 ActionSummon(ProcPtr proc) {\n",
+     "/* FE Maker: steal with a full inventory, the game's full-inventory menu (convoy or discard) */\n"
+     "void HandleNewItemGetFromDrop(struct Unit * unit, int item, ProcPtr parent);\n\n"
+     "s8 FemStealWithFullInventory(ProcPtr proc) {\n    int item = gActionData.item;\n\n"
+     "    if (gActionData.unitActionType != UNIT_ACTION_STEAL || item == 0)\n        return 1;\n\n"
+     "    gActionData.item = 0;\n    HandleNewItemGetFromDrop(gActiveUnit, item, proc);\n    return 0;\n}\n\n"
+     "//! FE8U = 0x08032554\ns8 ActionSummon(ProcPtr proc) {\n"),
+    ("src/playerphase.c", "    PROC_CALL_2(ApplyUnitAction),\n",
+     "    PROC_CALL_2(ApplyUnitAction),\n    PROC_CALL_2(FemStealWithFullInventory), /* FE Maker */\n"),
+    ("src/playerphase.c", "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] =",
+     "s8 FemStealWithFullInventory(ProcPtr proc); /* FE Maker: steal with a full inventory */\n\n"
+     "struct ProcCmd CONST_DATA gProcScr_PlayerPhase[] ="))
+
 # Resume at the start of the turn (option turnStartSave, the player's choice in the Configuration menu, unk43_4): the
 # game writes its suspend save at the start of the player's phase only; not after each action, an arena fight, a trap,
 # an enemy's action or another phase. The Suspend command still saves where the player is (WriteSuspendPlayerIdle).
@@ -1021,6 +1051,9 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: dict[str, tu
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
     if options.get("forcedUnitsMovable"):
         for rel, old, new in _PREP_MOVE:
+            files[rel] = _replace(current(rel), old, new, rel)
+    if options.get("stealFullInventory"):
+        for rel, old, new in _STEAL_FULL:
             files[rel] = _replace(current(rel), old, new, rel)
     if options.get("turnStartSave"):
         for rel, old, new in _TURN_SAVE:

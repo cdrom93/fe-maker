@@ -1735,6 +1735,8 @@
   "options.turnStartSaveHint": "Le joueur choisit où « Reprendre » le ramène : à sa dernière action, comme le jeu d'origine, ou au début de son tour (pour rejouer un tour raté). La commande Interrompre garde l'endroit où il en est.",
   "options.forcedUnitsMovable": "Unités obligatoires déplaçables en préparation",
   "options.forcedUnitsMovableHint": "Pendant la préparation, les unités que le chapitre impose (le seigneur...) peuvent changer de place avec les autres, et leur case de départ peut être prise par une autre unité.",
+  "options.stealFullInventory": "Voler avec l'inventaire plein",
+  "options.stealFullInventoryHint": "Un voleur peut voler même avec 5 objets : l'objet volé arrive après l'animation, avec le menu du jeu pour l'inventaire plein (envoyer un objet au convoi ou en jeter un).",
   "field.description": "Description (touche R en jeu)",
   "field.descriptionLong": "Le jeu affiche deux lignes d'environ {n} caractères : ce texte risque de déborder.",
   "options.hpBars": "Barres de PV sur la carte",

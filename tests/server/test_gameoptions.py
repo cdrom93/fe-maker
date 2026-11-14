@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 31
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 32
 
 
 def test_a_unit_acts_after_a_talk():
@@ -239,6 +239,19 @@ def test_turn_start_save_and_its_menu_line():
     assert "gPlaySt.config.unk43_4 = 1;" in files[gameoptions.CONFIG_FILE]
     assert "GAME_OPTION_FEM_TURN_SAVE = 18," in files[gameoptions.OPTION_MENU_HEADER]
     assert gameoptions.validate({"turnSave": 1, "turnStartSave": True}) is None
+
+
+def test_steal_with_a_full_inventory():
+    """Vesly's "Steal with full inventory" in C: Steal stays available, the player phase gives the item after the
+    animation through the game's full-inventory menu."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / "src/bmmind.c").is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"stealFullInventory": True}, {})
+    menu = files["src/bmmenu.c"].split("u8 StealCommandUsability(")[1].split("\n}\n")[0]
+    assert "MENU_DISABLED" not in menu
+    assert "    PROC_CALL_2(ApplyUnitAction),\n    PROC_CALL_2(FemStealWithFullInventory)," in files["src/playerphase.c"]
+    assert "HandleNewItemGetFromDrop(gActiveUnit, item, proc);" in files["src/bmmind.c"]
 
 
 def test_forced_units_movable_in_the_preparations():

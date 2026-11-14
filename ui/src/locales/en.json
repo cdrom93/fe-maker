@@ -1735,6 +1735,8 @@
   "options.turnStartSaveHint": "The player picks where Resume takes them back to: their last action, as in the original game, or the start of their turn (to replay a bad turn). The Suspend command still keeps where they are.",
   "options.forcedUnitsMovable": "Forced units movable in the preparations",
   "options.forcedUnitsMovableHint": "In the preparations, the units the chapter forces (the lord...) can swap places with the others, and their starting square can be taken by another unit.",
+  "options.stealFullInventory": "Steal with a full inventory",
+  "options.stealFullInventoryHint": "A thief can steal even with 5 items: the stolen item comes after the animation, with the game's full-inventory menu (send an item to the convoy or discard one).",
   "field.description": "Description (R key in game)",
   "field.descriptionLong": "The game shows two lines of about {n} characters: this text may overflow.",
   "options.hpBars": "HP bars on the map",
