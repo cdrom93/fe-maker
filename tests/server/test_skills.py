@@ -567,6 +567,25 @@ def test_batch_10_nihil(monkeypatch):
     assert "NihilFoeFem" not in unit
 
 
+def test_batch_10_movement_skills(monkeypatch):
+    """Batch 10: Celerity (+2) and Rally Movement (bit 7 of RALLY_FEM, +4) in UNIT_MOV itself, the path arrow too."""
+    if not (DECOMP / "src/bmpatharrowdisp.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Celerity", "RallyMovement"]}]
+    used = skills.used(characters, [], False)
+    texts = {**PAGE, **{s.id: 2 for s in used}, **{f"menu:{s.id}": 3 for s in used if s.menu}}
+    files = skills.apply(DECOMP, {}, characters, [], texts, False)
+    assert "+ MovSkillBonusFem(aUnit))" in files["include/bmunit.h"]
+    unit = files["src/bmunit.c"]
+    assert "if (SkillTesterFem(unit, SKILL_FEM_Celerity))\n        bonus += 2;" in unit
+    assert "if (RALLY_FEM[(u8) unit->index] & 0x80)\n        bonus += 4;" in unit
+    assert "RALLY_FEM[(u8) unit->index] & 0x80) /* Rally */" not in unit   # not a stat getter's
+    assert "UNIT_MOV(gActiveUnit) - gActionData.moveCount;" in files["src/bmpatharrowdisp.c"]
+    assert "return RallyEffectFem(0x80);" in files["src/bmmenu.c"]
+
+
 def test_every_offered_skill_has_its_ui_strings():
     """The skill picker shows skill.<id> and skill.<id>Hint (skills added in batch 10 lacked them for a while)."""
     root = Path(__file__).parents[2] / "ui/src/locales"

@@ -17,13 +17,13 @@
 | Famille | Compétences | Ce qu'il faut |
 | :-- | :-- | :-- |
 | Breakers | Swordbreaker, Lancebreaker, Axebreaker, Bowbreaker (Tomebreaker = BMagBreaker) | **faites (lot 10, 13/11)** |
-| Rally (commande) | Rally Strength, Magic, Skill, Speed, Luck, Defense, Resistance, Movement, Spectrum | **faites (lot 10, 14/11)** sauf Movement ; Magic avec Force et Magie séparées |
+| Rally (commande) | Rally Strength, Magic, Skill, Speed, Luck, Defense, Resistance, Movement, Spectrum | **faites (lot 10, 14/11)**, Movement comprise ; Magic avec Force et Magie séparées |
 | Sceaux après combat | Seal Attack (SealStrength), Magic, Skill, Speed, Luck, Defense, Resistance | **faits (lot 10, 13/11)** |
 | Après le combat | **faites (lot 10, 13/11)** : Fury, Grisly Wound, Poison Strike, Breath of Life, Lifetaker, Despoil. puis le 14/11 Savage Blow, Lunge, Devil's Pact / Luck / Whim | effets après le combat (`BattleUnwind`), à faire en un lot |
 | Commandes de carte | Smite, Pass, Supply | **faites (lot 10, 14/11)** ; Supply était déjà la compétence du jeu |
 | Croissances et expérience | Paragon, Blossom, Aptitude, Discipline | **faites (lot 10, 14/11)** |
 | Déclenchements | Great Shield, Sure Shot, Deadeye, Killing Machine, Counter, Countermagic, Nihil, Nullify, Hero, Rightful King, Rightful God | faits le 14/11 (lot 10), Nihil comprise ; Great Shield et Sure Shot sont celles du jeu |
-| Passives | **faites (lot 10, 13/11)** : Life and Death, Light Weight, Elbow Room, Critical Force, Battle Veteran, Loyalty, Blue Flame, Outdoor Fighter ; le 14/11 Resolve, Lucky Seven, Triangle Adept, Skybreaker, Slayer (celle du jeu, attribuable), Thunderstorm. Reste : Celerity (absente du C-SkillSys) (MovBonus, déplacement) | moyennes : touchent aux calculs du jeu |
+| Passives | **faites (lot 10, 13/11)** : Life and Death, Light Weight, Elbow Room, Critical Force, Battle Veteran, Loyalty, Blue Flame, Outdoor Fighter ; le 14/11 Resolve, Lucky Seven, Triangle Adept, Skybreaker, Slayer (celle du jeu, attribuable), Thunderstorm. Celerity (absente du C-SkillSys, icône MovBonus : Déplacement +2) faite le 14/11 ; la liste est finie | moyennes : touchent aux calculs du jeu |
 | Portée des armes | Point Blank, Staff Savant | lot 9 suite (portée), reporté « plus tard » |
 | Déplacement, tour | Keep Up, Armor March, Nature Rush, Boon, Powerstaff | début de tour et déplacement (lot 9 suite) |
 | Divers | Bargain (prix des magasins), Axefaith | faites le 14/11 (lot 10), avec Deal |

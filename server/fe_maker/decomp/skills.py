@@ -231,6 +231,8 @@ CATALOGUE: tuple[Skill, ...] = (
                "            && SkillProcRateFem(attacker, SKILL_FEM_AxeFaith, attacker->battleAttack))\n"
                "            rate += attacker->battleAttack;"),
     Skill("Pass", "map", "Pass", "Pass:[NL]Unit can pass through[NL]enemies if HP >= 25%.", group="map"),
+    # Celerity (FE9-10, not in C-SkillSys; its MovBonus icon): Movement +2, in UNIT_MOV with Rally Movement
+    Skill("Celerity", "map", "MovBonus", "Celerity:[NL]Movement +2.", group="map"),
     Skill("Bargain", "map", "Bargain", "Bargain:[NL]Reduce cost of items bought[NL]by this unit by 50%.", group="items"),
     Skill("Deal", "map", "", "Deal:[NL]Reduce cost of items bought[NL]by this unit by 20%.", group="items"),
     Skill("RightfulKing", "proc", "RightfulKing",
@@ -282,6 +284,7 @@ CATALOGUE: tuple[Skill, ...] = (
         ("Skill", "Skill", "SKL", "Skl", (1,)),
         ("Speed", "Speed", "SPD", "Spd", (2,)), ("Luck", "Luck", "LCK", "Lck", (5,)),
         ("Defense", "Defense", "DEF", "Def", (3,)), ("Resistance", "Resistance", "RES", "Res", (4,)),
+        ("Movement", "Movement", "MOV", "Mov", (7,)),
         ("Spectrum", "Spectrum", "all stats", "Spec", (0, 1, 2, 3, 4, 5, 6)))),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn."),
@@ -1165,6 +1168,23 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                "        value += value / 2;\n" if k in (0, 1, 2) and any(s.id == "Resolve" for s in skills) else "") +
             f"    return value < 0 ? 0 : value; /* ticket 50: a malus never takes a stat under 0 */\n}}\n\n"
             f"int {name}BaseFem(struct Unit* unit) {{"), rel)
+    movers = [sid for sid in ("Celerity", "RallyMovement") if sid in numbers]
+    if movers:   # Movement: in UNIT_MOV itself (movement maps, the path arrow, the AI, the status screen)
+        unit += ("\n/* Celerity (+2) and Rally Movement (+4 until the next player phase): the unit's Movement */\n"
+                 "int MovSkillBonusFem(struct Unit* unit)\n{\n    int bonus = 0;\n\n"
+                 + ("    if (SkillTesterFem(unit, SKILL_FEM_Celerity))\n        bonus += 2;\n" if "Celerity" in movers else "")
+                 + ("    if (RALLY_FEM[(u8) unit->index] & 0x80)\n        bonus += 4;\n" if "RallyMovement" in movers else "")
+                 + "    return bonus;\n}\n")
+        files["include/bmunit.h"] = _replace(
+            files["include/bmunit.h"], "#define UNIT_MOV(aUnit) ((aUnit)->movBonus + UNIT_MOV_BASE(aUnit))",
+            "int MovSkillBonusFem(struct Unit* unit); /* FE Maker: Celerity, Rally Movement */\n"
+            "#define UNIT_MOV(aUnit) ((aUnit)->movBonus + UNIT_MOV_BASE(aUnit) + MovSkillBonusFem(aUnit))",
+            "include/bmunit.h")
+        rel_arrow = "src/bmpatharrowdisp.c"
+        files[rel_arrow] = _replace(
+            _read(files, decomp_dir, rel_arrow),
+            "            gActiveUnit->movBonus + gActiveUnit->pClassData->baseMov - gActionData.moveCount;",
+            "            UNIT_MOV(gActiveUnit) - gActionData.moveCount; /* FE Maker: Movement skills */", rel_arrow)
     files[rel] = unit
     if any(value < 0 for s in skills for _, value in s.stats):   # ticket 50: Fortress's -3 read "+7"
         show_malus(files, lambda rel_screen: _read(files, decomp_dir, rel_screen))
@@ -2100,7 +2120,7 @@ RALLY_TABLE = "0x02028700"   # the debug print buffer again, after the music's t
 RALLY_SAVE = 0xA00           # bonus-map zone of the save memory, after the learned skills: per suspend slot, time + table
 RALLIES = {"RallyStrength": (0,), "RallyMagic": (6,), "RallySkill": (1,),
            "RallySpeed": (2,), "RallyLuck": (5,), "RallyDefense": (3,),
-           "RallyResistance": (4,), "RallySpectrum": (0, 1, 2, 3, 4, 5, 6)}
+           "RallyResistance": (4,), "RallyMovement": (7,), "RallySpectrum": (0, 1, 2, 3, 4, 5, 6)}
 
 
 def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: dict[str, int]) -> dict:

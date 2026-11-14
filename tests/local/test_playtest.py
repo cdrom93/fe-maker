@@ -2339,6 +2339,50 @@ def test_batch_10_rally_and_smite(tmp_path):
         assert game.read(rally) == 0
 
 
+def test_batch_10_rally_movement_and_celerity(tmp_path):
+    """Skills batch 10: the lord has Celerity (Movement +2): its movement map reaches 2 tiles further; its Rally
+    Movement gives its friend two tiles away +4 Movement (bit 7 of RALLY_FEM): the friend's map reaches further."""
+    project = _bench(tmp_path, "rallymov", [["ITEM_SWORD_IRON"], []])
+    project.set_game_options({**project.game_options, "skills": True})
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    lord_spot = BENCH_SPOTS[0]
+    friend_spot = (lord_spot[0], lord_spot[1] + 2)
+    army[1].update(x=friend_spot[0], y=friend_spot[1], endX=friend_spot[0], endY=friend_spot[1])
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["RallyMovement", "Celerity"]
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        from fe_maker.decomp import skills
+
+        def reach():   # the farthest cost on the selected unit's movement map (0xFF: out of reach)
+            width, height = game.read("gBmMapSize", 0, width=16), game.read("gBmMapSize", 2, width=16)
+            rows = game.read("gBmMapMovement", width=32)
+            costs = [game.read(game.read(rows + 4 * y, width=32) + x) for y in range(height) for x in range(width)]
+            return max(cost for cost in costs if cost < 0x80)
+
+        def base_mov(unit):   # struct Unit: movBonus at 0x1D; the class's baseMov at 0x12
+            return game.read(game.read(unit, 4, width=32), 0x12) + game.read(unit, 0x1D, signed=True)
+
+        lord = _bench_units(game)[0]
+        base = game.address("gUnitArrayBlue")
+        friend = next(base + n * UNIT_SIZE for n in range(62)
+                      if (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == friend_spot)
+        game.move_cursor(*lord_spot)
+        game.press("A")
+        game.run(30)
+        assert reach() == base_mov(lord) + 2
+        game.press("A", wait=60)       # stays
+        game.press("A", wait=60)       # Rally-Mov
+        assert game.read(int(skills.RALLY_TABLE, 16) + game.read(friend, 0xB)) == 0x80
+        game.move_cursor(*friend_spot)
+        game.press("A")
+        game.run(30)
+        assert reach() > base_mov(friend) + 2   # +4 (terrain may cut the last tile)
+
+
 def test_batch_10_resolve(tmp_path):
     """Skills batch 10: under half HP, Resolve raises the lord's Strength, Skill and Speed by half in battle (the battle
     unit's copies); Lucky Seven, Triangle Adept, Skybreaker and Slayer are built with it."""

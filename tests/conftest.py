@@ -38,6 +38,7 @@ PLAYTESTS = {
                "batch_9_shade_plus_is_never_targeted", "learned_skill_counts_in_battle", "skill_learned_at_a_level_up",
                "experience_skills", "batch_10_counter",
                "batch_10_nihil", "batch_10_savage_blow", "batch_10_pass", "batch_10_rally_and_smite",
+               "batch_10_rally_movement_and_celerity",
                "batch_10_resolve",
                "game_ability_given_as_a_skill", "canto_plus_moves_after_a_battle", "pivot_command",
                "reposition_shove_and_swap_commands", "renewal_and_galeforce_on_the_map",
