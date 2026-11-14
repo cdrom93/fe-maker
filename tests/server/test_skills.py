@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -540,3 +541,33 @@ def test_batch_10_smite_and_rally(monkeypatch):
     assert "SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));" in menu
     assert "RallySpectrumUsabilityFem" in files["src/menu_def.c"]
     assert "{1, 3, 8, 0}" in files["src/menu_def.c"]
+
+
+def test_every_offered_skill_has_its_ui_strings():
+    """The skill picker shows skill.<id> and skill.<id>Hint (skills added in batch 10 lacked them for a while)."""
+    root = Path(__file__).parents[2] / "ui/src/locales"
+    for lang in ("fr", "en"):
+        strings = json.loads((root / f"{lang}.json").read_text(encoding="utf-8"))
+        missing = [s["id"] for s in skills.catalogue()
+                   if f"skill.{s['id']}" not in strings or f"skill.{s['id']}Hint" not in strings]
+        assert not missing, (lang, missing)
+
+
+def test_batch_10_remaining_passives(monkeypatch):
+    """Batch 10: Resolve (+50 % of Str, Skl, Spd under half HP, in their getters), Lucky Seven (+7 on the stat's turn),
+    Triangle Adept (the holder's triangle bonuses doubled), Skybreaker and Slayer (given: the Bishops' effectiveness)."""
+    if not (DECOMP / "src/bmbattle.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Resolve", "LuckySeven", "TriangleAdept"]},
+                  {"id": "CHARACTER_SETH", "skills": ["Skybreaker", "Slayer"]}]
+    used = skills.used(characters, [], False)
+    files = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)
+    unit = files["src/bmunit.c"]
+    assert unit.count("SKILL_FEM_Resolve)) /* Resolve */") == 3
+    assert "if ((gPlaySt.chapterTurnNumber & 7) == 3 && SkillTesterFem(unit, SKILL_FEM_LuckySeven))" in unit   # Speed
+    assert "attacker->wTriangleHitBonus *= 2;" in files["src/bmbattle.c"]
+    item = files["src/bmitem.c"]
+    assert "for (list = ItemEffectiveness_Flier; *list; ++list)" in item and "SKILL_FEM_Slayer" in item
+    assert item.index("static int SkillEffectiveFem(") < item.index("s8 IsUnitEffectiveAgainst(")

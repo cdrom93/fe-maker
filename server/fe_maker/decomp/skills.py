@@ -64,7 +64,8 @@ class Skill:
     icon: str             # C-SkillSys's icon file
     text: str             # in-game help text, its name first
     stats: tuple = ()     # (stat, value) pairs added by the stat getters: 0 Str, 1 Skl, 2 Spd, 3 Def, 4 Res, 5 Lck, 6 Mag
-    when: str = ""        # stats: "low" (under 25 % of HP), "full" (HP full), "light" (3 items or less)
+    when: str = ""        # stats: "low" (under 25 % of HP), "full" (HP full), "light" (3 items or less), "lucky7" (the
+    # stat's turn, Lucky Seven), "resolve" (Resolve: +50 % of the stat under half HP, in its getter)
     code: str = ""        # battle skills: C run in ComputeBattleUnitStats once both units' stats are computed (attacker,
     # defender); late skills: at the start of ComputeBattleUnitEffectiveStats (comparisons with the foe, as C-SkillSys's
     # BattleCalcReal); proc skills: C run on a hit before its damage (attacker, defender, magic, *attack, *defense)
@@ -118,6 +119,8 @@ _MAGIC = "((%s)->weaponAttributes & (IA_MAGIC | IA_MAGICDAMAGE))"
 SEALS = (("Strength", "Attack", "STR", 0), ("Magic", "Magic", "MAG", 6), ("Skill", "Skill", "SKL", 1),
          ("Speed", "Speed", "SPD", 2), ("Luck", "Luck", "LUCK", 5), ("Defense", "Defense", "DEF", 3),
          ("Resistance", "Resistance", "RES", 4))
+# Lucky Seven (C-SkillSys's LUCKY7_*): the stat (GETTERS) raised on the turns whose number & 7 is its place here
+LUCKY_SEVEN = (0, 6, 1, 2, 5, 3, 4)
 _TOME = "({0}->weaponType == ITYPE_ANIMA || {0}->weaponType == ITYPE_LIGHT || {0}->weaponType == ITYPE_DARK)"
 
 CATALOGUE: tuple[Skill, ...] = (
@@ -128,6 +131,11 @@ CATALOGUE: tuple[Skill, ...] = (
     _stat("LckBonus", "LukBonus", 5, 2, False, "Luck+2:[NL]Unit is granted LUCK +2."),
     _stat("DefBonus", "DefBonus", 3, 2, False, "Def+2:[NL]Unit is granted DEF +2."),
     _stat("ResBonus", "ResBonus", 4, 2, False, "Res+2:[NL]Unit is granted RES +2."),
+    # batch 10: C-SkillSys's PowGetter.c... (UnitStatusGetter)
+    Skill("Resolve", "stat", "Resolve", "Resolve:[NL]When HP < 50%,[NL]STR/SKL/SPD +50% bonus.", ((0, 0), (1, 0), (2, 0)),
+          "resolve", group="hp"),
+    Skill("LuckySeven", "stat", "LuckySeven", "Lucky 7:[NL]+7 to one stat each turn, in[NL]turn: Str, Mag, Skl, Spd, Lck...",
+          tuple((k, 7) for k in LUCKY_SEVEN), "lucky7", group="situation"),
     _stat("DefiantStr", "DefiantStr", 0, 7, True, "Defiant Str:[NL]STR +7 if HP < 25%."),
     _stat("DefiantMag", "DefiantMag", 6, 7, True, "Defiant Mag:[NL]MAG +7 if HP < 25%."),
     _stat("DefiantSkl", "DefiantSkl", 1, 7, True, "Defiant Skl:[NL]SKL +7 if HP < 25%."),
@@ -503,6 +511,9 @@ CATALOGUE: tuple[Skill, ...] = (
     _b("Vigilance", "battle", "Vigilance:[NL]Gain +20 Avoid.", "attacker->battleAvoidRate += 20;"),
     # batch 6: hit and crit (BattleCalcReal_ComputSkills, after the game's effective rates), damage on each hit
     # (SkillEffects/BattleDamage), applied to the game's own damage after the critical roll
+    Skill("Skybreaker", "map", "Skybreaker", "Skybreaker: Deal effective[NL]damage to flying units.", group="foe"),
+    Skill("TriangleAdept", "map", "TriangleAdept", "Triangle Adept:[NL]Doubles weapon triangle[NL]effects for this unit.",
+          group="weapon"),
     Skill("Nullify", "map", "Nullify", "Nullify: Unit is protected[NL]from all effective attacks.", group="guard"),
     _b("KillingMachine", "hit", "Killing Machine:[NL]Double this unit's[NL]total crit rate.",
        "attacker->battleCritRate *= 2;", kind="late"),
@@ -801,12 +812,13 @@ GAME_CHARACTERS = {"Supply": ["CHARACTER_EIRIKA", "CHARACTER_EPHRAIM"]}   # the 
 # (AI included) with UNIT_CATTRIBUTES, which then adds SkillAttributesFem (docs/competences.md)
 # Supply has no attribute: the game's CA_SUPPLY is FE7's convoy carrier (convoy.py); the skill opens the convoy as the
 # route's lord does, to the unit and the units next to it (SupplyUsability, ticket 46). Summon is not here: only the
-# characters of gSummonConfig can summon; nor Magic Seal: the game looks for it on enemies only.
+# characters of gSummonConfig can summon; nor Magic Seal: the game looks for it on enemies only. Slayer has none either:
+# the game's is the Bishops' (IsUnitEffectiveAgainst); the skill joins it there (batch 10, SkillEffectiveFem).
 ASSIGNABLE = {"Canto": "CA_CANTO", "Steal": "CA_STEAL", "LockTouch": "CA_THIEF", "Crit": "CA_CRITBONUS",
-              "Lethality": "CA_ASSASSIN", "Dance": "CA_DANCE", "Supply": ""}
+              "Lethality": "CA_ASSASSIN", "Dance": "CA_DANCE", "Supply": "", "Slayer": ""}
 # their category in the skill picker: that of what they do (ticket 26), not a "game abilities" one
 ASSIGNABLE_GROUP = {"Canto": "map", "Steal": "menu", "LockTouch": "menu", "Crit": "hit", "Lethality": "hit",
-                    "Dance": "menu", "Supply": "menu"}
+                    "Dance": "menu", "Supply": "menu", "Slayer": "foe"}
 
 
 def given(characters: list[dict], classes: list[dict], extra=()) -> set[str]:
@@ -1048,7 +1060,11 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
     for s in skills:
         for k, value in s.stats:
             if k in _raised(skills, magic_split):
-                cond = {"low": "defiant && ", "full": "full && ", "light": "!unit->items[3] && "}.get(s.when, "")
+                if s.when == "resolve":   # in the getter, on the whole stat
+                    bonuses[k].append("")
+                    continue
+                cond = {"low": "defiant && ", "full": "full && ", "light": "!unit->items[3] && ",
+                        "lucky7": f"(gPlaySt.chapterTurnNumber & 7) == {LUCKY_SEVEN.index(k)} && "}.get(s.when, "")
                 bonuses[k].append(f"        if ({cond}SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
                                   f"            bonus += {value};\n")
     cases = "".join(f"    case {k}:\n{''.join(lines)}        break;\n" for k, lines in bonuses.items() if lines)
@@ -1125,6 +1141,8 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         prefix = "inline " if f"inline {head}" in unit else ""
         unit = _replace(unit, prefix + head, (
             f"{prefix}{head}\n    int value = {name}BaseFem(unit) + SkillStatBonusFem(unit, {k});\n\n"
+            + ("    if (unit->curHP * 2 < GetUnitMaxHp(unit) && SkillTesterFem(unit, SKILL_FEM_Resolve)) /* Resolve */\n"
+               "        value += value / 2;\n" if k in (0, 1, 2) and any(s.id == "Resolve" for s in skills) else "") +
             f"    return value < 0 ? 0 : value; /* ticket 50: a malus never takes a stat under 0 */\n}}\n\n"
             f"int {name}BaseFem(struct Unit* unit) {{"), rel)
     files[rel] = unit
@@ -1249,6 +1267,41 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
             text = _replace(text, head, head + f"    if (SkillTesterFem({who}, SKILL_FEM_Nullify)) /* FE Maker: Nullify */\n"
                             "        return FALSE;\n\n", rel)
         files[rel] = text
+    slayers = [sid for sid in ("Slayer", "Skybreaker") if sid in numbers]
+    if slayers:   # batch 10: C-SkillSys's CheckEffective.c, the game's lists (Bishop's against monsters, the bows')
+        rel = "src/bmitem.c"
+        lines = ("    if (SkillTesterFem(actor, SKILL_FEM_Slayer))\n"
+                 "        for (list = ItemEffectiveness_Monsters; *list; ++list)\n"
+                 "            if (*list == target->pClassData->number)\n                return TRUE;\n"
+                 if "Slayer" in slayers else "")
+        lines += ("    if (SkillTesterFem(actor, SKILL_FEM_Skybreaker)) {\n"
+                  "        for (i = 0; i < UNIT_ITEM_COUNT; ++i)\n"
+                  "            attributes |= GetItemAttributes(target->items[i]);\n"
+                  "        if (!(attributes & IA_NEGATE_FLYING))   /* the Delphi Shield */\n"
+                  "            for (list = ItemEffectiveness_Flier; *list; ++list)\n"
+                  "                if (*list == target->pClassData->number)\n                    return TRUE;\n    }\n"
+                  if "Skybreaker" in slayers else "")
+        text = _replace(_read(files, decomp_dir, rel), "s8 IsUnitEffectiveAgainst(struct Unit* actor, struct Unit* target) {\n",
+                        "/* FE Maker: Slayer and Skybreaker */\n"
+                        "static int SkillEffectiveFem(struct Unit* actor, struct Unit* target)\n"
+                        "{\n    const u8* list;\n    u32 attributes = 0;\n    int i;\n\n" + lines
+                        + "    (void) list; (void) attributes; (void) i;\n    return FALSE;\n}\n\n"
+                        "s8 IsUnitEffectiveAgainst(struct Unit* actor, struct Unit* target) {\n", rel)
+        files[rel] = _replace(text, "    } // switch (actorClass)\n\n",
+                              "    } // switch (actorClass)\n\n"
+                              "    if (SkillEffectiveFem(actor, target))\n        return TRUE;\n\n", rel)
+    if "TriangleAdept" in numbers:   # batch 10: C-SkillSys's WeaponTriangle.c (amplifier_eff), for the holder's side
+        rel = "src/bmbattle.c"
+        files[rel] = _replace(_read(files, decomp_dir, rel),
+                              "    if (defender->weaponAttributes & IA_REVERTTRIANGLE)\n"
+                              "        BattleApplyReaverEffect(attacker, defender);\n}\n",
+                              "    if (defender->weaponAttributes & IA_REVERTTRIANGLE)\n"
+                              "        BattleApplyReaverEffect(attacker, defender);\n\n"
+                              "    if (SkillTesterFem(&attacker->unit, SKILL_FEM_TriangleAdept)) {\n"
+                              "        attacker->wTriangleHitBonus *= 2;\n        attacker->wTriangleDmgBonus *= 2;\n    }\n"
+                              "    if (SkillTesterFem(&defender->unit, SKILL_FEM_TriangleAdept)) {\n"
+                              "        defender->wTriangleHitBonus *= 2;\n        defender->wTriangleDmgBonus *= 2;\n"
+                              "    }\n}\n", rel)
     bargains = [(sid, cost) for sid, cost in (("Bargain", "cost / 2"), ("Deal", "cost * 80 / 100")) if sid in numbers]
     if bargains:   # batch 10: C-SkillSys's Price.c, after the Silver Card, without stacking
         rel = "src/bmshop.c"
