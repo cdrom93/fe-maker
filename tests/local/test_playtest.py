@@ -1811,6 +1811,35 @@ def test_enemy_warnings(tmp_path):
         print("screenshot:", tmp_path / "warnings.png")
 
 
+def test_drop_markers(tmp_path):
+    """Ticket 67: the soldier, given an item to drop (struct Unit state, US_DROP_ITEM), shows the halved gold bag: an
+    object on its tile 0x364 in OAM; none without the flag."""
+    project = _bench(tmp_path, "drops", [["ITEM_SWORD_IRON"]], enemy_at=(6, 5))
+    project.set_game_options({**project.game_options, "dropMarkers": True, "hpBars": True})
+    chapters = project.load("chapters")
+    enemies = next(units for units in chapters["unitGroups"].values()
+                   if units and units[0].get("character") == "CHARACTER_SOLDIER_83")
+    enemies[0]["items"] = ["ITEM_LANCE_IRON", "ITEM_VULNERARY"]
+    project.save("chapters", chapters)
+    out = build(project)
+
+    def bags(game):
+        return sum(1 for i in range(128) if game.read(0x07000000 + i * 8 + 4, width=16) & 0x3FF == 0x364
+                   and game.read(0x07000000 + i * 8, width=16) & 0x300 != 0x200)
+
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]   # waits for the map
+        enemy = game.address("gUnitArrayRed")
+        game.move_cursor(game.read(lord, 0x10), game.read(lord, 0x11) + 2)   # no portrait window over the map icons
+        game.run(30)
+        assert bags(game) == 0
+        game.write(enemy + 0xC, game.read(enemy, 0xC, width=32) | 0x1000, width=32)
+        game.run(30)
+        game.screenshot().save(tmp_path / "drops.png")
+        assert bags(game) == 1
+        print("screenshot:", tmp_path / "drops.png")
+
+
 def test_monster_weapon_stats(tmp_path):
     """FEBuilder's "Monster Weapon display fix": the lord holds a Rotten Claw; its Item command's panel computes the
     claw's battle stats (gBattleActor.weapon, struct BattleUnit at 0x48) as for a weapon, not its use text."""

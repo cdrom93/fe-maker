@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 24
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 25
 
 
 def test_a_unit_acts_after_a_talk():
@@ -177,3 +177,15 @@ def test_monster_weapons_show_their_stats():
     assert "case ITYPE_MONSTER:" not in files[gameoptions.ITEM_PANEL_FILE]
     assert "&& GetItemType(item) != ITYPE_MONSTER)" in files[gameoptions.STATUS_FILE]
     assert "monsterWeaponStats" in gameoptions.SWITCH_GROUPS["screens"]
+
+
+def test_drop_markers_halve_the_games_gold_bag():
+    """Ticket 67: the bag on the enemies that drop an item, the game's gold icon halved when the project is built."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.DROP_ICON).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"hpBars": True, "dropMarkers": True}, {})
+    sprites = files[gameoptions.MAP_SPRITES_FILE]
+    assert "FemPutHpBar(unit);" in sprites and "FemPutDropBag(unit);" in sprites and "US_DROP_ITEM" in sprites
+    assert "static const u32 sFemDropBag[8] = { 0x" in files[gameoptions.MAP_UI_FILE]
+    assert "dropMarkers" in gameoptions.SWITCH_GROUPS["map"]

@@ -1613,6 +1613,8 @@
   "options.talkBubblesHint": "Une bulle jaune sur les unités à qui l'unité choisie peut parler ou avec qui elle a un soutien disponible.",
   "options.enemyWarnings": "Alertes sur les ennemis",
   "options.enemyWarningsHint": "Quand on choisit une unité, un « ! » blanc sur les ennemis qui ont une arme efficace contre elle, un « ! » orange sur ceux qui ont une arme à plus de 24 de critique.",
+  "options.dropMarkers": "Sac sur les ennemis qui lâchent un objet",
+  "options.dropMarkersHint": "Un petit sac sur les ennemis qui lâchent un objet quand on les bat (leur dernier objet).",
   "options.quickChapterTitle": "Titre de chapitre rapide",
   "options.quickChapterTitleHint": "Le titre se passe tout de suite.",
   "options.holdAToSpeedUp": "A maintenu accélère les déplacements",

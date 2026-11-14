@@ -337,3 +337,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences : 8 icônes manquantes reprises du Skill System classique (CC0, téléchargées par FE Maker) ; 12 gardent le « ? » (absentes ou vides partout ; le wiki fandom est protégé contre les robots).
 - 14/11/2026 : options du jeu : alertes sur les ennemis (« ! » blanc : arme efficace ou Slayer, « ! » orange : arme à plus de 24 de critique, comme HPBars_with_warnings de FEBuilder) ; playtest.
 - 14/11/2026 : options du jeu : statistiques des armes de monstre (nom du type, panneau des objets, fiche d'aide ; comme le correctif de Brendor dans FEBuilder, refait en C) ; playtest.
+- 14/11/2026 : options du jeu : sac sur les ennemis qui lâchent un objet (ticket #67 ; l'icône « or » du jeu réduite en 8 × 8 à la compilation, idée du Droppable Item Marker de Vesly) ; playtest.

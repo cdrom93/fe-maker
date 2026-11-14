@@ -1613,6 +1613,8 @@
   "options.talkBubblesHint": "A yellow bubble on the units the selected one can talk to, or has a support ready with.",
   "options.enemyWarnings": "Warnings on enemies",
   "options.enemyWarningsHint": "When a unit is selected, a white \"!\" on the enemies holding a weapon effective against it, an orange \"!\" on those holding a weapon with more than 24 crit.",
+  "options.dropMarkers": "Bag on enemies that drop an item",
+  "options.dropMarkersHint": "A small bag on the enemies that drop an item when beaten (their last item).",
   "options.quickChapterTitle": "Quick chapter title",
   "options.quickChapterTitleHint": "The title can be skipped at once.",
   "options.holdAToSpeedUp": "Hold A to speed up movement",

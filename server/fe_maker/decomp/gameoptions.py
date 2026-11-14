@@ -52,7 +52,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 OWN_LINE_DEFAULTS = ("staffDance",)   # defaults of a menu line FE Maker adds, set by apply()
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
-                 "map": ("hpBars", "talkBubbles", "enemyWarnings", "dangerZone", "stationaryRange", "healPreview"),
+                 "map": ("hpBars", "talkBubbles", "enemyWarnings", "dropMarkers", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths", "monsterWeaponStats"),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
@@ -440,6 +440,82 @@ static void FemPutWarning(struct Unit * unit)
 
 """ + _ICONS
 _ICONS_LOOP_WARNINGS = "        FemPutWarning(unit);\n\n" + _ICONS_LOOP
+
+# A small bag on the enemies holding an item they drop when beaten (ticket 67; the idea of Vesly's "Droppable Item
+# Marker"): the game's own gold bag icon, halved to 8 x 8 when the project is built (one pixel out of two, read from the
+# decomp's picture, never stored here) and drawn in the first object palette's colours. Lower left of the square, as
+# the boss's shield is lower right; not on an enemy the fog hides. Its tile follows the warnings'.
+DROP_ICON = "graphics/item_icon/item_icon_gold.png"
+_DROP_TILE = 0x364
+# The icon's colours -> the first object palette's: white, outline, yellow, brown, dark, orange.
+_DROP_COLORS = {0: 0x0, 1: 0xE, 4: 0xF, 5: 0x1, 12: 0x5, 14: 0xF, 15: 0x4}
+
+
+def _drop_tile(decomp_dir: Path) -> str:
+    """The bag icon halved, as one 8 x 8 tile (4 bits a pixel, 8 rows of 32 bits)."""
+    from PIL import Image
+
+    with Image.open(decomp_dir / DROP_ICON) as icon:
+        pixels = [[_DROP_COLORS.get(icon.getpixel((2 * x + 1, 2 * y + 1)), 0xF) for x in range(8)] for y in range(8)]
+    return ", ".join(f"0x{sum(row[x] << (4 * x) for x in range(8)):08X}" for row in pixels)
+
+
+def _obj_ui_load_drops(decomp_dir: Path) -> str:
+    return """/* FE Maker: the dropped items' bag (the game's gold icon, halved) */
+static const u32 sFemDropBag[8] = { """ + _drop_tile(decomp_dir) + """ };
+
+#include "face.h"
+
+int IsBattleDeamonActive(void);
+
+void FemLoadDropBag(void) {
+    int y;
+
+    if (IsBattleDeamonActive())
+        return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
+    for (y = 0; y < FACE_SLOT_COUNT; ++y)
+        if (gFaces[y])
+            return; /* a portrait's tiles sit on these (ticket 51): reloaded once it is gone */
+
+    for (y = 0; y < 8; ++y)
+        ((u32*) (0x06010000 + """ + str(_DROP_TILE) + """ * 0x20))[y] = sFemDropBag[y];
+}
+
+""" + _OBJ_UI_LOAD + "    FemLoadDropBag();\n"
+
+
+def _icons_drops(decomp_dir: Path) -> str:
+    row = _drop_tile(decomp_dir).split(", ")[1]
+    return """#include "face.h"
+
+void FemLoadDropBag(void);
+
+/* FE Maker: a bag on an enemy holding an item it drops (its last one) */
+static void FemPutDropBag(struct Unit * unit)
+{
+    int x = unit->xPos * 16 - gBmSt.camera.x;
+    int y = unit->yPos * 16 - gBmSt.camera.y;
+    int i;
+
+    for (i = 0; i < FACE_SLOT_COUNT; ++i)
+        if (gFaces[i])
+            return; /* a portrait is shown: the bag would cover it (ticket 161) */
+    if (((u32*) (0x06010000 + """ + str(_DROP_TILE) + """ * 0x20))[1] != """ + row + """)
+        FemLoadDropBag(); /* a portrait took the tile (ticket 51) */
+    if (UNIT_FACTION(unit) != FACTION_RED || !(unit->state & US_DROP_ITEM) || unit->items[0] == 0)
+        return;
+    if (x < -16 || x > DISPLAY_WIDTH || y < 0 || y > DISPLAY_HEIGHT)
+        return;
+    if (gBmMapFog[unit->yPos][unit->xPos] == 0)
+        return;
+    CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x - 1), OAM0_Y(0x100 + y + 7), gObject_8x8,
+        OAM2_CHR(""" + str(_DROP_TILE) + """) + OAM2_LAYER(2));
+}
+
+""" + _ICONS
+
+
+_ICONS_LOOP_DROPS = "        FemPutDropBag(unit);\n\n" + _ICONS_LOOP
 
 # Monster weapons (claws, fangs, type 11) shown as weapons (FEBuilder's "Monster Weapon display fix" by Brendor, its three
 # byte patches redone in C): their type's name (the game's table has none: text 0x26B, "Evil", as the patch), their
@@ -838,6 +914,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_WARNINGS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_WARNINGS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_WARNINGS, MAP_SPRITES_FILE)
+    if options.get("dropMarkers"):
+        files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _obj_ui_load_drops(decomp_dir), MAP_UI_FILE)
+        source = _replace(current(MAP_SPRITES_FILE), _ICONS, _icons_drops(decomp_dir), MAP_SPRITES_FILE)
+        files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_DROPS, MAP_SPRITES_FILE)
     if options.get("statusGrowths"):
         files[STATUS_HEADER] = _replace(current(STATUS_HEADER), _STATUS_FIELD, _STATUS_FIELD_GROWTHS, STATUS_HEADER)
         source = current(STATUS_FILE)
