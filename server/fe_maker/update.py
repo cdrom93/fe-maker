@@ -39,13 +39,14 @@ class UpdateError(Exception):
 
 
 def parse_version(text: str) -> tuple:
-    """"0.1.0-prealpha.15" -> (0, 1, 0, 0, 15); a final version sorts after its pre-releases."""
-    m = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)(?:-([a-z]+)\.?(\d+)?)?", text.strip())
+    """"0.1.0-prealpha.15" -> (0, 1, 0, 0, 15); "0.43" (versions since prealpha.42: 0.N, then 1.0 for the first
+    public one) -> (0, 43, 0, 4, 0); a final version sorts after its pre-releases."""
+    m = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.(\d+))?(?:-([a-z]+)\.?(\d+)?)?", text.strip())
     if not m:
         return ()
     major, minor, patch, stage, n = m.groups()
     rank = STAGES.index(stage) if stage in STAGES else len(STAGES) if stage is None else -1
-    return int(major), int(minor), int(patch), rank, int(n or 0)
+    return int(major), int(minor), int(patch or 0), rank, int(n or 0)
 
 
 def install_dir() -> Path:

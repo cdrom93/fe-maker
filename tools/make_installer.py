@@ -107,7 +107,7 @@ def iscc() -> str | None:
 
 
 def numeric(version: str) -> str:
-    """"0.1.0-prealpha.41" -> "0.1.0.41" (the file's version information takes numbers only)."""
+    """"0.43" -> "0.43.0.0", "0.1.0-prealpha.41" -> "0.1.0.41" (the file's version information takes numbers only)."""
     numbers = re.findall(r"\d+", version)
     return ".".join((numbers + ["0"] * 4)[:4])
 

@@ -33,7 +33,7 @@ jobs:
           path: |
             dist/*.zip
             dist/*.exe
-      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe --prerelease --notes-file CHANGELOG.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe --prerelease --title "FE Maker ${GITHUB_REF_NAME#v}" --notes-file CHANGELOG.md
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash   # the globs
         env:

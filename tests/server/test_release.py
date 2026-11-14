@@ -131,6 +131,7 @@ def test_the_installers_python_finds_fe_maker_and_its_dependencies(tmp_path):
     lines = installer.pth("311").splitlines()
     assert lines[0] == "python311.zip" and r"..\server" in lines and "import site" in lines
     assert installer.numeric("0.1.0-prealpha.41") == "0.1.0.41" and installer.numeric("1.2.0") == "1.2.0.0"
+    assert installer.numeric("0.43") == "0.43.0.0"
     needed = installer.dependencies()
     assert any(d.startswith("fastapi") for d in needed) and not any(d.startswith("pytest") for d in needed)
     # an update of an installed FE Maker installs the same list with its own Python, an update from the zip the .venv's

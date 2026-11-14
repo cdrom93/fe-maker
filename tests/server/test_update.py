@@ -7,10 +7,12 @@ from fe_maker import update
 
 
 def test_versions_in_order():
-    order = ["0.1.0-prealpha.9", "0.1.0-prealpha.15", "0.1.0-alpha.1", "0.1.0-beta.2", "0.1.0", "0.2.0-prealpha.1"]
+    order = ["0.1.0-prealpha.9", "0.1.0-prealpha.15", "0.1.0-prealpha.42", "0.1.0-alpha.1", "0.1.0-beta.2", "0.1.0",
+             "0.2.0-prealpha.1", "0.43", "0.44", "0.100", "1.0"]
     assert sorted(order, key=update.parse_version) == order
     assert update.parse_version("v0.1.0-alpha.3") == update.parse_version("0.1.0-alpha.3")
     assert update.parse_version("not a version") == ()
+    assert update.parse_version("v0.43") == update.parse_version("0.43.0")
 
 
 def _release(tag, draft=False, name=None):

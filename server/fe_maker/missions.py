@@ -15,9 +15,10 @@ FILE = Path(__file__).with_name("missions.json")
 
 
 def for_version(version: str = __version__, path: Path = FILE) -> list[dict]:
-    """The missions of the longest version prefix matching `version` ("0.1.0-prealpha" for "0.1.0-prealpha.19")."""
+    """The missions of the longest version prefix matching `version` up to a "." or "-" ("0" for "0.43" and for
+    "0.1.0-prealpha.19", "0.1.0-alpha" for "0.1.0-alpha.3")."""
     data = json.loads(path.read_text(encoding="utf-8"))
-    keys = [k for k in data if version.startswith(k)]
+    keys = [k for k in data if version == k or (version.startswith(k) and version[len(k)] in ".-")]
     return data[max(keys, key=len)] if keys else []
 
 

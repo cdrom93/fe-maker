@@ -21,7 +21,10 @@ def test_longest_prefix_and_answers_as_a_ticket(tmp_path):
            "questions": [{"fr": "Q1", "en": "Q1"}, {"fr": "Q2", "en": "Q2"}, {"fr": "Q3", "en": "Q3"}]}
     path.write_text(json.dumps({"0.1.0": [], "0.1.0-alpha": [one]}), encoding="utf-8")
     assert missions.for_version("0.1.0-alpha.3", path) == [one]
-    assert missions.for_version("0.2.0", path) == []
+    assert missions.for_version("0.2.0", path) == [] and missions.for_version("0.1.01", path) == []
+    path.write_text(json.dumps({"0": [one]}), encoding="utf-8")   # the 0.N versions, the old 0.1.0-prealpha.N too
+    assert missions.for_version("0.43", path) == [one] == missions.for_version("0.1.0-prealpha.42", path)
+    assert missions.for_version("1.0", path) == []
     mission = missions.localized([one], "fr")[0]
     assert mission["title"] == "Titre" and mission["questions"] == ["Q1", "Q2", "Q3"]
     body = missions.ticket_body(mission, ["Bien", "", "Oui"])
