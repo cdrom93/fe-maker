@@ -251,3 +251,17 @@ def test_testers_view_leaves_out_the_last_actions():
 
     body = "Too tall" + activity.trail_text(["23:11:53 POST /api/projects/open -> 200"], ["click"])
     assert tickets._split(body + "\n\n| version | 1 |")["body"] == "Too tall"
+
+
+def test_a_ticket_carries_the_end_of_the_last_failed_build():
+    """Ticket 85: the build's message alone may mislead; the end of its log goes with the next ticket."""
+    from fe_maker import activity, tickets
+
+    activity.clear()
+    activity.build_failed([f"line {n}" for n in range(100)])
+    assert activity.failed_build()[0] == "line 40" and len(activity.failed_build()) == activity.FAILED_BUILD_LINES
+    text = activity.trail_text(["x"], [], activity.failed_build())
+    assert "end of the last failed build's log" in text and "line 99" in text and "line 39" not in text
+    assert tickets._split("Bug" + text + "\n\n| version | 1 |")["body"] == "Bug"
+    activity.clear()
+    assert activity.failed_build() == []

@@ -33,6 +33,20 @@ def error(text: str) -> None:
     note(f"ERROR {text}")
 
 
+FAILED_BUILD_LINES = 60
+_failed_build: list[str] = []   # the end of the last failed build's log (ticket 85: the message alone may mislead)
+
+
+def build_failed(log: list[str]) -> None:
+    with _lock:
+        _failed_build[:] = [line[:300] for line in log[-FAILED_BUILD_LINES:]]
+
+
+def failed_build() -> list[str]:
+    with _lock:
+        return list(_failed_build)
+
+
 def recent() -> list[str]:
     with _lock:
         return list(_entries)
@@ -41,11 +55,15 @@ def recent() -> list[str]:
 def clear() -> None:
     with _lock:
         _entries.clear()
+        _failed_build.clear()
 
 
-def trail_text(server: list[str], client: list[str]) -> str:
-    """The section a sent ticket gets at the end of its text (folded on GitHub)."""
+def trail_text(server: list[str], client: list[str], build: list[str] | None = None) -> str:
+    """The section a sent ticket gets at the end of its text (folded on GitHub), with the end of the last failed
+    build's log when there is one."""
     lines = [*(f"[server] {e}" for e in server), *(f"[ui] {e}" for e in client)]
+    if build:
+        lines += ["", "--- end of the last failed build's log ---", *build]
     if not lines:
         return ""
     body = "\n".join(line.replace("```", "'''") for line in lines)

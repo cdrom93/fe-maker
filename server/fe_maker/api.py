@@ -2868,6 +2868,7 @@ def _build_failed(project: Project, error: str) -> None:
     st["state"] = "error"
     why = st.get("why") or {}
     activity.error(f"build failed: {why.get('kind') or error.splitlines()[0][:200] if error else '?'}")
+    activity.build_failed([*st["log"], *(error or "").splitlines()[-20:]])
 
 
 def _run_build(project: Project, launch: bool) -> None:
@@ -3077,7 +3078,8 @@ def send_ticket(ticket_id: str, body: TicketSendIn):
 def create_ticket(body: TicketIn):
     context = _ticket_context(dict(body.context))
     try:
-        trail = {"server": activity.recent(), "ui": [str(x)[:300] for x in body.trail[-40:]]} if body.attachTrail else None
+        trail = ({"server": activity.recent(), "ui": [str(x)[:300] for x in body.trail[-40:]],
+                  "build": activity.failed_build()} if body.attachTrail else None)
         ticket = tickets.create(body.body, body.kind, body.priority, context, body.images, trail)
     except TicketError as e:
         raise HTTPException(400, str(e))

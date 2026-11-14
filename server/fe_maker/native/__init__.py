@@ -131,6 +131,7 @@ def start_warmup(rom: Path, decomp: Path) -> None:
         return
 
     def run() -> None:
+        from .. import activity
         from ..builder import BuildError
         from ..builder import build as full_build
 
@@ -144,6 +145,9 @@ def start_warmup(rom: Path, decomp: Path) -> None:
             full_build(rom, out, on_output=counted)
         except (BuildError, OSError) as e:
             _warmup["error"] = str(e)[-2000:]
+            # joined to the next ticket (ticket 85)
+            activity.error("first build failed")
+            activity.build_failed(_warmup["error"].splitlines())
 
     _warmup["thread"] = threading.Thread(target=run, name="fe-maker-first-build", daemon=True)
     _warmup["thread"].start()

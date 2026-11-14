@@ -301,7 +301,7 @@ class TicketStore:
         if ticket.get("remote"):
             return ticket
         trail = ticket.get("trail") or {}
-        body = ticket["body"] + activity.trail_text(trail.get("server", []), trail.get("ui", []))
+        body = ticket["body"] + activity.trail_text(trail.get("server", []), trail.get("ui", []), trail.get("build"))
         data = {"body": body, "kind": ticket["kind"], "priority": ticket["priority"],
                 "context": {k: v for k, v in ticket["context"].items() if k != "version"},
                 "version": ticket["context"].get("version", app_version()),

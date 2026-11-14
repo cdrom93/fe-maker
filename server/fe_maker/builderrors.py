@@ -27,6 +27,8 @@ AREAS = (
     ("include/banim", "animations"), ("sound/", "music"), ("songs.mk", "music"), ("src/skill", "skills"),
     ("include/skills", "skills"),
 )
+_IMAGE_TARGET = re.compile(r"make(?:\.exe)?(?:\[\d+\])?: \*\*\* \[[^\]]*?(\S+\.(?:1bpp|4bpp|8bpp|gbapal|lz|fk))\] Error")
+_ECHOED = ("tools/", "arm-none-eabi", "echo ", "sed ", "cp ", "make", "[fe-maker]", "iconv", "C:/", "Makefile:")
 _DECOMP_ERRORS = ("CParseError", "CombatTableError", "ConvoyError", "GameDataError", "MapError", "TweakError")
 # "src/data_items.c:2950: syntax error before `;'" (agbcc, gcc 2.95: no "error:"), "data/x.s:680: Error: bad
 # instruction" (as); warnings (the assembler's "Warning: ignoring changed section attributes", in every build: ticket 82)
@@ -67,7 +69,7 @@ def explain(error: str, log: list[str] | None = None, overlay: Path | None = Non
         m = re.search(r"region [`']?\w+'? overflowed by (\d+) bytes|will not fit in region", line)
         if m:
             return {"kind": "romFull", "bytes": int(m.group(1)) if m.group(1) else None}
-    for line in lines:
+    for index, line in enumerate(lines):
         m = re.search(r"^error: line (\d+): (.*)$", line)
         if m:
             n = int(m.group(1))
@@ -86,9 +88,13 @@ def explain(error: str, log: list[str] | None = None, overlay: Path | None = Non
         m = re.search(r"No rule to make target [`']([^'`]+)'(?:, needed by [`']([^'`]+)')?", line)
         if m:
             return {"kind": "missingFile", "file": m.group(1), "area": area(m.group(2) or m.group(1))}
-        m = re.search(r"gbagfx\S*:?\s*(.*)", line)
-        if m and ("error" in line.lower() or ".png" in line):
-            return {"kind": "image", "message": m.group(1).strip()}
+        # gbagfx says what is wrong without its name; make then names the image it was making. The command make
+        # echoes ("tools/gbagfx/gbagfx x.png x.4bpp") is not the error (ticket 85).
+        m = _IMAGE_TARGET.search(line)
+        if m:
+            message = next((earlier for earlier in reversed(lines[:index]) if earlier.strip()
+                            and not earlier.lstrip().startswith(_ECHOED)), "")
+            return {"kind": "image", "file": m.group(1), "message": message.strip()}
         m = re.search(r"(?:Permission denied|Access is denied|being used by another process)", line)
         if m:
             path = re.search(r"([\w./\\:-]+\.(?:gba|elf|o|s|c|png|bin|lz))", line)

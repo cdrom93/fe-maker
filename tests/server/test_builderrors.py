@@ -25,6 +25,18 @@ def test_text_errors_name_their_message(tmp_path):
     assert why == {"kind": "text", "line": 5, "message": "unknown control code [Nope]", "text": "0x914"}
 
 
+def test_an_image_error_is_the_tools_message_not_its_command():
+    log = [*NOISE, "tools/gbagfx/gbagfx graphics/banim/anim_number_fem.png graphics/banim/anim_number_fem.4bpp",
+           "tools/gbagfx/gbagfx graphics/a.png graphics/a.gbapal",
+           "Failed to open \"graphics/banim/anim_number_fem.png\" for reading.",
+           "make: *** [Makefile:310: graphics/banim/anim_number_fem.4bpp] Error 1"]
+    assert builderrors.explain("Build failed", log) == {
+        "kind": "image", "file": "graphics/banim/anim_number_fem.4bpp",
+        "message": "Failed to open \"graphics/banim/anim_number_fem.png\" for reading."}
+    # a command echoed alone is no error (ticket 85)
+    assert builderrors.explain("Build failed", [*NOISE, log[1]]) is None
+
+
 def test_other_known_failures():
     assert builderrors.explain("x", ["make: *** No rule to make target 'nothing_here.h', needed by "
                                      "'src/data_items.o'.  Stop."]) == {
