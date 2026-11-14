@@ -4,6 +4,20 @@
 
 *FE Maker is an open source editor to make tactics games on the Fire Emblem: The Sacred Stones (GBA) engine, designed to be as easy to use as an "RPG Maker". It is built on the [FE8 decompilation](https://github.com/FireEmblemUniverse/fireemblem8u). Alpha in preparation.*
 
+## Télécharger / Download
+
+### [Télécharger FE Maker pour Windows / Download FE Maker for Windows](https://github.com/cdrom93/fe-maker/releases/latest/download/fe-maker-setup.exe)
+
+Ce lien donne toujours la dernière version. / *This link always gives the latest version.*
+
+1. Lancez le fichier téléchargé, `fe-maker-setup.exe`. Si Windows affiche « Windows a protégé votre ordinateur » (l'installateur n'est pas signé) : « Informations complémentaires », puis « Exécuter quand même ».
+2. Suivez l'installation (pas besoin d'être administrateur, rien d'autre à installer) : FE Maker s'ouvre dans votre navigateur.
+3. Donnez votre ROM de Fire Emblem: The Sacred Stones (USA), puis cliquez sur les boutons « Télécharger » de l'accueil. FE Maker se met ensuite à jour tout seul.
+
+*1. Run the downloaded file, `fe-maker-setup.exe`. If Windows shows "Windows protected your PC" (the installer is not signed): "More info", then "Run anyway". 2. Follow the installation (no administrator rights, nothing else to install): FE Maker opens in your browser. 3. Give your ROM of Fire Emblem: The Sacred Stones (USA), then click the home page's "Download" buttons. FE Maker then updates itself.*
+
+Windows 10 ou 11. Guide : [français](docs/guide.md), [English](docs/guide.en.md). Toutes les versions / *All versions*: [Releases](https://github.com/cdrom93/fe-maker/releases).
+
 ## Ce qu'on peut faire / What you can do
 
 | | Français | English |

@@ -10,7 +10,7 @@ FE Maker est un éditeur simple pour créer un rom hack de Fire Emblem: The Sacr
 
 ## Installer et lancer
 
-1. Téléchargez `fe-maker-setup-<version>.exe` (page des versions du dépôt) et lancez-le. Pas besoin d'être administrateur. Windows peut afficher « Windows a protégé votre ordinateur » (l'installateur n'est pas signé) : « Informations complémentaires », puis « Exécuter quand même ».
+1. Téléchargez l'installateur, toujours à jour : https://github.com/cdrom93/fe-maker/releases/latest/download/fe-maker-setup.exe, et lancez-le. Pas besoin d'être administrateur. Windows peut afficher « Windows a protégé votre ordinateur » (l'installateur n'est pas signé) : « Informations complémentaires », puis « Exécuter quand même ».
 2. L'installateur crée « FE Maker » dans le menu Démarrer et sur le bureau, puis le lance : l'interface s'ouvre dans votre navigateur. La petite fenêtre noire réduite dans la barre des tâches est le serveur de FE Maker : la fermer quitte FE Maker.
    Sans installateur : dézippez `fe-maker-<version>.zip` et lancez `lancer-fe-maker.bat` (il faut alors Python 3.10 ou plus, https://www.python.org/downloads/).
 3. Donnez votre ROM. L'accueil indique ce qui manque encore : les boutons « Télécharger » récupèrent le code du jeu et les outils de compilation (quelques minutes, une seule fois). Rien d'autre à installer : pas besoin de Docker.
