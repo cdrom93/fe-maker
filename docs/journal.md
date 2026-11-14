@@ -344,3 +344,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : options du jeu : unités obligatoires déplaçables en préparation (comme le patch d'AuraWolf, pour tout le jeu ; unité par unité quand les unités obligatoires seront modifiables) ; compile, pas vérifiée en jeu.
 - 14/11/2026 : options du jeu : stats des combats sur la carte quand les animations sont coupées (Préc., Dégâts, Crit., Vitesse d'attaque, arme et flèche du triangle), comme « FE8-Battle Stats with Anims Off ver2 » (Tequila, Vesly), réécrit en C ; cadre placé pour rester entier à l'écran ; playtest.
 - 14/11/2026 : options du jeu : voler avec l'inventaire plein (comme le patch de Vesly, réécrit en C : l'objet volé arrive après l'animation avec le menu du jeu pour l'inventaire plein, convoi ou objet jeté) ; playtest.
+- 14/11/2026 : conception des préférés partagés entre projets et des paquets de personnage / classe (idée #71 redemandée), notée au cahier.
