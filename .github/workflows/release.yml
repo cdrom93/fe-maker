@@ -1,5 +1,5 @@
 # A release: pushing a tag v* builds the package (zip, used by the automatic update) and the Windows installer, and
-# publishes them as a draft, to be read before it goes out. Run by hand (workflow_dispatch), it only builds them and
+# publishes them as a pre-release (the user's choice, 14/11: Claude handles the releases; the tag stays on his word). Run by hand (workflow_dispatch), it only builds them and
 # keeps them as the run's artifact: to try the installer before a tag.
 name: Release
 
@@ -33,7 +33,7 @@ jobs:
           path: |
             dist/*.zip
             dist/*.exe
-      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe --draft --prerelease --notes-file CHANGELOG.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe --prerelease --notes-file CHANGELOG.md
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash   # the globs
         env:
