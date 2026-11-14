@@ -5,20 +5,20 @@ FE Maker is an easy editor for making a rom hack of Fire Emblem: The Sacred Ston
 ## What you need
 
 - **Windows 10 or 11** (Linux and macOS will come later).
-- **Python 3.10 or later**: https://www.python.org/downloads/ (tick "Add Python to PATH" when installing).
 - **mGBA**, for testing: https://mgba.io/downloads.html
 - **Your own ROM** of Fire Emblem: The Sacred Stones (USA, Australia), legally obtained. FE Maker does not distribute it and checks its checksum.
 
 ## Install and start
 
-1. Unzip `fe-maker-<version>.zip` wherever you like.
-2. Run `lancer-fe-maker.bat`. The first launch installs what is needed, then opens the interface in your browser.
+1. Download `fe-maker-setup-<version>.exe` (the repository's releases page) and run it. No administrator rights needed. Windows may show "Windows protected your PC" (the installer is not signed): "More info", then "Run anyway".
+2. The installer puts "FE Maker" in the Start menu and on the desktop, then starts it: the interface opens in your browser. The small black window minimized in the taskbar is FE Maker's server: closing it quits FE Maker.
+   Without the installer: unzip `fe-maker-<version>.zip` and run `lancer-fe-maker.bat` (Python 3.10 or later is then needed, https://www.python.org/downloads/).
 3. Give your ROM. The home page shows what is still missing: the "Download" buttons fetch the game's code and the build tools (a few minutes, once). Nothing else to install: no Docker needed.
 4. FE Maker then starts the game's first build by itself, in the background (about ten minutes, once): you can work meanwhile. After that, a test builds in under two minutes.
 
 ## Update
 
-1. Unzip the new version into another folder and start it. Once all is well, delete the old one.
+1. FE Maker offers the new version itself when it comes out: one click installs it and starts it again. You can also run the new version's installer over the old one.
 2. Your projects stay where they are: in `FE Maker Projects`, in your user folder, outside the app's folder. Your settings are kept too.
 3. A project made by an older version is converted when opened if needed, after a copy of `data/` into `backups/`. A project saved by a newer version does not open: install that version.
 4. A game started on an old test may stop working once the hack has changed: test on a new game.

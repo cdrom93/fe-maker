@@ -1,6 +1,12 @@
 @echo off
-rem FE Maker: first launch installs what it needs in .venv (Python 3.10 or later required), then starts.
+rem FE Maker. Installed with the Windows installer: its own Python (python\) is used, nothing to install.
+rem From the zip: the first launch installs what it needs in .venv (Python 3.10 or later required), then starts.
 cd /d "%~dp0"
+title FE Maker
+if exist "python\python.exe" (
+    "python\python.exe" -m fe_maker
+    exit /b
+)
 if not exist ".venv\Scripts\python.exe" (
     py -3 -m venv .venv 2>nul || python -m venv .venv
     if errorlevel 1 (

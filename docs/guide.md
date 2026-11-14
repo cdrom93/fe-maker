@@ -5,20 +5,20 @@ FE Maker est un éditeur simple pour créer un rom hack de Fire Emblem: The Sacr
 ## Ce qu'il vous faut
 
 - **Windows 10 ou 11** (Linux et macOS viendront plus tard).
-- **Python 3.10 ou plus** : https://www.python.org/downloads/ (cochez « Add Python to PATH » à l'installation).
 - **mGBA**, pour tester : https://mgba.io/downloads.html
 - **Votre ROM** de Fire Emblem: The Sacred Stones (USA, Australia), obtenue légalement. FE Maker ne la distribue pas et vérifie sa somme de contrôle.
 
 ## Installer et lancer
 
-1. Dézippez `fe-maker-<version>.zip` où vous voulez.
-2. Lancez `lancer-fe-maker.bat`. Le premier lancement installe ce qu'il faut, puis ouvre l'interface dans votre navigateur.
+1. Téléchargez `fe-maker-setup-<version>.exe` (page des versions du dépôt) et lancez-le. Pas besoin d'être administrateur. Windows peut afficher « Windows a protégé votre ordinateur » (l'installateur n'est pas signé) : « Informations complémentaires », puis « Exécuter quand même ».
+2. L'installateur crée « FE Maker » dans le menu Démarrer et sur le bureau, puis le lance : l'interface s'ouvre dans votre navigateur. La petite fenêtre noire réduite dans la barre des tâches est le serveur de FE Maker : la fermer quitte FE Maker.
+   Sans installateur : dézippez `fe-maker-<version>.zip` et lancez `lancer-fe-maker.bat` (il faut alors Python 3.10 ou plus, https://www.python.org/downloads/).
 3. Donnez votre ROM. L'accueil indique ce qui manque encore : les boutons « Télécharger » récupèrent le code du jeu et les outils de compilation (quelques minutes, une seule fois). Rien d'autre à installer : pas besoin de Docker.
 4. FE Maker lance alors tout seul la première compilation du jeu, en arrière-plan (une dizaine de minutes, une seule fois) : vous pouvez travailler pendant ce temps. Ensuite, un test se compile en moins de deux minutes.
 
 ## Mettre à jour
 
-1. Dézippez la nouvelle version dans un autre dossier et lancez-la. Quand tout va bien, supprimez l'ancienne.
+1. FE Maker propose lui-même la nouvelle version quand elle sort : un clic l'installe et le relance. Vous pouvez aussi lancer l'installateur de la nouvelle version par-dessus l'ancienne.
 2. Vos projets ne bougent pas : ils sont dans `FE Maker Projects`, dans votre dossier utilisateur, hors du dossier de l'appli. Vos réglages sont gardés aussi.
 3. Un projet créé par une version plus ancienne est converti à son ouverture si besoin, après une copie de `data/` dans `backups/`. Un projet enregistré par une version plus récente ne s'ouvre pas : installez cette version.
 4. Une partie commencée sur un ancien essai peut ne plus marcher quand le hack a changé : testez sur une nouvelle partie.

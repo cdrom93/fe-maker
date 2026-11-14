@@ -166,9 +166,21 @@ def install(release: dict, root: Path | None = None) -> None:
         replace(root, staging)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "-e", str(root / "server")],
-                   cwd=root, check=False, timeout=600)
+    subprocess.run(pip_command(root), cwd=root, check=False, timeout=600)
     _cache.update(at=0.0, value=None)
+
+
+def pip_command(root: Path) -> list[str]:
+    """Installing the new version's dependencies. Installed with the Windows installer (its own Python in root/python,
+    which finds fe_maker through its ._pth file): only the dependencies still missing, never the ones in use replaced;
+    from the zip: the editable install of the .venv."""
+    if (root / "python" / "python.exe").is_file():
+        text = (root / "server" / "pyproject.toml").read_text(encoding="utf-8")
+        block = re.search(r"^dependencies = \[(.*?)^\]", text, re.MULTILINE | re.DOTALL)
+        needed = re.findall(r'^\s*"([^"]+)"', block.group(1), re.MULTILINE) if block else []
+        return [str(root / "python" / "python.exe"), "-m", "pip", "install", "--quiet", "--no-warn-script-location",
+                *needed]
+    return [sys.executable, "-m", "pip", "install", "--quiet", "-e", str(root / "server")]
 
 
 def restart(port: int, root: Path | None = None) -> None:

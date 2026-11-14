@@ -122,3 +122,23 @@ def test_windows_asks_for_the_toolchain_then_builds_once_in_the_background(monke
     (tmp_path / "Makefile").write_text("")
     found = {c["id"]: c for c in checks.run_checks(settings, tmp_path)}
     assert found["firstBuild"] == {"id": "firstBuild", "ok": False, "detail": "running"} and started
+
+
+def test_the_installers_python_finds_fe_maker_and_its_dependencies(tmp_path):
+    spec = importlib.util.spec_from_file_location("make_installer", ROOT / "tools/make_installer.py")
+    installer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(installer)
+    lines = installer.pth("311").splitlines()
+    assert lines[0] == "python311.zip" and r"..\server" in lines and "import site" in lines
+    assert installer.numeric("0.1.0-prealpha.41") == "0.1.0.41" and installer.numeric("1.2.0") == "1.2.0.0"
+    needed = installer.dependencies()
+    assert any(d.startswith("fastapi") for d in needed) and not any(d.startswith("pytest") for d in needed)
+    # an update of an installed FE Maker installs the same list with its own Python, an update from the zip the .venv's
+    (tmp_path / "server").mkdir()
+    (tmp_path / "server" / "pyproject.toml").write_text((ROOT / "server/pyproject.toml").read_text(encoding="utf-8"))
+    from fe_maker import update
+    assert update.pip_command(tmp_path)[-2:] == ["-e", str(tmp_path / "server")]
+    (tmp_path / "python").mkdir()
+    (tmp_path / "python" / "python.exe").write_bytes(b"")
+    command = update.pip_command(tmp_path)
+    assert command[0] == str(tmp_path / "python" / "python.exe") and command[-len(needed):] == needed

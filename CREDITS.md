@@ -6,6 +6,8 @@ FE Maker is largely developed with generative AI (Claude): code, documentation a
 
 | Source | Authors | Link | License | Used for |
 |---|---|---|---|---|
+| CPython (embeddable package), Tcl/Tk | Python Software Foundation and contributors; Tcl/Tk core team | https://www.python.org | PSF License (its LICENSE.txt shipped in `python/`), Tcl/Tk BSD-style license | The Python bundled with the Windows installer (`tools/make_installer.py`), with tkinter for the folder picker; the dependencies of `server/pyproject.toml` come with their own licenses in `python/Lib/site-packages` |
+| Inno Setup | Jordan Russell, Martijn Laan | https://jrsoftware.org/isinfo.php | Inno Setup License (free, commercial use allowed) | Compiles the Windows installer (`tools/installer.iss`); its French translation for the installer's screens |
 | arm_compressing_linker.py (in the decomp's scripts) | laqieer | https://github.com/FireEmblemUniverse/fireemblem8u | No license file (decomp) | Its algorithm and output reproduced, without copying its code, by `server/fe_maker/native/banim_link.py` for the native Windows build |
 | jsonproc (decomp's tool, from pokeemerald) | Marcus Huderle (pret) | https://github.com/pret/pokeemerald | No license file | Its output for the decomp's Inja templates reproduced by `server/fe_maker/native/jsonproc.py`; not shipped |
 | Decomp tools gbagfx, bin2c, scaninc, aif2pcm, mid2agb, textencode | YamaArashi, huderlem, Marco Trillo, camthesaxman (pret) | https://github.com/FireEmblemUniverse/fireemblem8u/tree/master/tools | MIT | Built for Windows into FE Maker's toolchain archive (`tools/build_toolchain.py`), with their license notices; scaninc's scan ported to Python in `server/fe_maker/native/asmdeps.py` (ticket 30) |
