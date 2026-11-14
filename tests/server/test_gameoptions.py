@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 25
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 28
 
 
 def test_a_unit_acts_after_a_talk():
@@ -189,3 +189,17 @@ def test_drop_markers_are_the_patchs_green_bag():
     assert "FemPutHpBar(unit);" in sprites and "FemPutDropBag(unit);" in sprites and "US_DROP_ITEM" in sprites
     assert "static const u32 sFemDropBag[8] = { 0x0FAAAEF0, 0x00FBAF00," in files[gameoptions.MAP_UI_FILE]
     assert "dropMarkers" in gameoptions.SWITCH_GROUPS["map"]
+
+
+def test_original_bug_fixes_are_written_where_the_decomp_has_them():
+    """FEBuilder's essential fixes (docs/patchs-qol.md): each text found once in the decomp, the fix written."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.MAP_SPRITES_FILE).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, dict.fromkeys(gameoptions.BUG_FIXES, True), {})
+    for fixes in gameoptions.BUG_FIXES.values():
+        for rel, old, new in fixes:
+            assert new in files[rel]
+    assert "tmpHpPerc <= lowestHpPerc" not in files["src/cp_staff.c"]
+    assert "#if BUGFIX\n            break;" not in files["src/bmtrap.c"]
+    assert set(gameoptions.SWITCH_GROUPS["fixes"]) == set(gameoptions.BUG_FIXES)

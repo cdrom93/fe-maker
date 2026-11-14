@@ -57,7 +57,8 @@ SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle")
                  "screens": ("statusGrowths", "monsterWeaponStats"),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
-                 "sound": ("musicTracks", "fullDrums")}
+                 "sound": ("musicTracks", "fullDrums"),
+                 "fixes": ("originalBugFixes", "healerAiFix", "promotedEnemiesFix")}
 # Options with several choices, the first one the default (in SWITCH_GROUPS for their category). tempBonusRule: how
 # the temporary bonuses of Pure Water copies meet (ticket 164; TEMP_BONUS_RULE_FEM, gamedata.TEMP_BONUS_MACROS).
 CHOICES: dict[str, tuple[str, ...]] = {"tempBonusRule": ("strongest", "add", "replace")}
@@ -512,6 +513,44 @@ static void FemPutDropBag(struct Unit * unit)
 
 _ICONS_LOOP_DROPS = "        FemPutDropBag(unit);\n\n" + _ICONS_LOOP
 
+# Fixes of the original game's bugs, from FEBuilder's "#ESSENTIALFIXES" patches (sorted on 14/11/2026, docs/patchs-qol.md),
+# redone in C: option -> (file, the decomp's text, the fixed text). On in every new project (api.create_project).
+_FIX = "/* FE Maker: original game's bug */"
+BUG_FIXES: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "originalBugFixes": (
+        # Enemy Control Glitch Fix (Brendor): an enemy ending its move on a trap wrote a suspend save "during an action";
+        # loaded, it gave the player that enemy. Only the player's own units save there.
+        ("src/bmtrap.c", "    WriteSuspendSave(3);\n",
+         "    if (UNIT_FACTION(gActiveUnit) == FACTION_BLUE) " + _FIX + "\n        WriteSuspendSave(3);\n"),
+        # Pierce Glitch Fix (Brendor): Pierce waits for the animation as Sure Shot does (as the Japanese game), no freeze.
+        ("src/bmbattle.c", "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PIERCE;\n",
+         "            gBattleHitIterator->attributes |= BATTLE_HIT_ATTR_PIERCE | BATTLE_HIT_ATTR_SURESHOT; " + _FIX + "\n"),
+        # BattleForecastFix (Contro): B on the forecast, again and again, no longer runs out of text tiles.
+        ("src/bmmenu.c", "    Proc_Start(gProcScr_0859B630, PROC_TREE_3);\n",
+         "    ResetTextFont(); " + _FIX + "\n    Proc_Start(gProcScr_0859B630, PROC_TREE_3);\n"),
+        # Fix CAM1/CAMERA2 going out of bounds (Stan): a camera move near the right or bottom edge showed past the map.
+        ("src/bm.c", "    if (*xOut + 8 > gBmMapSize.x - 1) {\n",
+         "    if (*xOut + (gBmMapSize.x >= 15 ? 14 : 8) > gBmMapSize.x - 1) " + _FIX + "\n    {\n"),
+        ("src/bm.c", "    if (*yOut + 4 > gBmMapSize.y - 1) {\n",
+         "    if (*yOut + (gBmMapSize.y >= 10 ? 9 : 4) > gBmMapSize.y - 1) " + _FIX + "\n    {\n"),
+        # Fimbulvetr_Glitch Fix (7743): 32 snowflakes took the whole proc pool (64); 16, FEBuilder's "probably safe" value.
+        ("src/banim-efxmagic-fimbulvetr.c", "    for (i = 0; i < 32; i++)\n", "    for (i = 0; i < 16; i++) " + _FIX + "\n"),
+        # Make Add trap data routine have check to prevent writing past limit (Leonarth): a 65th trap wrote over the
+        # list's end; the last slot is reused instead.
+        ("src/bmtrick.c", "    for (trap = GetTrap(0); trap->type != TRAP_NONE; ++trap) {}\n",
+         "    for (trap = GetTrap(0); trap->type != TRAP_NONE; ++trap) {}\n    if (trap >= GetTrap(TRAP_MAX_COUNT)) " + _FIX
+         + "\n        trap = GetTrap(TRAP_MAX_COUNT - 1);\n"),
+        # The decomp's own BUGFIX: a Light Arrow trap also made a Gorgon egg.
+        ("src/bmtrap.c", "#if BUGFIX\n            break;\n#endif\n", "            break; " + _FIX + "\n"),
+    ),
+    # AI: Prevent Healer Mistarget (Magrika): the healers no longer walk to units at full HP.
+    "healerAiFix": (("src/cp_staff.c", "tmpHpPerc <= lowestHpPerc", "tmpHpPerc < lowestHpPerc"),),
+    # Fix Weak Promoted Enemies (Gryz): with the easy or normal level malus, a promoted enemy at or under its base level
+    # kept its base stats, without its promotion's levels; now it always autolevels (at least 1 level).
+    "promotedEnemiesFix": (("src/bmunit.c", "        if (levelCount > unit->pCharacterData->baseLevel) {\n",
+                            "        if (levelCount <= 0) " + _FIX + "\n            levelCount = 1;\n        {\n"),),
+}
+
 # Monster weapons (claws, fangs, type 11) shown as weapons (FEBuilder's "Monster Weapon display fix" by Brendor, its three
 # byte patches redone in C): their type's name (the game's table has none: text 0x26B, "Evil", as the patch), their
 # attack, hit, crit and avoid in the item panel of the menus (the game took them for items: their use text), and their
@@ -909,6 +948,13 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_WARNINGS, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_WARNINGS, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_WARNINGS, MAP_SPRITES_FILE)
+    for option, fixes in BUG_FIXES.items():
+        if options.get(option):
+            for rel, old, new in fixes:
+                source = current(rel)
+                if old not in source:
+                    raise TweakError(f"{rel}: the decomp changed, {option} can't be written")
+                files[rel] = source.replace(old, new)
     if options.get("dropMarkers"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _obj_ui_load_drops(), MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _icons_drops(), MAP_SPRITES_FILE)

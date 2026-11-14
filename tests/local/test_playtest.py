@@ -1110,6 +1110,15 @@ def test_the_comfort_switches_build_and_the_game_starts(tmp_path):
         assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
 
 
+def test_original_bug_fixes_build_and_the_game_starts(tmp_path):
+    """FEBuilder's essential fixes redone in C (on in every new project): they compile and the prologue starts."""
+    project = Project.create(tmp_path / "fixes", "Fixes")
+    project.set_game_options({"originalBugFixes": True, "healerAiFix": True, "promotedEnemiesFix": True})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+
+
 def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
     project = Project.create(tmp_path / "menu", "Menu")
     project.set_game_options({"noSupportAnimations": True})

@@ -349,7 +349,9 @@ def create_project(body: CreateProjectIn):
     try:
         project = Project.create(folder, body.name.strip(), body.author.strip())
         # Strength and Magic apart in every new hack (ticket 27); Project.create alone stays the original game
-        project.set_game_options({**project.game_options, "strMagSplit": True, "skills": True})
+        # and the original game's bugs fixed (FEBuilder's essential fixes, docs/patchs-qol.md)
+        project.set_game_options({**project.game_options, "strMagSplit": True, "skills": True, "originalBugFixes": True,
+                                  "healerAiFix": True, "promotedEnemiesFix": True})
         if body.blank is not None:
             newchapter.start_blank(project, body.blank.characters, body.blank.title, body.blank.hero)
             project.set_show_original(False)
