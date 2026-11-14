@@ -68,7 +68,7 @@ PLAYTESTS = {
                 "the_comfort_switches_build_and_the_game_starts", "the_added_line_of_the_options_menu_is_whole",
                 "hp_bars_under_wounded_units", "casual_mode_brings_a_fallen_unit_back", "select_shows_the_danger_zone",
                 "hp_bars_hide_under_a_portrait", "talk_bubble_is_vision_quests", "enemy_warnings",
-                "monster_weapon_stats", "drop_markers",
+                "monster_weapon_stats", "drop_markers", "map_battle_stats_under_the_hp", "map_battle_stats",
                 "original_bug_fixes_build_and_the_game_starts", "turn_start_save", "two_added_lines_of_the_options_menu",
                 "heal_preview_battle_speed_and_fallen_items", "level_up_screen_with_l_held",
                 "damage_and_heal_numbers_in_battle_animation", "test_this_chapter", "test_chapter_one_army"],

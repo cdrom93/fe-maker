@@ -18,7 +18,7 @@ Licences : le code de FEBuilderGBA est en GPL-3.0 ; les patchs viennent d'auteur
 |---|---|---|
 | Pas de zone de déplacement pour les ennemis immobiles (IA « ne bouge pas ») — le plus important selon l'auteur | `Null Move Display-7743` | C : ne pas dessiner la zone de mouvement d'une unité dont l'IA ne bouge pas |
 | Barres de PV sur les sprites de carte, avec alertes armes efficaces / critiques | `HPbars`, `HPbars_simple`, `HpBars_Cache` | C : routine d'affichage sur la carte |
-| Chiffres du combat quand les animations sont coupées | `FE8-Battle Stats with Anims Off(v2)` | C |
+| Chiffres du combat quand les animations sont coupées | `FE8-Battle Stats with Anims Off(v2)` | C, **fait le 14/11** (option `mapBattleStats` : Préc., Dégâts, Crit., Vitesse d'attaque, arme et flèche du triangle sous les PV ; images du patch téléchargées ; cadre placé pour rester entier à l'écran ; playtest) |
 | Afficher les PV soignés par un bâton | `Show Heal Amount` | C |
 | Vitesse du texte « rapide » par défaut, curseur automatique coupé par défaut | réglages par défaut des options (SYSTEM) | C : valeurs initiales des options d'une nouvelle partie |
 | Passer l'avertissement de santé, les logos et l'animation d'ouverture | `SYSTEM/OPENING_CUT`, `SYSTEM/SKIP_OPENING`, `Mode Coefficient EXP fix/Skip H_S screen`, `Skip Intro cutscene` | C : FE Maker a déjà la mécanique (modes de test « au menu », « sur la carte ») ; en faire une option du jeu final |

@@ -1908,6 +1908,36 @@ def test_turn_start_save(tmp_path, turn_save):
         assert game.read("gPlaySt", 0, width=32) != start   # the turn's start
 
 
+def test_map_battle_stats(tmp_path):
+    """FEBuilder's "Battle Stats with Anims Off ver2" in C: with animations off, the lord (iron sword) attacks the
+    soldier (iron lance); both boxes show the stat names whole (BG0 tiles 0x40+, palette 3: Dmg and AS take 3) and the
+    weapon triangle's arrows (palette 0: tile 0x4B up for the soldier's lance, 0x4D down for the lord's sword)."""
+    project = _bench(tmp_path, "mapstats", [["ITEM_SWORD_IRON"]], enemy_at=(2, 3))
+    project.set_game_options({**project.game_options, "mapBattleStats": True})
+    chapters = project.load("chapters")
+    enemies = next(units for units in chapters["unitGroups"].values()
+                   if units and units[0].get("character") == "CHARACTER_SOLDIER_83")
+    enemies[0]["items"] = ["ITEM_LANCE_IRON"]
+    project.save("chapters", chapters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        config = game.read("gPlaySt", 0x42)
+        game.write("gPlaySt", (config & ~0x06) | 0x02, 0x42)   # config.animationType = OFF
+        _bench_attack(game, lord)
+
+        def tiles():
+            return [game.read("gBG0TilemapBuffer", 2 * k, width=16) for k in range(32 * 20)]
+        assert game.wait_until(lambda: tiles().count(0x3040) == 2, seconds=20, step=2)
+        game.run(20)
+        shown = tiles()
+        assert all(shown.count(0x3040 + n) == 2 for n in range(10))
+        assert shown.count(0x4B) == shown.count(0x4D) == 1
+        assert shown.index(0x4D) % 32 > shown.index(0x4B) % 32   # the lord's box: the right one
+        game.screenshot().convert("RGB").save(tmp_path / "stats.png")
+        print("screenshot:", tmp_path / "stats.png")
+
+
 def test_monster_weapon_stats(tmp_path):
     """FEBuilder's "Monster Weapon display fix": the lord holds a Rotten Claw; its Item command's panel computes the
     claw's battle stats (gBattleActor.weapon, struct BattleUnit at 0x48) as for a weapon, not its use text."""

@@ -1640,6 +1640,8 @@
   "options.monsterWeaponStatsHint": "Claws, fangs and other monster weapons show their stats like weapons: in the item panel, in the help (R), and their type's name (\"Evil\" by default).",
   "options.battleNumbers": "Damage and healing numbers",
   "options.battleNumbersHint": "In battle animations, lost HP show in red above the unit hit, restored HP in green (staff healing, drain).",
+  "options.mapBattleStats": "Battle stats on the map",
+  "options.mapBattleStatsHint": "With battle animations off: under each unit's HP, Hit, Damage, Crit and Attack speed, the weapon and the weapon triangle's advantage.",
   "flow.add.button": "Add a chapter after this one",
   "flow.add.title": "Title",
   "flow.add.width": "Width",

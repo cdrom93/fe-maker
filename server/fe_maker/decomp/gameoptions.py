@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import battlenumbers
+from . import battlenumbers, battlestats
 from .tweaks import GAME_CONTROL_FILE, TweakError, skip_intro
 
 CONFIG_FILE = "src/bmio.c"
@@ -55,7 +55,7 @@ OWN_LINE_DEFAULTS = ("staffDance", "turnSave")   # defaults of a menu line FE Ma
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "enemyWarnings", "dropMarkers", "dangerZone", "stationaryRange", "healPreview"),
-                 "battle": ("battleNumbers",),
+                 "battle": ("battleNumbers", "mapBattleStats"),
                  "screens": ("statusGrowths", "monsterWeaponStats"),
                  "rules": ("actAfterTalk", "turnStartSave", "forcedUnitsMovable", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
@@ -984,6 +984,8 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: dict[str, tu
         files[HEAL_SELECT_FILE] = _replace(current(HEAL_SELECT_FILE), _HEAL_SWITCH, _HEAL_SWITCH_PREVIEW, HEAL_SELECT_FILE)
     if options.get("battleNumbers"):
         files = battlenumbers.apply(decomp_dir, files)
+    if options.get("mapBattleStats"):
+        files = battlestats.apply(decomp_dir, files)
     if options.get("talkBubbles"):
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)

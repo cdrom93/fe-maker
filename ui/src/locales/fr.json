@@ -1640,6 +1640,8 @@
   "options.monsterWeaponStatsHint": "Les griffes, crocs et autres armes de monstre montrent leurs stats comme des armes : dans le panneau des objets, dans l'aide (R) et le nom de leur type (« Evil » par défaut).",
   "options.battleNumbers": "Dégâts et soins affichés",
   "options.battleNumbersHint": "Dans les animations de combat, les PV perdus s'affichent en rouge au-dessus de l'unité touchée, les PV rendus en vert (soin d'un bâton, drain).",
+  "options.mapBattleStats": "Stats des combats sur la carte",
+  "options.mapBattleStatsHint": "Animations de combat désactivées : sous les PV de chaque unité, Préc., Dégâts, Crit. et Vitesse d'attaque, l'arme et l'avantage du triangle des armes.",
   "flow.add.button": "Ajouter un chapitre après celui-ci",
   "flow.add.title": "Titre",
   "flow.add.width": "Largeur",

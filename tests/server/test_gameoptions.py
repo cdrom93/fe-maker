@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 30
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 31
 
 
 def test_a_unit_acts_after_a_talk():
@@ -118,6 +118,24 @@ def test_growths_on_the_status_screen_colour_the_stat_names():
     assert "ApplyPalettes(sGrowthColorsFem[0], STATSCREEN_BGPAL_GROWTHS_FEM, 2);" in text
     assert text.index("ColorStatLabelsFem();") < text.index("// displaying mov stat value")
     assert "PutGrowthLabelFem(STATSCREEN_TEXT_BWL, y, MSG_4E9, 9);" in text
+
+
+def test_map_battle_stats_under_the_hp(monkeypatch):
+    """FEBuilder's "Battle Stats with Anims Off ver2" in C: the taller boxes of two units, their stats and weapon line,
+    the patch's images downloaded, never in the repository."""
+    from fe_maker.decomp import battlestats
+
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / battlestats.BOX_FILE).is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(battlestats, "_download", lambda name: name.encode())
+    files = gameoptions.apply(root, {"mapBattleStats": True}, {})
+    box = files[battlestats.BOX_FILE]
+    assert "        FemPutBattleStats(0);\n        FemPutBattleStats(1);\n" in box
+    assert "{Tsa_MapBattleBoxRightFem, Tsa_MapBattleBoxLeftFem}" in box and "Tsa_MapBattleBoxGfx3, " not in box
+    assert '.incbin "graphics/fem_battle_stats/arrows.dmp"' in files[battlestats.DATA_FILE]
+    assert files["graphics/fem_battle_stats/names.dmp"] == b"names"
+    assert "if (TRUE) /* FE Maker: battle stats, a taller box */" in files[battlestats.PLACE_FILE]
 
 
 def test_battle_numbers_hook_the_hp_bars(monkeypatch):
