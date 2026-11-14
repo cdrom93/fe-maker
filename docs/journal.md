@@ -331,3 +331,5 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : Rally Magic ajoutée (avec Force et Magie séparées, le 7e compteur de strmag) ; la ligne précédente se trompait : Seal Magic marche, elle n'existe qu'avec ce mode.
 - 14/11/2026 : compétences, lot 10 : Resolve, Lucky Seven, Triangle Adept, Skybreaker, Slayer attribuable ; les 34 compétences du lot 10 sans nom ni description dans l'interface les ont (test ajouté).
 - 14/11/2026 : compétences, lot 10 : Thunderstorm.
+- 14/11/2026 : compétences, lot 10 : Rally dure jusqu'à la phase joueur suivante (comme le C-SkillSys) au lieu de baisser de 1 par tour : un octet par unité en RAM libre (0x02028700), effacé au début de la phase joueur, gardé dans la sauvegarde de mi-chapitre.
+- 14/11/2026 : compétences, lot 10 : Nihil (les compétences de l'adversaire annulées en combat, dans SkillTesterFem) ; playtest.

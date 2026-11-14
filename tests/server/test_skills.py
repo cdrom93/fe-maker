@@ -527,22 +527,44 @@ def test_batch_10_devils_axefaith_and_bargain(monkeypatch):
 
 
 def test_batch_10_smite_and_rally(monkeypatch):
-    """Batch 10: Smite (Shove two tiles) and the Rally commands on the temporary bonuses' counters."""
+    """Batch 10: Smite (Shove two tiles) and the Rally commands: a bit per stat until the next player phase."""
     if not (DECOMP / "src/bmmenu.c").is_file():
         pytest.skip("no decomp")
     monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
     monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
     characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Smite", "RallyStrength", "RallySpectrum"]}]
     used = skills.used(characters, [], False)
-    assert skills.uses_temp_bonuses(used)
+    assert not skills.uses_temp_bonuses(used)
     texts = {**PAGE, **{s.id: 2 for s in used}, **{f"menu:{s.id}": 3 for s in used if s.menu}}
     files = skills.apply(DECOMP, {}, characters, [], texts, False)
     menu = files["src/bmmenu.c"]
     assert "x = 3 * tx - 2 * ux;" in menu
-    assert "return RallyEffectFem(0x4);" in menu and "return RallyEffectFem(0x4444444);" in menu
-    assert "SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));" in menu
+    assert "return RallyEffectFem(0x1);" in menu and "return RallyEffectFem(0x7F);" in menu
+    assert "RALLY_FEM[(u8) unit->index] |= bits;" in menu
+    unit = files["src/bmunit.c"]
+    assert unit.count("if (RALLY_FEM[(u8) unit->index] & ") == 6   # no Magic without the split
+    assert "CpuFill16(0, RALLY_FEM, 0xC0); /* FE Maker: Rally ends */" in unit
+    save = files["src/bmsave.c"]
+    assert "    WriteRallyFem(slot);\n" in save and "    ReadRallyFem(slot + gSuspendSaveIdOffset);\n" in save
     assert "RallySpectrumUsabilityFem" in files["src/menu_def.c"]
     assert "{1, 3, 8, 0}" in files["src/menu_def.c"]
+
+
+def test_batch_10_nihil(monkeypatch):
+    """Batch 10: Nihil, in the skill tester: a battle unit has no skill when its foe has Nihil (the foe's lists)."""
+    if not (DECOMP / "src/bmunit.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Nihil", "Counter"]}]
+    used = skills.used(characters, [], False)
+    unit = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmunit.c"]
+    assert "if (unit == &gBattleActor.unit && NihilFoeFem(unit, &gBattleTarget.unit))" in unit
+    assert "static int SkillListedFem(struct Unit* unit, int skill)\n{" in unit
+    characters[0]["skills"] = ["Counter"]
+    used = skills.used(characters, [], False)
+    unit = skills.apply(DECOMP, {}, characters, [], {**PAGE, **{s.id: 2 for s in used}}, False)["src/bmunit.c"]
+    assert "NihilFoeFem" not in unit
 
 
 def test_every_offered_skill_has_its_ui_strings():

@@ -221,6 +221,8 @@ CATALOGUE: tuple[Skill, ...] = (
     # Shot are the game's (GAME_SKILLS, Level %)
     Skill("Counter", "proc", "Counter", "Counter:[NL]Reflect physical damage[NL]dealt at melee range."),
     Skill("CounterMagic", "proc", "CounterMagic", "Counter Magic:[NL]Reflect magical damage[NL]dealt at range."),
+    # Nihil: in SkillTesterFem (the battle units' skills, the foe's lists)
+    Skill("Nihil", "proc", "Nihil", "Nihil:[NL]Negates enemy's[NL]combat-related skills."),
     Skill("DevilsPact", "proc", "DevilsPact", "Devil's Pact:[NL]Inflict the Devil effect[NL]upon the enemy unit."),
     Skill("DevilsWhim", "proc", "DevilsWhim", "Devil's Whim:[NL]Inflict the Devil effect[NL]upon both units."),
     Skill("DevilsLuck", "proc", "DevilsLuck", "Devil's Luck:[NL]Give the unit's devil effect[NL]to the enemy in battle."),
@@ -1013,7 +1015,8 @@ def _learn_table(decomp_dir: Path, records: list[dict], numbers: dict[str, int],
 
 def _raised(skills: list[Skill], magic_split: bool) -> list[int]:
     """The stats a skill raises or lowers, Magic only with the split (its getter exists only then)."""
-    return sorted({k for s in skills for k, _ in s.stats if k != 6 or magic_split})
+    stats = {k for s in skills for k, _ in s.stats} | {k for s in skills if s.id in RALLIES for k in RALLIES[s.id]}
+    return sorted(k for k in stats if k in GETTERS and (k != 6 or magic_split))
 
 
 def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[dict], texts: dict[str, int],
@@ -1049,6 +1052,7 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
         "int SkillTesterFem(struct Unit* unit, int skill);\nint SkillStatBonusFem(struct Unit* unit, int stat);\n"
         f"#define LEARNED_MAX_FEM {LEARNED_MAX}\n#define LEARNED_CHARACTERS_FEM 0x{LEARNED_CHARACTERS:X}\n"
         f"#define LEARNED_SKILLS_FEM ((u8 (*)[LEARNED_MAX_FEM]) {LEARNED_TABLE})\n"
+        f"#define RALLY_FEM ((u8*) {RALLY_TABLE}) /* Rally: a bit per stat raised until the next player phase */\n"
         "void LearnSkillFem(struct Unit* unit, int skill);\nvoid ForgetSkillFem(struct Unit* unit, int skill);\n"
         "void LearnLevelSkillsFem(struct Unit* unit);\nvoid LearnedPopupsClearFem(void);\n"
         "void LearnedPopupsFem(void* proc);\n"
@@ -1070,12 +1074,25 @@ def apply(decomp_dir: Path, files: dict, characters: list[dict], classes: list[d
                         "lucky7": f"(gPlaySt.chapterTurnNumber & 7) == {LUCKY_SEVEN.index(k)} && "}.get(s.when, "")
                 bonuses[k].append(f"        if ({cond}SkillTesterFem(unit, SKILL_FEM_{s.id}))\n"
                                   f"            bonus += {value};\n")
+    for k in sorted({k for s in skills if s.id in RALLIES for k in RALLIES[s.id]} & set(_raised(skills, magic_split))):
+        bonuses[k].append(f"        if (RALLY_FEM[(u8) unit->index] & 0x{1 << k:X}) /* Rally */\n            bonus += 4;\n")
     cases = "".join(f"    case {k}:\n{''.join(lines)}        break;\n" for k, lines in bonuses.items() if lines)
     unit += ("\n/* FE Maker: skills of characters and classes, by their numbers (docs/competences.md) */\n"
              f"const u8 gCharacterSkillsFem[0x100][{MAX_PER_SHEET}] = {{\n{char_rows}\n}};\n\n"
              f"const u8 gClassSkillsFem[0x100][{MAX_PER_SHEET}] = {{\n{class_rows}\n}};\n\n"
              "/* C-SkillSys's SkillTester, on the character's and the class's lists */\n"
-             "int SkillTesterFem(struct Unit* unit, int skill)\n{\n"
+             + ("s8 AreUnitsAllied(int left, int right);\nstatic int SkillListedFem(struct Unit* unit, int skill);\n\n"
+                "/* Nihil (C-SkillSys's UnitToBattle_SetupSkillList): no skill for a unit in battle with a foe that has"
+                " it */\n"
+                "static int NihilFoeFem(struct Unit* unit, struct Unit* foe)\n{\n"
+                "    return foe->pCharacterData && !AreUnitsAllied(unit->index, foe->index)\n"
+                "        && SkillListedFem(foe, SKILL_FEM_Nihil);\n}\n\n"
+                "int SkillTesterFem(struct Unit* unit, int skill)\n{\n"
+                "    if (unit == &gBattleActor.unit && NihilFoeFem(unit, &gBattleTarget.unit))\n        return FALSE;\n"
+                "    if (unit == &gBattleTarget.unit && NihilFoeFem(unit, &gBattleActor.unit))\n        return FALSE;\n"
+                "    return SkillListedFem(unit, skill);\n}\n\n"
+                "static int SkillListedFem(struct Unit* unit, int skill)\n{\n" if "Nihil" in numbers else
+                "int SkillTesterFem(struct Unit* unit, int skill)\n{\n") +
              "    const u8* list = gCharacterSkillsFem[unit->pCharacterData->number];\n\n"
              "    if (list[0] == skill || list[1] == skill || list[2] == skill)\n        return TRUE;\n"
              "    list = gClassSkillsFem[unit->pClassData->number];\n"
@@ -2076,8 +2093,11 @@ MOVES = {
     "Swap": ("unit", "ux", "uy"),
     "Smite": ("unit", "3 * tx - 2 * ux", "3 * ty - 2 * uy"),
 }
-# Rally (C-SkillSys's Rally.c): the stats (gamedata.TEMP_STATS) raised by 4 for the allies within 2 tiles, on the
-# temporary bonuses' counters (Magic's, the 7th, only with the Strength / Magic split; none for Movement)
+# Rally (C-SkillSys's Rally.c): the stats (gamedata.TEMP_STATS's numbers) raised by 4 for the allies within 2 tiles until
+# the next player phase (C-SkillSys's UNIT_STAT_BUFF_RALLY_*, ticked at the unit's own phase): one byte per unit in
+# free RAM, a bit per stat (Magic's, the 7th, only with the Strength / Magic split), read by SkillStatBonusFem
+RALLY_TABLE = "0x02028700"   # the debug print buffer again, after the music's tracks (0x02027A00): 0xC0 bytes
+RALLY_SAVE = 0xA00           # bonus-map zone of the save memory, after the learned skills: per suspend slot, time + table
 RALLIES = {"RallyStrength": (0,), "RallyMagic": (6,), "RallySkill": (1,),
            "RallySpeed": (2,), "RallyLuck": (5,), "RallyDefense": (3,),
            "RallyResistance": (4,), "RallySpectrum": (0, 1, 2, 3, 4, 5, 6)}
@@ -2130,12 +2150,12 @@ u8 {sid}UsabilityFem(const struct MenuItemDef* def, int number)
 
 u8 {sid}EffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
 {{
-    return RallyEffectFem(0x{sum(4 << (4 * stat) for stat in RALLIES[sid]):X});
+    return RallyEffectFem(0x{sum(1 << stat for stat in RALLIES[sid]):X});
 }}
 """ for sid in rallies)
     rally = """
-/* Rally (C-SkillSys's Rally.c): +4 on the temporary bonuses' counters (as a drink: game option tempBonusRule) of the
-   allies within 2 tiles, dropping by 1 at each of their phases; then the unit waits */
+/* Rally (C-SkillSys's Rally.c): +4 on the stats of `bits` (RALLY_FEM) for the allies within 2 tiles, until the next
+   player phase; then the unit waits */
 static int RallyTargetFem(struct Unit* unit)
 {
     int d;
@@ -2160,7 +2180,7 @@ static u8 RallyUsabilityFem(int skill)
     return MENU_NOTSHOWN;
 }
 
-static u8 RallyEffectFem(u32 values)
+static u8 RallyEffectFem(int bits)
 {
     int i;
 
@@ -2168,7 +2188,7 @@ static u8 RallyEffectFem(u32 values)
         struct Unit* unit = GetUnit(i);
 
         if (RallyTargetFem(unit))
-            SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));
+            RALLY_FEM[(u8) unit->index] |= bits;
     }
     gActionData.xMove = gActiveUnit->xPos;
     gActionData.yMove = gActiveUnit->yPos;
@@ -2176,6 +2196,44 @@ static u8 RallyEffectFem(u32 values)
     return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A | MENU_ACT_CLEAR;
 }
 """ if rallies else ""
+    if rallies:   # the Rally bonuses end when the next player phase starts; kept across a suspend
+        rel = "src/bmunit.c"
+        out[rel] = _replace(_read(files, decomp_dir, rel), "    InitTargets(0, 0);\n\n    for (i = gPlaySt.faction + 1;",
+                            "    InitTargets(0, 0);\n\n    if (gPlaySt.faction == FACTION_BLUE)\n"
+                            "        CpuFill16(0, RALLY_FEM, 0xC0); /* FE Maker: Rally ends */\n\n"
+                            "    for (i = gPlaySt.faction + 1;", rel)
+        rel = "src/bmsave.c"
+        text = _read(files, decomp_dir, rel)
+        text = _replace(text, "void WriteSuspendSave(int slot)\n{", f"""\
+/* FE Maker: Rally's bonuses (RALLY_FEM), per suspend slot in the bonus-map zone: the save time, then the table */
+#define RALLY_SAVE_FEM(slot) \\
+    ((u8 *) CART_SRAM + SRAM_OFFSET_XMAP + 0x{RALLY_SAVE:X} + ((slot) - SAVE_ID_SUSPEND) * 0xC4)
+
+static void WriteRallyFem(int slot)
+{{
+    u32 time = gPlaySt.time_saved;
+
+    WriteAndVerifySramFast(&time, RALLY_SAVE_FEM(slot), 4);
+    WriteAndVerifySramFast(RALLY_FEM, RALLY_SAVE_FEM(slot) + 4, 0xC0);
+}}
+
+static void ReadRallyFem(int slot)
+{{
+    u32 time;
+
+    ReadSramFast(RALLY_SAVE_FEM(slot), &time, 4);
+    if (time == gPlaySt.time_saved)
+        ReadSramFast(RALLY_SAVE_FEM(slot) + 4, RALLY_FEM, 0xC0);
+    else
+        CpuFill16(0, RALLY_FEM, 0xC0);
+}}
+
+void WriteSuspendSave(int slot)
+{{""", rel)
+        text = _replace(text, "    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n",
+                        "    chunk.kind = SAVEBLOCK_KIND_SUSPEND;\n    WriteRallyFem(slot);\n", rel)
+        read = "    SetBonusContentClaimFlags(LoadSavedBonusClaimFlags(gPlaySt.gameSaveSlot));\n"
+        out[rel] = _replace(text, read, read + "    ReadRallyFem(slot + gSuspendSaveIdOffset);\n", rel)
     rel = "src/bmmenu.c"
     out[rel] = _read(files, decomp_dir, rel) + f"""
 /* FE Maker, skills batch 4: the unit menu's moving commands (C-SkillSys, HerosMovement: Pivot.c, Reposition.c,
@@ -2612,7 +2670,7 @@ POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despo
 
 def uses_temp_bonuses(skills: list[Skill]) -> bool:
     """The seals need the temporary bonuses' counters (gamedata, before the skills are applied)."""
-    return any(s.id.startswith("Seal") or s.id in RALLIES for s in skills)
+    return any(s.id.startswith("Seal") for s in skills)
 
 
 def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], base: int) -> dict:

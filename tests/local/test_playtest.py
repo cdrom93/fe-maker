@@ -2293,7 +2293,8 @@ def test_batch_10_pass(tmp_path):
 
 def test_batch_10_rally_and_smite(tmp_path):
     """Skills batch 10: the lord's Rally Strength (its menu's first command) gives its friend two tiles away +4
-    Strength on the temporary bonuses' counter; then the friend steps next to the lord and Smite pushes it two tiles."""
+    Strength (its bit in RALLY_FEM) until the next player phase; then the friend steps next to the lord and Smite pushes
+    it two tiles; the bonus is gone on turn 2."""
     project = _bench(tmp_path, "rally", [["ITEM_SWORD_IRON"], []])
     project.set_game_options({**project.game_options, "skills": True, "strMagSplit": True})   # Rally Magic: built
     chapters = project.load("chapters")
@@ -2317,7 +2318,9 @@ def test_batch_10_rally_and_smite(tmp_path):
         game.press("A", wait=60)       # stays
         game.screenshot().save(tmp_path / "menu.png")
         game.press("A", wait=60)       # Rally-Str
-        assert game.read("gTempBonusesFem", 4 * game.read(friend, 0xB), width=32) & 15 == 4   # Strength +4 (strmag)
+        from fe_maker.decomp import skills
+        rally = int(skills.RALLY_TABLE, 16) + game.read(friend, 0xB)
+        assert game.read(rally) == 1   # Strength's bit
         game.move_cursor(*friend_spot)
         game.press("A")
         game.move_cursor(lord_spot[0], lord_spot[1] + 1)
@@ -2327,6 +2330,13 @@ def test_batch_10_rally_and_smite(tmp_path):
         game.press("A", wait=30)       # the lord, its only target
         assert game.wait_until(lambda: (game.read(lord, 0x10), game.read(lord, 0x11)) == (lord_spot[0], lord_spot[1] - 2),
                                seconds=10, step=10)
+        assert game.read(rally) == 1   # still there in the enemy phase to come
+        # both units have acted: the turn ends by itself
+        assert game.wait_until(lambda: game.phase() != "player", seconds=30, step=10)
+        assert game.read(rally) == 1
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=120, step=30)
+        game.run(120)
+        assert game.read(rally) == 0
 
 
 def test_batch_10_resolve(tmp_path):
@@ -2560,6 +2570,28 @@ def test_batch_10_counter(tmp_path):
         assert all(hit & 0x80 and hit >> 24 for hit in hits), [hex(hit) for hit in hits]
         game.run(600)                     # the damage went back to the lord (who may die of it), not to the enemy
         assert game.read(enemy, 0x13) == foe_hp
+
+
+def test_batch_10_nihil(tmp_path):
+    """Skills batch 10: the lord has Nihil (and Hawkeye, its own skill, which stays); the enemy's Counter is cancelled:
+    the enemy loses HP."""
+    place = (BENCH_SPOTS[0][0] + 1, BENCH_SPOTS[0][1])
+    project = _bench(tmp_path, "nihil", [["ITEM_SWORD_IRON"]], enemy_at=place)
+    project.set_game_options({**project.game_options, "skills": True})
+    characters = project.load("characters")
+    lord_id = project.load("chapters")["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["Nihil", "Hawkeye"]
+    next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")["skills"] = ["Counter"]
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        enemy = game.address("gUnitArrayRed")
+        foe_hp = game.read(enemy, 0x13)
+        _bench_attack(game, lord)
+        assert game.wait_until(lambda: game.read("gBattleHitArray", 0, width=32) != 0, seconds=30, step=10)
+        game.run(600)
+        assert game.read(enemy, 0x13) < foe_hp
 
 
 def test_game_ability_given_as_a_skill(tmp_path):
