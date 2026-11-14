@@ -664,6 +664,8 @@ export interface Check {
   detail: string
   /** what FE Maker downloads itself: its download's progress, null before one starts (server: downloads.py) */
   download?: { state: 'running' | 'done' | 'error'; received: number; total: number; error: string } | null
+  /** the first build made in the background, while it runs: how far it is, 0 to 1 */
+  progress?: number
 }
 
 export interface Ticket {

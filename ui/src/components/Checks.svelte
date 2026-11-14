@@ -74,6 +74,13 @@
             {#if LINKS[c.id]}<a href={LINKS[c.id]} target="_blank" rel="noreferrer">{t('checks.site')}</a>{/if}
           </div>
           {#if c.download?.state === 'error'}<p class="bad">{t(`checks.error.${c.download.error}`)}</p>{/if}
+        {:else if c.id === 'firstBuild' && c.detail === 'running'}
+          <div class="bar">
+            <progress value={c.progress ?? undefined}></progress>
+            {#if c.progress !== undefined}<span>{Math.round(c.progress * 100)} %</span>{/if}
+          </div>
+        {:else if c.id === 'firstBuild' && c.detail === 'failed'}
+          <button class="primary" onclick={() => check(api.retryFirstBuild)}>{t('checks.retry')}</button>
         {:else if LINKS[c.id]}
           <a href={LINKS[c.id]} target="_blank" rel="noreferrer">{t('checks.get')}</a>
         {/if}

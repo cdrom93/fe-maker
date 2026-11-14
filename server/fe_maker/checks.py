@@ -69,7 +69,10 @@ def _builder_check(settings: Settings, decomp_ok: bool) -> list[dict]:
             if settings.has_rom and decomp_ok:
                 native.start_warmup(settings.rom_path, DECOMP_DIR)
                 state = native.warmup_state()
-                return [{"id": "firstBuild", "ok": state == "done", "detail": state or "running"}]
+                check = {"id": "firstBuild", "ok": state == "done", "detail": state or "running"}
+                if check["detail"] == "running":
+                    check["progress"] = native.warmup_progress()
+                return [check]
             return []
         if os.environ.get("FE_MAKER_BUILDER") == "docker" or _docker_state()[0]:
             return []

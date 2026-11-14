@@ -3,7 +3,8 @@
 from fe_maker import builderrors
 
 NOISE = ["C:/x/native/win.mk:6: warning: overriding recipe for target 'objects.lst'",
-         "Makefile:240: warning: ignoring old recipe for target 'objects.lst'"]
+         "Makefile:240: warning: ignoring old recipe for target 'objects.lst'",
+         "src/bmdifficulty.s:4200: Warning: ignoring changed section attributes for .data"]   # in every build
 
 
 def test_compiler_and_assembler_errors_name_the_file_and_its_part(tmp_path):

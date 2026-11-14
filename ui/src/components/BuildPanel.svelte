@@ -29,6 +29,8 @@
   let progress = $derived(status?.expected && log.length < status.expected ? log.length / status.expected : null)
   // Another build of the same working copy (another FE Maker window, a test) goes first: this one waits (ticket 20).
   let waiting = $derived(!!log.at(-1)?.includes('Another build is running'))
+  // ...the first build of the game, made in the background after installation (home page)
+  let waitingFirst = $derived(!!log.at(-1)?.includes('(the first build)'))
 
   async function poll() {
     try {
@@ -90,7 +92,7 @@
       <h2>{cancelling ? t('build.cancelling') : t('build.running')}</h2>
       {#if waiting}
         <progress></progress>
-        <p>{t('build.waiting')}</p>
+        <p>{t(waitingFirst ? 'build.waitingFirst' : 'build.waiting')}</p>
       {:else if progress !== null}
         <div class="bar"><progress value={progress}></progress><span>{Math.round(progress * 100)} %</span></div>
       {:else}

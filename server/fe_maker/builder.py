@@ -76,7 +76,10 @@ def build_lock(on_output: Callable[[str], None] | None = None, poll: float = 1.0
         while not _try_lock(file):
             buildcancel.check()
             if not waited and on_output:
-                on_output("[fe-maker] Another build is running, waiting for it...\n")
+                # the first build made in the background (native.start_warmup) said as such: the panel says so
+                first = native.warmup_state() == "running"
+                on_output("[fe-maker] Another build is running, waiting for it..."
+                          + (" (the first build)" if first else "") + "\n")
             waited = True
             time.sleep(poll)
         try:

@@ -216,6 +216,15 @@ def download_toolchain():
     return run_checks(state.settings)
 
 
+@app.post("/api/first-build")
+def retry_first_build():
+    """The first build made in the background (native.start_warmup) started again after a failure."""
+    if not state.settings.has_rom:
+        raise HTTPException(400, "noRom")
+    native.start_warmup(state.settings.rom_path, DECOMP_DIR)
+    return run_checks(state.settings)
+
+
 @app.post("/api/mgba/download")
 def download_mgba():
     """mGBA set up by FE Maker on Windows (mgbafetch.py), the settings then pointing to it."""

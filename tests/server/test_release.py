@@ -121,7 +121,7 @@ def test_windows_asks_for_the_toolchain_then_builds_once_in_the_background(monke
     monkeypatch.setattr(Settings, "has_rom", property(lambda self: True))
     (tmp_path / "Makefile").write_text("")
     found = {c["id"]: c for c in checks.run_checks(settings, tmp_path)}
-    assert found["firstBuild"] == {"id": "firstBuild", "ok": False, "detail": "running"} and started
+    assert found["firstBuild"] == {"id": "firstBuild", "ok": False, "detail": "running", "progress": 0.0} and started
 
 
 def test_the_installers_python_finds_fe_maker_and_its_dependencies(tmp_path):

@@ -98,7 +98,8 @@ def fetch_toolchain() -> None:
 
 
 READY_MARK = ".fe-maker-ready"   # in the working copy, after a first successful build
-_warmup: dict = {"thread": None, "error": ""}
+_warmup: dict = {"thread": None, "error": "", "lines": 0}
+WARMUP_LINES = 10900   # lines of make's output in a whole build (measured on 14/11), for the first build's progress
 
 
 def warmed_up() -> bool:
@@ -115,6 +116,11 @@ def warmup_state() -> str:
     return "failed" if _warmup["error"] else ""
 
 
+def warmup_progress() -> float:
+    """How far the first build is, from 0 to 0.99 (make's lines so far against a whole build's)."""
+    return min(0.99, _warmup["lines"] / WARMUP_LINES)
+
+
 def start_warmup(rom: Path, decomp: Path) -> None:
     """The first build takes ~8 minutes (thousands of files): make it right after installation, in the background,
     from the untouched decomp, so that the user's first test only rebuilds what the project changed. Stopped midway
@@ -128,10 +134,14 @@ def start_warmup(rom: Path, decomp: Path) -> None:
         from ..builder import BuildError
         from ..builder import build as full_build
 
-        _warmup["error"] = ""
+        _warmup.update(error="", lines=0)
         out = _home() / "work" / "first-build"
+
+        def counted(_line: str) -> None:
+            _warmup["lines"] += 1
+
         try:
-            full_build(rom, out)
+            full_build(rom, out, on_output=counted)
         except (BuildError, OSError) as e:
             _warmup["error"] = str(e)[-2000:]
 
@@ -236,12 +246,18 @@ def _quoted(path: Path | str) -> str:
     return '"' + str(path).replace("\\", "/") + '"'
 
 
+def python_command() -> str:
+    """make's $(PYTHON): this Python through runscript.py, which puts each script's folder in sys.path as a plain
+    `python script.py` does; the installer's embeddable Python does not (ticket 82)."""
+    return f"{_quoted(sys.executable)} {_quoted(NATIVE_DIR / 'runscript.py')}"
+
+
 def make_command(toolchain: Path, bugfix: bool) -> list[str]:
     cpp = "arm-none-eabi-cpp" + (" -DBUGFIX=1" if bugfix else "")
     return [
         str(toolchain / "bin" / "make.exe"), f"-j{os.cpu_count() or 4}",
         "-f", "Makefile", "-f", str(NATIVE_DIR / "win.mk").replace("\\", "/"),
-        f"FEM_NATIVE={_quoted(NATIVE_DIR)}", f"PYTHON={_quoted(sys.executable)}", f"CPP={cpp}",
+        f"FEM_NATIVE={_quoted(NATIVE_DIR)}", f"PYTHON={python_command()}", f"CPP={cpp}",
         "NODEP=1",   # the assembly files' dependencies come from asmdeps.py, read by win.mk
         "fireemblem8.gba",
     ]

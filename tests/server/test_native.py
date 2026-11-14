@@ -145,3 +145,20 @@ def test_a_missing_header_in_the_log_forgets_its_dependency_lists(tmp_path):
     log = "make: *** No rule to make target 'include/skills_fem.h', needed by 'src/a.o'.  Stop.\n"
     native._forget_dependencies(tmp_path, set(native._NO_RULE.findall(log)))
     assert not (tmp_path / ".dep/src/a.d").exists()
+
+
+def test_decomp_scripts_find_their_neighbours_with_an_isolated_python(tmp_path):
+    """The installer's embeddable Python leaves the script's folder out of sys.path, like `python -I` (ticket 82):
+    make's $(PYTHON) goes through runscript.py, which puts it back."""
+    import subprocess
+    import sys
+
+    (tmp_path / "huffman.py").write_text("WORD = 'found'\n")
+    (tmp_path / "tool.py").write_text("import sys\nfrom huffman import WORD\nprint(WORD, sys.argv[1:])\n")
+    plain = subprocess.run([sys.executable, "-I", str(tmp_path / "tool.py")], capture_output=True, text=True)
+    assert "No module named 'huffman'" in plain.stderr
+    runner = native.NATIVE_DIR / "runscript.py"
+    fixed = subprocess.run([sys.executable, "-I", str(runner), str(tmp_path / "tool.py"), "a", "b"],
+                           capture_output=True, text=True)
+    assert fixed.stdout.strip() == "found ['a', 'b']"
+    assert native.python_command().endswith('/runscript.py"')

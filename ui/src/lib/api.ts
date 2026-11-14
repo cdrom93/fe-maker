@@ -117,6 +117,7 @@ export const api = {
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   downloadToolchain: () => request<Check[]>('POST', '/api/toolchain/download'),
   downloadMgba: () => request<Check[]>('POST', '/api/mgba/download'),
+  retryFirstBuild: () => request<Check[]>('POST', '/api/first-build'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
   saveData: (kind: DataKind, records: unknown) =>

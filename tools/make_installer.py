@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -83,6 +84,16 @@ def stage(release_zip: Path, target: Path, embed: bytes) -> None:
                            cwd=target, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": ""})
     if check.returncode or check.stdout.strip() != make_release.version():
         sys.exit(f"The bundled Python does not run FE Maker:\n{check.stdout}{check.stderr}")
+    # ...and the decomp's scripts as the native build runs them (native.python_command): one importing its neighbour,
+    # which the embeddable Python alone does not find (ticket 82)
+    with tempfile.TemporaryDirectory() as folder:
+        (Path(folder) / "neighbour.py").write_text("WORD = 'found'\n")
+        (Path(folder) / "script.py").write_text("from neighbour import WORD\nprint(WORD)\n")
+        check = subprocess.run([str(target / "python" / "python.exe"),
+                                str(target / "server" / "fe_maker" / "native" / "runscript.py"),
+                                str(Path(folder) / "script.py")], capture_output=True, text=True)
+        if check.returncode or check.stdout.strip() != "found":
+            sys.exit(f"The bundled Python does not run the decomp's scripts:\n{check.stdout}{check.stderr}")
 
 
 def iscc() -> str | None:

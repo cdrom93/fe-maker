@@ -29,8 +29,9 @@ AREAS = (
 )
 _DECOMP_ERRORS = ("CParseError", "CombatTableError", "ConvoyError", "GameDataError", "MapError", "TweakError")
 # "src/data_items.c:2950: syntax error before `;'" (agbcc, gcc 2.95: no "error:"), "data/x.s:680: Error: bad
-# instruction" (as); warnings and make's own "Makefile:240:" lines are not errors.
-_CODE_RE = re.compile(r"^((?:src|include|data|asm|sound|graphics|texts)/[^\s:]+):(\d+)(?::\d+)?: (?!warning)"
+# instruction" (as); warnings (the assembler's "Warning: ignoring changed section attributes", in every build: ticket 82)
+# and make's own "Makefile:240:" lines are not errors.
+_CODE_RE = re.compile(r"^((?:src|include|data|asm|sound|graphics|texts)/[^\s:]+):(\d+)(?::\d+)?: (?![Ww]arning)"
                       r"(?:fatal )?(?:error: |Error: )?(.*)$")
 
 
