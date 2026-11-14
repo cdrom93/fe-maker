@@ -18,7 +18,6 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib.request
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -88,12 +87,11 @@ def install_toolchain(archive: bytes, target: Path | None = None) -> None:
 
 
 def fetch_toolchain() -> None:
+    from .. import downloads
     from ..ferepo import _ssl_context
 
-    request = urllib.request.Request(TOOLCHAIN_URL, headers={"User-Agent": "FE-Maker"})
     try:
-        with urllib.request.urlopen(request, timeout=300, context=_ssl_context()) as response:
-            archive = response.read(MAX_TOOLCHAIN_SIZE)
+        archive = downloads.get(TOOLCHAIN_URL, MAX_TOOLCHAIN_SIZE, 300, _ssl_context())
     except OSError as e:
         raise NativeBuildError("unreachable") from e
     install_toolchain(archive)

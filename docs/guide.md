@@ -5,7 +5,7 @@ FE Maker est un éditeur simple pour créer un rom hack de Fire Emblem: The Sacr
 ## Ce qu'il vous faut
 
 - **Windows 10 ou 11** (Linux et macOS viendront plus tard).
-- **mGBA**, pour tester : https://mgba.io/downloads.html
+- **mGBA**, pour tester : FE Maker l'installe pour vous depuis l'accueil (sinon : https://mgba.io/downloads.html).
 - **Votre ROM** de Fire Emblem: The Sacred Stones (USA, Australia), obtenue légalement. FE Maker ne la distribue pas et vérifie sa somme de contrôle.
 
 ## Installer et lancer

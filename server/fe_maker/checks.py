@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import native
+from . import downloads, mgbafetch, native
 from .config import Settings, find_mgba
 from .paths import DECOMP_DIR
 
@@ -81,10 +81,15 @@ def _builder_check(settings: Settings, decomp_ok: bool) -> list[dict]:
 
 
 def run_checks(settings: Settings, decomp_dir: Path = DECOMP_DIR) -> list[dict]:
+    """With, for what FE Maker can download itself, "download": its download's progress (downloads.py) or None."""
     decomp_ok = (decomp_dir / "Makefile").is_file()
-    return [
+    found = [
         {"id": "rom", "ok": settings.has_rom, "detail": ""},
         {"id": "decomp", "ok": decomp_ok, "detail": ""},
         *_builder_check(settings, decomp_ok),
         {"id": "mgba", "ok": bool(settings.mgba_path or find_mgba()), "detail": ""},
     ]
+    for check in found:
+        if check["id"] in ("decomp", "toolchain") or (check["id"] == "mgba" and mgbafetch.available()):
+            check["download"] = downloads.state(check["id"])
+    return found

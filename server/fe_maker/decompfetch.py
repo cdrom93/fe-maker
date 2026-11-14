@@ -6,11 +6,10 @@ from __future__ import annotations
 
 import io
 import shutil
-import urllib.error
-import urllib.request
 import zipfile
 from pathlib import Path
 
+from . import downloads
 from .ferepo import _ssl_context
 from .paths import DECOMP_COMMIT, DECOMP_DIR
 
@@ -23,10 +22,8 @@ class DecompFetchError(Exception):
 
 
 def _download() -> bytes:
-    request = urllib.request.Request(ARCHIVE_URL, headers={"User-Agent": "FE-Maker"})
     try:
-        with urllib.request.urlopen(request, timeout=120, context=_ssl_context()) as response:
-            return response.read(MAX_SIZE)
+        return downloads.get(ARCHIVE_URL, MAX_SIZE, 120, _ssl_context())
     except OSError as e:
         raise DecompFetchError("unreachable") from e
 

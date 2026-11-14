@@ -31,11 +31,13 @@ from . import (
     builderrors,
     buildtimes,
     decompfetch,
+    downloads,
     emulator,
     ferepo,
     ferepo_music,
     githubauth,
     library,
+    mgbafetch,
     missions,
     native,
     newchapter,
@@ -202,21 +204,24 @@ def checks():
 
 @app.post("/api/decomp/download")
 def download_decomp():
-    """First launch of a release: the decomp is downloaded (decompfetch.py)."""
-    try:
-        decompfetch.fetch()
-    except decompfetch.DecompFetchError as e:
-        raise HTTPException(502, str(e)) from e
+    """First launch of a release: the decomp is downloaded (decompfetch.py), in the background (downloads.py)."""
+    downloads.start("decomp", decompfetch.fetch, decompfetch.DecompFetchError)
     return run_checks(state.settings)
 
 
 @app.post("/api/toolchain/download")
 def download_toolchain():
     """First launch on Windows: the build tools that replace Docker (native/), then the first build starts."""
-    try:
-        native.fetch_toolchain()
-    except native.NativeBuildError as e:
-        raise HTTPException(502, str(e)) from e
+    downloads.start("toolchain", native.fetch_toolchain, native.NativeBuildError)
+    return run_checks(state.settings)
+
+
+@app.post("/api/mgba/download")
+def download_mgba():
+    """mGBA set up by FE Maker on Windows (mgbafetch.py), the settings then pointing to it."""
+    if not mgbafetch.available():
+        raise HTTPException(400, "noTar")
+    downloads.start("mgba", lambda: mgbafetch.fetch(state.settings), mgbafetch.MgbaFetchError)
     return run_checks(state.settings)
 
 

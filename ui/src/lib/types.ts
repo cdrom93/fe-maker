@@ -662,6 +662,8 @@ export interface Check {
   id: 'rom' | 'decomp' | 'docker' | 'toolchain' | 'firstBuild' | 'mgba'
   ok: boolean
   detail: string
+  /** what FE Maker downloads itself: its download's progress, null before one starts (server: downloads.py) */
+  download?: { state: 'running' | 'done' | 'error'; received: number; total: number; error: string } | null
 }
 
 export interface Ticket {

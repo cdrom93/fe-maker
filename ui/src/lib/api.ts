@@ -116,6 +116,7 @@ export const api = {
     request<{ move: [number, number][]; strike: [number, number][]; heal: [number, number][] }>('POST', `/api/chapters/${index}/reach`, { units }),
   downloadDecomp: () => request<Check[]>('POST', '/api/decomp/download'),
   downloadToolchain: () => request<Check[]>('POST', '/api/toolchain/download'),
+  downloadMgba: () => request<Check[]>('POST', '/api/mgba/download'),
   reference: () => request<Reference>('GET', '/api/reference'),
   getData: <T>(kind: DataKind) => request<T>('GET', `/api/project/data/${kind}`),
   saveData: (kind: DataKind, records: unknown) =>

@@ -112,7 +112,7 @@ def test_windows_asks_for_the_toolchain_then_builds_once_in_the_background(monke
     monkeypatch.setenv("FE_MAKER_TOOLCHAIN", str(tmp_path / "toolchain"))
     monkeypatch.delenv("FE_MAKER_BUILDER", raising=False)
     found = {c["id"]: c for c in checks.run_checks(Settings(mgba_path="mgba"), tmp_path)}
-    assert found["toolchain"] == {"id": "toolchain", "ok": False, "detail": ""} and "docker" not in found
+    assert found["toolchain"] == {"id": "toolchain", "ok": False, "detail": "", "download": None} and "docker" not in found
     started = []
     monkeypatch.setattr(native, "toolchain_ready", lambda toolchain=None: True)
     monkeypatch.setattr(native, "start_warmup", lambda rom, decomp: started.append(rom))
@@ -142,3 +142,62 @@ def test_the_installers_python_finds_fe_maker_and_its_dependencies(tmp_path):
     (tmp_path / "python" / "python.exe").write_bytes(b"")
     command = update.pip_command(tmp_path)
     assert command[0] == str(tmp_path / "python" / "python.exe") and command[-len(needed):] == needed
+
+
+def test_downloads_run_in_the_background_with_their_progress(monkeypatch):
+    import threading
+
+    from fe_maker import downloads
+
+    class Response(io.BytesIO):
+        headers = {"Content-Length": "600000"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(downloads.urllib.request, "urlopen", lambda *a, **k: Response(b"x" * 600000))
+    release = threading.Event()
+    got = {}
+
+    def run():
+        got["data"] = downloads.get("https://example.org/a.zip", 10**7, 5)
+        release.wait(5)
+
+    downloads.start("test-a", run, ValueError)
+    downloads.start("test-a", lambda: got.setdefault("twice", True), ValueError)   # already running: not started again
+    for _ in range(100):
+        if downloads.state("test-a")["received"] == 600000:
+            break
+        threading.Event().wait(0.02)
+    assert downloads.state("test-a") == {"state": "running", "received": 600000, "total": 600000, "error": ""}
+    release.set()
+    for _ in range(100):
+        if downloads.state("test-a")["state"] != "running":
+            break
+        threading.Event().wait(0.02)
+    assert downloads.state("test-a")["state"] == "done" and len(got["data"]) == 600000 and "twice" not in got
+
+    def broken():
+        raise ValueError("badArchive")
+
+    downloads.start("test-b", broken, ValueError)
+    for _ in range(100):
+        if downloads.state("test-b")["state"] != "running":
+            break
+        threading.Event().wait(0.02)
+    assert downloads.state("test-b")["error"] == "badArchive" and downloads.state("test-c") is None
+
+
+@pytest.mark.skipif(not __import__("fe_maker.mgbafetch").mgbafetch.available(), reason="Windows' tar")
+def test_mgba_is_unpacked_with_windows_tar(tmp_path):
+    from fe_maker import mgbafetch
+
+    with pytest.raises(mgbafetch.MgbaFetchError):
+        mgbafetch.install(b"not an archive", tmp_path / "mgba")
+    assert not (tmp_path / "mgba").exists() and not (tmp_path / "mgba.download").exists()
+    archive = _zip({"mGBA-1-win64/mGBA.exe": "exe", "mGBA-1-win64/portable.ini": ""})   # tar reads zip too
+    exe = mgbafetch.install(archive, tmp_path / "mgba")
+    assert exe == tmp_path / "mgba" / "mGBA-1-win64" / "mGBA.exe" and exe.read_text() == "exe"
