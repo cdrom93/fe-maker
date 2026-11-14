@@ -264,6 +264,14 @@ CATALOGUE: tuple[Skill, ...] = (
           menu="Reposition"),
     Skill("Shove", "menu", "Shove", "Shove:[NL]Pushes an adjacent ally[NL]one tile away.", menu="Shove"),
     Skill("Swap", "menu", "Swap", "Swap:[NL]Unit switches places with[NL]an adjacent ally.", menu="Swap"),
+    # batch 10: C-SkillSys's Smite.c and Rally.c
+    Skill("Smite", "menu", "Smite", "Smite:[NL]Pushes an adjacent ally[NL]two tiles away.", menu="Smite"),
+    *(Skill(f"Rally{name}", "menu", f"Rally{name}", f"Rally {label}:[NL]+4 {short} to all allies[NL]within 2 tiles of the unit.",
+            menu=f"Rally-{word}") for name, label, short, word, _stats in (
+        ("Strength", "Strength", "STR", "Str", (0,)), ("Skill", "Skill", "SKL", "Skl", (1,)),
+        ("Speed", "Speed", "SPD", "Spd", (2,)), ("Luck", "Luck", "LCK", "Lck", (5,)),
+        ("Defense", "Defense", "DEF", "Def", (3,)), ("Resistance", "Resistance", "RES", "Res", (4,)),
+        ("Spectrum", "Spectrum", "all stats", "Spec", (0, 1, 2, 3, 4, 5)))),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn."),
     # batch 10, after the battle (_post_action_skills: C-SkillSys's PostActionSkills, with the map's damage and heal
@@ -2009,7 +2017,12 @@ MOVES = {
     "Reposition": ("unit", "2 * ux - tx", "2 * uy - ty"),
     "Shove": ("unit", "2 * tx - ux", "2 * ty - uy"),
     "Swap": ("unit", "ux", "uy"),
+    "Smite": ("unit", "3 * tx - 2 * ux", "3 * ty - 2 * uy"),
 }
+# Rally (C-SkillSys's Rally.c): the stats (gamedata.TEMP_STATS) raised by 4 for the allies within 2 tiles, on the
+# temporary bonuses' counters (no room there for Magic and Movement: no Rally Magic nor Movement)
+RALLIES = {"RallyStrength": (0,), "RallySkill": (1,), "RallySpeed": (2,), "RallyLuck": (5,), "RallyDefense": (3,),
+           "RallyResistance": (4,), "RallySpectrum": (0, 1, 2, 3, 4, 5)}
 
 
 def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: dict[str, int]) -> dict:
@@ -2017,7 +2030,8 @@ def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: 
     HerosMovement: Pivot.c, Reposition.c, Shove.c, Swap.c): Pivot (to the other side of an adjacent ally),
     Reposition (the ally to the other side of the unit), Shove (the ally one tile further), Swap (the unit and the
     ally switch places). The units slide there on the map (ticket 27); then the unit waits."""
-    used = [sid for sid in MOVES if sid in numbers]
+    rallies = [sid for sid in RALLIES if sid in numbers]
+    used = [sid for sid in MOVES if sid in numbers] + rallies
     if not used:
         return {}
     out = {}
@@ -2030,7 +2044,7 @@ def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: 
         f"    {{\"　{BY_ID[sid].menu}\", {texts['menu:' + sid]}, {texts[sid]}, 0, {0x6A + i}, {sid}UsabilityFem, 0, "
         f"{sid}EffectFem, 0, 0, 0}}, // FE Maker: {sid}\n" for i, sid in enumerate(used))
     out[rel] = _replace(out[rel], "    {\"　救出\", 0x689,", entries + "    {\"　救出\", 0x689,", rel)
-    if "Reposition" in used:   # the longest name: one more tile for the menu (ticket 27)
+    if "Reposition" in used or rallies:   # the longest names: one more tile for the menu (ticket 27)
         out[rel] = _replace(out[rel], "CONST_DATA struct MenuDef gUnitActionMenuDef = {\n    {1, 3, 7, 0},",
                             "CONST_DATA struct MenuDef gUnitActionMenuDef = {\n    {1, 3, 8, 0},", rel)
     cases = "".join(f"""\
@@ -2050,7 +2064,60 @@ u8 {sid}EffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
 {{
     return MoveSkillEffectFem(SKILL_FEM_{sid});
 }}
-""" for sid in used)
+""" for sid in used if sid in MOVES) + "".join(f"""
+u8 {sid}UsabilityFem(const struct MenuItemDef* def, int number)
+{{
+    return RallyUsabilityFem(SKILL_FEM_{sid});
+}}
+
+u8 {sid}EffectFem(struct MenuProc* menu, struct MenuItemProc* menuItem)
+{{
+    return RallyEffectFem(0x{sum(4 << (4 * stat) for stat in RALLIES[sid]):X});
+}}
+""" for sid in rallies)
+    rally = """
+/* Rally (C-SkillSys's Rally.c): +4 on the temporary bonuses' counters (as a drink: game option tempBonusRule) of the
+   allies within 2 tiles, dropping by 1 at each of their phases; then the unit waits */
+static int RallyTargetFem(struct Unit* unit)
+{
+    int d;
+
+    if (!unit || !unit->pCharacterData || unit == gActiveUnit || !AreUnitsAllied(gActiveUnit->index, unit->index)
+        || unit->state & (US_HIDDEN | US_DEAD | US_RESCUED | US_NOT_DEPLOYED | US_BIT16))
+        return FALSE;
+    d = (unit->xPos > gActiveUnit->xPos ? unit->xPos - gActiveUnit->xPos : gActiveUnit->xPos - unit->xPos)
+        + (unit->yPos > gActiveUnit->yPos ? unit->yPos - gActiveUnit->yPos : gActiveUnit->yPos - unit->yPos);
+    return d <= 2;
+}
+
+static u8 RallyUsabilityFem(int skill)
+{
+    int i;
+
+    if (gActiveUnit->state & US_CANTOING || !SkillTesterFem(gActiveUnit, skill))
+        return MENU_NOTSHOWN;
+    for (i = 1; i < 0xC0; i++)
+        if (RallyTargetFem(GetUnit(i)))
+            return MENU_ENABLED;
+    return MENU_NOTSHOWN;
+}
+
+static u8 RallyEffectFem(u32 values)
+{
+    int i;
+
+    for (i = 1; i < 0xC0; i++) {
+        struct Unit* unit = GetUnit(i);
+
+        if (RallyTargetFem(unit))
+            SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));
+    }
+    gActionData.xMove = gActiveUnit->xPos;
+    gActionData.yMove = gActiveUnit->yPos;
+    gActionData.unitActionType = UNIT_ACTION_WAIT;
+    return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A | MENU_ACT_CLEAR;
+}
+""" if rallies else ""
     rel = "src/bmmenu.c"
     out[rel] = _read(files, decomp_dir, rel) + f"""
 /* FE Maker, skills batch 4: the unit menu's moving commands (C-SkillSys, HerosMovement: Pivot.c, Reposition.c,
@@ -2250,7 +2317,7 @@ static u8 MoveSkillEffectFem(int skill)
     NewTargetSelection(&sSelectInfoMoveSkillFem);
     return MENU_ACT_SKIPCURSOR | MENU_ACT_END | MENU_ACT_SND6A;
 }}
-{commands}"""
+{rally}{commands}"""
     return out
 
 
@@ -2486,7 +2553,7 @@ POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despo
 
 def uses_temp_bonuses(skills: list[Skill]) -> bool:
     """The seals need the temporary bonuses' counters (gamedata, before the skills are applied)."""
-    return any(s.id.startswith("Seal") for s in skills)
+    return any(s.id.startswith("Seal") or s.id in RALLIES for s in skills)
 
 
 def _post_action_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], base: int) -> dict:

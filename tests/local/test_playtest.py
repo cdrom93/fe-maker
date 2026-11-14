@@ -2291,6 +2291,44 @@ def test_batch_10_pass(tmp_path):
         assert game.read(game.read(rows + 4 * place[1], width=32) + place[0] + 1) == 2
 
 
+def test_batch_10_rally_and_smite(tmp_path):
+    """Skills batch 10: the lord's Rally Strength (its menu's first command) gives its friend two tiles away +4
+    Strength on the temporary bonuses' counter; then the friend steps next to the lord and Smite pushes it two tiles."""
+    project = _bench(tmp_path, "rally", [["ITEM_SWORD_IRON"], []])
+    project.set_game_options({**project.game_options, "skills": True})
+    chapters = project.load("chapters")
+    army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
+    lord_spot = BENCH_SPOTS[0]
+    friend_spot = (lord_spot[0], lord_spot[1] + 2)
+    army[1].update(x=friend_spot[0], y=friend_spot[1], endX=friend_spot[0], endY=friend_spot[1])
+    project.save("chapters", chapters)
+    characters = project.load("characters")
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["RallyStrength"]
+    next(c for c in characters if c["id"] == army[1]["character"])["skills"] = ["Smite"]
+    project.save("characters", characters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        base = game.address("gUnitArrayBlue")
+        friend = next(base + n * UNIT_SIZE for n in range(62)
+                      if (game.read(base + n * UNIT_SIZE, 0x10), game.read(base + n * UNIT_SIZE, 0x11)) == friend_spot)
+        game.move_cursor(*lord_spot)
+        game.press("A")
+        game.press("A", wait=60)       # stays
+        game.screenshot().save(tmp_path / "menu.png")
+        game.press("A", wait=60)       # Rally-Str
+        assert game.read(friend, 0x3A) & 15 == 4                    # TEMP_BONUS_FEM(friend, 0): Strength +4
+        game.move_cursor(*friend_spot)
+        game.press("A")
+        game.move_cursor(lord_spot[0], lord_spot[1] + 1)
+        game.press("A", wait=60)       # next to the lord
+        game.screenshot().save(tmp_path / "menu2.png")
+        game.press("A", wait=30)       # Smite
+        game.press("A", wait=30)       # the lord, its only target
+        assert game.wait_until(lambda: (game.read(lord, 0x10), game.read(lord, 0x11)) == (lord_spot[0], lord_spot[1] - 2),
+                               seconds=10, step=10)
+
+
 def test_batch_10_seals(tmp_path):
     """Skills batch 10, the seals: the lord hits the soldier (it survives) with Seal Strength, Seal Speed and Seal
     Defense; the soldier's counters (the temporary bonuses', 4 bits per stat in its spare bytes) read -6, then -5 once

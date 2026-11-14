@@ -326,3 +326,5 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : Savage Blow, Lunge, Devil's Pact / Luck / Whim, Axefaith, Bargain, Deal ; playtest de Savage Blow et Lunge.
 - 14/11/2026 : vérification complète : changer le niveau d'un personnage de l'armée du chapitre 7 empêchait la compilation (trajets d'entrée nommés à la lecture, pas à l'écriture) ; corrigé, test unitaire.
 - 14/11/2026 : compétences, lot 10 : Pass (traverser les ennemis) ; playtest.
+- 14/11/2026 : 2e vérification complète en jeu (119 min) : 141 OK ou sautés, tous les chapitres du hack témoin atteints ; ses 2 échecs : musique passagère, niveau de Seth (corrigé).
+- 14/11/2026 : compétences, lot 10 : Smite et les Rally (sauf Magie et Déplacement) ; playtest. Repéré : les compteurs des bonus temporaires n'ont pas de place pour la Magie, Seal Magic est sans effet.

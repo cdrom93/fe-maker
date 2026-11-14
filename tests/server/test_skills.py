@@ -380,9 +380,7 @@ def test_game_abilities_given_as_skills_join_the_class_attributes(monkeypatch):
     attributes = files["src/bmunit.c"].split("int SkillAttributesFem")[1]
     assert "attributes |= CA_DANCE;" in attributes and "CA_SUPPLY" not in attributes
     menu = files["src/bmmenu.c"]
-    assert "static int SupplySkillFem(int x, int y)" in menu
     usability = menu.split("u8 SupplyUsability(")[1]
-    assert usability.index("CLASS_PHANTOM") < usability.index("SupplySkillFem(gActiveUnit->xPos")
     assert "SkillTesterFem(gActiveUnit, SKILL_FEM_Supply) ||" in usability   # itself: off the map of units as it moves
     assert {"id": "Supply", "kind": "menu", "magic": False} in skills.catalogue()
     # a class without dance frames dances on the map (its battle animation, or its map sprite's frame 5, froze)
@@ -523,3 +521,22 @@ def test_batch_10_devils_axefaith_and_bargain(monkeypatch):
     assert "SkillTesterFem(GetUnit(unitId), SKILL_FEM_Pass) /* FE Maker: Pass */" in files["src/bmidoten.c"]
     post = next(text for text in files.values() if isinstance(text, str) and "sProcScr_PostActionFem[]" in text)
     assert "    PROC_CALL(PostActionFem_Lunge)," in post and "amount = -(proc->damage / 5);" in post
+
+
+def test_batch_10_smite_and_rally(monkeypatch):
+    """Batch 10: Smite (Shove two tiles) and the Rally commands on the temporary bonuses' counters."""
+    if not (DECOMP / "src/bmmenu.c").is_file():
+        pytest.skip("no decomp")
+    monkeypatch.setattr(skills, "icon_png", lambda skill_id: b"\x89PNG")
+    monkeypatch.setattr(skills, "box_png", lambda: b"\x89PNG")
+    characters = [{"id": "CHARACTER_EIRIKA", "skills": ["Smite", "RallyStrength", "RallySpectrum"]}]
+    used = skills.used(characters, [], False)
+    assert skills.uses_temp_bonuses(used)
+    texts = {**PAGE, **{s.id: 2 for s in used}, **{f"menu:{s.id}": 3 for s in used if s.menu}}
+    files = skills.apply(DECOMP, {}, characters, [], texts, False)
+    menu = files["src/bmmenu.c"]
+    assert "x = 3 * tx - 2 * ux;" in menu
+    assert "return RallyEffectFem(0x4);" in menu and "return RallyEffectFem(0x444444);" in menu
+    assert "SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));" in menu
+    assert "RallySpectrumUsabilityFem" in files["src/menu_def.c"]
+    assert "{1, 3, 8, 0}" in files["src/menu_def.c"]
