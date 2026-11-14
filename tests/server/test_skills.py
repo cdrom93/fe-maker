@@ -10,7 +10,7 @@ PAGE = {"label": 1, "talk": 50, "lead": 51, "leadHelp": 52, "leadValue": 53}   #
 
 def test_the_catalogue_marks_magic_skills_and_names_the_game_ones_sources():
     magic = {s["id"] for s in skills.catalogue() if s["magic"]}
-    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade", "Imbue", "SealMagic"}
+    assert magic == {"MagBonus", "DefiantMag", "PushMagic", "ArcaneBlade", "Imbue", "SealMagic", "RallyMagic"}
     assert all(s.text.count("[NL]") >= 1 for s in skills.CATALOGUE + skills.GAME_SKILLS)
     assert skills.icon_path("NoGuard").name == "_placeholder.png"   # no icon at the pinned commit: a "?"
     game = {g["id"]: g for g in skills.game_catalogue()}
@@ -536,7 +536,7 @@ def test_batch_10_smite_and_rally(monkeypatch):
     files = skills.apply(DECOMP, {}, characters, [], texts, False)
     menu = files["src/bmmenu.c"]
     assert "x = 3 * tx - 2 * ux;" in menu
-    assert "return RallyEffectFem(0x4);" in menu and "return RallyEffectFem(0x444444);" in menu
+    assert "return RallyEffectFem(0x4);" in menu and "return RallyEffectFem(0x4444444);" in menu
     assert "SET_TEMP_BONUSES_FEM(unit, TempBonusesAfterFem(unit, values, values));" in menu
     assert "RallySpectrumUsabilityFem" in files["src/menu_def.c"]
     assert "{1, 3, 8, 0}" in files["src/menu_def.c"]

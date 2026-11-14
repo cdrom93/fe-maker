@@ -328,3 +328,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : Pass (traverser les ennemis) ; playtest.
 - 14/11/2026 : 2e vérification complète en jeu (119 min) : 141 OK ou sautés, tous les chapitres du hack témoin atteints ; ses 2 échecs : musique passagère, niveau de Seth (corrigé).
 - 14/11/2026 : compétences, lot 10 : Smite et les Rally (sauf Magie et Déplacement) ; playtest. Repéré : les compteurs des bonus temporaires n'ont pas de place pour la Magie, Seal Magic est sans effet.
+- 14/11/2026 : Rally Magic ajoutée (avec Force et Magie séparées, le 7e compteur de strmag) ; la ligne précédente se trompait : Seal Magic marche, elle n'existe qu'avec ce mode.

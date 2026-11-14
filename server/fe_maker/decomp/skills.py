@@ -267,11 +267,12 @@ CATALOGUE: tuple[Skill, ...] = (
     # batch 10: C-SkillSys's Smite.c and Rally.c
     Skill("Smite", "menu", "Smite", "Smite:[NL]Pushes an adjacent ally[NL]two tiles away.", menu="Smite"),
     *(Skill(f"Rally{name}", "menu", f"Rally{name}", f"Rally {label}:[NL]+4 {short} to all allies[NL]within 2 tiles of the unit.",
-            menu=f"Rally-{word}") for name, label, short, word, _stats in (
-        ("Strength", "Strength", "STR", "Str", (0,)), ("Skill", "Skill", "SKL", "Skl", (1,)),
+            menu=f"Rally-{word}", magic=stats == (6,)) for name, label, short, word, stats in (
+        ("Strength", "Strength", "STR", "Str", (0,)), ("Magic", "Magic", "MAG", "Mag", (6,)),
+        ("Skill", "Skill", "SKL", "Skl", (1,)),
         ("Speed", "Speed", "SPD", "Spd", (2,)), ("Luck", "Luck", "LCK", "Lck", (5,)),
         ("Defense", "Defense", "DEF", "Def", (3,)), ("Resistance", "Resistance", "RES", "Res", (4,)),
-        ("Spectrum", "Spectrum", "all stats", "Spec", (0, 1, 2, 3, 4, 5)))),
+        ("Spectrum", "Spectrum", "all stats", "Spec", (0, 1, 2, 3, 4, 5, 6)))),
     Skill("Galeforce", "map", "Galeforce",
           "Galeforce:[NL]Acts again after defeating[NL]an enemy, once a turn."),
     # batch 10, after the battle (_post_action_skills: C-SkillSys's PostActionSkills, with the map's damage and heal
@@ -2020,9 +2021,10 @@ MOVES = {
     "Smite": ("unit", "3 * tx - 2 * ux", "3 * ty - 2 * uy"),
 }
 # Rally (C-SkillSys's Rally.c): the stats (gamedata.TEMP_STATS) raised by 4 for the allies within 2 tiles, on the
-# temporary bonuses' counters (no room there for Magic and Movement: no Rally Magic nor Movement)
-RALLIES = {"RallyStrength": (0,), "RallySkill": (1,), "RallySpeed": (2,), "RallyLuck": (5,), "RallyDefense": (3,),
-           "RallyResistance": (4,), "RallySpectrum": (0, 1, 2, 3, 4, 5)}
+# temporary bonuses' counters (Magic's, the 7th, only with the Strength / Magic split; none for Movement)
+RALLIES = {"RallyStrength": (0,), "RallyMagic": (6,), "RallySkill": (1,),
+           "RallySpeed": (2,), "RallyLuck": (5,), "RallyDefense": (3,),
+           "RallyResistance": (4,), "RallySpectrum": (0, 1, 2, 3, 4, 5, 6)}
 
 
 def _menu_skills(decomp_dir: Path, files: dict, numbers: dict[str, int], texts: dict[str, int]) -> dict:

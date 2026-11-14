@@ -2295,7 +2295,7 @@ def test_batch_10_rally_and_smite(tmp_path):
     """Skills batch 10: the lord's Rally Strength (its menu's first command) gives its friend two tiles away +4
     Strength on the temporary bonuses' counter; then the friend steps next to the lord and Smite pushes it two tiles."""
     project = _bench(tmp_path, "rally", [["ITEM_SWORD_IRON"], []])
-    project.set_game_options({**project.game_options, "skills": True})
+    project.set_game_options({**project.game_options, "skills": True, "strMagSplit": True})   # Rally Magic: built
     chapters = project.load("chapters")
     army = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"]
     lord_spot = BENCH_SPOTS[0]
@@ -2303,7 +2303,7 @@ def test_batch_10_rally_and_smite(tmp_path):
     army[1].update(x=friend_spot[0], y=friend_spot[1], endX=friend_spot[0], endY=friend_spot[1])
     project.save("chapters", chapters)
     characters = project.load("characters")
-    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["RallyStrength"]
+    next(c for c in characters if c["id"] == army[0]["character"])["skills"] = ["RallyStrength", "RallyMagic", "RallySpectrum"]
     next(c for c in characters if c["id"] == army[1]["character"])["skills"] = ["Smite"]
     project.save("characters", characters)
     out = build(project)
@@ -2317,7 +2317,7 @@ def test_batch_10_rally_and_smite(tmp_path):
         game.press("A", wait=60)       # stays
         game.screenshot().save(tmp_path / "menu.png")
         game.press("A", wait=60)       # Rally-Str
-        assert game.read(friend, 0x3A) & 15 == 4                    # TEMP_BONUS_FEM(friend, 0): Strength +4
+        assert game.read("gTempBonusesFem", 4 * game.read(friend, 0xB), width=32) & 15 == 4   # Strength +4 (strmag)
         game.move_cursor(*friend_spot)
         game.press("A")
         game.move_cursor(lord_spot[0], lord_spot[1] + 1)
