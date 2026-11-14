@@ -2323,6 +2323,8 @@
   "skill.SavageBlow": "Savage Blow",
   "skill.SavageBlowHint": "Après son attaque, les ennemis à 2 cases de la cible perdent 20 % des dégâts.",
   "skill.Lunge": "Lunge",
+  "skill.Thunderstorm": "Thunderstorm",
+  "skill.ThunderstormHint": "Après avoir touché à 3 cases ou plus : les ennemis à 2 cases de la cible perdent 10 PV (jamais le dernier).",
   "skill.LungeHint": "Après son attaque, échange sa place avec la cible.",
   "skill.Pass": "Pass",
   "skill.PassHint": "Traverse les ennemis tant qu'elle a au moins 25 % de ses PV.",

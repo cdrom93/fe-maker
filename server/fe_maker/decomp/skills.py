@@ -297,6 +297,9 @@ CATALOGUE: tuple[Skill, ...] = (
           group="after"),
     Skill("SavageBlow", "map", "SavageBlow", "Savage Blow:[NL]After attacking, enemies[NL]within 2 tiles take 20% damage.",
           group="after"),
+    Skill("Thunderstorm", "map", "Thunderstorm",
+          "Thunderstorm: After hitting from[NL]3 tiles or more, foes within 2[NL]tiles of the target lose 10 HP.",
+          group="after"),
     Skill("Lunge", "map", "Lunge", "Lunge:[NL]Swap positions with the enemy[NL]after attacking them.", group="after"),
     Skill("BreathOfLife", "map", "BreathOfLife", "Breath of Life:[NL]After attacking, allies[NL]in 2 tiles heal 20% HP.",
           group="after"),
@@ -2602,7 +2605,8 @@ def _heal_function(heals) -> str:
         + "    (void) terrain; (void) allies; (void) amaterasu;\n    return ret;\n}\n\n")
 
 
-POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife", "SavageBlow", "Lunge",
+POST_ACTION_SKILLS = ("Fury", "GrislyWound", "PoisonStrike", "Lifetaker", "Despoil", "BreathOfLife", "SavageBlow",
+                      "Thunderstorm", "Lunge",
                       *(f"Seal{name}" for name, *_ in SEALS))
 
 
@@ -2645,6 +2649,7 @@ struct PostActionFemProc {{
     u8 timer;
     u8 tx, ty;     /* Savage Blow: where the foe stood */
     u8 damage;     /* Savage Blow: the actor's last damage */
+    u8 storm;      /* Thunderstorm: the actor hit from 3 tiles or more */
 }};
 
 /* not US_HIDDEN: the active unit has it here, its map sprite still shown by its MU */
@@ -2751,6 +2756,28 @@ static int PostActionNextFem(struct PostActionFemProc* proc)
                     if (d <= 2) {{
                         proc->unit = unit;
                         amount = -(proc->damage / 5);
+                    }}
+                }}
+                if (proc->unit) {{
+                    proc->step--;
+                    break;
+                }}
+            }}
+            proc->next = 1;
+            break;
+        case 5:   /* Thunderstorm: each foe within 2 tiles of the target loses 10 HP */
+            if (combat && proc->storm && AliveOnMapFem(actor) && {has("actor", "Thunderstorm")}) {{
+                while (proc->next < 0xC0 && !proc->unit) {{
+                    struct Unit* unit = GetUnit(proc->next++);
+                    int d;
+
+                    if (!AliveOnMapFem(unit) || AreUnitsAllied(actor->index, unit->index))
+                        continue;
+                    d = (unit->xPos > proc->tx ? unit->xPos - proc->tx : proc->tx - unit->xPos)
+                        + (unit->yPos > proc->ty ? unit->yPos - proc->ty : proc->ty - unit->yPos);
+                    if (d <= 2) {{
+                        proc->unit = unit;
+                        amount = -10;
                     }}
                 }}
                 if (proc->unit) {{
@@ -3011,6 +3038,7 @@ void PostActionSkillsFem(ProcPtr parent)
     proc->tx = gBattleTarget.unit.xPos;
     proc->ty = gBattleTarget.unit.yPos;
     proc->damage = gActionData.unitActionType == UNIT_ACTION_COMBAT ? ActorDamageFem() : 0;
+    proc->storm = gActionData.unitActionType == UNIT_ACTION_COMBAT && gBattleStats.range >= 3 && ActorHitFem();
 }}
 
 """

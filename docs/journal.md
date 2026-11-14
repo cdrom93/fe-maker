@@ -330,3 +330,4 @@ Détail daté de ce qui a été fait, phase par phase, repris du cahier des char
 - 14/11/2026 : compétences, lot 10 : Smite et les Rally (sauf Magie et Déplacement) ; playtest. Repéré : les compteurs des bonus temporaires n'ont pas de place pour la Magie, Seal Magic est sans effet.
 - 14/11/2026 : Rally Magic ajoutée (avec Force et Magie séparées, le 7e compteur de strmag) ; la ligne précédente se trompait : Seal Magic marche, elle n'existe qu'avec ce mode.
 - 14/11/2026 : compétences, lot 10 : Resolve, Lucky Seven, Triangle Adept, Skybreaker, Slayer attribuable ; les 34 compétences du lot 10 sans nom ni description dans l'interface les ont (test ajouté).
+- 14/11/2026 : compétences, lot 10 : Thunderstorm.

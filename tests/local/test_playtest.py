@@ -2246,7 +2246,7 @@ def test_batch_10_savage_blow(tmp_path):
     project.save("chapters", chapters)
     characters = project.load("characters")
     lord_id = chapters["unitGroups"]["UnitDef_Event_PrologueAlly"][0]["character"]
-    next(c for c in characters if c["id"] == lord_id)["skills"] = ["SavageBlow", "Lunge"]
+    next(c for c in characters if c["id"] == lord_id)["skills"] = ["SavageBlow", "Lunge", "Thunderstorm"]   # Thunderstorm: idle
     soldier = next(c for c in characters if c["id"] == "CHARACTER_SOLDIER_83")
     soldier["bases"]["hp"] = 60
     project.save("characters", characters)

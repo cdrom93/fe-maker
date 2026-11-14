@@ -2323,6 +2323,8 @@
   "skill.SavageBlow": "Savage Blow",
   "skill.SavageBlowHint": "After its attack, foes within 2 tiles of the target lose 20% of the damage.",
   "skill.Lunge": "Lunge",
+  "skill.Thunderstorm": "Thunderstorm",
+  "skill.ThunderstormHint": "After hitting from 3 tiles or more: foes within 2 tiles of the target lose 10 HP (never the last one).",
   "skill.LungeHint": "After its attack, switches places with the target.",
   "skill.Pass": "Pass",
   "skill.PassHint": "Moves through foes while its HP is at least 25%.",

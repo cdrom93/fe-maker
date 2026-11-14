@@ -62,5 +62,6 @@ description. Listed here in case they are not intended:
 - **Savage Blow** (`SavageBlow.c`): FE Maker takes the damage of the unit's last hit; C-SkillSys takes `gBattleStats.damage`, the battle's last hit, maybe the foe's. Each loss is shown by the game's map damage animation instead of Heavy Gravity's.
 - **Lunge** (`Swap.c`): FE Maker swaps at once, without the prompt to the player and the warp animation, and only when each unit can stand on the other's tile (C-SkillSys does not check the terrain).
 - **Rally** (`Rally.c`): FE Maker's +4 drops by 1 at each of the allies' phases (the temporary bonuses' counters, as Pure Water); C-SkillSys's lasts one turn. No Light Rune animation; no Rally Movement; Rally Magic only with the Strength / Magic split.
+- **Thunderstorm** (`Thunderstorm.c`): each loss shown by the game's map damage animation, without the thunder animation and the screen fade.
 
 <!-- Ajouter ici les écarts des lots suivants, au même format. -->
