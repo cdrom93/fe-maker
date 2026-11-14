@@ -1785,6 +1785,32 @@ def test_hp_bars_hide_under_a_portrait(tmp_path):
         print("screenshots:", tmp_path)
 
 
+def test_enemy_warnings(tmp_path):
+    """FEBuilder's HP bar warnings: the lord, made a Cavalier, is selected; the soldier holds a Horseslayer (effective) and a
+    Killer Lance (30 crit): its cache byte reads both (0x80 | 1 | 2) and the white "!" is drawn over it."""
+    project = _bench(tmp_path, "warnings", [["ITEM_SWORD_IRON"]], enemy_at=(6, 5))
+    project.set_game_options({**project.game_options, "enemyWarnings": True, "hpBars": True})
+    chapters = project.load("chapters")
+    enemies = next(units for units in chapters["unitGroups"].values()
+                   if units and units[0].get("character") == "CHARACTER_SOLDIER_83")
+    enemies[0]["items"] = ["ITEM_LANCE_HORSESLAYER", "ITEM_LANCE_KILLER"]
+    project.save("chapters", chapters)
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord = _bench_units(game)[0]
+        enemy = game.address("gUnitArrayRed")
+        game.write(enemy + 0x28 + 1, 71)   # struct Unit ranks[ITYPE_LANCE]: C (the Killer Lance's), as the game checks
+        game.write(lord, game.address("gClassData") + (0x05 - 1) * 0x54, offset=4, width=32)   # a Cavalier
+        game.move_cursor(game.read(lord, 0x10), game.read(lord, 0x11))
+        game.press("A")
+        game.run(30)
+        game.screenshot().save(tmp_path / "warnings.png")
+        cache = 0x02027A00
+        assert game.read(cache) == game.read(lord, 0xB)
+        assert game.read(cache + (game.read(enemy, 0xB) & 0x3F)) == 0x83
+        print("screenshot:", tmp_path / "warnings.png")
+
+
 def test_talk_bubble_is_vision_quests(tmp_path):
     """Ticket 69 (10/11): Vision Quest's round bubble, at the upper left of the unit Eirika can support with."""
     project = Project.create(tmp_path / "bubble", "Bubble")

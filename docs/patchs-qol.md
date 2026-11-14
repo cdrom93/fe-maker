@@ -79,7 +79,7 @@ Ensuite : barres de PV sur la carte, mode débutant, barre d'expérience et gain
 
 ## Lot suivant (choisi le 09/11/2026, d'après le guide QoL d'UltraxBlade sur FEU)
 
-1. Alertes sur les barres de PV : un ennemi qui a une arme critique ou efficace contre l'unité choisie est signalé (comme `HPbars` de FEBuilder).
+1. Alertes sur les barres de PV : **faites le 14/11** (option « Alertes sur les ennemis », `enemyWarnings`, comme `HPBars_with_warnings` de FEBuilder) : quand on choisit une unité, « ! » blanc sur un ennemi qui a une arme efficace contre elle (ou Slayer), « ! » orange sur un ennemi qui a une arme à plus de 24 de critique ; armes maniables seulement ; cache en RAM libre (0x02027A00). Playtest.
 2. Statistiques des armes de monstre (`SYSTEM/Monster Weapon display fix`).
 3. Correctifs « #ESSENTIAL » de FEBuilder : les trier un par un (bug du jeu d'origine ou simple avis), faire ceux qui corrigent un vrai bug, cochés d'office.
 4. Ensuite : sauvegarde en début de tour en option réglable par le joueur ; unités obligatoires déplaçables unité par unité pendant la préparation.

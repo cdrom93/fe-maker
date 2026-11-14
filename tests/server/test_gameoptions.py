@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 22
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 23
 
 
 def test_a_unit_acts_after_a_talk():
@@ -92,6 +92,21 @@ def test_bars_and_bubble_tiles_wait_for_the_end_of_a_battle_animation():
         pytest.skip("no decomp")
     text = gameoptions.apply(source.parents[1], {"hpBars": True, "talkBubbles": True}, {})[gameoptions.MAP_UI_FILE]
     assert text.count("if (IsBattleDeamonActive())\n        return;") == 2
+
+
+def test_enemy_warnings_with_the_bars_and_the_bubble():
+    """FEBuilder's HP bar warnings: a "!" on the enemies (white: an effective weapon or a Slayer, orange: more than 24
+    crit), on their own tiles after the bubble's, with the bars and the bubble in the same files."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.MAP_SPRITES_FILE).is_file():
+        pytest.skip("no decomp")
+    files = gameoptions.apply(root, {"hpBars": True, "talkBubbles": True, "enemyWarnings": True}, {})
+    sprites = files[gameoptions.MAP_SPRITES_FILE]
+    assert "FemPutHpBar(unit);" in sprites and "FemPutBubble(unit);" in sprites and "FemPutWarning(unit);" in sprites
+    assert "IsItemEffectiveAgainst(item, gActiveUnit)" in sprites and "GetItemCrit(item) > 24" in sprites
+    assert files[gameoptions.MAP_UI_FILE].count("if (IsBattleDeamonActive())\n        return;") == 3
+    assert gameoptions._warning_tiles().startswith("    { 0x00544300, ")   # row "00344500", left pixel low
+    assert "enemyWarnings" in gameoptions.SWITCH_GROUPS["map"]
 
 
 def test_growths_on_the_status_screen_colour_the_stat_names():

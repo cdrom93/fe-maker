@@ -52,7 +52,7 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
 OWN_LINE_DEFAULTS = ("staffDance",)   # defaults of a menu line FE Maker adds, set by apply()
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
-                 "map": ("hpBars", "talkBubbles", "dangerZone", "stationaryRange", "healPreview"),
+                 "map": ("hpBars", "talkBubbles", "enemyWarnings", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths",),
                  "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
@@ -332,6 +332,114 @@ static void FemPutBubble(struct Unit * unit)
 
 """ + _ICONS
 _ICONS_LOOP_BUBBLE = "        FemPutBubble(unit);\n\n" + _ICONS_LOOP
+
+# Warnings on the enemies while a player unit is selected (FEBuilder's "HPBars_with_warnings", by circleseverywhere with
+# additions by Tequila, its behavior and its two pictures, written in C): a white "!" on an enemy holding a weapon
+# effective against the selected unit (or a Slayer), an orange "!" on one holding a weapon with more than 24 crit. Two
+# 8 x 8 tiles after the talk bubble's; a cache in free RAM (as the patch's) so that each enemy is looked at once per
+# selection: the selected unit's number, then one byte per enemy (0x80 done, 1 effective, 2 crit).
+_WARNINGS = (("00344500", "03ECCE50", "3EECCEEF", "4EECCEEF", "4EEEEEEF", "5EECCEEF", "05EEEEF0", "005FFF00"),
+             ("00244400", "023DD340", "233DD335", "433DD335", "43333335", "433DD335", "04333350", "00455500"))
+_WARNING_TILE = 0x362
+_WARNING_CACHE = "0x02027A00"   # fontgrp.c's debug buffer, after the music's tracks: 1 + 0x40 bytes
+_WARNING_CRIT = 24
+
+
+def _warning_tiles() -> str:
+    return "".join("    { " + ", ".join(f"0x{sum(int(row[x], 16) << (4 * x) for x in range(8)):08X}" for row in tile)
+                   + " },\n" for tile in _WARNINGS)
+
+
+_WARNING_ROW = _warning_tiles().split(", ")[1]
+_OBJ_UI_LOAD_WARNINGS = """/* FE Maker: the warnings' tiles */
+static const u32 sFemWarnings[2][8] = {
+""" + _warning_tiles() + """};
+
+#include "face.h"
+
+int IsBattleDeamonActive(void);
+
+void FemLoadWarnings(void) {
+    int tile, y;
+
+    if (IsBattleDeamonActive())
+        return; /* a battle animation's fighter sheet sits on these tiles (ticket 161) */
+    for (y = 0; y < FACE_SLOT_COUNT; ++y)
+        if (gFaces[y])
+            return; /* a portrait's tiles sit on these (ticket 51): reloaded once it is gone */
+
+    for (tile = 0; tile < 2; ++tile)
+        for (y = 0; y < 8; ++y)
+            ((u32*) (0x06010000 + (""" + str(_WARNING_TILE) + """ + tile) * 0x20))[y] = sFemWarnings[tile][y];
+}
+
+""" + _OBJ_UI_LOAD + "    FemLoadWarnings();\n"
+_ICONS_WARNINGS = """#include "face.h"
+#include "bmitem.h"
+
+void FemLoadWarnings(void);
+
+#define FEM_WARNINGS ((u8*) """ + _WARNING_CACHE + """)
+
+/* FE Maker: what an enemy holds against the selected unit: 1 an effective weapon (or a Slayer), 2 a critical one */
+static int FemWarningOf(struct Unit * unit)
+{
+    int i, item, found = 0;
+
+    if (IsUnitEffectiveAgainst(unit, gActiveUnit))
+        found = 1;
+    for (i = 0; i < UNIT_ITEM_COUNT && (item = unit->items[i]) != 0; ++i) {
+        if (!CanUnitUseWeapon(unit, item))
+            continue;
+        if (IsItemEffectiveAgainst(item, gActiveUnit))
+            found |= 1;
+        else if (GetItemCrit(item) > """ + str(_WARNING_CRIT) + """)
+            found |= 2;
+    }
+    return found;
+}
+
+/* FE Maker: a "!" on an enemy with a weapon effective against the selected unit (white) or a critical one (orange) */
+static void FemPutWarning(struct Unit * unit)
+{
+    int x = unit->xPos * 16 - gBmSt.camera.x;
+    int y = unit->yPos * 16 - gBmSt.camera.y;
+    int i, found;
+    u8 * slot;
+
+    for (i = 0; i < FACE_SLOT_COUNT; ++i)
+        if (gFaces[i])
+            return; /* a portrait is shown: the sign would cover it (ticket 161) */
+    if (((u32*) (0x06010000 + """ + str(_WARNING_TILE) + """ * 0x20))[1] != """ + _WARNING_ROW + """)
+        FemLoadWarnings(); /* a portrait took the tiles (ticket 51) */
+    if (!gActiveUnit || !(gActiveUnit->state & US_HIDDEN) || UNIT_FACTION(gActiveUnit) != FACTION_BLUE
+        || !gActiveUnit->pCharacterData) {
+        FEM_WARNINGS[0] = 0; /* no selection: the next one looks again */
+        return;
+    }
+    if (UNIT_FACTION(unit) != FACTION_RED || (unit->index & 0x3F) == 0)
+        return;
+    if (FEM_WARNINGS[0] != (u8) gActiveUnit->index) {
+        CpuFill16(0, FEM_WARNINGS, 0x42);
+        FEM_WARNINGS[0] = gActiveUnit->index;
+    }
+    if (x < -16 || x > DISPLAY_WIDTH || y < 0 || y > DISPLAY_HEIGHT)
+        return;
+    if (gBmMapFog[unit->yPos][unit->xPos] == 0)
+        return;
+
+    slot = &FEM_WARNINGS[unit->index & 0x3F];
+    if (!(*slot & 0x80))
+        *slot = 0x80 | FemWarningOf(unit);
+    found = *slot & 3;
+    if (found) {
+        CallARM_PushToSecondaryOAM(OAM1_X(0x200 + x + 10), OAM0_Y(0x100 + y - 2), gObject_8x8,
+            OAM2_CHR(""" + str(_WARNING_TILE) + """ + (found & 1 ? 0 : 1)) + OAM2_LAYER(2));
+    }
+}
+
+""" + _ICONS
+_ICONS_LOOP_WARNINGS = "        FemPutWarning(unit);\n\n" + _ICONS_LOOP
 
 # A unit acts on after Talk or Support, as after a trade (FEBuilder's "Contemporary FE style talk and support", redone
 # in C): one more step of the player phase, right after the action, goes back to the unit's menu; the game's taken_action
@@ -707,6 +815,10 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
         files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_BUBBLE, MAP_UI_FILE)
         source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_BUBBLE, MAP_SPRITES_FILE)
         files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_BUBBLE, MAP_SPRITES_FILE)
+    if options.get("enemyWarnings"):
+        files[MAP_UI_FILE] = _replace(current(MAP_UI_FILE), _OBJ_UI_LOAD, _OBJ_UI_LOAD_WARNINGS, MAP_UI_FILE)
+        source = _replace(current(MAP_SPRITES_FILE), _ICONS, _ICONS_WARNINGS, MAP_SPRITES_FILE)
+        files[MAP_SPRITES_FILE] = _replace(source, _ICONS_LOOP, _ICONS_LOOP_WARNINGS, MAP_SPRITES_FILE)
     if options.get("statusGrowths"):
         files[STATUS_HEADER] = _replace(current(STATUS_HEADER), _STATUS_FIELD, _STATUS_FIELD_GROWTHS, STATUS_HEADER)
         source = current(STATUS_FILE)
