@@ -63,7 +63,7 @@ def test_the_story_intro_goes_with_the_world_map_tale_but_not_the_lord():
 
 
 def test_every_switch_has_one_group():
-    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 28
+    assert len(gameoptions.SWITCHES) == len(set(gameoptions.SWITCHES)) == 29
 
 
 def test_a_unit_acts_after_a_talk():
@@ -203,3 +203,21 @@ def test_original_bug_fixes_are_written_where_the_decomp_has_them():
     assert "tmpHpPerc <= lowestHpPerc" not in files["src/cp_staff.c"]
     assert "#if BUGFIX\n            break;" not in files["src/bmtrap.c"]
     assert set(gameoptions.SWITCH_GROUPS["fixes"]) == set(gameoptions.BUG_FIXES)
+
+
+def test_turn_start_save_and_its_menu_line():
+    """FEBuilder's "Auto save function": the suspend save only at the player's phase start when the player picks
+    "Turn" (unk43_4); its line "Resume" under Animation, with the Staff & Dance line when both are on."""
+    root = Path(__file__).parents[2] / "decomp"
+    if not (root / gameoptions.OPTION_MENU_FILE).is_file():
+        pytest.skip("no decomp")
+    for rel, old, _new in gameoptions._TURN_SAVE:
+        assert (root / rel).read_text(encoding="utf-8").count(old) == 1, rel
+    files = gameoptions.apply(root, {"turnStartSave": True, "noSupportAnimations": True, "turnSave": 1},
+                              {}, {"noSupportAnimations": (1, 2), "turnStartSave": (3, 4, 5, 6, 7)})
+    menu = files[gameoptions.OPTION_MENU_FILE]
+    assert "    [ 1] = GAME_OPTION_FEM_SUPPORT_ANIM,\n    [ 2] = GAME_OPTION_FEM_TURN_SAVE,\n    [ 3] =" in menu
+    assert "value = gPlaySt.config.unk43_4;" in menu and "0x5,\n                0x7,\n                152," in menu
+    assert "gPlaySt.config.unk43_4 = 1;" in files[gameoptions.CONFIG_FILE]
+    assert "GAME_OPTION_FEM_TURN_SAVE = 18," in files[gameoptions.OPTION_MENU_HEADER]
+    assert gameoptions.validate({"turnSave": 1, "turnStartSave": True}) is None

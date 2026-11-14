@@ -1144,6 +1144,32 @@ def test_the_added_line_of_the_options_menu_is_whole(tmp_path):
         assert all(any(half) for half in name)   # both halves of the 14th row
 
 
+def test_two_added_lines_of_the_options_menu(tmp_path):
+    """Staff & Dance and Resume under Animation: 15 lines, the last one drawn on the tilemap's rows 0 and 1 (it wraps)."""
+    project = Project.create(tmp_path / "menu2", "Menu2")
+    project.set_game_options({"noSupportAnimations": True, "turnStartSave": True})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        assert game.wait_until(lambda: game.chapter() == 0 and game.turn() == 1 and game.units(), seconds=60)
+        game.run(60)
+        game.move_cursor(0, 0)
+        game.run(20)
+        game.press("A", wait=30)
+        for _ in range(2):   # Unit, Status, then Options
+            game.press("DOWN", wait=12)
+        game.press("A", wait=90)
+        game.press("DOWN", wait=14)
+        game.screenshot().save(tmp_path / "second.png")   # the added line, under Animation
+        for _ in range(13):
+            game.press("DOWN", wait=14)
+        game.run(30)
+        game.screenshot().save(tmp_path / "menu.png")
+        print("screenshots:", tmp_path / "second.png", tmp_path / "menu.png")
+        tilemap = game.address("gBG1TilemapBuffer")
+        name = [[game.read(tilemap, (y * 32 + x) * 2, width=16) for x in range(2, 14)] for y in (0, 1)]
+        assert all(any(half) for half in name)   # both halves of the 15th row
+
+
 def test_a_priest_given_the_dance_dances_without_breaking_the_game(tmp_path):
     from fe_maker.decomp import units
 
@@ -1847,6 +1873,37 @@ def test_drop_markers(tmp_path):
         game.screenshot().save(tmp_path / "drops.png")
         assert bags(game) == 1
         print("screenshot:", tmp_path / "drops.png")
+
+
+@pytest.mark.parametrize("turn_save", [1, 0])
+def test_turn_start_save(tmp_path, turn_save):
+    """Resume at the start of the turn (FEBuilder's "Auto save function"): each suspend save stamps gPlaySt.time_saved
+    (struct PlaySt, 0x00). The lord moves one square and waits: with the player's choice "Turn", no save (the stamp
+    of the turn's start stays); with "Action" (the game's way), one. The second unit waits, the enemy phase plays:
+    the next player turn saves."""
+    project = _bench(tmp_path, "turnsave", [["ITEM_SWORD_IRON"], ["ITEM_SWORD_IRON"]])
+    project.set_game_options({**project.game_options, "turnStartSave": True, "turnSave": turn_save})
+    out = build(project)
+    with Game(out.rom_path, out.map_path) as game:
+        lord, second = _bench_units(game)[:2]
+        game.run(60)
+        assert game.read("gKeyComboResetEN") == 1   # A + B + START + SELECT resets, the opening skipped
+        start = game.read("gPlaySt", 0, width=32)
+        for unit in (lord, second):
+            x, y = game.read(unit, 0x10), game.read(unit, 0x11)
+            game.move_cursor(x, y)
+            game.press("A", wait=30)
+            game.press("UP", wait=20)       # one square up
+            game.press("A", wait=60)
+            game.press("UP", wait=15)       # the menu's last command: Wait
+            game.press("A", wait=90)
+            assert (game.read(unit, 0x10), game.read(unit, 0x11)) == (x, y - 1)
+            if unit == lord:
+                game.run(60)
+                assert (game.read("gPlaySt", 0, width=32) == start) == bool(turn_save)
+        assert game.wait_until(lambda: game.turn() == 2 and game.phase() == "player", seconds=60)
+        game.run(60)
+        assert game.read("gPlaySt", 0, width=32) != start   # the turn's start
 
 
 def test_monster_weapon_stats(tmp_path):

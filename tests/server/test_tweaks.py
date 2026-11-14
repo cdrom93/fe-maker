@@ -13,7 +13,8 @@ def _source(decomp_dir):
 
 def test_skip_intro_inserts_goto(decomp_dir):
     out = skip_intro(_source(decomp_dir))
-    assert "    PROC_REPEAT(GameControl_8009A60_Null),\n    PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU)," in out
+    assert ("    PROC_REPEAT(GameControl_8009A60_Null),\n    PROC_CALL(EnableKeyComboResetEN),"
+            " /* FE Maker: the skipped opening turned the reset on */\n    PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU)," in out)
     assert out.count("PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU)") == 1
 
 

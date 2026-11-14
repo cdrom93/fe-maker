@@ -289,9 +289,8 @@ class Project:
         data.apply_map_sprites(self.load("mapsprites"), self.root / "assets")
         data.apply_item_icons(self.load("icons"), self.root / "assets")
         data.apply_music(self.load("music"), self.root / "assets")
-        menu_texts = (0, 0)
-        if self.game_options.get("noSupportAnimations"):
-            menu_texts = data.add_texts(gameoptions.MENU_TEXTS["label"], gameoptions.MENU_TEXTS["help"])
+        menu_texts = {option: data.add_texts(*line[2]) for option, line in gameoptions.MENU_LINES.items()
+                      if self.game_options.get(option)}
         magic_split = bool(self.game_options.get("strMagSplit"))
         skill_texts = {}
         event_skills = skills.event_skills(data.event_sources.values())

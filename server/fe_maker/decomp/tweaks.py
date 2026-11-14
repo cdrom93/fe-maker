@@ -83,11 +83,16 @@ def _anchor(source: str) -> re.Match:
     return m
 
 
+# The opening's logos turn on the A + B + START + SELECT reset (EnableKeyComboResetEN, opanim-healthsafetyscreen.c): a
+# game that skips them turns it on itself, or it never resets.
+_RESET_ON = "    PROC_CALL(EnableKeyComboResetEN), /* FE Maker: the skipped opening turned the reset on */\n"
+
+
 def skip_intro(source: str) -> str:
     """Boot straight to the save menu, skipping the health warning, logos,
     opening cutscene and title screen."""
     m = _anchor(source)
-    insert = "    PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU), /* FE Maker: skip intro */\n"
+    insert = _RESET_ON + "    PROC_GOTO(LGAMECTRL_EXEC_SAVEMENU), /* FE Maker: skip intro */\n"
     return source[: m.end(1)] + insert + source[m.end(1):]
 
 
@@ -98,7 +103,7 @@ def start_on_map(source: str, chapter: int = 0, mode: int = 1, army_from: tuple[
     army is loaded when the chapter has none of its own (a scene-only chapter like Castle Frelia gives gold to the
     lord)."""
     m = _anchor(source)
-    insert = "    PROC_CALL(FEMaker_QuickStartOnMap), /* FE Maker: start on map */\n"
+    insert = _RESET_ON + "    PROC_CALL(FEMaker_QuickStartOnMap), /* FE Maker: start on map */\n"
     out = source[: m.start(1)] + _QUICK_START_DECL + source[m.start(1): m.end(1)] + insert + source[m.end(1):]
     definition = _QUICK_START_DEF
     if chapter:

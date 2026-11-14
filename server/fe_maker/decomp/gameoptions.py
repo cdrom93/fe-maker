@@ -36,6 +36,8 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "animation": ("animationType", 0, (0, 3, 1, 2)),
     # only with noSupportAnimations (ticket 43): written by apply(), the game has no such line; 1 = staves on the map
     "staffDance": ("unk41_6", 1, (0, 1)),
+    # only with turnStartSave: 0 the game resumes at the last action, 1 at the start of the player's turn
+    "turnSave": ("unk43_4", 0, (0, 1)),
     "gameSpeed": ("gameSpeed", 0, (0, 1)),
     "textSpeed": ("textSpeed", 1, (0, 1, 2, 3)),
     "terrainWindow": ("disableTerrainDisplay", 0, (0, 1)),
@@ -49,13 +51,13 @@ DEFAULTS: dict[str, tuple[str, int, tuple[int, ...]]] = {
     "soundEffects": ("disableSoundEffects", 0, (0, 1)),
     "windowColor": ("windowColor", 0, (0, 1, 2, 3)),
 }
-OWN_LINE_DEFAULTS = ("staffDance",)   # defaults of a menu line FE Maker adds, set by apply()
+OWN_LINE_DEFAULTS = ("staffDance", "turnSave")   # defaults of a menu line FE Maker adds, set by apply()
 SWITCH_GROUPS = {"start": ("skipOpening", "skipStoryIntro", "quickChapterTitle"),
                  "speed": ("holdAToSpeedUp", "holdLBattleSpeed", "quickExpBar", "quickLevelUp", "noSupportAnimations"),
                  "map": ("hpBars", "talkBubbles", "enemyWarnings", "dropMarkers", "dangerZone", "stationaryRange", "healPreview"),
                  "battle": ("battleNumbers",),
                  "screens": ("statusGrowths", "monsterWeaponStats"),
-                 "rules": ("actAfterTalk", "casualMode", "strMagSplit", "skills"),
+                 "rules": ("actAfterTalk", "turnStartSave", "casualMode", "strMagSplit", "skills"),
                  "items": ("tempBonusRule", "deadItemsToConvoy"),
                  "sound": ("musicTracks", "fullDrums"),
                  "fixes": ("originalBugFixes", "healerAiFix", "promotedEnemiesFix")}
@@ -141,6 +143,15 @@ _MENU_TABLE_END = "        .icon = 0x20,\n        .func = GenericOptionChangeHan
 _MENU_GET = "    case GAME_OPTION_RANK_DISPLAY:\n        value = gPlaySt.config.rankDisplay;\n\n        break;\n"
 _MENU_SET = "    case GAME_OPTION_RANK_DISPLAY:\n        gPlaySt.config.rankDisplay = newValue;\n\n        break;\n"
 MENU_TEXTS = {"label": "Staff & Dance", "help": "Animate staves and dances"}
+# The game's own lines a FE Maker option adds to the Configuration menu: option -> (enum name, field of
+# gPlaySt.config, the texts to add: label, then each choice's help, then the choices' names if they are not On / Off).
+MENU_LINES: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    "noSupportAnimations": ("GAME_OPTION_FEM_SUPPORT_ANIM", "unk41_6", (MENU_TEXTS["label"], MENU_TEXTS["help"])),
+    # Autosave at the start of the turn (FEBuilder's "Auto save function", aera and FE8 Girls, from FE8J; 7743): the
+    # player picks where Resume goes back to. On a free field of the options (unk43_4, only the debug build's).
+    "turnStartSave": ("GAME_OPTION_FEM_TURN_SAVE", "unk43_4",
+                      ("Resume", "Resume at your last action", "Resume at the start of the turn", "Action", "Turn")),
+}
 # The menu's rows start on tile row 5, two rows each: a 14th row would end past the 32 rows of its tilemap, its lower half
 # lost. They start one row higher and the layer is shifted down by as much (ticket 77).
 _MENU_ROW_BASE = (("        int y = (i * 2) + 5;\n\n        DrawGameOptionIcon(i, 5);\n",
@@ -151,20 +162,25 @@ _MENU_ROW_BASE = (("        int y = (i * 2) + 5;\n\n        DrawGameOptionIcon(i
 _MENU_LAYER = "BG_SetPosition(BG_1, 0, gConfigUiState->bg1YOffset);"
 
 
-def _menu_order() -> str:
-    """The game's order with the added line second, under Animation."""
+def _menu_order(names: list[str]) -> str:
+    """The game's order with the added lines under Animation."""
     lines = _MENU_ORDER.splitlines(keepends=True)
-    moved = [re.sub(r"\[ *(\d+)\]", lambda m: f"[{int(m[1]) + 1:2}]", line) for line in lines]
-    return "    [ 1] = GAME_OPTION_FEM_SUPPORT_ANIM,\n" + "".join(moved)
+    moved = [re.sub(r"\[ *(\d+)\]", lambda m: f"[{int(m[1]) + len(names):2}]", line) for line in lines]
+    return "".join(f"    [{1 + i:2}] = {name},\n" for i, name in enumerate(names)) + "".join(moved)
 
 
-def _menu_line(label: int, on_help: int) -> str:
+def _menu_line(name: str, texts: tuple[int, ...]) -> str:
+    """One line of gGameOptions: its label, two choices (On / Off, or its own names) and each one's help."""
+    label, helps = texts[0], texts[1:3] if len(texts) > 2 else texts[1:2] * 2
+    names, places = ("MSG_0BD", "MSG_0BE"), (112, 135)
+    if len(texts) > 3:
+        names, places = (f"0x{texts[3]:X}", f"0x{texts[4]:X}"), (112, 152)
     selector = ("            {{\n                0x{help:X},\n                {text},\n                {x},\n                2\n"
                 "            }},\n")
     empty = ("            {\n                MSG_000,\n                MSG_000,\n                190,\n"
              "                0\n            },\n")
-    return (f"    [GAME_OPTION_FEM_SUPPORT_ANIM] =\n    {{\n        .msgId = 0x{label:X},\n        .selectors =\n        {{\n"
-            + selector.format(help=on_help, text="MSG_0BD", x=112) + selector.format(help=on_help, text="MSG_0BE", x=135)
+    return (f"    [{name}] =\n    {{\n        .msgId = 0x{label:X},\n        .selectors =\n        {{\n"
+            + "".join(selector.format(help=h, text=n, x=x) for h, n, x in zip(helps, names, places))
             + empty + empty + "        },\n        .icon = 0x0,\n        .func = GenericOptionChangeHandler,\n    },\n")
 
 
@@ -551,6 +567,30 @@ BUG_FIXES: dict[str, tuple[tuple[str, str, str], ...]] = {
                             "        if (levelCount <= 0) " + _FIX + "\n            levelCount = 1;\n        {\n"),),
 }
 
+# Resume at the start of the turn (option turnStartSave, the player's choice in the Configuration menu, unk43_4): the
+# game writes its suspend save at the start of the player's phase only; not after each action, an arena fight, a trap,
+# an enemy's action or another phase. The Suspend command still saves where the player is (WriteSuspendPlayerIdle).
+_TURN_SAVE_OFF = "gPlaySt.config.unk43_4"
+_TURN_SAVE = (
+    ("src/bm.c", "    gActionData.suspendPointType = SUSPEND_POINT_PHASECHANGE;\n",
+     "    if (" + _TURN_SAVE_OFF + " && gPlaySt.faction != FACTION_BLUE)\n        return; /* FE Maker: turn-start save */\n\n"
+     "    gActionData.suspendPointType = SUSPEND_POINT_PHASECHANGE;\n"),
+    ("src/playerphase.c", "void PlayerPhase_Suspend(void)\n{\n",
+     "void PlayerPhase_Suspend(void)\n{\n    if (" + _TURN_SAVE_OFF + ")\n        return; /* FE Maker: turn-start save */\n\n"),
+    ("src/playerphase.c", "    if ((gActionData.unitActionType != UNIT_ACTION_WAIT) && !gBmSt.just_resumed)\n",
+     "    if ((gActionData.unitActionType != UNIT_ACTION_WAIT) && !gBmSt.just_resumed && !" + _TURN_SAVE_OFF + ")\n"),
+    ("src/bmbattle.c", "    gActionData.suspendPointType = SUSPEND_POINT_DURINGARENA;\n    WriteSuspendSave(SAVE_ID_SUSPEND);\n",
+     "    gActionData.suspendPointType = SUSPEND_POINT_DURINGARENA;\n    if (!" + _TURN_SAVE_OFF + ") /* FE Maker */\n"
+     "        WriteSuspendSave(SAVE_ID_SUSPEND);\n"),
+    ("src/bmarena.c", "    WriteSuspendSave(3);\n",
+     "    if (!" + _TURN_SAVE_OFF + ") /* FE Maker */\n        WriteSuspendSave(3);\n"),
+    ("src/bmtrap.c", "WriteSuspendSave(3);\n", "if (!" + _TURN_SAVE_OFF + ") WriteSuspendSave(3); /* FE Maker */\n"),
+    ("src/cp_decide.c",
+     "        gActionData.suspendPointType = SUSPEND_POINT_CPPHASE;\n\n    WriteSuspendSave(SAVE_ID_SUSPEND);\n",
+     "        gActionData.suspendPointType = SUSPEND_POINT_CPPHASE;\n\n    if (!" + _TURN_SAVE_OFF + ") /* FE Maker */\n"
+     "        WriteSuspendSave(SAVE_ID_SUSPEND);\n"),
+)
+
 # Monster weapons (claws, fangs, type 11) shown as weapons (FEBuilder's "Monster Weapon display fix" by Brendor, its three
 # byte patches redone in C): their type's name (the game's table has none: text 0x26B, "Evil", as the patch), their
 # attack, hit, crit and avoid in the item panel of the menus (the game took them for items: their use text), and their
@@ -871,9 +911,9 @@ def _replace(source: str, old: str, new: str, rel: str) -> str:
     return source.replace(old, new, 1)
 
 
-def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, int] = (0, 0)) -> dict:
-    """Add the project's game options to `files` (decomp-relative path -> content); `menu_texts`: the messages of the
-    Configuration menu's new line (MENU_TEXTS), added to the texts before they are written."""
+def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: dict[str, tuple[int, ...]] | None = None) -> dict:
+    """Add the project's game options to `files` (decomp-relative path -> content); `menu_texts`: option -> the messages
+    of its Configuration menu line (MENU_LINES), added to the texts before they are written."""
     def current(rel: str) -> str:
         return files[rel] if rel in files else (decomp_dir / rel).read_text(encoding="utf-8")
 
@@ -968,25 +1008,39 @@ def apply(decomp_dir: Path, options: dict, files: dict, menu_texts: tuple[int, i
             source = _replace(source, old, new, STATUS_FILE)
         files[STATUS_FILE] = source
     if options.get("noSupportAnimations"):
-        label, on_help = menu_texts
         files[BATTLE_FILE] = _replace(current(BATTLE_FILE), _ANIM_TYPE, _ANIM_TYPE_NO_SUPPORT, BATTLE_FILE)
-        files[OPTION_MENU_HEADER] = _replace(current(OPTION_MENU_HEADER), _MENU_ENUM,
-                                             _MENU_ENUM + "    GAME_OPTION_FEM_SUPPORT_ANIM = 17,\n", OPTION_MENU_HEADER)
+    if options.get("turnStartSave"):
+        for rel, old, new in _TURN_SAVE:
+            source = current(rel)
+            if old not in source:
+                raise TweakError(f"{rel}: the decomp changed, turnStartSave can't be written")
+            files[rel] = source.replace(old, new)
+    lines = [option for option in MENU_LINES if options.get(option)]
+    if lines:
+        texts = menu_texts or {}
+        names = [MENU_LINES[option][0] for option in lines]
+        files[OPTION_MENU_HEADER] = _replace(current(OPTION_MENU_HEADER), _MENU_ENUM, _MENU_ENUM + "".join(
+            f"    {name} = {17 + i},\n" for i, name in enumerate(names)), OPTION_MENU_HEADER)
         source = current(OPTION_MENU_FILE)
-        source = _replace(source, _MENU_ORDER, _menu_order(), OPTION_MENU_FILE)
+        source = _replace(source, _MENU_ORDER, _menu_order(names), OPTION_MENU_FILE)
         for old, new in _MENU_ROW_BASE:
             source = _replace(source, old, new, OPTION_MENU_FILE)
         if source.count(_MENU_LAYER) != 2:
             raise TweakError(f"A game option does not match this version of the decomp ({OPTION_MENU_FILE})")
         source = source.replace(_MENU_LAYER, "BG_SetPosition(BG_1, 0, gConfigUiState->bg1YOffset - 8);")
-        table_end = _MENU_TABLE_END.replace("    }\n};\n", "    },\n\n") + _menu_line(label, on_help) + "};\n"
+        table_end = _MENU_TABLE_END.replace("    }\n};\n", "    },\n\n") + "".join(
+            _menu_line(MENU_LINES[option][0], texts.get(option, (0,) * len(MENU_LINES[option][2]))) for option in lines) + "};\n"
         source = _replace(source, _MENU_TABLE_END, table_end, OPTION_MENU_FILE)
-        source = _replace(source, _MENU_GET, _MENU_GET + "\n    case GAME_OPTION_FEM_SUPPORT_ANIM:\n"
-                          "        value = gPlaySt.config.unk41_6;\n\n        break;\n", OPTION_MENU_FILE)
-        files[OPTION_MENU_FILE] = _replace(source, _MENU_SET, _MENU_SET + "\n    case GAME_OPTION_FEM_SUPPORT_ANIM:\n"
-                                           "        gPlaySt.config.unk41_6 = newValue;\n\n        break;\n", OPTION_MENU_FILE)
+        source = _replace(source, _MENU_GET, _MENU_GET + "".join(
+            f"\n    case {MENU_LINES[o][0]}:\n        value = gPlaySt.config.{MENU_LINES[o][1]};\n\n        break;\n"
+            for o in lines), OPTION_MENU_FILE)
+        files[OPTION_MENU_FILE] = _replace(source, _MENU_SET, _MENU_SET + "".join(
+            f"\n    case {MENU_LINES[o][0]}:\n        gPlaySt.config.{MENU_LINES[o][1]} = newValue;\n\n        break;\n"
+            for o in lines), OPTION_MENU_FILE)
         start = "    gPlaySt.config.unk41_5 = 0;\n"
-        files[CONFIG_FILE] = _replace(current(CONFIG_FILE), start,
-                                      start + f"    gPlaySt.config.unk41_6 = {int(options.get('staffDance', 1))};"
-                                      " /* FE Maker: 1 staves on the map (ticket 43) */\n", CONFIG_FILE)
+        starts = {"noSupportAnimations": f"    gPlaySt.config.unk41_6 = {int(options.get('staffDance', 1))};"
+                                         " /* FE Maker: 1 staves on the map (ticket 43) */\n",
+                  "turnStartSave": f"    gPlaySt.config.unk43_4 = {int(options.get('turnSave', 0))};"
+                                   " /* FE Maker: 1 Resume goes back to the start of the turn */\n"}
+        files[CONFIG_FILE] = _replace(current(CONFIG_FILE), start, start + "".join(starts[o] for o in lines), CONFIG_FILE)
     return files
